@@ -237,7 +237,7 @@
     await browser.notifications.create(`fci-tab-${session.tabId}`, {
       type: "basic",
       iconUrl: browser.runtime.getURL("icons/icon.svg"),
-      title: "FirefoxChatImprover — điều kiện đã đạt",
+      title: "Firefox ChatAI Assistant — điều kiện đã đạt",
       message: `${session.runtime.originalTitle || session.title || session.url}
 Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     });
@@ -981,8 +981,8 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     if (!session) {
       return;
     }
-    void browser.windows.update(session.windowId, { focused: true }).catch(() => {});
-    void browser.tabs.update(tabId, { active: true }).catch(() => {});
+    void browser.windows.update(session.windowId, { focused: true }).catch(() => { });
+    void browser.tabs.update(tabId, { active: true }).catch(() => { });
     void clearNotification(tabId);
   });
 })();

@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "FirefoxChatImprover",
+  "name": "Firefox ChatAI Assistant",
   "version": "0.5.1",
   "description": "Private Firefox sidebar helper with independent multi-tab monitoring, target automation, per-tab alerts and activity logs.",
   "browser_specific_settings": {
     "gecko": {
-      "id": "firefox-chat-improver@duongtc.local",
+      "id": "firefox-chat-assistant@duongtc.local",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": [
@@ -26,7 +26,7 @@
     "*://*/*"
   ],
   "action": {
-    "default_title": "Mở và kích hoạt FirefoxChatImprover",
+    "default_title": "Mở và kích hoạt Firefox ChatAI Assistant",
     "default_icon": {
       "48": "icons/icon.svg",
       "96": "icons/icon.svg"
@@ -40,7 +40,7 @@
     ]
   },
   "sidebar_action": {
-    "default_title": "FirefoxChatImprover",
+    "default_title": "Firefox ChatAI Assistant",
     "default_panel": "sidebar/sidebar.html",
     "open_at_install": false
   },
