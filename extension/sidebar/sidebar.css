@@ -11,17 +11,22 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 290px; background: Canvas; color: CanvasText; }
-.app-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px; border-bottom: 1px solid var(--border); }
+.app-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.app-header > div { min-width: 0; }
 h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 0; font-size: 18px; }
 h2 { margin-bottom: 10px; font-size: 14px; }
-.eyebrow { margin-bottom: 4px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.eyebrow { margin: 0; overflow: hidden; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .035em; line-height: 1.15; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 main { display: grid; gap: 10px; padding: 10px; }
 .card { position: relative; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
-.status-pill { flex: none; padding: 4px 8px; border: 1px solid var(--border); border-radius: 999px; font-size: 11px; font-weight: 700; }
+.status-pill { display: inline-flex; flex: none; align-items: center; gap: 4px; min-height: 18px; padding: 1px 6px; overflow: hidden; border: 1px solid var(--border); border-radius: 999px; font-size: 10px; font-weight: 700; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.status-pill::before { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--muted); content: ""; }
 body[data-mode="active"] .status-pill { border-color: var(--active); color: var(--active); }
+body[data-mode="active"] .status-pill::before { background: var(--active); }
 body[data-mode="paused"] .status-pill { border-color: var(--paused); color: var(--paused); }
+body[data-mode="paused"] .status-pill::before { background: var(--paused); }
 body[data-mode="error"] .status-pill { border-color: var(--error); color: var(--error); }
+body[data-mode="error"] .status-pill::before { background: var(--error); }
 label { display: grid; gap: 4px; margin-bottom: 9px; color: var(--muted); font-size: 11px; font-weight: 650; }
 input, select, textarea { width: 100%; min-width: 0; padding: 7px 8px; border: 1px solid var(--border); border-radius: 6px; background: Field; color: FieldText; font: inherit; font-weight: 400; }
 textarea { resize: vertical; }
@@ -127,6 +132,7 @@ body[data-alert="active"] .status-pill {
   color: var(--error);
   animation: fci-sidebar-pulse 1s ease-in-out infinite alternate;
 }
+body[data-alert="active"] .status-pill::before { background: var(--error); }
 @keyframes fci-sidebar-pulse {
   from { transform: scale(1); }
   to { transform: scale(1.04); }

@@ -127,3 +127,12 @@ Phase tiếp theo: **Phase 06 — Native Messaging Host và chạy shell local**
 
 Tài liệu chi tiết: `document/PHASE_05_V0_5_1_SELECTOR_PREVIEW_HELP_TOOLTIPS.md`.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE05_V051_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE05_V052_BEGIN -->
+### Phase 05 v0.5.2 — compact header/status
+
+Header sidebar được thu gọn thành một hàng thấp, giữ nguyên tên add-on do local tùy chỉnh. Status được hiển thị bằng chip nhỏ có chấm màu theo trạng thái, giảm padding và không chiếm thêm chiều cao nội dung.
+
+Tài liệu chi tiết: `document/PHASE_05_V0_5_2_COMPACT_HEADER_STATUS.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE05_V052_END -->
