@@ -21,6 +21,7 @@ python3 tests/test_phase07_security.py
 python3 tests/test_phase08_release_tooling.py
 node tests/test_phase09_alert_lifecycle.js
 node tests/test_phase09_sidebar_groups.js
+node tests/test_phase10_element_picker.js
 
 WEB_EXT_BIN="${ROOT}/.firefox-dev-tools/node_modules/.bin/web-ext"
 if [ -x "$WEB_EXT_BIN" ]; then
@@ -28,4 +29,4 @@ if [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-09 static, unit, integration-contract, security, release-tooling and alert lifecycle tests.\n'
+printf 'PASS: FirefoxChatImprover Phase 04-10 static, unit, integration-contract, security, release-tooling, alert lifecycle and element-picker tests.\n'

@@ -5,6 +5,7 @@
   const Settings = globalThis.FCI_SETTINGS;
   const TAB_SESSION_KEY = "firefoxChatImprover.tabSession.v2";
   const sessions = new Map();
+  const pickerStates = new Map();
   let storePromise = null;
   let recoveryPromise = null;
 
@@ -662,9 +663,116 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
         "content/monitor.js",
         "content/target.js",
         "content/alert.js",
+        "content/picker.js",
         "content/activation.js"
       ]
     });
+  }
+
+  function publicPickerState(tabId) {
+    const state = pickerStates.get(Number(tabId));
+    return state ? clone(state) : null;
+  }
+
+  async function startElementPicker(tabId, kind) {
+    if (!["monitor", "target"].includes(kind)) {
+      throw new Error("Loại element picker không hợp lệ.");
+    }
+    await ensureInteractiveTab(tabId);
+    const previous = pickerStates.get(tabId);
+    if (previous) {
+      try {
+        await browser.tabs.sendMessage(tabId, {
+          type: MESSAGE.CONTENT_CANCEL_ELEMENT_PICKER,
+          payload: { reason: "replaced" }
+        });
+      } catch (_error) {
+        // A stale picker context can be replaced safely.
+      }
+    }
+    const response = await browser.tabs.sendMessage(tabId, {
+      type: MESSAGE.CONTENT_START_ELEMENT_PICKER,
+      payload: { kind }
+    });
+    if (!response?.ok) {
+      throw new Error(response?.error || "Không thể bắt đầu element picker.");
+    }
+    const state = {
+      tabId,
+      kind,
+      status: "active",
+      startedAt: Settings.nowIso()
+    };
+    pickerStates.set(tabId, state);
+    return clone(state);
+  }
+
+  async function cancelElementPicker(tabId, reason = "sidebar-cancel") {
+    const existing = pickerStates.get(tabId);
+    if (!existing) {
+      return { tabId, status: "inactive", cancelled: false };
+    }
+    try {
+      await browser.tabs.sendMessage(tabId, {
+        type: MESSAGE.CONTENT_CANCEL_ELEMENT_PICKER,
+        payload: { reason }
+      });
+    } catch (_error) {
+      // Navigation may already have removed the picker runtime.
+    }
+    pickerStates.delete(tabId);
+    return { ...clone(existing), status: "inactive", cancelled: true, reason };
+  }
+
+  async function handleElementPickerResult(message, sender) {
+    const tabId = sender?.tab?.id;
+    if (!Number.isInteger(tabId)) {
+      throw new Error("Element picker result không có tabId hợp lệ.");
+    }
+    const activePicker = pickerStates.get(tabId);
+    if (!activePicker) {
+      return { ignored: true, reason: "no-active-picker" };
+    }
+    const payload = message.payload && typeof message.payload === "object" ? message.payload : {};
+    const kind = payload.kind === activePicker.kind ? activePicker.kind : null;
+    if (!kind) {
+      throw new Error("Element picker result không khớp phiên chọn đang hoạt động.");
+    }
+    pickerStates.delete(tabId);
+    const result = {
+      tabId,
+      kind,
+      cancelled: Boolean(payload.cancelled),
+      reason: String(payload.reason || ""),
+      selector: payload.selector || null,
+      css: String(payload.css || ""),
+      matchCount: Number(payload.matchCount) || 0,
+      strategy: String(payload.strategy || ""),
+      elementSummary: String(payload.elementSummary || ""),
+      completedAt: Settings.nowIso()
+    };
+    if (!result.cancelled) {
+      Settings.selectorToCss(result.selector);
+    }
+    const session = sessions.get(tabId);
+    if (session) {
+      appendLog(
+        session,
+        "user",
+        result.cancelled ? "element-picker-cancelled" : "element-picker-selected",
+        result.cancelled
+          ? `Đã hủy chọn ${kind === "monitor" ? "element theo dõi" : "target"}.`
+          : `Đã chọn ${kind === "monitor" ? "element theo dõi" : "target"}: ${result.css}`,
+        result
+      );
+      await persistSession(session);
+    }
+    try {
+      await browser.runtime.sendMessage({ type: MESSAGE.PICKER_RESULT, ...result });
+    } catch (_error) {
+      // Sidebar may be closed; the selected selector is intentionally not auto-saved.
+    }
+    return result;
   }
 
   async function testSelector(tabId, rawSelector, visibility = "any", rawConfig = null, kind = "selector") {
@@ -933,6 +1041,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     } catch (_error) {
       // Navigation or shutdown may remove the content context first.
     }
+    pickerStates.delete(tabId);
     sessions.delete(tabId);
     await removePersistedSession(tabId);
     await clearNotification(tabId);
@@ -1113,7 +1222,8 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       currentTab: tabMeta(tab),
       sessions: publicSessions,
       store,
-      nativeHost: nativeDashboardState()
+      nativeHost: nativeDashboardState(),
+      pickers: [...pickerStates.values()].map((state) => clone(state))
     };
   }
 
@@ -1195,6 +1305,20 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
           await importSettings(message.text);
           return { ok: true, dashboard: await dashboard() };
 
+        case MESSAGE.START_ELEMENT_PICKER:
+          return {
+            ok: true,
+            picker: await startElementPicker(Number(message.tabId), message.kind),
+            dashboard: await dashboard()
+          };
+
+        case MESSAGE.CANCEL_ELEMENT_PICKER:
+          return {
+            ok: true,
+            picker: await cancelElementPicker(Number(message.tabId), message.reason || "sidebar-cancel"),
+            dashboard: await dashboard()
+          };
+
         case MESSAGE.TEST_SELECTOR:
           return {
             ok: true,
@@ -1243,6 +1367,9 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
         case MESSAGE.CONTENT_RUNTIME_EVENT:
           return { ok: true, runtime: await updateRuntimeFromContent(message, sender) };
 
+        case MESSAGE.CONTENT_PICKER_RESULT:
+          return { ok: true, result: await handleElementPickerResult(message, sender) };
+
         default:
           return undefined;
       }
@@ -1280,6 +1407,8 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     MESSAGE.EXPORT_SETTINGS,
     MESSAGE.IMPORT_SETTINGS,
     MESSAGE.TEST_SELECTOR,
+    MESSAGE.START_ELEMENT_PICKER,
+    MESSAGE.CANCEL_ELEMENT_PICKER,
     MESSAGE.TEST_TARGET_ACTION,
     MESSAGE.CLEAR_HIGHLIGHTS,
     MESSAGE.CLEAR_SESSION_LOGS,
@@ -1287,7 +1416,8 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     MESSAGE.RUN_SHELL,
     MESSAGE.STOP_SHELL,
     MESSAGE.CLEAR_SHELL_OUTPUT,
-    MESSAGE.CONTENT_RUNTIME_EVENT
+    MESSAGE.CONTENT_RUNTIME_EVENT,
+    MESSAGE.CONTENT_PICKER_RESULT
   ]);
 
 
@@ -1307,6 +1437,8 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     MESSAGE.EXPORT_SETTINGS,
     MESSAGE.IMPORT_SETTINGS,
     MESSAGE.TEST_SELECTOR,
+    MESSAGE.START_ELEMENT_PICKER,
+    MESSAGE.CANCEL_ELEMENT_PICKER,
     MESSAGE.TEST_TARGET_ACTION,
     MESSAGE.CLEAR_HIGHLIGHTS,
     MESSAGE.CLEAR_SESSION_LOGS,
@@ -1317,9 +1449,9 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
   ]);
 
   function validateRequestSender(message, sender) {
-    if (message.type === MESSAGE.CONTENT_RUNTIME_EVENT) {
+    if ([MESSAGE.CONTENT_RUNTIME_EVENT, MESSAGE.CONTENT_PICKER_RESULT].includes(message.type)) {
       if (!Number.isInteger(sender?.tab?.id)) {
-        throw new Error("CONTENT_RUNTIME_EVENT chỉ được nhận từ content script trong một tab.");
+        throw new Error("Content event chỉ được nhận từ content script trong một tab.");
       }
       return;
     }
@@ -1380,6 +1512,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       }
     }
     shellRuns.delete(tabId);
+    pickerStates.delete(tabId);
     const timer = shellBroadcastTimers.get(tabId);
     if (timer) {
       clearTimeout(timer);

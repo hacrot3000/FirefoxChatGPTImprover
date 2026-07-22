@@ -173,7 +173,8 @@
             <code>visibility:hidden/collapse</code>, thuộc tính <code>hidden</code>, <code>visible=false</code>,
             <code>aria-hidden=true</code> hoặc không có vùng hiển thị.</p>
           <p>Có thể xóa hoặc tắt toàn bộ điều kiện attribute để chỉ theo dõi chuyển trạng thái ẩn/hiện.</p>
-          <p>Nút kiểm tra đánh dấu tất cả element khớp selector bằng viền cam; element đồng thời thỏa điều kiện
+          <p>Nút “Chọn trên trang” cho phép rê chuột để xem element, click để tự điền selector hoặc nhấn Esc để hủy.
+            Nút kiểm tra đánh dấu tất cả element khớp selector bằng viền cam; element đồng thời thỏa điều kiện
             attribute được đánh dấu bằng viền xanh.</p>
         </div>
       </details>
@@ -185,10 +186,11 @@
         <button id="addConditionButton" type="button" class="compact">+ Điều kiện</button>
       </div>
       <div id="conditionsList" class="condition-list"></div>
-      <div class="selector-test-row selector-test-row-bottom">
-        <button id="monitorTestButton" type="button">Kiểm tra selector và điều kiện</button>
-        <output id="monitorTestResult" class="selector-test-result" aria-live="polite"></output>
+      <div class="button-grid selector-picker-actions selector-test-row-bottom">
+        <button id="monitorPickerButton" type="button">Chọn trên trang</button>
+        <button id="monitorTestButton" type="button">Kiểm tra điều kiện</button>
       </div>
+      <output id="monitorTestResult" class="selector-test-result" aria-live="polite"></output>
     </section>
 
     <section class="card" data-group-id="target" aria-labelledby="targetHeading">
@@ -213,10 +215,11 @@
       </div>
       <label>Tên attribute<input id="targetAttributeName" type="text" placeholder="data-testid"></label>
       <label>Giá trị selector<input id="targetValue" type="text" placeholder="class-name hoặc CSS selector"></label>
-      <div class="selector-test-row">
+      <div class="button-grid selector-picker-actions">
+        <button id="targetPickerButton" type="button">Chọn trên trang</button>
         <button id="targetTestButton" type="button">Kiểm tra và highlight</button>
-        <output id="targetTestResult" class="selector-test-result"></output>
       </div>
+      <output id="targetTestResult" class="selector-test-result"></output>
       <div class="button-grid target-test-actions">
         <button id="targetDryRunTestButton" type="button">Dry-run target hiện tại</button>
         <button id="targetClickTestButton" type="button" class="danger">Click thử có xác nhận</button>
@@ -236,7 +239,8 @@
       <details class="help-menu">
         <summary aria-label="Trợ giúp target element" title="Trợ giúp">?</summary>
         <div class="help-popover" role="tooltip">
-          Khi kích hoạt hoặc khi monitor rời MATCHED, các target hiện có được lưu làm baseline và không bị click. Trong
+          Có thể dùng “Chọn trên trang”, rê chuột và click target cần lấy selector; nhấn Esc để hủy. Khi kích hoạt hoặc
+          khi monitor rời MATCHED, các target hiện có được lưu làm baseline và không bị click. Trong
           lúc MATCHED, chỉ target vượt baseline mới được xử lý. Dry-run vẫn đánh dấu target là đã xử lý trong chu kỳ để
           tránh lặp vô hạn.
         </div>

@@ -209,3 +209,11 @@ Cảnh báo nay được giữ chốt theo `alertCycle` cho đến khi người 
 
 Tài liệu: `document/PHASE_09_COLLAPSIBLE_GROUPS_LATCHED_ALERT_CYCLES.md`.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE09_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE10_BEGIN -->
+## Phase 10 — Element Picker trực quan
+
+Sidebar có nút **Chọn trên trang** riêng cho monitor và target. Rê chuột để xem element, click để tự điền selector hoặc nhấn `Esc` để hủy. Picker ưu tiên ID/attribute/class duy nhất và giữ trạng thái độc lập theo tab.
+
+Tài liệu: `document/PHASE_10_VISUAL_ELEMENT_PICKER.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE10_END -->

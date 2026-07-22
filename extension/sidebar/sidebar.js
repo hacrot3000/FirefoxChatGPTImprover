@@ -13,8 +13,8 @@
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"),
     profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"),
-    monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
-    targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
+    monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
+    targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), clearLogsButton: $("#clearLogsButton"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"),
@@ -34,6 +34,7 @@
   let busy = false;
   let activeTabRefreshSerial = 0;
   let collapsedGroups = {};
+  const pendingPickerResults = new Map();
 
   function showMessage(text = "", level = "info") {
     elements.messageBox.textContent = text;
@@ -218,6 +219,59 @@
     };
   }
 
+  function writeSelector(kind, selector) {
+    const normalized = selector && typeof selector === "object" ? selector : {};
+    elements[`${kind}Tag`].value = normalized.tag || "*";
+    elements[`${kind}Kind`].value = normalized.kind || "css";
+    elements[`${kind}AttributeName`].value = normalized.attributeName || "";
+    elements[`${kind}Value`].value = normalized.value || "";
+  }
+
+  function selectedPicker() {
+    const pickers = Array.isArray(dashboard.pickers) ? dashboard.pickers : [];
+    return pickers.find((picker) => Number(picker.tabId) === Number(selectedTabId)) || null;
+  }
+
+  function renderPickerButtons(currentIsSelected) {
+    const picker = selectedPicker();
+    for (const [kind, button] of [["monitor", elements.monitorPickerButton], ["target", elements.targetPickerButton]]) {
+      const active = picker?.kind === kind && picker?.status === "active";
+      button.dataset.pickerActive = active ? "true" : "false";
+      button.textContent = active ? "Hủy chọn (Esc)" : "Chọn trên trang";
+      button.disabled = busy || !currentIsSelected || Boolean(picker && !active);
+    }
+  }
+
+  function applyPickerResult(result) {
+    if (!result || !Number.isInteger(Number(result.tabId))) {
+      return;
+    }
+    const tabId = Number(result.tabId);
+    dashboard.pickers = (Array.isArray(dashboard.pickers) ? dashboard.pickers : [])
+      .filter((picker) => Number(picker.tabId) !== tabId);
+    if (Number(selectedTabId) !== tabId) {
+      pendingPickerResults.set(tabId, result);
+      return;
+    }
+    if (result.cancelled) {
+      showMessage("Đã hủy element picker.");
+      renderDetails(false);
+      return;
+    }
+    writeSelector(result.kind, result.selector);
+    const output = result.kind === "monitor" ? elements.monitorTestResult : elements.targetTestResult;
+    output.textContent = `Đã chọn ${result.elementSummary || result.css}; selector khớp ${result.matchCount || 0} element.`;
+    showMessage(`Đã điền selector ${result.kind === "monitor" ? "element theo dõi" : "target"}: ${result.css}`, "success");
+    renderDetails(false);
+  }
+
+  function applyPendingPickerResult() {
+    const result = pendingPickerResults.get(Number(selectedTabId));
+    if (!result) return;
+    pendingPickerResults.delete(Number(selectedTabId));
+    applyPickerResult(result);
+  }
+
   function readConditions() {
     return [...elements.conditionsList.querySelectorAll(".condition-row")].map((row) => ({
       enabled: row.querySelector('[data-field="enabled"]').checked,
@@ -384,6 +438,7 @@
     elements.assignProfileButton.disabled = busy || !session;
     elements.saveTabButton.disabled = busy || !session;
     elements.resetTabButton.disabled = busy || !session || session.configMode !== CONFIG_MODE.TAB;
+    renderPickerButtons(currentIsSelected);
     elements.monitorTestButton.disabled = busy || !currentIsSelected;
     elements.targetTestButton.disabled = busy || !currentIsSelected;
     elements.targetDryRunTestButton.disabled = busy || !currentIsSelected;
@@ -466,6 +521,52 @@
     }).finally(() => {
       setBusy(false);
     });
+  }
+
+  function toggleElementPicker(kind) {
+    const current = dashboard.currentTab;
+    if (!Number.isInteger(current?.tabId) || Number(current.tabId) !== Number(selectedTabId)) {
+      showMessage("Chỉ chọn element trên tab đang hiển thị hiện tại.", "error");
+      return;
+    }
+    const tabId = current.tabId;
+    const activePicker = selectedPicker();
+    if (activePicker?.kind === kind) {
+      setBusy(true);
+      void browser.runtime.sendMessage({
+        type: MESSAGE.CANCEL_ELEMENT_PICKER,
+        tabId,
+        reason: "sidebar-toggle"
+      }).then((response) => {
+        if (!response?.ok) throw new Error(response?.error || "Không thể hủy element picker.");
+        if (response.dashboard) render(response.dashboard, false, tabId);
+        showMessage("Đã hủy element picker.", "success");
+      }).catch((error) => {
+        showMessage(error instanceof Error ? error.message : String(error), "error");
+      }).finally(() => setBusy(false));
+      return;
+    }
+    const origin = hostPermissionPattern(current.url);
+    if (!origin) {
+      showMessage("Chỉ có thể chọn element trên trang HTTP hoặc HTTPS thông thường.", "error");
+      return;
+    }
+    const permissionRequest = browser.permissions.request({ origins: [origin] });
+    setBusy(true);
+    showMessage("Đang chuẩn bị element picker…");
+    void permissionRequest.then(async (granted) => {
+      if (!granted) throw new Error("Bạn chưa cấp quyền truy cập website này.");
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.START_ELEMENT_PICKER,
+        tabId,
+        kind
+      });
+      if (!response?.ok) throw new Error(response?.error || "Không thể bắt đầu element picker.");
+      if (response.dashboard) render(response.dashboard, false, tabId);
+      showMessage("Rê chuột trên trang, click element cần chọn; nhấn Esc để hủy.", "success");
+    }).catch((error) => {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    }).finally(() => setBusy(false));
   }
 
   function selectorTestStat(label, value, kind, empty = false) {
@@ -723,6 +824,7 @@ ${run.command || ""}`)) {
     selectedProfileId = session?.profileId || dashboard.store.defaultProfileId;
     elements.profileSelect.value = selectedProfileId;
     renderDetails(true);
+    applyPendingPickerResult();
   });
   elements.profileSelect.addEventListener("change", () => {
     selectedProfileId = elements.profileSelect.value;
@@ -731,7 +833,9 @@ ${run.command || ""}`)) {
     writeConfig(profile?.config || Settings.defaultConfig());
   });
   elements.addConditionButton.addEventListener("click", () => addConditionRow());
+  elements.monitorPickerButton.addEventListener("click", () => toggleElementPicker("monitor"));
   elements.monitorTestButton.addEventListener("click", () => testSelector("monitor"));
+  elements.targetPickerButton.addEventListener("click", () => toggleElementPicker("target"));
   elements.targetTestButton.addEventListener("click", () => testSelector("target"));
   elements.targetDryRunTestButton.addEventListener("click", () => testTargetAction(false));
   elements.targetClickTestButton.addEventListener("click", () => testTargetAction(true));
@@ -797,6 +901,10 @@ ${run.command || ""}`)) {
   });
 
   browser.runtime.onMessage.addListener((message) => {
+    if (message?.type === MESSAGE.PICKER_RESULT) {
+      applyPickerResult(message);
+      return undefined;
+    }
     if (message?.type !== MESSAGE.DASHBOARD_CHANGED) {
       return undefined;
     }
