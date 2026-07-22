@@ -32,24 +32,26 @@ const Protocol = context.FCI_PROTOCOL;
 const Alert = context.FCI_ALERT_ENGINE;
 
 const config = Settings.normalizeConfig({ alerts: { titleBlink: true } });
-assert.equal(Settings.SCHEMA_VERSION, 6);
+assert.equal(Settings.SCHEMA_VERSION, 7);
 assert.equal(config.alerts.titlePrefix, "⚠ AI READY");
 assert.equal(config.alerts.blinkIntervalMs, 700);
+assert.equal(config.alerts.dismissOnUserActivity, true);
+assert.equal(config.alerts.activeTabTimeoutSeconds, 10);
 assert(Protocol.VERSION >= 5);
 assert.equal(Protocol.MESSAGE.TEST_TARGET_ACTION, "FCI_TEST_TARGET_ACTION");
 
 assert.equal(Alert.shouldAlert(
-  { monitorState: Protocol.MONITOR_STATE.MATCHED },
+  { alertActive: true, monitorState: Protocol.MONITOR_STATE.WAITING },
   Protocol.MODE.ACTIVE,
   config
 ), true);
 assert.equal(Alert.shouldAlert(
-  { monitorState: Protocol.MONITOR_STATE.WAITING },
+  { alertActive: false, monitorState: Protocol.MONITOR_STATE.MATCHED },
   Protocol.MODE.ACTIVE,
   config
 ), false);
 assert.equal(Alert.shouldAlert(
-  { monitorState: Protocol.MONITOR_STATE.MATCHED },
+  { alertActive: true, monitorState: Protocol.MONITOR_STATE.MATCHED },
   Protocol.MODE.PAUSED,
   config
 ), false);

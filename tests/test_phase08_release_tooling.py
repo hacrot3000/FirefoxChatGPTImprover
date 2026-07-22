@@ -24,7 +24,8 @@ updates = load("generate_firefox_update_manifest", ROOT / "tools" / "generate_fi
 manifest = json.loads((ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))
 name, version, addon_id = release.validate_manifest(manifest)
 assert name == "Firefox ChatAI Assistant"
-assert version == "0.8.0"
+version_tuple = tuple(int(part) for part in version.split("."))
+assert version_tuple >= (0, 8, 0)
 assert addon_id == "firefox-chat-assistant@duongtc.local"
 assert manifest["browser_specific_settings"]["gecko"]["data_collection_permissions"]["required"] == ["none"]
 assert "update_url" not in manifest["browser_specific_settings"]["gecko"], "update_url must not be enabled before HTTPS hosting is ready"
@@ -47,7 +48,7 @@ with tempfile.TemporaryDirectory() as tmp:
     update_manifest = updates.build_update_manifest(
         addon_id=addon_id,
         version=version,
-        xpi_url="https://updates.example.invalid/firefox-chat-ai-assistant-0.8.0.xpi",
+        xpi_url=f"https://updates.example.invalid/firefox-chat-ai-assistant-{version}.xpi",
         sha256=checksum,
         strict_min_version="140.0",
     )

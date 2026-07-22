@@ -3,6 +3,7 @@
 
   const { MESSAGE, MODE, CONFIG_MODE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
+  const SIDEBAR_UI_STORAGE_KEY = "firefoxChatImprover.sidebarUi.v1";
   const $ = (selector) => document.querySelector(selector);
   const elements = {
     body: document.body,
@@ -14,7 +15,7 @@
     requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"),
     monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
     targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
-    titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"),
+    titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), clearLogsButton: $("#clearLogsButton"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"),
@@ -32,10 +33,73 @@
   let selectedProfileId = null;
   let busy = false;
   let activeTabRefreshSerial = 0;
+  let collapsedGroups = {};
 
   function showMessage(text = "", level = "info") {
     elements.messageBox.textContent = text;
     elements.messageBox.dataset.level = level;
+  }
+
+  function setGroupCollapsed(section, collapsed, persist = false) {
+    const groupId = section?.dataset?.groupId;
+    if (!groupId) {
+      return;
+    }
+    const value = Boolean(collapsed);
+    section.dataset.collapsed = value ? "true" : "false";
+    const toggle = section.querySelector(":scope > .group-heading .group-toggle");
+    if (toggle) {
+      toggle.textContent = value ? "▸" : "▾";
+      toggle.setAttribute("aria-expanded", value ? "false" : "true");
+      toggle.title = value ? "Hiện group" : "Ẩn group";
+      toggle.setAttribute("aria-label", `${value ? "Hiện" : "Ẩn"} group ${toggle.dataset.groupTitle || groupId}`);
+    }
+    collapsedGroups[groupId] = value;
+    if (persist) {
+      void browser.storage.local.set({
+        [SIDEBAR_UI_STORAGE_KEY]: { collapsedGroups: { ...collapsedGroups } }
+      });
+    }
+  }
+
+  async function initializeCollapsibleGroups() {
+    const result = await browser.storage.local.get(SIDEBAR_UI_STORAGE_KEY);
+    const stored = result?.[SIDEBAR_UI_STORAGE_KEY]?.collapsedGroups;
+    collapsedGroups = stored && typeof stored === "object" ? { ...stored } : {};
+
+    for (const section of document.querySelectorAll("section.card[data-group-id]")) {
+      const directChildren = [...section.children];
+      let headingRow = directChildren.find((child) =>
+        child.classList?.contains("section-title-row") && child.querySelector("h2")
+      );
+      const heading = headingRow?.querySelector("h2") || directChildren.find((child) => child.tagName === "H2");
+      if (!heading) {
+        continue;
+      }
+      if (!headingRow) {
+        headingRow = document.createElement("div");
+        headingRow.className = "section-title-row";
+        section.insertBefore(headingRow, heading);
+      }
+      headingRow.classList.add("group-heading");
+
+      const cluster = document.createElement("div");
+      cluster.className = "group-title-cluster";
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "compact group-toggle";
+      toggle.dataset.groupTitle = heading.textContent.trim();
+      if (heading.parentElement === headingRow) {
+        heading.replaceWith(cluster);
+      } else {
+        headingRow.append(cluster);
+      }
+      cluster.append(toggle, heading);
+      toggle.addEventListener("click", () => {
+        setGroupCollapsed(section, section.dataset.collapsed !== "true", true);
+      });
+      setGroupCollapsed(section, Boolean(collapsedGroups[section.dataset.groupId]));
+    }
   }
 
   function sessionById(tabId) {
@@ -137,6 +201,8 @@
     elements.badgeAlert.checked = value.alerts.badge;
     elements.sidebarAlert.checked = value.alerts.sidebar;
     elements.notificationAlert.checked = value.alerts.notification;
+    elements.dismissOnUserActivity.checked = value.alerts.dismissOnUserActivity;
+    elements.activeTabTimeoutSeconds.value = String(value.alerts.activeTabTimeoutSeconds);
     elements.workingDirectory.value = value.shell.workingDirectory;
     elements.shellCommand.value = value.shell.command;
     elements.shellMode.value = value.shell.mode;
@@ -190,7 +256,9 @@
         blinkIntervalMs: Number(elements.blinkIntervalMs.value),
         badge: elements.badgeAlert.checked,
         sidebar: elements.sidebarAlert.checked,
-        notification: elements.notificationAlert.checked
+        notification: elements.notificationAlert.checked,
+        dismissOnUserActivity: elements.dismissOnUserActivity.checked,
+        activeTabTimeoutSeconds: Number(elements.activeTabTimeoutSeconds.value)
       },
       shell: {
         workingDirectory: elements.workingDirectory.value,
@@ -286,7 +354,7 @@
     const runtime = session?.runtime || {};
     elements.body.dataset.mode = mode;
     const sidebarAlertEnabled = Boolean(session?.effectiveConfig?.alerts?.sidebar);
-    const alertActive = Boolean(runtime.alertActive || runtime.monitorState === "matched");
+    const alertActive = Boolean(runtime.alertActive);
     elements.body.dataset.alert = sidebarAlertEnabled && alertActive ? "active" : "inactive";
     elements.statusPill.textContent = sidebarAlertEnabled && alertActive ? "Đã đạt điều kiện" : (modeLabels[mode] || mode);
     elements.tabId.textContent = Number.isInteger(selectedTabId) ? String(selectedTabId) : "—";
@@ -298,7 +366,9 @@
     elements.monitorMatchedText.textContent = session ? String(runtime.monitorMatchedCount || 0) : "—";
     elements.monitorCycleText.textContent = session ? String(runtime.cycle || 0) : "—";
     elements.alertStateText.textContent = session
-      ? (runtime.alertActive ? `ACTIVE${runtime.titleBlinking ? " / title blink" : ""}` : "inactive")
+      ? (runtime.alertActive
+        ? `ACTIVE chu kỳ ${runtime.alertCycle || runtime.cycle || 0}${runtime.titleBlinking ? " / title blink" : ""}`
+        : (runtime.alertDismissReason ? `đã xác nhận (${runtime.alertDismissReason})` : "inactive"))
       : "—";
     elements.targetStateText.textContent = session ? (runtime.targetState || "disabled") : "—";
     elements.baselineCountText.textContent = session ? String(runtime.baselineCount || 0) : "—";
@@ -740,5 +810,7 @@ ${run.command || ""}`)) {
     return undefined;
   });
 
-  void request(MESSAGE.GET_DASHBOARD);
+  void initializeCollapsibleGroups().finally(() => {
+    void request(MESSAGE.GET_DASHBOARD);
+  });
 })();

@@ -175,3 +175,28 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 .shell-actions { margin-bottom: 8px; }
 .shell-output { min-height: 80px; max-height: 260px; margin: 0; padding: 8px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: color-mix(in srgb, Canvas 94%, #000 6%); color: CanvasText; font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .shell-output [data-stream="stderr"] { color: var(--error); }
+
+/* Phase 09: independently collapsible sidebar groups without extra vertical help text. */
+.group-heading { align-items: center; }
+.group-title-cluster { display: flex; min-width: 0; align-items: center; gap: 6px; }
+.group-title-cluster h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-toggle {
+  display: grid;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  place-items: center;
+}
+.group-toggle:hover,
+.group-toggle:focus-visible { color: LinkText; }
+.card[data-collapsed="true"] { padding-top: 8px; padding-bottom: 8px; }
+.card[data-collapsed="true"] > :not(.group-heading):not(.help-menu) { display: none !important; }
+.card[data-collapsed="true"] > .help-menu { display: none; }
+.card[data-collapsed="true"] .group-heading h2 { margin-bottom: 0; }
+.card[data-collapsed="true"].sticky-actions { bottom: 8px; }

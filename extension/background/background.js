@@ -428,10 +428,15 @@
       lastReason: null,
       lastTransition: null,
       alertActive: false,
+      alertCycle: 0,
       titleBlinking: false,
       originalTitle: "",
       displayedTitle: "",
       alertStartedAt: null,
+      alertAcknowledgedAt: null,
+      alertDismissReason: null,
+      lastUserActivityAt: null,
+      activeVisibleSince: null,
       lastAlertReason: null,
       lastEventAt: null
     };
@@ -527,7 +532,7 @@
       await applyBadge(session.tabId, "II", "#9a6700");
       return;
     }
-    if (session.mode === MODE.ACTIVE && session.runtime?.monitorState === MONITOR_STATE.MATCHED && config.alerts.badge) {
+    if (session.mode === MODE.ACTIVE && session.runtime?.alertActive && config.alerts.badge) {
       await applyBadge(session.tabId, "!", "#cf222e");
       return;
     }
@@ -806,12 +811,32 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     }
     appendLog(session, "debug", "runtime", session.runtime.lastReason || session.runtime.lastTargetAction || "runtime-update", incoming);
 
-    const enteredMatched = previous.monitorState !== MONITOR_STATE.MATCHED && session.runtime.monitorState === MONITOR_STATE.MATCHED;
-    const leftMatched = previous.monitorState === MONITOR_STATE.MATCHED && session.runtime.monitorState !== MONITOR_STATE.MATCHED;
+    const alertStarted = Boolean(session.runtime.alertActive) && (
+      !previous.alertActive || Number(session.runtime.alertCycle || 0) > Number(previous.alertCycle || 0)
+    );
+    const alertDismissed = Boolean(previous.alertActive) && !session.runtime.alertActive;
+    if (alertStarted) {
+      appendLog(
+        session,
+        "user",
+        "alert-started",
+        `Cảnh báo chu kỳ ${session.runtime.alertCycle || session.runtime.cycle || 0} đã bật.`,
+        { monitorState: session.runtime.monitorState, reason: session.runtime.lastAlertReason }
+      );
+    }
+    if (alertDismissed) {
+      appendLog(
+        session,
+        "user",
+        "alert-dismissed",
+        `Cảnh báo đã xác nhận: ${session.runtime.alertDismissReason || "unknown"}.`,
+        { acknowledgedAt: session.runtime.alertAcknowledgedAt }
+      );
+    }
     await updateBadge(session, store);
-    if (enteredMatched) {
+    if (alertStarted) {
       await showMatchedNotification(session, store);
-    } else if (leftMatched) {
+    } else if (alertDismissed) {
       await clearNotification(tabId);
     }
     await persistSession(session);

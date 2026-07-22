@@ -199,3 +199,13 @@ Tài liệu: `document/PHASE_08_RELEASE_INSTALL_UPDATE_ROLLBACK.md`.
 
 Phase baseline 00–08 đã hoàn tất. Phase tiếp theo là **Phase 09 — các nâng cấp tùy chọn**.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE08_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE09_BEGIN -->
+## Phase 09 — Group thu gọn và cảnh báo theo chu kỳ liên tục
+
+Mỗi group trong sidebar có thể ẩn/hiện độc lập; trạng thái UI được lưu riêng và không ảnh hưởng profile/tab config.
+
+Cảnh báo nay được giữ chốt theo `alertCycle` cho đến khi người dùng thao tác thật trong tab hoặc tab active liên tục đủ timeout cấu hình. Xác nhận cảnh báo không dừng monitor: add-on tiếp tục chờ condition trở về không đạt, re-arm baseline, rồi xử lý cycle tiếp theo khi condition đạt lại.
+
+Tài liệu: `document/PHASE_09_COLLAPSIBLE_GROUPS_LATCHED_ALERT_CYCLES.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE09_END -->

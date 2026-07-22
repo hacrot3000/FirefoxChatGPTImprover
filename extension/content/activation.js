@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  const INSTANCE_KEY = "__firefoxChatImproverRuntimeV5";
-  const RUNTIME_VERSION = 7;
+  const INSTANCE_KEY = "__firefoxChatImproverRuntimeV6";
+  const RUNTIME_VERSION = 8;
   const previousRuntime = globalThis[INSTANCE_KEY];
   if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
@@ -55,10 +55,15 @@
       lastReason: null,
       lastTransition: null,
       alertActive: false,
+      alertCycle: 0,
       titleBlinking: false,
       originalTitle: document.title || "",
       displayedTitle: document.title || "",
       alertStartedAt: null,
+      alertAcknowledgedAt: null,
+      alertDismissReason: null,
+      lastUserActivityAt: null,
+      activeVisibleSince: null,
       lastAlertReason: null,
       lastEventAt: null
     }
@@ -98,7 +103,23 @@
     };
   }
 
-  const alertController = AlertEngine.createAlertController();
+  function publishRuntimeEvent(runtime) {
+    state.runtime = { ...state.runtime, ...runtime };
+    state.updatedAt = runtime.lastEventAt || new Date().toISOString();
+    applyDocumentMarker();
+    void browser.runtime.sendMessage({
+      type: MESSAGE.CONTENT_RUNTIME_EVENT,
+      payload: { runtime: { ...state.runtime } }
+    }).catch(() => {
+      // Extension reload or tab shutdown can invalidate the runtime context.
+    });
+  }
+
+  const alertController = AlertEngine.createAlertController({
+    onRuntime(runtime) {
+      publishRuntimeEvent(runtime);
+    }
+  });
 
   function sendRuntimeEvent(runtime) {
     state.runtime = { ...state.runtime, ...runtime };
@@ -108,15 +129,7 @@
       state.mode,
       runtime.lastTransition || runtime.lastTargetAction || runtime.lastReason || "runtime"
     );
-    state.runtime = { ...state.runtime, ...alertRuntime };
-    state.updatedAt = runtime.lastEventAt || new Date().toISOString();
-    applyDocumentMarker();
-    void browser.runtime.sendMessage({
-      type: MESSAGE.CONTENT_RUNTIME_EVENT,
-      payload: { runtime: { ...state.runtime } }
-    }).catch(() => {
-      // Extension reload or tab shutdown can invalidate the runtime context.
-    });
+    publishRuntimeEvent({ ...state.runtime, ...alertRuntime, lastEventAt: runtime.lastEventAt });
   }
 
   const targetAutomation = TargetEngine.createTargetAutomation({ onRuntime: sendRuntimeEvent });

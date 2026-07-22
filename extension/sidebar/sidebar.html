@@ -17,7 +17,7 @@
   </header>
 
   <main>
-    <section class="card" aria-labelledby="tabsHeading">
+    <section class="card" data-group-id="tabs" aria-labelledby="tabsHeading">
       <div class="section-title-row">
         <h2 id="tabsHeading">Tab và session</h2>
         <button id="refreshButton" type="button" class="compact">Làm mới</button>
@@ -107,7 +107,7 @@
       </details>
     </section>
 
-    <section class="card" aria-labelledby="profileHeading">
+    <section class="card" data-group-id="profiles" aria-labelledby="profileHeading">
       <h2 id="profileHeading">Profile cấu hình</h2>
       <label>
         Profile
@@ -125,7 +125,7 @@
       </div>
     </section>
 
-    <section class="card" aria-labelledby="activationHeading">
+    <section class="card" data-group-id="activation" aria-labelledby="activationHeading">
       <h2 id="activationHeading">URL activation</h2>
       <label class="check-row">
         <input id="requireUrlMatch" type="checkbox">
@@ -137,7 +137,7 @@
       </label>
     </section>
 
-    <section class="card" aria-labelledby="monitorHeading">
+    <section class="card" data-group-id="monitor" aria-labelledby="monitorHeading">
       <h2 id="monitorHeading">Element theo dõi</h2>
       <div class="selector-grid">
         <label>Tag<select id="monitorTag">
@@ -191,7 +191,7 @@
       </div>
     </section>
 
-    <section class="card" aria-labelledby="targetHeading">
+    <section class="card" data-group-id="target" aria-labelledby="targetHeading">
       <h2 id="targetHeading">Target element mới</h2>
       <label class="check-row"><input id="targetEnabled" type="checkbox">Bật xử lý target mới khi monitor
         MATCHED</label>
@@ -243,7 +243,7 @@
       </details>
     </section>
 
-    <section class="card" aria-labelledby="alertsHeading">
+    <section class="card" data-group-id="alerts" aria-labelledby="alertsHeading">
       <h2 id="alertsHeading">Cảnh báo</h2>
       <div class="checks-grid">
         <label class="check-row"><input id="titleBlink" type="checkbox">Nhấp nháy title</label>
@@ -255,16 +255,21 @@
         <label>Nhãn trên title<input id="titlePrefix" type="text" placeholder="⚠ AI READY"></label>
         <label>Chu kỳ nhấp nháy (ms)<input id="blinkIntervalMs" type="number" min="250" max="5000" step="50"></label>
       </div>
+      <label class="check-row"><input id="dismissOnUserActivity" type="checkbox">Tắt cảnh báo khi có thao tác thật trong tab</label>
+      <label>Timeout dự phòng khi tab active liên tục (giây; 0 = tắt)
+        <input id="activeTabTimeoutSeconds" type="number" min="0" max="3600" step="1">
+      </label>
       <details class="help-menu">
         <summary aria-label="Trợ giúp cảnh báo" title="Trợ giúp">?</summary>
         <div class="help-popover" role="tooltip">
-          Cảnh báo được quản lý độc lập theo tab. Khi monitor rời MATCHED, pause hoặc stop, title gốc được khôi phục và
-          badge quay về trạng thái tab.
+          Cảnh báo được giữ theo từng chu kỳ cho đến khi có thao tác người dùng thật trong tab (pointer, phím, wheel hoặc touch),
+          hoặc tab hiển thị liên tục đủ số giây timeout. Việc xác nhận cảnh báo không dừng monitor. Monitor chỉ re-arm khi
+          element trở về trạng thái không đạt điều kiện, rồi chu kỳ MATCHED tiếp theo mới bật cảnh báo và xử lý target lại.
         </div>
       </details>
     </section>
 
-    <section class="card" aria-labelledby="activityHeading">
+    <section class="card" data-group-id="activity" aria-labelledby="activityHeading">
       <div class="section-title-row">
         <h2 id="activityHeading">Nhật ký hoạt động của tab</h2>
         <label class="inline-select">Kênh<select id="logChannel">
@@ -279,7 +284,7 @@
       </div>
     </section>
 
-    <section class="card" aria-labelledby="shellHeading">
+    <section class="card" data-group-id="shell" aria-labelledby="shellHeading">
       <div class="section-title-row">
         <h2 id="shellHeading">Shell command</h2>
         <span id="nativeHostStatus" class="native-status" data-state="offline">Native: chưa kiểm tra</span>
@@ -310,12 +315,12 @@
         <div class="help-popover" role="tooltip">
           <p><strong>Chạy nền</strong> stream riêng stdout/stderr vào khung output. <strong>Mở terminal</strong> phù hợp script cần nhập tương tác.</p>
           <p>Mỗi tab có một command session riêng. Nút Dừng chỉ gửi tín hiệu tới process group do tab này khởi chạy.</p>
-          <p>Native Host phải được cài/cập nhật bằng task <code>Firefox Add-on: Install/Update Native Host</code>.</p>
+          <p>Native Host được cài/cập nhật bằng <code>./native-host/install_host.sh</code>; workflow test chung vẫn dùng task Patch + Test.</p>
         </div>
       </details>
     </section>
 
-    <section class="card sticky-actions" aria-labelledby="saveHeading">
+    <section class="card sticky-actions" data-group-id="save" aria-labelledby="saveHeading">
       <h2 id="saveHeading">Lưu cấu hình</h2>
       <div class="button-grid">
         <button id="saveProfileButton" type="button" class="primary">Lưu vào profile</button>
