@@ -40,13 +40,16 @@ Content runtime có `shutdown()` và dọn monitor, target, title alert, highlig
 
 ## Chạy test tự động
 
-Từ VS Code Build Tasks chọn:
+VS Code chỉ giữ hai workflow patch chính:
 
 ```text
-Firefox Add-on: Test
+Patchs: Run Python Patch
+Patchs: Run Python Patch + Test
 ```
 
-Hoặc:
+Task thứ hai chạy `./tools/run_python_patches.sh && ./tools/test_firefox_addon.sh`, nên test chỉ bắt đầu khi patch hoàn tất thành công. Từ các phase sau, test mới phải được thêm vào `tools/test_firefox_addon.sh` thay vì tạo task riêng theo phase.
+
+Có thể chạy test độc lập bằng:
 
 ```bash
 ./tools/test_firefox_addon.sh
@@ -56,10 +59,10 @@ Nếu `web-ext` đã được cài, script chạy luôn `web-ext lint`. Nếu ch
 
 ## DOM fixture
 
-Chọn Build Task:
+DOM fixture không chiếm một mục trong Build Tasks. Khi cần kiểm tra thủ công, chạy:
 
-```text
-Firefox Add-on: Phase 07 DOM Fixture
+```bash
+./tools/run_phase07_fixture.sh
 ```
 
 Sau đó mở:

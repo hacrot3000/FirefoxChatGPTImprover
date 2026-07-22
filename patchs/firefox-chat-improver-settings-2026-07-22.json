@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 6,
+  "revision": 9,
+  "defaultProfileId": "default",
+  "profiles": [
+    {
+      "id": "default",
+      "name": "Mặc định",
+      "createdAt": "2026-07-22T11:49:37.560Z",
+      "updatedAt": "2026-07-22T13:28:49.758Z",
+      "config": {
+        "activation": {
+          "requireUrlMatch": false,
+          "urlPatterns": []
+        },
+        "monitor": {
+          "selector": {
+            "tag": "button",
+            "kind": "class",
+            "value": "composer-submit-button-color text-submit-btn-text",
+            "attributeName": ""
+          },
+          "visibilityTransition": "none",
+          "conditionJoin": "all",
+          "conditions": [
+            {
+              "enabled": true,
+              "attribute": "aria-label",
+              "operator": "contains",
+              "value": "Start Voice",
+              "caseSensitive": true
+            }
+          ]
+        },
+        "target": {
+          "enabled": true,
+          "selector": {
+            "tag": "button",
+            "kind": "class",
+            "value": "behavior-btn entity-underline cursor-pointer appearance-none align-baseline",
+            "attributeName": ""
+          },
+          "clickStrategy": "newest",
+          "visibleOnly": true,
+          "enabledOnly": true,
+          "dryRun": true,
+          "maxClicksPerCycle": 1,
+          "fingerprintAttributes": [
+            "data-message-id",
+            "data-testid",
+            "id",
+            "href",
+            "aria-label"
+          ]
+        },
+        "alerts": {
+          "titleBlink": true,
+          "titlePrefix": "⚠ AI READY",
+          "blinkIntervalMs": 700,
+          "badge": true,
+          "sidebar": true,
+          "notification": true
+        },
+        "shell": {
+          "workingDirectory": "",
+          "command": "",
+          "mode": "terminal",
+          "confirmBeforeRun": true
+        }
+      }
+    }
+  ]
+}

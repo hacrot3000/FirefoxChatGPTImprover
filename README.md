@@ -142,13 +142,15 @@ Tài liệu chi tiết: `document/PHASE_05_V0_5_2_COMPACT_HEADER_STATUS.md`.
 
 Đã bổ sung Python Native Messaging Host, command session riêng theo `tabId`, stream stdout/stderr, mở terminal tương tác và stop process group đúng run ID.
 
-Các Build Task mới:
+Để tránh làm rối VS Code Build Tasks, các thao tác ít dùng của Native Host không có menu riêng. Khi cần, chạy trực tiếp:
 
-- `Firefox Add-on: Install/Update Native Host`;
-- `Firefox Add-on: Uninstall Native Host`;
-- `Firefox Add-on: Test Native Host`.
+```bash
+./native-host/install_native_host.sh
+./native-host/uninstall_native_host.sh
+python3 ./native-host/native_host.py --self-test
+```
 
-Sau khi áp dụng patch, cần chạy task Install/Update Native Host rồi reload development add-on.
+Sau khi cài/cập nhật Native Host, reload development add-on.
 
 Tài liệu: `document/PHASE_06_NATIVE_MESSAGING_SHELL.md`.
 
@@ -157,16 +159,23 @@ Phase tiếp theo: **Phase 07 — kiểm thử integration và hardening**.
 
 ## Phase 07 — Test và hardening
 
-Chạy toàn bộ test:
+Workflow VS Code được giữ gọn và dùng chung cho mọi phase:
+
+- `Patchs: Run Python Patch` — chỉ áp dụng patch;
+- `Patchs: Run Python Patch + Test` — áp dụng patch thành công rồi chạy toàn bộ test hiện hành.
+
+Mỗi phase mới chỉ bổ sung test vào `tools/test_firefox_addon.sh`; không tạo thêm task theo phase. Có thể chạy test riêng bằng:
 
 ```bash
 ./tools/test_firefox_addon.sh
 ```
 
-Mở DOM fixture:
+DOM fixture và các công cụ kiểm tra chuyên biệt vẫn tồn tại nhưng chạy trực tiếp khi thật sự cần:
 
 ```bash
 ./tools/run_phase07_fixture.sh
 ```
+
+Gói patch từ Phase 07 v0.7.1 trở đi chỉ chứa script `patch_*.py` và resource thật sự cần thiết; không đính kèm lại file source không thay đổi.
 
 Chi tiết: `document/PHASE_07_TEST_HARDENING.md`.
