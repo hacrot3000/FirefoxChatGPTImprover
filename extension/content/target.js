@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_TARGET_ENGINE?.VERSION >= 1) {
+  if (globalThis.FCI_TARGET_ENGINE?.VERSION >= 2) {
     return;
   }
 
@@ -96,7 +96,7 @@
     }
   }
 
-  function highlightAction(elements, dryRun, durationMs = 8000) {
+  function highlightAction(elements, dryRun, durationMs = 8000, context = "automation") {
     clearActionHighlights();
     if (!elements.length) {
       return;
@@ -125,9 +125,13 @@
 
     const toast = document.createElement("div");
     toast.id = ACTION_TOAST_ID;
-    toast.textContent = dryRun
-      ? `FirefoxChatImprover dry-run: đánh dấu ${elements.length} target mới, chưa click.`
-      : `FirefoxChatImprover: đã click ${elements.length} target mới.`;
+    toast.textContent = context === "test"
+      ? (dryRun
+        ? `FirefoxChatImprover test: đánh dấu ${elements.length} target hiện tại, chưa click.`
+        : `FirefoxChatImprover test: đã click ${elements.length} target hiện tại.`)
+      : (dryRun
+        ? `FirefoxChatImprover dry-run: đánh dấu ${elements.length} target mới, chưa click.`
+        : `FirefoxChatImprover: đã click ${elements.length} target mới.`);
     Object.assign(toast.style, {
       position: "fixed",
       zIndex: "2147483647",
@@ -165,6 +169,43 @@
       }
       style.remove();
       toast.remove();
+    };
+  }
+
+  function testTargetAction(rawConfig, options = {}) {
+    const config = Settings.normalizeConfig(rawConfig);
+    const click = Boolean(options.click);
+    const durationMs = Number(options.durationMs || 8000);
+    const css = Settings.selectorToCss(config.target.selector);
+    const all = [...document.querySelectorAll(css)];
+    const eligible = all.filter((element) => {
+      const visibleOk = !config.target.visibleOnly || MonitorEngine.inspectVisibility(element).visible;
+      const enabledOk = !config.target.enabledOnly || elementEnabled(element);
+      return visibleOk && enabledOk;
+    });
+    const limit = Math.max(1, Math.min(config.target.maxClicksPerCycle, eligible.length || 1));
+    let selected;
+    if (config.target.clickStrategy === "oldest") {
+      selected = eligible.slice(0, limit);
+    } else if (config.target.clickStrategy === "all") {
+      selected = eligible.slice(0, limit);
+    } else {
+      selected = eligible.slice(Math.max(0, eligible.length - limit));
+    }
+
+    if (click) {
+      for (const element of selected) {
+        element.click();
+      }
+    }
+    highlightAction(selected, !click, durationMs, "test");
+    return {
+      selector: css,
+      totalCount: all.length,
+      eligibleCount: eligible.length,
+      selectedCount: selected.length,
+      clicked: click,
+      durationMs
     };
   }
 
@@ -526,12 +567,13 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 1,
+      VERSION: 2,
       elementFingerprint,
       elementEnabled,
       fingerprintCounts,
       newSlotCount,
       clearActionHighlights,
+      testTargetAction,
       createTargetAutomation
     })
   });

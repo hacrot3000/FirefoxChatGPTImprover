@@ -8,4 +8,6 @@ find extension -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do
 done
 
 node tests/test_phase04_target_logic.js
+node tests/test_phase05_alert_logic.js
+node tests/test_phase05_selector_preview_logic.js
 printf 'PASS: FirefoxChatImprover static JavaScript and unit tests.\n'

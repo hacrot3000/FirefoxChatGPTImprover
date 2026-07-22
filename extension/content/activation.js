@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const INSTANCE_KEY = "__firefoxChatImproverRuntimeV4";
+  const INSTANCE_KEY = "__firefoxChatImproverRuntimeV5";
   if (globalThis[INSTANCE_KEY]) {
     return;
   }
@@ -9,6 +9,7 @@
   const { MESSAGE, MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const MonitorEngine = globalThis.FCI_MONITOR_ENGINE;
   const TargetEngine = globalThis.FCI_TARGET_ENGINE;
+  const AlertEngine = globalThis.FCI_ALERT_ENGINE;
   let state = {
     mode: MODE.INACTIVE,
     activatedAt: null,
@@ -48,6 +49,12 @@
       conditionMatched: false,
       lastReason: null,
       lastTransition: null,
+      alertActive: false,
+      titleBlinking: false,
+      originalTitle: document.title || "",
+      displayedTitle: document.title || "",
+      alertStartedAt: null,
+      lastAlertReason: null,
       lastEventAt: null
     }
   };
@@ -61,10 +68,12 @@
       root.dataset.firefoxChatImprover = state.mode;
       root.dataset.firefoxChatImproverProfile = state.profileId || "";
       root.dataset.firefoxChatImproverMonitor = state.runtime.monitorState || "";
+      root.dataset.firefoxChatImproverAlert = state.runtime.alertActive ? "active" : "inactive";
     } else {
       delete root.dataset.firefoxChatImprover;
       delete root.dataset.firefoxChatImproverProfile;
       delete root.dataset.firefoxChatImproverMonitor;
+      delete root.dataset.firefoxChatImproverAlert;
     }
   }
 
@@ -84,8 +93,17 @@
     };
   }
 
+  const alertController = AlertEngine.createAlertController();
+
   function sendRuntimeEvent(runtime) {
     state.runtime = { ...state.runtime, ...runtime };
+    const alertRuntime = alertController.apply(
+      state.config,
+      state.runtime,
+      state.mode,
+      runtime.lastTransition || runtime.lastTargetAction || runtime.lastReason || "runtime"
+    );
+    state.runtime = { ...state.runtime, ...alertRuntime };
     state.updatedAt = runtime.lastEventAt || new Date().toISOString();
     applyDocumentMarker();
     void browser.runtime.sendMessage({
@@ -134,6 +152,10 @@
       targetAutomation.stop();
       monitor.stop();
     }
+    state.runtime = {
+      ...state.runtime,
+      ...alertController.apply(state.config, state.runtime, state.mode, "session-applied")
+    };
     applyDocumentMarker();
     return snapshot();
   }
@@ -146,17 +168,28 @@
     if (mode === MODE.PAUSED) {
       targetAutomation.pause();
       monitor.pause();
+      state.runtime = { ...state.runtime, ...alertController.apply(state.config, state.runtime, mode, "pause") };
     } else if (mode === MODE.ACTIVE) {
       targetAutomation.resume(state.config);
       monitor.resume(state.config);
+      state.runtime = { ...state.runtime, ...alertController.apply(state.config, state.runtime, mode, "resume") };
     } else {
       targetAutomation.stop();
       monitor.stop();
+      MonitorEngine.clearSelectorHighlights();
+      TargetEngine.clearActionHighlights();
       state.runtime.monitorState = MONITOR_STATE.IDLE;
+      state.runtime = { ...state.runtime, ...alertController.stop("stop") };
     }
 
     applyDocumentMarker();
     return snapshot();
+  }
+
+  function clearHighlights() {
+    MonitorEngine.clearSelectorHighlights();
+    TargetEngine.clearActionHighlights();
+    return { cleared: true, updatedAt: new Date().toISOString() };
   }
 
   browser.runtime.onMessage.addListener((message) => {
@@ -182,8 +215,11 @@
             ok: true,
             result: MonitorEngine.highlightSelector(
               message.payload?.selector,
-              message.payload?.visibility || "any",
-              message.payload?.durationMs || 8000
+              {
+                visibility: message.payload?.visibility || "any",
+                durationMs: message.payload?.durationMs || 8000,
+                monitorConfig: message.payload?.monitorConfig || null
+              }
             )
           });
         } catch (error) {
@@ -192,11 +228,31 @@
             error: error instanceof Error ? error.message : String(error)
           });
         }
+      case MESSAGE.CONTENT_TEST_TARGET_ACTION:
+        try {
+          return Promise.resolve({
+            ok: true,
+            result: TargetEngine.testTargetAction(
+              message.payload?.config || state.config,
+              {
+                click: Boolean(message.payload?.click),
+                durationMs: message.payload?.durationMs || 8000
+              }
+            )
+          });
+        } catch (error) {
+          return Promise.resolve({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      case MESSAGE.CONTENT_CLEAR_HIGHLIGHTS:
+        return Promise.resolve({ ok: true, result: clearHighlights() });
       default:
         return undefined;
     }
   });
 
-  globalThis[INSTANCE_KEY] = Object.freeze({ snapshot });
+  globalThis[INSTANCE_KEY] = Object.freeze({ snapshot, clearHighlights });
   applyDocumentMarker();
 })();

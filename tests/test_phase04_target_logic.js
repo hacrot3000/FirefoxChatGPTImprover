@@ -39,7 +39,8 @@ function mockElement(tag, attributes = {}, text = "") {
   };
 }
 
-assert(engine.VERSION === 1, "Target engine version phải là 1.");
+assert(engine.VERSION >= 1, "Target engine phải giữ tương thích Phase 04.");
+assert(typeof engine.testTargetAction === "function", "Phase 05 phải bổ sung hàm thử target action.");
 assert(engine.newSlotCount(3, 2, 0) === 1, "Một target vượt baseline phải tạo một slot mới.");
 assert(engine.newSlotCount(2, 2, 0) === 0, "React re-render cùng số lượng không được tạo candidate.");
 assert(engine.newSlotCount(4, 2, 1) === 1, "Target đã xử lý phải được trừ khỏi slot còn lại.");

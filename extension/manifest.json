@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "FirefoxChatImprover",
-  "version": "0.4.0",
-  "description": "Private Firefox sidebar helper with independent multi-tab sessions, visibility-transition monitoring and cycle-safe new-target automation.",
+  "version": "0.5.1",
+  "description": "Private Firefox sidebar helper with independent multi-tab monitoring, target automation, per-tab alerts and activity logs.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-improver@duongtc.local",
@@ -19,13 +19,18 @@
     "scripting",
     "storage",
     "tabs",
-    "sessions"
+    "sessions",
+    "notifications"
   ],
   "optional_host_permissions": [
     "*://*/*"
   ],
   "action": {
-    "default_title": "Mở và kích hoạt FirefoxChatImprover"
+    "default_title": "Mở và kích hoạt FirefoxChatImprover",
+    "default_icon": {
+      "48": "icons/icon.svg",
+      "96": "icons/icon.svg"
+    }
   },
   "background": {
     "scripts": [
@@ -38,5 +43,9 @@
     "default_title": "FirefoxChatImprover",
     "default_panel": "sidebar/sidebar.html",
     "open_at_install": false
+  },
+  "icons": {
+    "48": "icons/icon.svg",
+    "96": "icons/icon.svg"
   }
 }

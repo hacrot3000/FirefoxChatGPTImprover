@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 5) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 6) {
     return;
   }
 
-  const SCHEMA_VERSION = 5;
+  const SCHEMA_VERSION = 6;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
@@ -100,6 +100,8 @@
       },
       alerts: {
         titleBlink: true,
+        titlePrefix: "⚠ AI READY",
+        blinkIntervalMs: 700,
         badge: true,
         sidebar: true,
         notification: false
@@ -186,6 +188,8 @@
       },
       alerts: {
         titleBlink: safeBoolean(alerts.titleBlink, true),
+        titlePrefix: safeString(alerts.titlePrefix, defaults.alerts.titlePrefix).trim() || defaults.alerts.titlePrefix,
+        blinkIntervalMs: safeInteger(alerts.blinkIntervalMs, defaults.alerts.blinkIntervalMs, 250, 5000),
         badge: safeBoolean(alerts.badge, true),
         sidebar: safeBoolean(alerts.sidebar, true),
         notification: safeBoolean(alerts.notification, false)

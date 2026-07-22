@@ -110,6 +110,12 @@
       conditionMatched: false,
       lastReason: null,
       lastTransition: null,
+      alertActive: false,
+      titleBlinking: false,
+      originalTitle: "",
+      displayedTitle: "",
+      alertStartedAt: null,
+      lastAlertReason: null,
       lastEventAt: null
     };
   }
@@ -127,7 +133,8 @@
       configMode: CONFIG_MODE.PROFILE,
       tabConfig: null,
       configRevision: 1,
-      runtime: newRuntime()
+      runtime: newRuntime(),
+      logs: { user: [], debug: [] }
     };
   }
 
@@ -154,20 +161,86 @@
     }
   }
 
-  async function setBadge(tabId, mode) {
+  function normalizeLogs(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    return {
+      user: Array.isArray(source.user) ? source.user.slice(-80) : [],
+      debug: Array.isArray(source.debug) ? source.debug.slice(-120) : []
+    };
+  }
+
+  function appendLog(session, channel, event, message, detail = null) {
+    if (!session) {
+      return;
+    }
+    session.logs = normalizeLogs(session.logs);
+    const key = channel === "debug" ? "debug" : "user";
+    session.logs[key].push({
+      at: Settings.nowIso(),
+      event: String(event || "event"),
+      message: String(message || ""),
+      detail: detail === null || detail === undefined ? null : clone(detail)
+    });
+    const limit = key === "debug" ? 120 : 80;
+    if (session.logs[key].length > limit) {
+      session.logs[key].splice(0, session.logs[key].length - limit);
+    }
+  }
+
+  async function applyBadge(tabId, text, color = null) {
     if (!Number.isInteger(tabId)) {
       return;
     }
-    const badge = {
-      [MODE.ACTIVE]: { text: "ON", color: "#238636" },
-      [MODE.PAUSED]: { text: "II", color: "#9a6700" },
-      [MODE.ERROR]: { text: "!", color: "#cf222e" },
-      [MODE.INACTIVE]: { text: "", color: null }
-    }[mode] || { text: "", color: null };
-    await browser.action.setBadgeText({ tabId, text: badge.text });
-    if (badge.color) {
-      await browser.action.setBadgeBackgroundColor({ tabId, color: badge.color });
+    await browser.action.setBadgeText({ tabId, text });
+    if (color) {
+      await browser.action.setBadgeBackgroundColor({ tabId, color });
     }
+  }
+
+  async function updateBadge(session, store) {
+    if (!session) {
+      return;
+    }
+    const config = sessionConfig(session, store);
+    if (session.mode === MODE.ERROR) {
+      await applyBadge(session.tabId, "!", "#cf222e");
+      return;
+    }
+    if (session.mode === MODE.PAUSED) {
+      await applyBadge(session.tabId, "II", "#9a6700");
+      return;
+    }
+    if (session.mode === MODE.ACTIVE && session.runtime?.monitorState === MONITOR_STATE.MATCHED && config.alerts.badge) {
+      await applyBadge(session.tabId, "!", "#cf222e");
+      return;
+    }
+    if (session.mode === MODE.ACTIVE) {
+      await applyBadge(session.tabId, "ON", "#238636");
+      return;
+    }
+    await applyBadge(session.tabId, "", null);
+  }
+
+  async function clearNotification(tabId) {
+    try {
+      await browser.notifications.clear(`fci-tab-${tabId}`);
+    } catch (_error) {
+      // Notification may not exist.
+    }
+  }
+
+  async function showMatchedNotification(session, store) {
+    const config = sessionConfig(session, store);
+    if (!config.alerts.notification) {
+      return;
+    }
+    await browser.notifications.create(`fci-tab-${session.tabId}`, {
+      type: "basic",
+      iconUrl: browser.runtime.getURL("icons/icon.svg"),
+      title: "FirefoxChatImprover — điều kiện đã đạt",
+      message: `${session.runtime.originalTitle || session.title || session.url}
+Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
+    });
   }
 
   async function broadcast(reason, changedTabId = null) {
@@ -227,7 +300,8 @@
         ...tabMeta(tab),
         mode: content.mode,
         updatedAt: content.updatedAt || Settings.nowIso(),
-        runtime: { ...newRuntime(), ...(stored.runtime || {}), ...(content.runtime || {}) }
+        runtime: { ...newRuntime(), ...(stored.runtime || {}), ...(content.runtime || {}) },
+        logs: normalizeLogs(stored.logs)
       };
       if (!Settings.profileById(store, recovered.profileId)) {
         recovered.profileId = store.defaultProfileId;
@@ -235,11 +309,11 @@
         recovered.tabConfig = null;
       }
       sessions.set(tab.id, recovered);
-      await setBadge(tab.id, recovered.mode);
+      await updateBadge(recovered, store);
       return recovered;
     } catch (_error) {
       await removePersistedSession(tab.id);
-      await setBadge(tab.id, MODE.INACTIVE);
+      await applyBadge(tab.id, "", null);
       return null;
     }
   }
@@ -265,12 +339,13 @@
         "shared/settings.js",
         "content/monitor.js",
         "content/target.js",
+        "content/alert.js",
         "content/activation.js"
       ]
     });
   }
 
-  async function testSelector(tabId, rawSelector, visibility = "any") {
+  async function testSelector(tabId, rawSelector, visibility = "any", rawConfig = null, kind = "selector") {
     const tab = await browser.tabs.get(tabId);
     const active = await currentTab();
     if (!Number.isInteger(active?.id) || active.id !== tabId) {
@@ -292,13 +367,85 @@
       payload: {
         selector: rawSelector,
         visibility,
-        durationMs: 8000
+        durationMs: 8000,
+        monitorConfig: kind === "monitor" && rawConfig
+          ? Settings.normalizeConfig(rawConfig).monitor
+          : null
       }
     });
     if (!response?.ok) {
       throw new Error(response?.error || "Không thể kiểm tra selector.");
     }
     return response.result;
+  }
+
+  async function ensureInteractiveTab(tabId) {
+    const tab = await browser.tabs.get(tabId);
+    const active = await currentTab();
+    if (!Number.isInteger(active?.id) || active.id !== tabId) {
+      throw new Error("Chỉ thao tác thử trên tab đang hiển thị hiện tại.");
+    }
+    if (!isSupportedUrl(tab.url)) {
+      throw new Error("Chỉ có thể thao tác trên trang HTTP hoặc HTTPS thông thường.");
+    }
+    const origin = hostPermissionPattern(tab.url);
+    const granted = origin && await browser.permissions.contains({ origins: [origin] });
+    if (!granted) {
+      throw new Error("Firefox chưa cấp quyền truy cập website hiện tại.");
+    }
+    await ensureContentScripts(tabId);
+    return tab;
+  }
+
+  async function testTargetAction(tabId, rawConfig, click = false) {
+    await ensureInteractiveTab(tabId);
+    const response = await browser.tabs.sendMessage(tabId, {
+      type: MESSAGE.CONTENT_TEST_TARGET_ACTION,
+      payload: {
+        config: Settings.normalizeConfig(rawConfig),
+        click: Boolean(click),
+        durationMs: 8000
+      }
+    });
+    if (!response?.ok) {
+      throw new Error(response?.error || "Không thể thử target action.");
+    }
+    const session = sessions.get(tabId);
+    if (session) {
+      appendLog(
+        session,
+        "user",
+        click ? "target-test-click" : "target-test-dry-run",
+        click
+          ? `Đã click thử ${response.result.selectedCount} target hiện tại.`
+          : `Đã highlight thử ${response.result.selectedCount} target hiện tại.`,
+        response.result
+      );
+      await persistSession(session);
+    }
+    await broadcast("target-test", tabId);
+    return response.result;
+  }
+
+  async function clearHighlights(tabId) {
+    await ensureInteractiveTab(tabId);
+    const response = await browser.tabs.sendMessage(tabId, {
+      type: MESSAGE.CONTENT_CLEAR_HIGHLIGHTS
+    });
+    if (!response?.ok) {
+      throw new Error(response?.error || "Không thể xóa highlight.");
+    }
+    return response.result;
+  }
+
+  async function clearSessionLogs(tabId) {
+    const session = sessions.get(tabId);
+    if (!session) {
+      throw new Error("Tab này chưa được kích hoạt.");
+    }
+    session.logs = { user: [], debug: [] };
+    await persistSession(session);
+    await broadcast("logs-cleared", tabId);
   }
 
   async function updateRuntimeFromContent(message, sender) {
@@ -310,8 +457,46 @@
     if (!session) {
       return null;
     }
-    session.runtime = { ...session.runtime, ...(message.payload?.runtime || {}) };
+    const store = await loadStore();
+    const previous = { ...session.runtime };
+    const incoming = message.payload?.runtime || {};
+    session.runtime = { ...session.runtime, ...incoming };
     session.updatedAt = session.runtime.lastEventAt || Settings.nowIso();
+
+    if (previous.monitorState !== session.runtime.monitorState) {
+      appendLog(
+        session,
+        "user",
+        "monitor-state",
+        `Monitor ${previous.monitorState || "unknown"} → ${session.runtime.monitorState || "unknown"}`,
+        { cycle: session.runtime.cycle, reason: session.runtime.lastReason }
+      );
+    }
+    if (session.runtime.lastTransition && session.runtime.lastTransition !== previous.lastTransition) {
+      appendLog(session, "debug", "monitor-transition", session.runtime.lastTransition, incoming);
+    }
+    if (session.runtime.lastTargetAction && session.runtime.lastTargetAction !== previous.lastTargetAction) {
+      appendLog(
+        session,
+        session.runtime.lastTargetAction.startsWith("click:") || session.runtime.lastTargetAction.startsWith("dry-run:") ? "user" : "debug",
+        "target-action",
+        session.runtime.lastTargetAction,
+        { clicked: session.runtime.clickedCount, dryRun: session.runtime.dryRunCount }
+      );
+    }
+    if (session.runtime.lastTargetError && session.runtime.lastTargetError !== previous.lastTargetError) {
+      appendLog(session, "user", "target-error", session.runtime.lastTargetError);
+    }
+    appendLog(session, "debug", "runtime", session.runtime.lastReason || session.runtime.lastTargetAction || "runtime-update", incoming);
+
+    const enteredMatched = previous.monitorState !== MONITOR_STATE.MATCHED && session.runtime.monitorState === MONITOR_STATE.MATCHED;
+    const leftMatched = previous.monitorState === MONITOR_STATE.MATCHED && session.runtime.monitorState !== MONITOR_STATE.MATCHED;
+    await updateBadge(session, store);
+    if (enteredMatched) {
+      await showMatchedNotification(session, store);
+    } else if (leftMatched) {
+      await clearNotification(tabId);
+    }
     await persistSession(session);
     await broadcast("runtime-updated", tabId);
     return clone(session.runtime);
@@ -354,9 +539,10 @@
 
     const session = makeSession(tab, profile.id, source);
     await applySessionToContent(session, store, MESSAGE.CONTENT_ACTIVATE);
+    appendLog(session, "user", "activated", `Đã kích hoạt tab bằng ${source}.`, { url: tab.url, profileId: profile.id });
     sessions.set(tab.id, session);
     await persistSession(session);
-    await setBadge(tab.id, MODE.ACTIVE);
+    await updateBadge(session, store);
     await broadcast("activated", tab.id);
     return publicSession(session, store);
   }
@@ -372,8 +558,11 @@
     session.mode = MODE.PAUSED;
     session.updatedAt = response?.updatedAt || Settings.nowIso();
     session.runtime = { ...session.runtime, ...(response?.runtime || {}), monitorState: MONITOR_STATE.PAUSED };
+    appendLog(session, "user", "paused", "Đã tạm dừng theo dõi tab.");
+    const store = await loadStore();
     await persistSession(session);
-    await setBadge(tabId, MODE.PAUSED);
+    await clearNotification(tabId);
+    await updateBadge(session, store);
     await broadcast("paused", tabId);
   }
 
@@ -388,8 +577,10 @@
     session.mode = MODE.ACTIVE;
     session.updatedAt = response?.updatedAt || Settings.nowIso();
     session.runtime = { ...session.runtime, ...(response?.runtime || {}), monitorState: MONITOR_STATE.IDLE };
+    appendLog(session, "user", "resumed", "Đã tiếp tục theo dõi tab và lập baseline mới.");
+    const store = await loadStore();
     await persistSession(session);
-    await setBadge(tabId, MODE.ACTIVE);
+    await updateBadge(session, store);
     await broadcast("resumed", tabId);
   }
 
@@ -402,7 +593,8 @@
     }
     sessions.delete(tabId);
     await removePersistedSession(tabId);
-    await setBadge(tabId, MODE.INACTIVE);
+    await clearNotification(tabId);
+    await applyBadge(tabId, "", null);
     await broadcast("stopped", tabId);
     return {
       ...tabMeta(fallbackTab || { id: tabId }),
@@ -431,6 +623,7 @@
     session.configRevision += 1;
     await applySessionToContent(session, store);
     await persistSession(session);
+    await updateBadge(session, store);
     await broadcast("profile-assigned", tabId);
   }
 
@@ -452,6 +645,7 @@
     session.configRevision += 1;
     await applySessionToContent(session, store);
     await persistSession(session);
+    await updateBadge(session, store);
     await broadcast("tab-config-saved", tabId);
   }
 
@@ -466,6 +660,7 @@
     session.configRevision += 1;
     await applySessionToContent(session, store);
     await persistSession(session);
+    await updateBadge(session, store);
     await broadcast("tab-config-reset", tabId);
   }
 
@@ -478,10 +673,11 @@
       try {
         await applySessionToContent(session, store);
         await persistSession(session);
+        await updateBadge(session, store);
       } catch (error) {
         session.mode = MODE.ERROR;
         session.error = error instanceof Error ? error.message : String(error);
-        await setBadge(session.tabId, MODE.ERROR);
+        await updateBadge(session, store);
       }
     }
   }
@@ -538,6 +734,7 @@
         session.configRevision += 1;
         await applySessionToContent(session, saved);
         await persistSession(session);
+        await updateBadge(session, saved);
       }
     }
     await broadcast("profile-deleted");
@@ -556,6 +753,7 @@
       session.configRevision += 1;
       await applySessionToContent(session, saved);
       await persistSession(session);
+      await updateBadge(session, saved);
     }
     await broadcast("settings-imported");
     return saved;
@@ -660,9 +858,32 @@
             result: await testSelector(
               Number(message.tabId),
               message.selector,
-              message.visibility || "any"
+              message.visibility || "any",
+              message.config || null,
+              message.kind || "selector"
             )
           };
+
+        case MESSAGE.TEST_TARGET_ACTION:
+          return {
+            ok: true,
+            result: await testTargetAction(
+              Number(message.tabId),
+              message.config,
+              Boolean(message.click)
+            ),
+            dashboard: await dashboard()
+          };
+
+        case MESSAGE.CLEAR_HIGHLIGHTS:
+          return {
+            ok: true,
+            result: await clearHighlights(Number(message.tabId))
+          };
+
+        case MESSAGE.CLEAR_SESSION_LOGS:
+          await clearSessionLogs(Number(message.tabId));
+          return { ok: true, dashboard: await dashboard() };
 
         case MESSAGE.CONTENT_RUNTIME_EVENT:
           return { ok: true, runtime: await updateRuntimeFromContent(message, sender) };
@@ -681,7 +902,7 @@
     });
     void activateTab(tab, "toolbar").catch(async (error) => {
       if (Number.isInteger(tab?.id)) {
-        await setBadge(tab.id, MODE.ERROR);
+        await applyBadge(tab.id, "!", "#cf222e");
       }
       await broadcast("activation-error", tab?.id || null);
       console.error("FirefoxChatImprover: activation failed", error);
@@ -704,6 +925,9 @@
     MESSAGE.EXPORT_SETTINGS,
     MESSAGE.IMPORT_SETTINGS,
     MESSAGE.TEST_SELECTOR,
+    MESSAGE.TEST_TARGET_ACTION,
+    MESSAGE.CLEAR_HIGHLIGHTS,
+    MESSAGE.CLEAR_SESSION_LOGS,
     MESSAGE.CONTENT_RUNTIME_EVENT
   ]);
 
@@ -726,7 +950,7 @@
       void stopTab(tabId, tab);
       return;
     }
-    if (typeof changeInfo.title === "string") {
+    if (typeof changeInfo.title === "string" && !session.runtime?.alertActive) {
       session.title = changeInfo.title;
       session.updatedAt = Settings.nowIso();
       void persistSession(session);
@@ -743,6 +967,22 @@
       return;
     }
     sessions.delete(tabId);
+    void clearNotification(tabId);
     void broadcast("tab-removed", tabId);
+  });
+
+  browser.notifications.onClicked.addListener((notificationId) => {
+    const match = /^fci-tab-(\d+)$/.exec(notificationId);
+    if (!match) {
+      return;
+    }
+    const tabId = Number(match[1]);
+    const session = sessions.get(tabId);
+    if (!session) {
+      return;
+    }
+    void browser.windows.update(session.windowId, { focused: true }).catch(() => {});
+    void browser.tabs.update(tabId, { active: true }).catch(() => {});
+    void clearNotification(tabId);
   });
 })();

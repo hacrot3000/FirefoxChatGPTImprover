@@ -1,14 +1,18 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_MONITOR_ENGINE?.VERSION >= 2) {
+  if (globalThis.FCI_MONITOR_ENGINE?.VERSION >= 3) {
     return;
   }
 
   const Settings = globalThis.FCI_SETTINGS;
   const { MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const HIGHLIGHT_VISIBLE_ATTR = "data-fci-selector-highlight";
-  const HIGHLIGHT_HIDDEN_ATTR = "data-fci-hidden-match-anchor";
+  const HIGHLIGHT_HIDDEN_ATTR = "data-fci-hidden-selector-anchor";
+  const HIGHLIGHT_CANDIDATE_ATTR = "data-fci-selector-candidate";
+  const HIGHLIGHT_MATCHED_ATTR = "data-fci-selector-condition-match";
+  const HIGHLIGHT_HIDDEN_CANDIDATE_ATTR = "data-fci-hidden-selector-candidate-anchor";
+  const HIGHLIGHT_HIDDEN_MATCHED_ATTR = "data-fci-hidden-selector-condition-match-anchor";
   const HIGHLIGHT_STYLE_ID = "fci-selector-highlight-style";
   const HIGHLIGHT_TOAST_ID = "fci-selector-highlight-toast";
   let activeHighlightCleanup = null;
@@ -113,9 +117,9 @@
     }
   }
 
-  function elementMatchesMonitor(element, monitorConfig) {
-    const visibility = inspectVisibility(element);
-    const enabledConditions = monitorConfig.conditions.filter((condition) => condition.enabled);
+  function evaluateAttributeConditions(element, monitorConfig) {
+    const conditions = Array.isArray(monitorConfig?.conditions) ? monitorConfig.conditions : [];
+    const enabledConditions = conditions.filter((condition) => condition.enabled);
     const conditionResults = enabledConditions.map((condition) => {
       try {
         return compareCondition(element, condition);
@@ -124,16 +128,27 @@
       }
     });
     const conditionsMatched = conditionResults.length === 0 || (
-      monitorConfig.conditionJoin === "any"
+      monitorConfig?.conditionJoin === "any"
         ? conditionResults.some(Boolean)
         : conditionResults.every(Boolean)
     );
+    return {
+      enabledConditionCount: enabledConditions.length,
+      conditionsMatched,
+      conditionResults
+    };
+  }
+
+  function elementMatchesMonitor(element, monitorConfig) {
+    const visibility = inspectVisibility(element);
+    const conditionEvaluation = evaluateAttributeConditions(element, monitorConfig);
 
     return {
-      matched: conditionsMatched,
-      conditionsMatched,
+      matched: conditionEvaluation.conditionsMatched,
+      conditionsMatched: conditionEvaluation.conditionsMatched,
       visibility,
-      conditionResults
+      conditionResults: conditionEvaluation.conditionResults,
+      enabledConditionCount: conditionEvaluation.enabledConditionCount
     };
   }
 
@@ -179,17 +194,37 @@
     }
   }
 
-  function highlightSelector(rawSelector, visibility = "any", durationMs = 8000) {
+  function highlightSelector(rawSelector, optionsOrVisibility = "any", legacyDurationMs = 8000) {
     clearSelectorHighlights();
+    const options = typeof optionsOrVisibility === "string"
+      ? { visibility: optionsOrVisibility, durationMs: legacyDurationMs }
+      : (optionsOrVisibility && typeof optionsOrVisibility === "object" ? optionsOrVisibility : {});
+    const visibility = options.visibility || "any";
+    const durationMs = Number(options.durationMs) || legacyDurationMs || 8000;
+    const monitorConfig = options.monitorConfig && typeof options.monitorConfig === "object"
+      ? options.monitorConfig
+      : null;
     const query = queryElements(rawSelector);
-    const inspected = query.elements.map((element) => ({
-      element,
-      visibility: inspectVisibility(element)
-    }));
-    const selected = inspected.filter((item) => visibilityMatches(item.visibility, visibility));
+    const inspected = query.elements.map((element) => {
+      const visibilityInfo = inspectVisibility(element);
+      const conditionEvaluation = monitorConfig
+        ? evaluateAttributeConditions(element, monitorConfig)
+        : { enabledConditionCount: 0, conditionsMatched: true, conditionResults: [] };
+      return {
+        element,
+        visibility: visibilityInfo,
+        selectedByVisibility: visibilityMatches(visibilityInfo, visibility),
+        conditionsMatched: conditionEvaluation.conditionsMatched,
+        enabledConditionCount: conditionEvaluation.enabledConditionCount,
+        conditionResults: conditionEvaluation.conditionResults
+      };
+    });
+    const selected = inspected.filter((item) => item.selectedByVisibility);
+    const matched = selected.filter((item) => item.conditionsMatched);
+    const unmatched = selected.filter((item) => !item.conditionsMatched);
     const token = `h${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
     const changedAttributes = [];
-    const hiddenAnchors = new Set();
+    const hiddenAnchorPriority = new Map();
 
     function setTemporaryAttribute(element, attribute, value) {
       changedAttributes.push({
@@ -201,15 +236,48 @@
       element.setAttribute(attribute, value);
     }
 
+    function markHiddenAnchor(element, matchedCondition) {
+      const anchor = nearestVisibleAncestor(element);
+      if (!anchor) {
+        return;
+      }
+      const priority = matchedCondition ? 2 : 1;
+      if ((hiddenAnchorPriority.get(anchor) || 0) >= priority) {
+        return;
+      }
+      hiddenAnchorPriority.set(anchor, priority);
+    }
+
     for (const item of selected) {
       if (item.visibility.visible) {
-        setTemporaryAttribute(item.element, HIGHLIGHT_VISIBLE_ATTR, token);
+        if (monitorConfig) {
+          setTemporaryAttribute(
+            item.element,
+            item.conditionsMatched ? HIGHLIGHT_MATCHED_ATTR : HIGHLIGHT_CANDIDATE_ATTR,
+            token
+          );
+        } else {
+          setTemporaryAttribute(item.element, HIGHLIGHT_VISIBLE_ATTR, token);
+        }
+      } else if (monitorConfig) {
+        markHiddenAnchor(item.element, item.conditionsMatched);
       } else {
         const anchor = nearestVisibleAncestor(item.element);
-        if (anchor && !hiddenAnchors.has(anchor)) {
-          hiddenAnchors.add(anchor);
-          setTemporaryAttribute(anchor, HIGHLIGHT_HIDDEN_ATTR, token);
+        if (anchor) {
+          hiddenAnchorPriority.set(anchor, Math.max(hiddenAnchorPriority.get(anchor) || 0, 1));
         }
+      }
+    }
+
+    for (const [anchor, priority] of hiddenAnchorPriority) {
+      if (monitorConfig) {
+        setTemporaryAttribute(
+          anchor,
+          priority >= 2 ? HIGHLIGHT_HIDDEN_MATCHED_ATTR : HIGHLIGHT_HIDDEN_CANDIDATE_ATTR,
+          token
+        );
+      } else {
+        setTemporaryAttribute(anchor, HIGHLIGHT_HIDDEN_ATTR, token);
       }
     }
 
@@ -226,13 +294,35 @@
         outline-offset: 3px !important;
         box-shadow: 0 0 0 7px rgba(255, 159, 10, .25) !important;
       }
+      [${HIGHLIGHT_CANDIDATE_ATTR}="${token}"] {
+        outline: 4px dashed #f59e0b !important;
+        outline-offset: 3px !important;
+        box-shadow: 0 0 0 7px rgba(245, 158, 11, .22) !important;
+      }
+      [${HIGHLIGHT_MATCHED_ATTR}="${token}"] {
+        outline: 4px solid #22c55e !important;
+        outline-offset: 3px !important;
+        box-shadow: 0 0 0 7px rgba(34, 197, 94, .25) !important;
+      }
+      [${HIGHLIGHT_HIDDEN_CANDIDATE_ATTR}="${token}"] {
+        outline: 4px dashed #f59e0b !important;
+        outline-offset: 3px !important;
+        box-shadow: inset 0 0 0 3px rgba(245, 158, 11, .22), 0 0 0 7px rgba(245, 158, 11, .18) !important;
+      }
+      [${HIGHLIGHT_HIDDEN_MATCHED_ATTR}="${token}"] {
+        outline: 4px double #22c55e !important;
+        outline-offset: 3px !important;
+        box-shadow: inset 0 0 0 3px rgba(34, 197, 94, .22), 0 0 0 7px rgba(34, 197, 94, .18) !important;
+      }
     `;
     (document.head || document.documentElement).append(style);
 
     const visibleCount = inspected.filter((item) => item.visibility.visible).length;
     const toast = document.createElement("div");
     toast.id = HIGHLIGHT_TOAST_ID;
-    toast.textContent = `FirefoxChatImprover: ${selected.length}/${inspected.length} phần tử được chọn · hiện ${visibleCount} · ẩn ${inspected.length - visibleCount}`;
+    toast.textContent = monitorConfig
+      ? `FirefoxChatImprover: selector ${inspected.length} · thỏa điều kiện ${matched.length} · không thỏa ${unmatched.length}`
+      : `FirefoxChatImprover: ${selected.length}/${inspected.length} phần tử được chọn · hiện ${visibleCount} · ẩn ${inspected.length - visibleCount}`;
     Object.assign(toast.style, {
       position: "fixed",
       zIndex: "2147483647",
@@ -240,7 +330,7 @@
       right: "12px",
       maxWidth: "min(520px, calc(100vw - 24px))",
       padding: "10px 14px",
-      border: "2px solid #ff2d55",
+      border: monitorConfig ? "2px solid #22c55e" : "2px solid #ff2d55",
       borderRadius: "8px",
       background: "#111",
       color: "#fff",
@@ -278,9 +368,15 @@
       selectedCount: selected.length,
       visibleCount,
       hiddenCount: inspected.length - visibleCount,
+      conditionMatchedCount: matched.length,
+      conditionUnmatchedCount: unmatched.length,
+      enabledConditionCount: monitorConfig
+        ? Math.max(0, ...inspected.map((item) => item.enabledConditionCount), 0)
+        : 0,
       highlightedVisibleCount: selected.filter((item) => item.visibility.visible).length,
-      highlightedHiddenAnchorCount: hiddenAnchors.size,
-      visibility
+      highlightedHiddenAnchorCount: hiddenAnchorPriority.size,
+      visibility,
+      conditionPreview: Boolean(monitorConfig)
     };
   }
 
@@ -562,10 +658,12 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 2,
+      VERSION: 3,
       inspectVisibility,
       visibilityMatches,
       queryElements,
+      compareCondition,
+      evaluateAttributeConditions,
       evaluateMonitor,
       highlightSelector,
       clearSelectorHighlights,

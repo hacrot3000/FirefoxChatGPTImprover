@@ -104,3 +104,26 @@ Phase hiện tại: **Phase 04 — nhận diện target mới và tự click the
 
 Phase tiếp theo: **Phase 05 — cảnh báo title/badge và quan sát hoạt động**.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE04_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE05_BEGIN -->
+## Phase 05 — Cảnh báo đa tab và nhật ký hoạt động
+
+Mỗi tab hiện có cảnh báo độc lập bằng title, badge, sidebar và notification tùy chọn. Sidebar bổ sung log user/debug riêng cho từng session, copy/clear log, dry-run/click thử target hiện tại và nút dọn highlight.
+
+Tài liệu chi tiết: `document/PHASE_05_ALERTS_ACTIVITY_OBSERVABILITY.md`.
+
+Phase hiện tại: **Phase 05 — cảnh báo và quan sát hoạt động**.
+
+Phase tiếp theo: **Phase 06 — Native Messaging Host và chạy shell local**.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE05_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE05_V051_BEGIN -->
+### Phase 05 v0.5.1 — selector preview và help tooltip
+
+- Các ghi chú dài trong sidebar được thu gọn thành nút `?` ở góc card; hover, focus hoặc bấm mới hiển thị.
+- Nút kiểm tra monitor nằm sau danh sách điều kiện.
+- Kết quả tách riêng số element khớp selector và số element thỏa điều kiện attribute.
+- Viền cam nét đứt biểu thị element chỉ khớp selector; viền xanh biểu thị element thỏa điều kiện.
+
+Tài liệu chi tiết: `document/PHASE_05_V0_5_1_SELECTOR_PREVIEW_HELP_TOOLTIPS.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE05_V051_END -->

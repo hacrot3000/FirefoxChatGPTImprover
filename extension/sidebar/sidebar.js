@@ -8,15 +8,16 @@
     body: document.body,
     statusPill: $("#statusPill"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
     modeText: $("#modeText"), configModeText: $("#configModeText"), profileText: $("#profileText"), tabUrl: $("#tabUrl"),
-    monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), monitorTransitionText: $("#monitorTransitionText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
+    monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"),
     profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"),
     monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
-    targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
-    titleBlink: $("#titleBlink"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"),
+    targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
+    titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"),
+    logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), clearLogsButton: $("#clearLogsButton"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"),
-    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), importFile: $("#importFile"), messageBox: $("#messageBox")
+    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), messageBox: $("#messageBox")
   };
 
   const modeLabels = {
@@ -88,6 +89,8 @@
     elements.dryRun.checked = value.target.dryRun;
     elements.fingerprintAttributes.value = value.target.fingerprintAttributes.join(", ");
     elements.titleBlink.checked = value.alerts.titleBlink;
+    elements.titlePrefix.value = value.alerts.titlePrefix;
+    elements.blinkIntervalMs.value = String(value.alerts.blinkIntervalMs);
     elements.badgeAlert.checked = value.alerts.badge;
     elements.sidebarAlert.checked = value.alerts.sidebar;
     elements.notificationAlert.checked = value.alerts.notification;
@@ -140,6 +143,8 @@
       },
       alerts: {
         titleBlink: elements.titleBlink.checked,
+        titlePrefix: elements.titlePrefix.value,
+        blinkIntervalMs: Number(elements.blinkIntervalMs.value),
         badge: elements.badgeAlert.checked,
         sidebar: elements.sidebarAlert.checked,
         notification: elements.notificationAlert.checked
@@ -192,21 +197,66 @@
     elements.profileSelect.value = selectedProfileId;
   }
 
+  function selectedLogs() {
+    const session = selectedSession();
+    const channel = elements.logChannel.value === "debug" ? "debug" : "user";
+    return Array.isArray(session?.logs?.[channel]) ? session.logs[channel] : [];
+  }
+
+  function formatLogLine(entry) {
+    const time = entry?.at ? new Date(entry.at).toLocaleTimeString("vi-VN", { hour12: false }) : "--:--:--";
+    const detail = entry?.detail ? ` | ${JSON.stringify(entry.detail)}` : "";
+    return `[${time}] ${entry?.event || "event"}: ${entry?.message || ""}${detail}`;
+  }
+
+  function renderActivityLog() {
+    elements.activityLog.replaceChildren();
+    const logs = selectedLogs();
+    if (!logs.length) {
+      const item = document.createElement("li");
+      item.className = "empty-log";
+      item.textContent = "Chưa có sự kiện trong kênh này.";
+      elements.activityLog.append(item);
+      return;
+    }
+    for (const entry of logs.slice().reverse()) {
+      const item = document.createElement("li");
+      const time = document.createElement("time");
+      time.dateTime = entry.at || "";
+      time.textContent = entry.at ? new Date(entry.at).toLocaleTimeString("vi-VN", { hour12: false }) : "--:--:--";
+      const text = document.createElement("span");
+      text.textContent = `${entry.event || "event"}: ${entry.message || ""}`;
+      item.append(time, text);
+      if (entry.detail) {
+        const detail = document.createElement("code");
+        detail.textContent = JSON.stringify(entry.detail);
+        item.append(detail);
+      }
+      elements.activityLog.append(item);
+    }
+  }
+
   function renderDetails(loadForm = true) {
     const session = selectedSession();
     const currentIsSelected = Number(dashboard.currentTab.tabId) === Number(selectedTabId);
     const mode = session?.mode || MODE.INACTIVE;
+    const runtime = session?.runtime || {};
     elements.body.dataset.mode = mode;
-    elements.statusPill.textContent = modeLabels[mode] || mode;
+    const sidebarAlertEnabled = Boolean(session?.effectiveConfig?.alerts?.sidebar);
+    const alertActive = Boolean(runtime.alertActive || runtime.monitorState === "matched");
+    elements.body.dataset.alert = sidebarAlertEnabled && alertActive ? "active" : "inactive";
+    elements.statusPill.textContent = sidebarAlertEnabled && alertActive ? "Đã đạt điều kiện" : (modeLabels[mode] || mode);
     elements.tabId.textContent = Number.isInteger(selectedTabId) ? String(selectedTabId) : "—";
     elements.modeText.textContent = modeLabels[mode] || mode;
     elements.configModeText.textContent = session?.configMode === CONFIG_MODE.TAB ? "Riêng cho tab" : (session ? "Theo profile" : "Chưa tạo session");
     elements.profileText.textContent = session?.profileName || profileById(selectedProfileId)?.name || "—";
-    const runtime = session?.runtime || {};
     elements.monitorStateText.textContent = runtime.monitorState || "—";
     elements.monitorCountText.textContent = session ? `${runtime.monitorCount || 0} (hiện ${runtime.monitorVisibleCount || 0}, ẩn ${runtime.monitorHiddenCount || 0})` : "—";
     elements.monitorMatchedText.textContent = session ? String(runtime.monitorMatchedCount || 0) : "—";
     elements.monitorCycleText.textContent = session ? String(runtime.cycle || 0) : "—";
+    elements.alertStateText.textContent = session
+      ? (runtime.alertActive ? `ACTIVE${runtime.titleBlinking ? " / title blink" : ""}` : "inactive")
+      : "—";
     elements.targetStateText.textContent = session ? (runtime.targetState || "disabled") : "—";
     elements.baselineCountText.textContent = session ? String(runtime.baselineCount || 0) : "—";
     elements.candidateCountText.textContent = session ? `${runtime.candidateCount || 0} / tổng ${runtime.targetTotalCount || 0}` : "—";
@@ -223,6 +273,12 @@
     elements.resetTabButton.disabled = busy || !session || session.configMode !== CONFIG_MODE.TAB;
     elements.monitorTestButton.disabled = busy || !currentIsSelected;
     elements.targetTestButton.disabled = busy || !currentIsSelected;
+    elements.targetDryRunTestButton.disabled = busy || !currentIsSelected;
+    elements.targetClickTestButton.disabled = busy || !currentIsSelected;
+    elements.clearHighlightsButton.disabled = busy || !currentIsSelected;
+    elements.copyLogsButton.disabled = busy || !session;
+    elements.clearLogsButton.disabled = busy || !session;
+    renderActivityLog();
 
     const profile = profileById(selectedProfileId);
     elements.profileName.value = profile?.name || "";
@@ -298,8 +354,48 @@
     });
   }
 
-  function formatSelectorTestResult(result) {
-    return `Tổng ${result.totalCount}; chọn ${result.selectedCount}; hiện ${result.visibleCount}; ẩn ${result.hiddenCount}. Highlight giữ 8 giây.`;
+  function selectorTestStat(label, value, kind, empty = false) {
+    const item = document.createElement("span");
+    item.className = "selector-test-stat";
+    item.dataset.kind = kind;
+    item.dataset.empty = empty ? "true" : "false";
+    const caption = document.createElement("span");
+    caption.textContent = label;
+    const count = document.createElement("strong");
+    count.textContent = String(value);
+    item.append(caption, count);
+    return item;
+  }
+
+  function renderSelectorTestResult(output, result, kind) {
+    output.replaceChildren();
+    const summary = document.createElement("span");
+    summary.className = "selector-test-summary";
+    const totalCount = Number(result.totalCount) || 0;
+    const matchedCount = kind === "monitor"
+      ? Number(result.conditionMatchedCount ?? result.selectedCount) || 0
+      : Number(result.selectedCount) || 0;
+    summary.append(
+      selectorTestStat("Khớp selector", totalCount, "found", totalCount === 0),
+      selectorTestStat(
+        kind === "monitor" ? "Thỏa điều kiện" : "Được chọn",
+        matchedCount,
+        "matched",
+        matchedCount === 0
+      )
+    );
+
+    const detail = document.createElement("span");
+    detail.className = "selector-test-detail";
+    if (kind === "monitor") {
+      const conditionText = Number(result.enabledConditionCount) > 0
+        ? `${result.enabledConditionCount} điều kiện attribute đang bật`
+        : "không có điều kiện attribute; mọi element selector phù hợp kiểm tra tĩnh";
+      detail.textContent = `Hiện ${result.visibleCount}; ẩn ${result.hiddenCount}; ${conditionText}. Cam nét đứt = chỉ khớp selector; xanh lá = thỏa điều kiện. Highlight giữ 8 giây.`;
+    } else {
+      detail.textContent = `Hiện ${result.visibleCount}; ẩn ${result.hiddenCount}. Highlight giữ 8 giây.`;
+    }
+    output.append(summary, detail);
   }
 
   function testSelector(kind) {
@@ -333,19 +429,69 @@
         type: MESSAGE.TEST_SELECTOR,
         tabId,
         selector,
-        visibility
+        visibility,
+        kind,
+        config: kind === "monitor" ? readConfig() : null
       });
       if (!response?.ok) {
         throw new Error(response?.error || "Không thể kiểm tra selector.");
       }
-      output.textContent = formatSelectorTestResult(response.result);
-      showMessage(`Đã kiểm tra selector ${kind === "monitor" ? "theo dõi" : "target"}.`, "success");
+      renderSelectorTestResult(output, response.result, kind);
+      const matchedCount = kind === "monitor"
+        ? Number(response.result.conditionMatchedCount ?? response.result.selectedCount) || 0
+        : Number(response.result.selectedCount) || 0;
+      showMessage(
+        kind === "monitor"
+          ? `Tìm thấy ${response.result.totalCount} element; ${matchedCount} element thỏa điều kiện.`
+          : `Đã kiểm tra selector target: ${response.result.selectedCount}/${response.result.totalCount} element được chọn.`,
+        matchedCount > 0 ? "success" : "error"
+      );
     }).catch((error) => {
       output.textContent = "Kiểm tra thất bại.";
       showMessage(error instanceof Error ? error.message : String(error), "error");
     }).finally(() => {
       setBusy(false);
     });
+  }
+
+  function testTargetAction(click) {
+    const current = dashboard.currentTab;
+    if (!Number.isInteger(current?.tabId) || Number(current.tabId) !== Number(selectedTabId)) {
+      showMessage("Chỉ thử target trên tab đang hiển thị hiện tại.", "error");
+      return;
+    }
+    if (click && !confirm("Click thử sẽ tác động thật lên target hiện tại. Tiếp tục?")) {
+      return;
+    }
+    void request(MESSAGE.TEST_TARGET_ACTION, {
+      tabId: current.tabId,
+      config: readConfig(),
+      click: Boolean(click)
+    }, click ? "Đã click thử target hiện tại." : "Đã dry-run target hiện tại.").then((response) => {
+      if (response?.result) {
+        elements.targetTestResult.textContent = `Tổng ${response.result.totalCount}; hợp lệ ${response.result.eligibleCount}; xử lý ${response.result.selectedCount}; ${click ? "đã click" : "chỉ highlight"}.`;
+      }
+    });
+  }
+
+  async function copySelectedLogs() {
+    const text = selectedLogs().map(formatLogLine).join("\n");
+    if (!text) {
+      showMessage("Kênh log hiện tại đang trống.", "error");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showMessage("Đã copy nhật ký của tab.", "success");
+    } catch (_error) {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.append(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+      showMessage("Đã copy nhật ký của tab.", "success");
+    }
   }
 
   async function refreshForActiveTab(preferredTabId) {
@@ -425,6 +571,16 @@
   elements.addConditionButton.addEventListener("click", () => addConditionRow());
   elements.monitorTestButton.addEventListener("click", () => testSelector("monitor"));
   elements.targetTestButton.addEventListener("click", () => testSelector("target"));
+  elements.targetDryRunTestButton.addEventListener("click", () => testTargetAction(false));
+  elements.targetClickTestButton.addEventListener("click", () => testTargetAction(true));
+  elements.logChannel.addEventListener("change", renderActivityLog);
+  elements.copyLogsButton.addEventListener("click", () => void copySelectedLogs());
+  elements.clearLogsButton.addEventListener("click", () => {
+    if (selectedSession() && confirm("Xóa toàn bộ user/debug log của tab này?")) {
+      void request(MESSAGE.CLEAR_SESSION_LOGS, { tabId: selectedTabId }, "Đã xóa nhật ký tab.");
+    }
+  });
+  elements.clearHighlightsButton.addEventListener("click", () => void request(MESSAGE.CLEAR_HIGHLIGHTS, { tabId: selectedTabId }, "Đã xóa highlight trên tab."));
   elements.refreshButton.addEventListener("click", () => void request(MESSAGE.GET_DASHBOARD));
   elements.activateButton.addEventListener("click", activateCurrentTab);
   elements.pauseButton.addEventListener("click", () => void request(MESSAGE.PAUSE_TAB, { tabId: selectedTabId }, "Đã tạm dừng tab."));
