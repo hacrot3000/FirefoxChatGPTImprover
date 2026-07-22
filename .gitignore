@@ -1,0 +1,125 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.history
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.vscode/
+promt
+libraries/decrypt
+libraries/*.bin
+libraries/a
+Example
+promt_data_struct
+app/my-release-key.jks
+libraries/Const
+Document
+PCB_design/full_v6/.history
+
+# ESP-IDF
+build/
+sdkconfig
+sdkconfig.old
+dependencies.lock
+.ninja_deps
+.ninja_log
+main-esp32c3/managed_components/
+
+# Pico SDK
+gate-rp2040/build/
+
+# VS Code
+.vscode/.ropeproject
+.vscode/ipch/
+*.code-workspace
+.DS_Store
+sdk/
+.aider*
+patchs/*.py
+*.bak
+promts/errors/*.txt
+promts/executed/*.txt
+promts/logs/*.log
+
+# Android OTA test app local/build artifacts
+android-ota-test-app/.gradle/
+android-ota-test-app/build/
+android-ota-test-app/app/build/
+android-ota-test-app/local.properties
+android-ota-test-app/gradle copy.properties
+android-ota-test-app/**/*.jks
+android-ota-test-app/**/*.keystore
+android-ota-test-app/**/*.apk
+android-ota-test-app/**/*.aab
+*.bak.*
+
+
+# Keep Gradle wrapper tracked
+!android-ota-test-app/gradle/
+!android-ota-test-app/gradle/wrapper/
+!android-ota-test-app/gradle/wrapper/gradle-wrapper.jar
+!android-ota-test-app/gradle/wrapper/gradle-wrapper.properties
+!android-ota-test-app/gradlew
+!android-ota-test-app/gradlew.bat
+# RP2040 build outputs
+gate-rp2040/build/
+gate-rp2040/bootloader/build/
+gate-rp2040/build_legacy_recovery/
+gate-rp2040/build_lane_beta_ota/
+
+*.bin
+*.hex
+*.elf
+*.uf2
+*.dis
+
+!release/*.uf2
+!release/*.bin
+# BleToNfc OTA upload local secret config
+.ota_upload_config.json
+.ota_upload_config.*.json
+server/ota/.ota_upload_secret
+server/ota/ota_secrets.php
+server/ota/fw/
+gate-rp2040/build_lane_alpha_ota/
+patchs/*.py
+patchs/*.zip
+__pycache__
+gate-rp2040/build_lane_alpha_ota_release/
+gate-rp2040/build_lane_beta_ota_release/
+main-esp32c3/build_release/
+
+# ---------------------------------------------------------------------------
+# BleToNfc generated build/release outputs
+# ---------------------------------------------------------------------------
+main-esp32c3/build/
+main-esp32c3/build_release/
+gate-rp2040/build/
+gate-rp2040/build_*/
+gate-rp2040/build-*/
+release/
+
+# ESP-IDF generated config backups. Keep sdkconfig.release and
+# sdkconfig.defaults.release trackable, but do not commit *.old backups.
+sdkconfig.old
+sdkconfig.*.old
+main-esp32c3/sdkconfig.old
+main-esp32c3/sdkconfig.*.old
+document/_md_backup/
+patchs/failed_patch_files/
+patchs/failed_patch_files/*
+patchs/backup/*
+patchs/patched/*
+test-results/*
+main-esp32c3/logs/*
+
