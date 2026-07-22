@@ -25,6 +25,14 @@ Mục tiêu chính:
 - Native host chỉ chạy dưới quyền người dùng hiện tại, không dùng `sudo` hoặc quyền root.
 - Mọi thay đổi được phát hành dưới dạng gói Patch Tool v3 duy nhất.
 
+### Yêu cầu xuyên suốt — nhiều tab độc lập
+
+- Add-on phải theo dõi đồng thời nhiều tab đã được người dùng kích hoạt.
+- Mỗi tab có session riêng nhận diện bằng `tabId`; không dùng một biến trạng thái toàn cục đại diện cho mọi tab.
+- Mỗi session giữ profile, cấu hình riêng tùy chọn, monitor state, cycle, baseline, candidate, badge/cảnh báo và log riêng.
+- Sidebar phải cho phép chọn session để pause/resume/stop hoặc chỉnh cấu hình mà không làm thay đổi session khác.
+- Profile là template dùng chung; “tab config” là snapshot riêng và không bị profile update ghi đè.
+- Các event DOM ở phase sau luôn phải mang `tabId` và chỉ cập nhật session tương ứng.
 ## 3. Cấu trúc thư mục dự kiến
 
 ```text

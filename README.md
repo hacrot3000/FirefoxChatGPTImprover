@@ -43,3 +43,23 @@ Phase hiện tại: **Phase 01 — WebExtension skeleton và kích hoạt thủ 
 
 Phase tiếp theo: **Phase 02 — schema cấu hình, URL/profile và selector setting**.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE01_END -->
+<!-- FIREFOX_CHAT_IMPROVER_PHASE02_BEGIN -->
+## Phase 02 — Multi-tab profile và cấu hình
+
+Add-on hỗ trợ nhiều tab hoạt động đồng thời. Sidebar liệt kê session theo `tabId`; mỗi tab có thể dùng profile khác hoặc lưu một cấu hình độc lập.
+
+Các cấu hình đã có UI và lưu trữ:
+
+- URL allowlist.
+- Monitor selector và nhiều condition AND/OR.
+- Target selector, chiến lược click và fingerprint.
+- Cảnh báo.
+- Working directory và shell command chuẩn bị cho Native Messaging.
+- Import/export JSON.
+
+Tài liệu chi tiết: `document/PHASE_02_MULTI_TAB_PROFILE_CONFIG.md`.
+
+Phase hiện tại: **Phase 02 — multi-tab session, profile và cấu hình**.
+
+Phase tiếp theo: **Phase 03 — engine theo dõi trạng thái element bằng MutationObserver**.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE02_END -->

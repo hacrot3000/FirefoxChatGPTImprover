@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "FirefoxChatImprover",
-  "version": "0.1.0",
-  "description": "Private Firefox sidebar helper for manually activated AI chat tabs.",
+  "version": "0.2.0",
+  "description": "Private Firefox sidebar helper with independent multi-tab sessions and configurable profiles.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-improver@duongtc.local",
@@ -16,7 +16,10 @@
   },
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "storage",
+    "tabs",
+    "sessions"
   ],
   "action": {
     "default_title": "Mở và kích hoạt FirefoxChatImprover"
@@ -24,6 +27,7 @@
   "background": {
     "scripts": [
       "shared/protocol.js",
+      "shared/settings.js",
       "background/background.js"
     ]
   },

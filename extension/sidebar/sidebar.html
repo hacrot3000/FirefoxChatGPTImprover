@@ -1,65 +1,219 @@
 <!doctype html>
 <html lang="vi">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>FirefoxChatImprover</title>
-    <link rel="stylesheet" href="sidebar.css">
-  </head>
-  <body data-mode="inactive">
-    <header class="app-header">
-      <div>
-        <p class="eyebrow">Firefox add-on cá nhân</p>
-        <h1>FirefoxChatImprover</h1>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Firefox AI Assistant</title>
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+
+<body data-mode="inactive">
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Firefox AI Assistant</p>
+    </div>
+    <span id="statusPill" class="status-pill">Chưa kích hoạt</span>
+  </header>
+
+  <main>
+    <section class="card" aria-labelledby="tabsHeading">
+      <div class="section-title-row">
+        <h2 id="tabsHeading">Tab và session</h2>
+        <button id="refreshButton" type="button" class="compact">Làm mới</button>
       </div>
-      <span id="statusPill" class="status-pill">Chưa kích hoạt</span>
-    </header>
-
-    <main>
-      <section class="card" aria-labelledby="currentTabHeading">
-        <h2 id="currentTabHeading">Tab hiện tại</h2>
-        <dl class="details">
-          <div>
-            <dt>Tab ID</dt>
-            <dd id="tabId">—</dd>
-          </div>
-          <div>
-            <dt>Trạng thái</dt>
-            <dd id="modeText">Chưa kích hoạt</dd>
-          </div>
-          <div class="details-wide">
-            <dt>URL</dt>
-            <dd id="tabUrl">—</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section class="card" aria-labelledby="controlsHeading">
-        <h2 id="controlsHeading">Điều khiển</h2>
-        <div class="button-grid">
-          <button id="activateButton" type="button" class="primary">Kích hoạt</button>
-          <button id="pauseButton" type="button">Tạm dừng</button>
-          <button id="stopButton" type="button" class="danger">Dừng</button>
-          <button id="refreshButton" type="button">Làm mới trạng thái</button>
+      <label>
+        Tab đang cấu hình
+        <select id="tabSelect"></select>
+      </label>
+      <dl class="details">
+        <div>
+          <dt>Tab ID</dt>
+          <dd id="tabId">—</dd>
         </div>
-        <p class="hint">
-          Cách chắc chắn nhất để cấp quyền cho tab là bấm biểu tượng add-on trên toolbar.
-          Add-on không tự inject vào các trang khác.
-        </p>
-      </section>
+        <div>
+          <dt>Trạng thái</dt>
+          <dd id="modeText">Chưa kích hoạt</dd>
+        </div>
+        <div>
+          <dt>Config</dt>
+          <dd id="configModeText">—</dd>
+        </div>
+        <div>
+          <dt>Profile</dt>
+          <dd id="profileText">—</dd>
+        </div>
+        <div class="details-wide">
+          <dt>URL</dt>
+          <dd id="tabUrl">—</dd>
+        </div>
+      </dl>
+      <div class="button-grid four">
+        <button id="activateButton" type="button" class="primary">Kích hoạt tab hiện tại</button>
+        <button id="pauseButton" type="button">Tạm dừng</button>
+        <button id="resumeButton" type="button">Tiếp tục</button>
+        <button id="stopButton" type="button" class="danger">Dừng</button>
+      </div>
+      <p class="hint">Mỗi tab giữ session, profile, cấu hình và trạng thái riêng theo tabId.</p>
+    </section>
 
-      <section class="card phase-card" aria-labelledby="phaseHeading">
-        <h2 id="phaseHeading">Phase 01</h2>
-        <p>
-          Khung WebExtension, sidebar và kích hoạt thủ công đã hoạt động.
-          Theo dõi DOM, tự click và chạy shell sẽ được bổ sung ở các phase sau.
-        </p>
-      </section>
+    <section class="card" aria-labelledby="profileHeading">
+      <h2 id="profileHeading">Profile cấu hình</h2>
+      <label>
+        Profile
+        <select id="profileSelect"></select>
+      </label>
+      <label>
+        Tên profile
+        <input id="profileName" type="text" autocomplete="off">
+      </label>
+      <div class="button-grid">
+        <button id="assignProfileButton" type="button">Áp dụng cho tab</button>
+        <button id="newProfileButton" type="button">Profile mới</button>
+        <button id="duplicateProfileButton" type="button">Nhân bản</button>
+        <button id="deleteProfileButton" type="button" class="danger">Xóa profile</button>
+      </div>
+    </section>
 
-      <output id="messageBox" class="message-box" aria-live="polite"></output>
-    </main>
+    <section class="card" aria-labelledby="activationHeading">
+      <h2 id="activationHeading">URL activation</h2>
+      <label class="check-row">
+        <input id="requireUrlMatch" type="checkbox">
+        Chỉ cho phép URL khớp allowlist
+      </label>
+      <label>
+        URL pattern, mỗi dòng một giá trị; hỗ trợ dấu <code>*</code>
+        <textarea id="urlPatterns" rows="3" placeholder="https://ai.company.local/*"></textarea>
+      </label>
+    </section>
 
-    <script src="../shared/protocol.js"></script>
-    <script src="sidebar.js"></script>
-  </body>
+    <section class="card" aria-labelledby="monitorHeading">
+      <h2 id="monitorHeading">Element theo dõi</h2>
+      <div class="selector-grid">
+        <label>Tag<select id="monitorTag">
+            <option>*</option>
+            <option>button</option>
+            <option>div</option>
+            <option>span</option>
+            <option>input</option>
+            <option>a</option>
+          </select></label>
+        <label>Kiểu<select id="monitorKind">
+            <option value="css">CSS selector</option>
+            <option value="id">ID</option>
+            <option value="class">Class</option>
+            <option value="attribute">Attribute</option>
+          </select></label>
+      </div>
+      <label>Tên attribute khi dùng kiểu Attribute<input id="monitorAttributeName" type="text"
+          placeholder="data-testid"></label>
+      <label>Giá trị selector<input id="monitorValue" type="text" placeholder="#composer-submit-button"></label>
+      <div class="section-title-row subheading">
+        <label>Ghép điều kiện<select id="conditionJoin">
+            <option value="all">Tất cả đúng (AND)</option>
+            <option value="any">Một điều kiện đúng (OR)</option>
+          </select></label>
+        <button id="addConditionButton" type="button" class="compact">+ Điều kiện</button>
+      </div>
+      <div id="conditionsList" class="condition-list"></div>
+    </section>
+
+    <section class="card" aria-labelledby="targetHeading">
+      <h2 id="targetHeading">Target element mới</h2>
+      <div class="selector-grid">
+        <label>Tag<select id="targetTag">
+            <option>*</option>
+            <option>button</option>
+            <option>div</option>
+            <option>span</option>
+            <option>input</option>
+            <option>a</option>
+          </select></label>
+        <label>Kiểu<select id="targetKind">
+            <option value="css">CSS selector</option>
+            <option value="id">ID</option>
+            <option value="class">Class</option>
+            <option value="attribute">Attribute</option>
+          </select></label>
+      </div>
+      <label>Tên attribute<input id="targetAttributeName" type="text" placeholder="data-testid"></label>
+      <label>Giá trị selector<input id="targetValue" type="text"></label>
+      <div class="selector-grid">
+        <label>Chiến lược click<select id="clickStrategy">
+            <option value="newest">Mới cuối cùng</option>
+            <option value="oldest">Mới đầu tiên</option>
+            <option value="all">Tất cả element mới</option>
+          </select></label>
+        <label>Giới hạn mỗi chu kỳ<input id="maxClicksPerCycle" type="number" min="1" max="100"></label>
+      </div>
+      <label class="check-row"><input id="visibleOnly" type="checkbox">Chỉ element đang hiển thị</label>
+      <label class="check-row"><input id="enabledOnly" type="checkbox">Chỉ element có thể click</label>
+      <label class="check-row"><input id="dryRun" type="checkbox">Dry-run, chỉ đánh dấu chưa click</label>
+      <label>Thuộc tính fingerprint, phân cách bằng dấu phẩy<input id="fingerprintAttributes" type="text"></label>
+    </section>
+
+    <section class="card" aria-labelledby="alertsHeading">
+      <h2 id="alertsHeading">Cảnh báo</h2>
+      <div class="checks-grid">
+        <label class="check-row"><input id="titleBlink" type="checkbox">Nhấp nháy title</label>
+        <label class="check-row"><input id="badgeAlert" type="checkbox">Badge toolbar</label>
+        <label class="check-row"><input id="sidebarAlert" type="checkbox">Đổi trạng thái sidebar</label>
+        <label class="check-row"><input id="notificationAlert" type="checkbox">Notification</label>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="shellHeading">
+      <h2 id="shellHeading">Shell command</h2>
+      <label>Working directory<input id="workingDirectory" type="text"
+          placeholder="/home/duongtc/FirefoxChatImprover"></label>
+      <label>Command<textarea id="shellCommand" rows="4"
+          placeholder="./tools/run_python_patches.sh && ./test_ble_ota_commands.py"></textarea></label>
+      <label>Chế độ<select id="shellMode">
+          <option value="terminal">Mở terminal tương tác</option>
+          <option value="background">Chạy nền và lấy log</option>
+        </select></label>
+      <label class="check-row"><input id="confirmBeforeRun" type="checkbox">Xác nhận trước khi chạy</label>
+      <p class="hint">Phase 02 chỉ lưu cấu hình. Native Messaging và nút chạy lệnh được triển khai ở Phase 06.</p>
+    </section>
+
+    <section class="card sticky-actions" aria-labelledby="saveHeading">
+      <h2 id="saveHeading">Lưu cấu hình</h2>
+      <div class="button-grid">
+        <button id="saveProfileButton" type="button" class="primary">Lưu vào profile</button>
+        <button id="saveTabButton" type="button">Lưu riêng cho tab</button>
+        <button id="resetTabButton" type="button">Tab dùng lại profile</button>
+        <button id="exportButton" type="button">Export JSON</button>
+        <button id="importButton" type="button">Import JSON</button>
+        <input id="importFile" type="file" accept="application/json,.json" hidden>
+      </div>
+    </section>
+
+    <output id="messageBox" class="message-box" aria-live="polite"></output>
+  </main>
+
+  <template id="conditionTemplate">
+    <div class="condition-row">
+      <label class="check-row"><input data-field="enabled" type="checkbox">Bật</label>
+      <input data-field="attribute" type="text" placeholder="aria-label" aria-label="Tên attribute">
+      <select data-field="operator" aria-label="Phép so sánh">
+        <option value="exists">Tồn tại</option>
+        <option value="not_exists">Không tồn tại</option>
+        <option value="equals">Bằng</option>
+        <option value="not_equals">Khác</option>
+        <option value="contains">Chứa</option>
+        <option value="not_contains">Không chứa</option>
+        <option value="regex">Regex</option>
+        <option value="not_regex">Không khớp regex</option>
+      </select>
+      <input data-field="value" type="text" placeholder="Giá trị" aria-label="Giá trị">
+      <label class="check-row"><input data-field="caseSensitive" type="checkbox">Phân biệt hoa thường</label>
+      <button data-action="remove-condition" type="button" class="danger compact">Xóa</button>
+    </div>
+  </template>
+
+  <script src="../shared/protocol.js"></script>
+  <script src="../shared/settings.js"></script>
+  <script src="sidebar.js"></script>
+</body>
+
 </html>
