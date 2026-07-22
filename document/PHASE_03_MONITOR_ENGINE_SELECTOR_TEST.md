@@ -22,13 +22,17 @@ Nút **Kiểm tra và highlight**:
 4. Highlight element hiện bằng viền đỏ trong 8 giây.
 5. Với element ẩn, không cưỡng ép đổi `display`; add-on đánh dấu ancestor hiện gần nhất bằng viền cam đứt để tránh làm thay đổi layout hoặc trạng thái ứng dụng.
 
-## Điều kiện hiển thị của monitor
+## Chuyển trạng thái hiển thị của monitor
 
-`monitor.visibility` có ba giá trị:
+`monitor.visibilityTransition` có ba giá trị:
 
-- `any`: không xét ẩn/hiện.
-- `visible`: element phải đang hiển thị.
-- `hidden`: element phải đang ẩn.
+- `none`: không dùng ẩn/hiện làm điều kiện; monitor chỉ xét selector và các condition attribute đang bật.
+- `hidden_to_visible`: chỉ MATCHED sau khi element đã được quan sát ở trạng thái ẩn rồi chuyển sang hiện.
+- `visible_to_hidden`: chỉ MATCHED sau khi element đã được quan sát ở trạng thái hiện rồi chuyển sang ẩn.
+
+Trạng thái tại lúc kích hoạt, resume hoặc cập nhật cấu hình chỉ được ghi làm baseline. Nếu element đang hiện khi chọn `hidden_to_visible`, monitor vẫn ở `WAITING` cho tới khi element ẩn rồi hiện lại. Quy tắc ngược lại áp dụng cho `visible_to_hidden`.
+
+Có thể xóa hoặc tắt toàn bộ condition attribute. Khi đó selector cùng chuyển trạng thái ẩn/hiện là toàn bộ điều kiện theo dõi. Nếu vẫn dùng condition attribute, transition được ghi nhận trước và monitor chỉ MATCHED khi các condition đó cũng thỏa trong trạng thái đích.
 
 Element được xem là ẩn khi có một trong các dấu hiệu:
 
@@ -38,8 +42,6 @@ Element được xem là ẩn khi có một trong các dấu hiệu:
 - thuộc tính hoặc property `visible=false`.
 - `aria-hidden=true`.
 - element đã detached hoặc không có rendered box (`getClientRects().length === 0`), bao gồm trường hợp ancestor bị ẩn.
-
-Visibility được ghép với các điều kiện attribute hiện có. Với nhiều element cùng selector, monitor chuyển sang `MATCHED` khi có ít nhất một element thỏa visibility và bộ điều kiện AND/OR.
 
 ## State machine và MutationObserver
 
@@ -80,8 +82,9 @@ Các nội dung trên tiếp tục ở Phase 04–06.
 
 1. Chọn monitor theo ID và bấm **Kiểm tra và highlight**; xác nhận count và viền đỏ.
 2. Chọn kiểu Class, nhập một hoặc nhiều class; xác nhận selector tìm đúng element.
-3. Đặt element thành `display:none`, chọn `Phải đang ẩn`; xác nhận hidden count và monitor chuyển `MATCHED` khi các condition khác đúng.
-4. Đặt `visible="false"` hoặc `aria-hidden="true"`; xác nhận được phân loại ẩn.
+3. Chọn `Ẩn → hiện`, kích hoạt khi element đang ẩn, sau đó bỏ `display:none`; xác nhận monitor chuyển `MATCHED`.
+4. Chọn `Hiện → ẩn`, kích hoạt khi element đang hiện, sau đó đặt `visible="false"` hoặc `aria-hidden="true"`; xác nhận monitor chuyển `MATCHED`.
 5. Thay node monitor bằng node mới trong DevTools; xác nhận observer tìm lại và sidebar cập nhật.
-6. Kích hoạt hai tab với selector/visibility khác nhau; xác nhận state/count độc lập.
-7. Pause một tab; xác nhận observer của tab đó dừng nhưng tab còn lại tiếp tục cập nhật.
+6. Xóa toàn bộ condition attribute và xác nhận monitor vẫn hoạt động chỉ bằng transition ẩn/hiện.
+7. Kích hoạt hai tab với selector/transition khác nhau; xác nhận state/count độc lập.
+8. Pause một tab; xác nhận observer của tab đó dừng nhưng tab còn lại tiếp tục cập nhật.

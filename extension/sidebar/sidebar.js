@@ -12,7 +12,7 @@
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"),
     profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"),
-    monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibility: $("#monitorVisibility"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
+    monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
     targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
     titleBlink: $("#titleBlink"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"),
@@ -60,9 +60,6 @@
     row.querySelector('[data-field="caseSensitive"]').checked = normalized.caseSensitive;
     row.querySelector('[data-action="remove-condition"]').addEventListener("click", () => {
       row.remove();
-      if (!elements.conditionsList.children.length) {
-        addConditionRow();
-      }
     });
     elements.conditionsList.append(row);
   }
@@ -75,7 +72,7 @@
     elements.monitorKind.value = value.monitor.selector.kind;
     elements.monitorAttributeName.value = value.monitor.selector.attributeName;
     elements.monitorValue.value = value.monitor.selector.value;
-    elements.monitorVisibility.value = value.monitor.visibility;
+    elements.monitorVisibilityTransition.value = value.monitor.visibilityTransition;
     elements.conditionJoin.value = value.monitor.conditionJoin;
     elements.conditionsList.replaceChildren();
     value.monitor.conditions.forEach(addConditionRow);
@@ -126,7 +123,7 @@
       },
       monitor: {
         selector: readSelector("monitor"),
-        visibility: elements.monitorVisibility.value,
+        visibilityTransition: elements.monitorVisibilityTransition.value,
         conditionJoin: elements.conditionJoin.value,
         conditions: readConditions()
       },
@@ -208,7 +205,7 @@
     elements.monitorCountText.textContent = session ? `${runtime.monitorCount || 0} (hiện ${runtime.monitorVisibleCount || 0}, ẩn ${runtime.monitorHiddenCount || 0})` : "—";
     elements.monitorMatchedText.textContent = session ? String(runtime.monitorMatchedCount || 0) : "—";
     elements.monitorCycleText.textContent = session ? String(runtime.cycle || 0) : "—";
-    elements.monitorTransitionText.textContent = runtime.lastTransition || runtime.lastReason || "—";
+    elements.monitorTransitionText.textContent = runtime.lastVisibilityTransition || runtime.lastTransition || runtime.lastReason || "—";
     elements.tabUrl.textContent = session?.url || (currentIsSelected ? dashboard.currentTab.url : "") || "—";
     elements.activateButton.disabled = busy || !currentIsSelected || Boolean(session);
     elements.pauseButton.disabled = busy || mode !== MODE.ACTIVE;
@@ -315,7 +312,7 @@
     const output = kind === "monitor" ? elements.monitorTestResult : elements.targetTestResult;
     const selector = readSelector(kind);
     const visibility = kind === "monitor"
-      ? elements.monitorVisibility.value
+      ? "any"
       : (elements.visibleOnly.checked ? "visible" : "any");
 
     output.textContent = "Đang kiểm tra…";

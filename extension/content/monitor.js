@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_MONITOR_ENGINE?.VERSION >= 1) {
+  if (globalThis.FCI_MONITOR_ENGINE?.VERSION >= 2) {
     return;
   }
 
@@ -115,10 +115,6 @@
 
   function elementMatchesMonitor(element, monitorConfig) {
     const visibility = inspectVisibility(element);
-    if (!visibilityMatches(visibility, monitorConfig.visibility)) {
-      return { matched: false, visibility, conditionResults: [] };
-    }
-
     const enabledConditions = monitorConfig.conditions.filter((condition) => condition.enabled);
     const conditionResults = enabledConditions.map((condition) => {
       try {
@@ -133,7 +129,12 @@
         : conditionResults.every(Boolean)
     );
 
-    return { matched: conditionsMatched, visibility, conditionResults };
+    return {
+      matched: conditionsMatched,
+      conditionsMatched,
+      visibility,
+      conditionResults
+    };
   }
 
   function evaluateMonitor(rawConfig) {
@@ -144,16 +145,19 @@
       ...elementMatchesMonitor(element, config.monitor)
     }));
     const visibleCount = evaluations.filter((item) => item.visibility.visible).length;
-    const matchedElements = evaluations.filter((item) => item.matched);
+    const matchedElements = evaluations.filter((item) => item.conditionsMatched);
 
     return {
       selector: query.css,
+      visibilityTransition: config.monitor.visibilityTransition,
       totalCount: evaluations.length,
       visibleCount,
       hiddenCount: evaluations.length - visibleCount,
+      attributeMatchedCount: matchedElements.length,
       matchedCount: matchedElements.length,
       matched: matchedElements.length > 0,
-      matchedElements
+      matchedElements,
+      evaluations
     };
   }
 
@@ -288,7 +292,133 @@
     let cycle = 0;
     let lastSignature = "";
     let lastEvaluation = null;
+    let lastVisibilityTransition = null;
+    let visibilityRecords = new Map();
+    let baselineReady = false;
     let stopped = true;
+
+    function sourceVisibility(mode) {
+      return mode === "hidden_to_visible" ? false : true;
+    }
+
+    function targetVisibility(mode) {
+      return !sourceVisibility(mode);
+    }
+
+    function visibilityLabel(fromVisible, toVisible) {
+      return `${fromVisible ? "visible" : "hidden"}->${toVisible ? "visible" : "hidden"}`;
+    }
+
+    function resetVisibilityTracking() {
+      visibilityRecords = new Map();
+      baselineReady = false;
+      lastVisibilityTransition = null;
+    }
+
+    function applyVisibilityTransition(evaluation) {
+      const mode = config.monitor.visibilityTransition;
+      if (mode === "none") {
+        return {
+          ...evaluation,
+          matchedCount: evaluation.attributeMatchedCount,
+          matched: evaluation.attributeMatchedCount > 0,
+          matchedElements: evaluation.evaluations.filter((item) => item.conditionsMatched),
+          lastVisibilityTransition: null
+        };
+      }
+
+      const currentElements = new Set(evaluation.evaluations.map((item) => item.element));
+      for (const element of visibilityRecords.keys()) {
+        if (!currentElements.has(element)) {
+          visibilityRecords.delete(element);
+        }
+      }
+
+      if (!baselineReady) {
+        const source = sourceVisibility(mode);
+        for (const item of evaluation.evaluations) {
+          const visible = item.visibility.visible;
+          visibilityRecords.set(item.element, {
+            lastVisible: visible,
+            armed: visible === source,
+            pending: false,
+            triggered: false
+          });
+        }
+        baselineReady = true;
+        return {
+          ...evaluation,
+          matchedCount: 0,
+          matched: false,
+          matchedElements: [],
+          lastVisibilityTransition: null
+        };
+      }
+
+      const source = sourceVisibility(mode);
+      const target = targetVisibility(mode);
+      const matchedElements = [];
+      let observedTransition = null;
+
+      for (const item of evaluation.evaluations) {
+        const visible = item.visibility.visible;
+        let record = visibilityRecords.get(item.element);
+
+        if (!record) {
+          visibilityRecords.set(item.element, {
+            lastVisible: visible,
+            armed: visible === source,
+            pending: false,
+            triggered: false
+          });
+          continue;
+        }
+
+        if (record.lastVisible !== visible) {
+          observedTransition = visibilityLabel(record.lastVisible, visible);
+          if (record.lastVisible === source && visible === target && record.armed) {
+            record.pending = true;
+            record.armed = false;
+            record.triggered = false;
+          } else if (visible === source) {
+            record.armed = true;
+            record.pending = false;
+            record.triggered = false;
+          }
+        }
+
+        if (visible === source) {
+          record.armed = true;
+          record.pending = false;
+          record.triggered = false;
+        } else if (visible === target) {
+          if (record.pending && item.conditionsMatched) {
+            record.pending = false;
+            record.triggered = true;
+          } else if (record.triggered && !item.conditionsMatched) {
+            record.triggered = false;
+            record.pending = false;
+          }
+        }
+
+        record.lastVisible = visible;
+        if (record.triggered && item.conditionsMatched) {
+          matchedElements.push(item);
+        }
+      }
+
+      if (observedTransition) {
+        lastVisibilityTransition = observedTransition;
+      }
+
+      return {
+        ...evaluation,
+        matchedCount: matchedElements.length,
+        matched: matchedElements.length > 0,
+        matchedElements,
+        lastVisibilityTransition
+      };
+    }
 
     function runtimeFromEvaluation(evaluation, reason, transition = null) {
       return {
@@ -299,6 +429,9 @@
         monitorVisibleCount: evaluation?.visibleCount || 0,
         monitorHiddenCount: evaluation?.hiddenCount || 0,
         monitorMatchedCount: evaluation?.matchedCount || 0,
+        monitorAttributeMatchedCount: evaluation?.attributeMatchedCount || 0,
+        visibilityTransitionMode: config.monitor.visibilityTransition,
+        lastVisibilityTransition: evaluation?.lastVisibilityTransition || lastVisibilityTransition,
         conditionMatched: Boolean(evaluation?.matched),
         lastReason: reason,
         lastTransition: transition,
@@ -315,6 +448,9 @@
         monitorVisibleCount: runtime.monitorVisibleCount,
         monitorHiddenCount: runtime.monitorHiddenCount,
         monitorMatchedCount: runtime.monitorMatchedCount,
+        monitorAttributeMatchedCount: runtime.monitorAttributeMatchedCount,
+        visibilityTransitionMode: runtime.visibilityTransitionMode,
+        lastVisibilityTransition: runtime.lastVisibilityTransition,
         conditionMatched: runtime.conditionMatched,
         lastTransition: runtime.lastTransition
       });
@@ -330,7 +466,8 @@
         return;
       }
       try {
-        const evaluation = evaluateMonitor(config);
+        const rawEvaluation = evaluateMonitor(config);
+        const evaluation = applyVisibilityTransition(rawEvaluation);
         lastEvaluation = evaluation;
         const nextState = evaluation.matched ? MONITOR_STATE.MATCHED : MONITOR_STATE.WAITING;
         const previousState = monitorState;
@@ -375,6 +512,7 @@
     function start(nextConfig, reason = "start") {
       config = Settings.normalizeConfig(nextConfig);
       disconnectObserver();
+      resetVisibilityTracking();
       stopped = false;
       observer = new MutationObserver(() => schedule("mutation"));
       observer.observe(document.documentElement, {
@@ -401,6 +539,7 @@
       stopped = true;
       monitorState = MONITOR_STATE.IDLE;
       lastSignature = "";
+      resetVisibilityTracking();
       clearSelectorHighlights();
     }
 
@@ -423,7 +562,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 1,
+      VERSION: 2,
       inspectVisibility,
       visibilityMatches,
       queryElements,

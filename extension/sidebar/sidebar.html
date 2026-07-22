@@ -84,18 +84,19 @@
         </div>
         <label>Tên attribute khi dùng kiểu Attribute<input id="monitorAttributeName" type="text" placeholder="data-testid"></label>
         <label>Giá trị selector<input id="monitorValue" type="text" placeholder="#composer-submit-button hoặc class-name"></label>
-        <label>Điều kiện hiển thị
-          <select id="monitorVisibility">
-            <option value="any">Không xét ẩn/hiện</option>
-            <option value="visible">Phải đang hiển thị</option>
-            <option value="hidden">Phải đang ẩn</option>
+        <label>Theo dõi chuyển trạng thái ẩn/hiện
+          <select id="monitorVisibilityTransition">
+            <option value="none">Không theo dõi ẩn/hiện</option>
+            <option value="hidden_to_visible">Ẩn → hiện</option>
+            <option value="visible_to_hidden">Hiện → ẩn</option>
           </select>
         </label>
         <div class="selector-test-row">
           <button id="monitorTestButton" type="button">Kiểm tra và highlight</button>
           <output id="monitorTestResult" class="selector-test-result"></output>
         </div>
-        <p class="hint">“Đang ẩn” gồm <code>display:none</code>, <code>visibility:hidden/collapse</code>, thuộc tính <code>hidden</code>, <code>visible=false</code>, <code>aria-hidden=true</code> hoặc không có vùng hiển thị.</p>
+        <p class="hint">Trạng thái lúc kích hoạt chỉ dùng làm baseline và không tự MATCHED. “Ẩn” gồm <code>display:none</code>, <code>visibility:hidden/collapse</code>, thuộc tính <code>hidden</code>, <code>visible=false</code>, <code>aria-hidden=true</code> hoặc không có vùng hiển thị.</p>
+        <p class="hint">Có thể xóa hoặc tắt toàn bộ điều kiện attribute để chỉ theo dõi chuyển trạng thái ẩn/hiện.</p>
         <div class="section-title-row subheading">
           <label>Ghép điều kiện<select id="conditionJoin"><option value="all">Tất cả đúng (AND)</option><option value="any">Một điều kiện đúng (OR)</option></select></label>
           <button id="addConditionButton" type="button" class="compact">+ Điều kiện</button>

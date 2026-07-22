@@ -1,16 +1,16 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 3) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 4) {
     return;
   }
 
-  const SCHEMA_VERSION = 3;
+  const SCHEMA_VERSION = 4;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
   const SELECTOR_KINDS = new Set(["css", "id", "class", "attribute"]);
-  const VISIBILITY_STATES = new Set(["any", "visible", "hidden"]);
+  const VISIBILITY_TRANSITIONS = new Set(["none", "hidden_to_visible", "visible_to_hidden"]);
   const CONDITION_OPERATORS = new Set([
     "exists",
     "not_exists",
@@ -78,7 +78,7 @@
       },
       monitor: {
         selector: defaultSelector("#composer-submit-button"),
-        visibility: "any",
+        visibilityTransition: "none",
         conditionJoin: "all",
         conditions: [defaultCondition()]
       },
@@ -148,9 +148,15 @@
     const fingerprintAttributes = Array.isArray(target.fingerprintAttributes)
       ? target.fingerprintAttributes
       : defaults.target.fingerprintAttributes;
-    const conditions = Array.isArray(monitor.conditions) && monitor.conditions.length
+    const conditions = Array.isArray(monitor.conditions)
       ? monitor.conditions.map(normalizeCondition)
       : defaults.monitor.conditions;
+    const legacyVisibilityTransition = monitor.visibility === "visible"
+      ? "hidden_to_visible"
+      : (monitor.visibility === "hidden" ? "visible_to_hidden" : "none");
+    const visibilityTransition = VISIBILITY_TRANSITIONS.has(monitor.visibilityTransition)
+      ? monitor.visibilityTransition
+      : legacyVisibilityTransition;
 
     return {
       activation: {
@@ -159,7 +165,7 @@
       },
       monitor: {
         selector: normalizeSelector(monitor.selector, defaults.monitor.selector),
-        visibility: VISIBILITY_STATES.has(monitor.visibility) ? monitor.visibility : "any",
+        visibilityTransition,
         conditionJoin: monitor.conditionJoin === "any" ? "any" : "all",
         conditions
       },

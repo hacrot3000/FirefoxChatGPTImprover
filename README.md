@@ -88,3 +88,8 @@ Phase hiện tại: **Phase 03 — monitor engine, visibility condition và sele
 
 Phase tiếp theo: **Phase 04 — baseline target mới và tự click theo chu kỳ**.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE03_END -->
+<!-- FIREFOX_CHAT_IMPROVER_PHASE03_V031_BEGIN -->
+### Phase 03 v0.3.1 — visibility-transition semantics
+
+Monitor visibility is now a transition condition rather than a static filter. A tab can wait for `hidden → visible` or `visible → hidden`; activation only records the current baseline and never triggers immediately. Attribute conditions are optional, so deleting or disabling every condition makes visibility transition the only trigger.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE03_V031_END -->
