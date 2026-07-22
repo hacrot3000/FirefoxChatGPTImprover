@@ -1,0 +1,38 @@
+{
+    "version": "2.0.0",
+    "_comment": "",
+    "tasks": [
+        {
+            "label": "Patchs: Run Python Patch",
+            "type": "shell",
+            "command": "./tools/run_python_patches.sh",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Zip staged changes",
+            "type": "shell",
+            "command": "./zip_staged_changes.sh",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            }
+        },
+    ]
+}
