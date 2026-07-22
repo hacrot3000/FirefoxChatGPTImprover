@@ -34,6 +34,11 @@
           <div><dt>Tìm thấy</dt><dd id="monitorCountText">—</dd></div>
           <div><dt>Thỏa điều kiện</dt><dd id="monitorMatchedText">—</dd></div>
           <div><dt>Chu kỳ</dt><dd id="monitorCycleText">—</dd></div>
+          <div><dt>Target state</dt><dd id="targetStateText">—</dd></div>
+          <div><dt>Baseline target</dt><dd id="baselineCountText">—</dd></div>
+          <div><dt>Target mới</dt><dd id="candidateCountText">—</dd></div>
+          <div><dt>Đã xử lý</dt><dd id="targetActionCountText">—</dd></div>
+          <div class="details-wide"><dt>Target action cuối</dt><dd id="lastTargetActionText">—</dd></div>
           <div class="details-wide"><dt>Chuyển trạng thái cuối</dt><dd id="monitorTransitionText">—</dd></div>
           <div class="details-wide"><dt>URL</dt><dd id="tabUrl">—</dd></div>
         </dl>
@@ -106,6 +111,7 @@
 
       <section class="card" aria-labelledby="targetHeading">
         <h2 id="targetHeading">Target element mới</h2>
+        <label class="check-row"><input id="targetEnabled" type="checkbox">Bật xử lý target mới khi monitor MATCHED</label>
         <div class="selector-grid">
           <label>Tag<select id="targetTag"><option>*</option><option>button</option><option>div</option><option>span</option><option>input</option><option>a</option></select></label>
           <label>Kiểu<select id="targetKind"><option value="css">CSS selector</option><option value="id">ID</option><option value="class">Class</option><option value="attribute">Attribute</option></select></label>
@@ -124,6 +130,7 @@
         <label class="check-row"><input id="enabledOnly" type="checkbox">Chỉ element có thể click</label>
         <label class="check-row"><input id="dryRun" type="checkbox">Dry-run, chỉ đánh dấu chưa click</label>
         <label>Thuộc tính fingerprint, phân cách bằng dấu phẩy<input id="fingerprintAttributes" type="text"></label>
+        <p class="hint">Khi kích hoạt hoặc khi monitor rời MATCHED, các target hiện có được lưu làm baseline và không bị click. Trong lúc MATCHED, chỉ target vượt baseline mới được xử lý. Dry-run vẫn đánh dấu target là đã xử lý trong chu kỳ để tránh lặp vô hạn.</p>
       </section>
 
       <section class="card" aria-labelledby="alertsHeading">

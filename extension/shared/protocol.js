@@ -1,12 +1,12 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_PROTOCOL?.VERSION >= 3) {
+  if (globalThis.FCI_PROTOCOL?.VERSION >= 4) {
     return;
   }
 
   const protocol = Object.freeze({
-    VERSION: 3,
+    VERSION: 4,
     MESSAGE: Object.freeze({
       GET_DASHBOARD: "FCI_GET_DASHBOARD",
       ACTIVATE_CURRENT: "FCI_ACTIVATE_CURRENT",
@@ -47,6 +47,14 @@
       IDLE: "idle",
       WAITING: "waiting",
       MATCHED: "matched",
+      PAUSED: "paused",
+      ERROR: "error"
+    }),
+    TARGET_STATE: Object.freeze({
+      DISABLED: "disabled",
+      WAITING: "waiting",
+      ARMED: "armed",
+      ACTED: "acted",
       PAUSED: "paused",
       ERROR: "error"
     })

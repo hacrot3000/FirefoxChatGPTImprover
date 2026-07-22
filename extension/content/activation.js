@@ -1,13 +1,14 @@
 (() => {
   "use strict";
 
-  const INSTANCE_KEY = "__firefoxChatImproverRuntimeV3";
+  const INSTANCE_KEY = "__firefoxChatImproverRuntimeV4";
   if (globalThis[INSTANCE_KEY]) {
     return;
   }
 
   const { MESSAGE, MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const MonitorEngine = globalThis.FCI_MONITOR_ENGINE;
+  const TargetEngine = globalThis.FCI_TARGET_ENGINE;
   let state = {
     mode: MODE.INACTIVE,
     activatedAt: null,
@@ -24,6 +25,18 @@
       cycle: 0,
       baselineCount: 0,
       candidateCount: 0,
+      targetState: "disabled",
+      targetEnabled: false,
+      targetSelector: "",
+      targetTotalCount: 0,
+      targetEligibleCount: 0,
+      handledCount: 0,
+      clickedCount: 0,
+      dryRunCount: 0,
+      targetCycle: 0,
+      lastTargetAction: null,
+      lastTargetAt: null,
+      lastTargetError: null,
       monitorSelector: "",
       monitorCount: 0,
       monitorVisibleCount: 0,
@@ -83,7 +96,13 @@
     });
   }
 
-  const monitor = MonitorEngine.createMonitor({ onRuntime: sendRuntimeEvent });
+  const targetAutomation = TargetEngine.createTargetAutomation({ onRuntime: sendRuntimeEvent });
+  const monitor = MonitorEngine.createMonitor({
+    onRuntime(runtime) {
+      sendRuntimeEvent(runtime);
+      targetAutomation.handleMonitorRuntime(runtime);
+    }
+  });
 
   function applySession(session, mode = null) {
     const now = new Date().toISOString();
@@ -106,10 +125,13 @@
     };
 
     if (state.mode === MODE.PAUSED) {
+      targetAutomation.pause();
       monitor.pause();
     } else if (state.mode === MODE.ACTIVE) {
+      targetAutomation.start(state.config, "session-applied-baseline");
       monitor.start(state.config, "session-applied");
     } else {
+      targetAutomation.stop();
       monitor.stop();
     }
     applyDocumentMarker();
@@ -122,10 +144,13 @@
     state.url = location.href;
 
     if (mode === MODE.PAUSED) {
+      targetAutomation.pause();
       monitor.pause();
     } else if (mode === MODE.ACTIVE) {
+      targetAutomation.resume(state.config);
       monitor.resume(state.config);
     } else {
+      targetAutomation.stop();
       monitor.stop();
       state.runtime.monitorState = MONITOR_STATE.IDLE;
     }

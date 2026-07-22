@@ -87,6 +87,18 @@
       cycle: 0,
       baselineCount: 0,
       candidateCount: 0,
+      targetState: "disabled",
+      targetEnabled: false,
+      targetSelector: "",
+      targetTotalCount: 0,
+      targetEligibleCount: 0,
+      handledCount: 0,
+      clickedCount: 0,
+      dryRunCount: 0,
+      targetCycle: 0,
+      lastTargetAction: null,
+      lastTargetAt: null,
+      lastTargetError: null,
       monitorSelector: "",
       monitorCount: 0,
       monitorVisibleCount: 0,
@@ -252,6 +264,7 @@
         "shared/protocol.js",
         "shared/settings.js",
         "content/monitor.js",
+        "content/target.js",
         "content/activation.js"
       ]
     });

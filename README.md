@@ -93,3 +93,14 @@ Phase tiếp theo: **Phase 04 — baseline target mới và tự click theo chu 
 
 Monitor visibility is now a transition condition rather than a static filter. A tab can wait for `hidden → visible` or `visible → hidden`; activation only records the current baseline and never triggers immediately. Attribute conditions are optional, so deleting or disabling every condition makes visibility transition the only trigger.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE03_V031_END -->
+<!-- FIREFOX_CHAT_IMPROVER_PHASE04_BEGIN -->
+## Phase 04 — Baseline target mới và tự click theo chu kỳ
+
+Mỗi tab có target engine riêng. Khi kích hoạt hoặc khi monitor rời `MATCHED`, target hiện có được lưu làm baseline. Trong lúc `MATCHED`, add-on chỉ xử lý target vượt baseline, hỗ trợ dry-run, visible/enabled filter, fingerprint chống click lặp và giới hạn hành động mỗi chu kỳ.
+
+Tài liệu chi tiết: `document/PHASE_04_NEW_TARGET_BASELINE_AUTO_CLICK.md`.
+
+Phase hiện tại: **Phase 04 — nhận diện target mới và tự click theo chu kỳ**.
+
+Phase tiếp theo: **Phase 05 — cảnh báo title/badge và quan sát hoạt động**.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE04_END -->

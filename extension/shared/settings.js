@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 4) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 5) {
     return;
   }
 
-  const SCHEMA_VERSION = 4;
+  const SCHEMA_VERSION = 5;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
@@ -83,6 +83,7 @@
         conditions: [defaultCondition()]
       },
       target: {
+        enabled: false,
         selector: defaultSelector(""),
         clickStrategy: "newest",
         visibleOnly: true,
@@ -170,6 +171,7 @@
         conditions
       },
       target: {
+        enabled: safeBoolean(target.enabled, false),
         selector: normalizeSelector(target.selector, defaults.target.selector),
         clickStrategy: ["oldest", "newest", "all"].includes(target.clickStrategy)
           ? target.clickStrategy

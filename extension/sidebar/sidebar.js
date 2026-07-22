@@ -8,12 +8,12 @@
     body: document.body,
     statusPill: $("#statusPill"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
     modeText: $("#modeText"), configModeText: $("#configModeText"), profileText: $("#profileText"), tabUrl: $("#tabUrl"),
-    monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), monitorTransitionText: $("#monitorTransitionText"),
+    monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), monitorTransitionText: $("#monitorTransitionText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"),
     profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"),
     monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
-    targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
+    targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
     titleBlink: $("#titleBlink"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"),
     saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), importFile: $("#importFile"), messageBox: $("#messageBox")
@@ -76,6 +76,7 @@
     elements.conditionJoin.value = value.monitor.conditionJoin;
     elements.conditionsList.replaceChildren();
     value.monitor.conditions.forEach(addConditionRow);
+    elements.targetEnabled.checked = value.target.enabled;
     elements.targetTag.value = value.target.selector.tag;
     elements.targetKind.value = value.target.selector.kind;
     elements.targetAttributeName.value = value.target.selector.attributeName;
@@ -128,6 +129,7 @@
         conditions: readConditions()
       },
       target: {
+        enabled: elements.targetEnabled.checked,
         selector: readSelector("target"),
         clickStrategy: elements.clickStrategy.value,
         maxClicksPerCycle: Number(elements.maxClicksPerCycle.value),
@@ -205,6 +207,11 @@
     elements.monitorCountText.textContent = session ? `${runtime.monitorCount || 0} (hiện ${runtime.monitorVisibleCount || 0}, ẩn ${runtime.monitorHiddenCount || 0})` : "—";
     elements.monitorMatchedText.textContent = session ? String(runtime.monitorMatchedCount || 0) : "—";
     elements.monitorCycleText.textContent = session ? String(runtime.cycle || 0) : "—";
+    elements.targetStateText.textContent = session ? (runtime.targetState || "disabled") : "—";
+    elements.baselineCountText.textContent = session ? String(runtime.baselineCount || 0) : "—";
+    elements.candidateCountText.textContent = session ? `${runtime.candidateCount || 0} / tổng ${runtime.targetTotalCount || 0}` : "—";
+    elements.targetActionCountText.textContent = session ? `${runtime.handledCount || 0} (click ${runtime.clickedCount || 0}, dry-run ${runtime.dryRunCount || 0})` : "—";
+    elements.lastTargetActionText.textContent = runtime.lastTargetError || runtime.lastTargetAction || "—";
     elements.monitorTransitionText.textContent = runtime.lastVisibilityTransition || runtime.lastTransition || runtime.lastReason || "—";
     elements.tabUrl.textContent = session?.url || (currentIsSelected ? dashboard.currentTab.url : "") || "—";
     elements.activateButton.disabled = busy || !currentIsSelected || Boolean(session);
