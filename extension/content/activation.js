@@ -1,12 +1,13 @@
 (() => {
   "use strict";
 
-  const INSTANCE_KEY = "__firefoxChatImproverRuntimeV2";
+  const INSTANCE_KEY = "__firefoxChatImproverRuntimeV3";
   if (globalThis[INSTANCE_KEY]) {
     return;
   }
 
   const { MESSAGE, MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
+  const MonitorEngine = globalThis.FCI_MONITOR_ENGINE;
   let state = {
     mode: MODE.INACTIVE,
     activatedAt: null,
@@ -23,6 +24,14 @@
       cycle: 0,
       baselineCount: 0,
       candidateCount: 0,
+      monitorSelector: "",
+      monitorCount: 0,
+      monitorVisibleCount: 0,
+      monitorHiddenCount: 0,
+      monitorMatchedCount: 0,
+      conditionMatched: false,
+      lastReason: null,
+      lastTransition: null,
       lastEventAt: null
     }
   };
@@ -35,9 +44,11 @@
     if (state.mode === MODE.ACTIVE || state.mode === MODE.PAUSED) {
       root.dataset.firefoxChatImprover = state.mode;
       root.dataset.firefoxChatImproverProfile = state.profileId || "";
+      root.dataset.firefoxChatImproverMonitor = state.runtime.monitorState || "";
     } else {
       delete root.dataset.firefoxChatImprover;
       delete root.dataset.firefoxChatImproverProfile;
+      delete root.dataset.firefoxChatImproverMonitor;
     }
   }
 
@@ -56,6 +67,20 @@
       runtime: { ...state.runtime }
     };
   }
+
+  function sendRuntimeEvent(runtime) {
+    state.runtime = { ...state.runtime, ...runtime };
+    state.updatedAt = runtime.lastEventAt || new Date().toISOString();
+    applyDocumentMarker();
+    void browser.runtime.sendMessage({
+      type: MESSAGE.CONTENT_RUNTIME_EVENT,
+      payload: { runtime: { ...state.runtime } }
+    }).catch(() => {
+      // Extension reload or tab shutdown can invalidate the runtime context.
+    });
+  }
+
+  const monitor = MonitorEngine.createMonitor({ onRuntime: sendRuntimeEvent });
 
   function applySession(session, mode = null) {
     const now = new Date().toISOString();
@@ -76,10 +101,13 @@
         ...(session?.runtime || {})
       }
     };
+
     if (state.mode === MODE.PAUSED) {
-      state.runtime.monitorState = MONITOR_STATE.PAUSED;
-    } else if (state.mode === MODE.ACTIVE && state.runtime.monitorState === MONITOR_STATE.PAUSED) {
-      state.runtime.monitorState = MONITOR_STATE.IDLE;
+      monitor.pause();
+    } else if (state.mode === MODE.ACTIVE) {
+      monitor.start(state.config, "session-applied");
+    } else {
+      monitor.stop();
     }
     applyDocumentMarker();
     return snapshot();
@@ -89,9 +117,16 @@
     state.mode = mode;
     state.updatedAt = new Date().toISOString();
     state.url = location.href;
-    state.runtime.monitorState = mode === MODE.PAUSED
-      ? MONITOR_STATE.PAUSED
-      : MONITOR_STATE.IDLE;
+
+    if (mode === MODE.PAUSED) {
+      monitor.pause();
+    } else if (mode === MODE.ACTIVE) {
+      monitor.resume(state.config);
+    } else {
+      monitor.stop();
+      state.runtime.monitorState = MONITOR_STATE.IDLE;
+    }
+
     applyDocumentMarker();
     return snapshot();
   }
@@ -113,6 +148,22 @@
         return Promise.resolve(setMode(MODE.INACTIVE));
       case MESSAGE.CONTENT_STATUS:
         return Promise.resolve(snapshot());
+      case MESSAGE.CONTENT_TEST_SELECTOR:
+        try {
+          return Promise.resolve({
+            ok: true,
+            result: MonitorEngine.highlightSelector(
+              message.payload?.selector,
+              message.payload?.visibility || "any",
+              message.payload?.durationMs || 8000
+            )
+          });
+        } catch (error) {
+          return Promise.resolve({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
       default:
         return undefined;
     }

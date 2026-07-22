@@ -29,7 +29,7 @@
       return null;
     }
     const url = new URL(rawUrl);
-    return `${url.protocol}//${url.hostname}/*`;
+    return `${url.protocol}//${url.host}/*`;
   }
 
   function tabMeta(tab) {
@@ -87,6 +87,14 @@
       cycle: 0,
       baselineCount: 0,
       candidateCount: 0,
+      monitorSelector: "",
+      monitorCount: 0,
+      monitorVisibleCount: 0,
+      monitorHiddenCount: 0,
+      monitorMatchedCount: 0,
+      conditionMatched: false,
+      lastReason: null,
+      lastTransition: null,
       lastEventAt: null
     };
   }
@@ -234,6 +242,65 @@
     await recoveryPromise;
   }
 
+  async function ensureContentScripts(tabId) {
+    await browser.scripting.executeScript({
+      target: { tabId },
+      files: [
+        "shared/protocol.js",
+        "shared/settings.js",
+        "content/monitor.js",
+        "content/activation.js"
+      ]
+    });
+  }
+
+  async function testSelector(tabId, rawSelector, visibility = "any") {
+    const tab = await browser.tabs.get(tabId);
+    const active = await currentTab();
+    if (!Number.isInteger(active?.id) || active.id !== tabId) {
+      throw new Error("Chỉ kiểm tra/highlight được tab đang hiển thị hiện tại.");
+    }
+    if (!isSupportedUrl(tab.url)) {
+      throw new Error("Chỉ có thể kiểm tra selector trên trang HTTP hoặc HTTPS thông thường.");
+    }
+
+    const origin = hostPermissionPattern(tab.url);
+    const granted = origin && await browser.permissions.contains({ origins: [origin] });
+    if (!granted) {
+      throw new Error("Firefox chưa cấp quyền truy cập website hiện tại.");
+    }
+
+    await ensureContentScripts(tabId);
+    const response = await browser.tabs.sendMessage(tabId, {
+      type: MESSAGE.CONTENT_TEST_SELECTOR,
+      payload: {
+        selector: rawSelector,
+        visibility,
+        durationMs: 8000
+      }
+    });
+    if (!response?.ok) {
+      throw new Error(response?.error || "Không thể kiểm tra selector.");
+    }
+    return response.result;
+  }
+
+  async function updateRuntimeFromContent(message, sender) {
+    const tabId = sender?.tab?.id;
+    if (!Number.isInteger(tabId)) {
+      throw new Error("Runtime event không có tabId hợp lệ.");
+    }
+    const session = sessions.get(tabId);
+    if (!session) {
+      return null;
+    }
+    session.runtime = { ...session.runtime, ...(message.payload?.runtime || {}) };
+    session.updatedAt = session.runtime.lastEventAt || Settings.nowIso();
+    await persistSession(session);
+    await broadcast("runtime-updated", tabId);
+    return clone(session.runtime);
+  }
+
   async function activateTab(tab, source, requestedProfileId = null) {
     if (!Number.isInteger(tab?.id)) {
       throw new Error("Không xác định được tab hiện tại.");
@@ -267,14 +334,7 @@
       }
     }
 
-    await browser.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: [
-        "shared/protocol.js",
-        "shared/settings.js",
-        "content/activation.js"
-      ]
-    });
+    await ensureContentScripts(tab.id);
 
     const session = makeSession(tab, profile.id, source);
     await applySessionToContent(session, store, MESSAGE.CONTENT_ACTIVATE);
@@ -507,7 +567,7 @@
     };
   }
 
-  async function handleRequest(message) {
+  async function handleRequest(message, sender = null) {
     try {
       switch (message.type) {
         case MESSAGE.GET_DASHBOARD:
@@ -578,6 +638,19 @@
           await importSettings(message.text);
           return { ok: true, dashboard: await dashboard() };
 
+        case MESSAGE.TEST_SELECTOR:
+          return {
+            ok: true,
+            result: await testSelector(
+              Number(message.tabId),
+              message.selector,
+              message.visibility || "any"
+            )
+          };
+
+        case MESSAGE.CONTENT_RUNTIME_EVENT:
+          return { ok: true, runtime: await updateRuntimeFromContent(message, sender) };
+
         default:
           return undefined;
       }
@@ -613,14 +686,16 @@
     MESSAGE.SAVE_PROFILE,
     MESSAGE.DELETE_PROFILE,
     MESSAGE.EXPORT_SETTINGS,
-    MESSAGE.IMPORT_SETTINGS
+    MESSAGE.IMPORT_SETTINGS,
+    MESSAGE.TEST_SELECTOR,
+    MESSAGE.CONTENT_RUNTIME_EVENT
   ]);
 
-  browser.runtime.onMessage.addListener((message) => {
+  browser.runtime.onMessage.addListener((message, sender) => {
     if (!message || !requestTypes.has(message.type)) {
       return undefined;
     }
-    return handleRequest(message);
+    return handleRequest(message, sender);
   });
 
   browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {

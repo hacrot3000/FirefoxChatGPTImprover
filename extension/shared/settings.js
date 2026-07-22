@@ -1,14 +1,16 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 2) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 3) {
     return;
   }
 
-  const SCHEMA_VERSION = 2;
+  const SCHEMA_VERSION = 3;
+  // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
   const SELECTOR_KINDS = new Set(["css", "id", "class", "attribute"]);
+  const VISIBILITY_STATES = new Set(["any", "visible", "hidden"]);
   const CONDITION_OPERATORS = new Set([
     "exists",
     "not_exists",
@@ -76,6 +78,7 @@
       },
       monitor: {
         selector: defaultSelector("#composer-submit-button"),
+        visibility: "any",
         conditionJoin: "all",
         conditions: [defaultCondition()]
       },
@@ -156,6 +159,7 @@
       },
       monitor: {
         selector: normalizeSelector(monitor.selector, defaults.monitor.selector),
+        visibility: VISIBILITY_STATES.has(monitor.visibility) ? monitor.visibility : "any",
         conditionJoin: monitor.conditionJoin === "any" ? "any" : "all",
         conditions
       },
@@ -185,6 +189,57 @@
         confirmBeforeRun: safeBoolean(shell.confirmBeforeRun, true)
       }
     };
+  }
+
+  function cssEscape(value) {
+    const text = safeString(value);
+    if (globalThis.CSS && typeof globalThis.CSS.escape === "function") {
+      return globalThis.CSS.escape(text);
+    }
+    return text.replace(/[^a-zA-Z0-9_-]/g, (character) => {
+      return `\\${character.codePointAt(0).toString(16)} `;
+    });
+  }
+
+  function selectorToCss(raw) {
+    const selector = normalizeSelector(raw);
+    const tag = selector.tag && selector.tag !== "*" ? cssEscape(selector.tag) : "";
+
+    if (selector.kind === "css") {
+      return selector.value || tag || "*";
+    }
+
+    if (selector.kind === "id") {
+      const value = selector.value.replace(/^#/, "").trim();
+      if (!value) {
+        throw new Error("Selector ID chưa có giá trị.");
+      }
+      return `${tag}#${cssEscape(value)}`;
+    }
+
+    if (selector.kind === "class") {
+      const classes = selector.value
+        .replaceAll(".", " ")
+        .split(/\s+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+      if (!classes.length) {
+        throw new Error("Selector class chưa có giá trị.");
+      }
+      return `${tag}${classes.map((item) => `.${cssEscape(item)}`).join("")}`;
+    }
+
+    if (selector.kind === "attribute") {
+      const name = selector.attributeName.trim();
+      if (!name || !/^[A-Za-z_][A-Za-z0-9_.:-]*$/.test(name)) {
+        throw new Error("Tên attribute không hợp lệ.");
+      }
+      return selector.value
+        ? `${tag}[${name}=${JSON.stringify(selector.value)}]`
+        : `${tag}[${name}]`;
+    }
+
+    throw new Error("Kiểu selector không được hỗ trợ.");
   }
 
   function createProfile(name = "Mặc định", baseConfig = null, id = null) {
@@ -286,18 +341,13 @@
       ["monitor", config.monitor.selector],
       ["target", config.target.selector]
     ]) {
-      if (selector.kind === "attribute" && !selector.attributeName) {
-        errors.push(`Selector ${label}: thiếu tên attribute.`);
-      }
-      if (selector.kind !== "css" && !selector.value) {
-        errors.push(`Selector ${label}: thiếu giá trị.`);
-      }
-      if (selector.kind === "css" && selector.value && typeof document !== "undefined") {
-        try {
-          document.createDocumentFragment().querySelector(selector.value);
-        } catch (_error) {
-          errors.push(`Selector ${label}: CSS selector không hợp lệ.`);
+      try {
+        const css = selectorToCss(selector);
+        if (typeof document !== "undefined") {
+          document.createDocumentFragment().querySelector(css);
         }
+      } catch (error) {
+        errors.push(`Selector ${label}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
@@ -347,6 +397,7 @@
       normalizeStore,
       createProfile,
       profileById,
+      selectorToCss,
       urlAllowed,
       validateConfig,
       exportStore,

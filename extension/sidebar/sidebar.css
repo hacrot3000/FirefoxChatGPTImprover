@@ -55,3 +55,5 @@ button.compact { min-height: 27px; padding: 4px 7px; font-size: 11px; }
 .message-box:not(:empty) { display: block; }
 .message-box[data-level="error"] { border-color: var(--error); color: var(--error); }
 .message-box[data-level="success"] { border-color: var(--active); color: var(--active); }
+.selector-test-row { display: grid; grid-template-columns: minmax(120px, auto) 1fr; align-items: center; gap: 8px; margin: 2px 0 8px; }
+.selector-test-result { min-height: 18px; color: var(--muted); font-size: 11px; line-height: 1.35; overflow-wrap: anywhere; }

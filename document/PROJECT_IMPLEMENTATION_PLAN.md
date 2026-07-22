@@ -162,7 +162,9 @@ Tiêu chí hoàn tất:
 
 Công việc:
 
-- Tạo selector resolver dùng chung.
+- Tạo selector resolver dùng chung cho CSS, ID, class và attribute.
+- Hỗ trợ điều kiện visibility: any/visible/hidden; hidden gồm display none, visibility hidden/collapse, hidden, visible=false, aria-hidden=true hoặc không có rendered box.
+- Có nút test selector, đếm kết quả và highlight trực tiếp trên active tab.
 - Tìm lại element khi SPA/React thay node cũ bằng node mới.
 - Dùng `MutationObserver` cho:
   - attribute thay đổi trên element;
@@ -223,7 +225,7 @@ Công việc:
 
 - Hoàn thiện sidebar UI.
 - Hiển thị trạng thái observer, monitor element, điều kiện và target count.
-- Nút kiểm tra selector và highlight element trên trang.
+- Hoàn thiện trải nghiệm selector test/highlight đã có từ Phase 03, gồm log và cleanup thống nhất.
 - Nút dry-run/click thử có xác nhận.
 - Cảnh báo:
   - title nhấp nháy;

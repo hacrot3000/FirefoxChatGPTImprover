@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "FirefoxChatImprover",
-  "version": "0.2.2",
-  "description": "Private Firefox sidebar helper with independent multi-tab sessions, active-tab synchronized UI, per-site permissions and configurable profiles.",
+  "version": "0.3.0",
+  "description": "Private Firefox sidebar helper with independent multi-tab sessions, selector testing/highlighting and MutationObserver-based monitor state.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-improver@duongtc.local",

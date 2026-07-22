@@ -8,11 +8,12 @@
     body: document.body,
     statusPill: $("#statusPill"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
     modeText: $("#modeText"), configModeText: $("#configModeText"), profileText: $("#profileText"), tabUrl: $("#tabUrl"),
+    monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), monitorTransitionText: $("#monitorTransitionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"),
     profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"),
-    monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
-    targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
+    monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibility: $("#monitorVisibility"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
+    targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
     titleBlink: $("#titleBlink"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"),
     saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), importFile: $("#importFile"), messageBox: $("#messageBox")
@@ -74,6 +75,7 @@
     elements.monitorKind.value = value.monitor.selector.kind;
     elements.monitorAttributeName.value = value.monitor.selector.attributeName;
     elements.monitorValue.value = value.monitor.selector.value;
+    elements.monitorVisibility.value = value.monitor.visibility;
     elements.conditionJoin.value = value.monitor.conditionJoin;
     elements.conditionsList.replaceChildren();
     value.monitor.conditions.forEach(addConditionRow);
@@ -124,6 +126,7 @@
       },
       monitor: {
         selector: readSelector("monitor"),
+        visibility: elements.monitorVisibility.value,
         conditionJoin: elements.conditionJoin.value,
         conditions: readConditions()
       },
@@ -200,6 +203,12 @@
     elements.modeText.textContent = modeLabels[mode] || mode;
     elements.configModeText.textContent = session?.configMode === CONFIG_MODE.TAB ? "Riêng cho tab" : (session ? "Theo profile" : "Chưa tạo session");
     elements.profileText.textContent = session?.profileName || profileById(selectedProfileId)?.name || "—";
+    const runtime = session?.runtime || {};
+    elements.monitorStateText.textContent = runtime.monitorState || "—";
+    elements.monitorCountText.textContent = session ? `${runtime.monitorCount || 0} (hiện ${runtime.monitorVisibleCount || 0}, ẩn ${runtime.monitorHiddenCount || 0})` : "—";
+    elements.monitorMatchedText.textContent = session ? String(runtime.monitorMatchedCount || 0) : "—";
+    elements.monitorCycleText.textContent = session ? String(runtime.cycle || 0) : "—";
+    elements.monitorTransitionText.textContent = runtime.lastTransition || runtime.lastReason || "—";
     elements.tabUrl.textContent = session?.url || (currentIsSelected ? dashboard.currentTab.url : "") || "—";
     elements.activateButton.disabled = busy || !currentIsSelected || Boolean(session);
     elements.pauseButton.disabled = busy || mode !== MODE.ACTIVE;
@@ -208,6 +217,8 @@
     elements.assignProfileButton.disabled = busy || !session;
     elements.saveTabButton.disabled = busy || !session;
     elements.resetTabButton.disabled = busy || !session || session.configMode !== CONFIG_MODE.TAB;
+    elements.monitorTestButton.disabled = busy || !currentIsSelected;
+    elements.targetTestButton.disabled = busy || !currentIsSelected;
 
     const profile = profileById(selectedProfileId);
     elements.profileName.value = profile?.name || "";
@@ -230,7 +241,7 @@
       if (url.protocol !== "http:" && url.protocol !== "https:") {
         return null;
       }
-      return `${url.protocol}//${url.hostname}/*`;
+      return `${url.protocol}//${url.host}/*`;
     } catch (_error) {
       return null;
     }
@@ -277,6 +288,56 @@
       }
       showMessage(`Đã cấp quyền website và kích hoạt tab ${activationTabId}.`, "success");
     }).catch((error) => {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    }).finally(() => {
+      setBusy(false);
+    });
+  }
+
+  function formatSelectorTestResult(result) {
+    return `Tổng ${result.totalCount}; chọn ${result.selectedCount}; hiện ${result.visibleCount}; ẩn ${result.hiddenCount}. Highlight giữ 8 giây.`;
+  }
+
+  function testSelector(kind) {
+    const current = dashboard.currentTab;
+    if (!Number.isInteger(current?.tabId) || Number(current.tabId) !== Number(selectedTabId)) {
+      showMessage("Chỉ kiểm tra selector trên tab đang hiển thị hiện tại.", "error");
+      return;
+    }
+
+    const tabId = current.tabId;
+    const origin = hostPermissionPattern(current.url);
+    if (!origin) {
+      showMessage("Chỉ có thể kiểm tra selector trên trang HTTP hoặc HTTPS thông thường.", "error");
+      return;
+    }
+
+    const output = kind === "monitor" ? elements.monitorTestResult : elements.targetTestResult;
+    const selector = readSelector(kind);
+    const visibility = kind === "monitor"
+      ? elements.monitorVisibility.value
+      : (elements.visibleOnly.checked ? "visible" : "any");
+
+    output.textContent = "Đang kiểm tra…";
+    const permissionRequest = browser.permissions.request({ origins: [origin] });
+    setBusy(true);
+    void permissionRequest.then(async (granted) => {
+      if (!granted) {
+        throw new Error("Bạn chưa cấp quyền truy cập website này.");
+      }
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.TEST_SELECTOR,
+        tabId,
+        selector,
+        visibility
+      });
+      if (!response?.ok) {
+        throw new Error(response?.error || "Không thể kiểm tra selector.");
+      }
+      output.textContent = formatSelectorTestResult(response.result);
+      showMessage(`Đã kiểm tra selector ${kind === "monitor" ? "theo dõi" : "target"}.`, "success");
+    }).catch((error) => {
+      output.textContent = "Kiểm tra thất bại.";
       showMessage(error instanceof Error ? error.message : String(error), "error");
     }).finally(() => {
       setBusy(false);
@@ -358,6 +419,8 @@
     writeConfig(profile?.config || Settings.defaultConfig());
   });
   elements.addConditionButton.addEventListener("click", () => addConditionRow());
+  elements.monitorTestButton.addEventListener("click", () => testSelector("monitor"));
+  elements.targetTestButton.addEventListener("click", () => testSelector("target"));
   elements.refreshButton.addEventListener("click", () => void request(MESSAGE.GET_DASHBOARD));
   elements.activateButton.addEventListener("click", activateCurrentTab);
   elements.pauseButton.addEventListener("click", () => void request(MESSAGE.PAUSE_TAB, { tabId: selectedTabId }, "Đã tạm dừng tab."));
@@ -412,6 +475,8 @@
       return undefined;
     }
     if (message.reason === "active-tab-changed") {
+      elements.monitorTestResult.textContent = "";
+      elements.targetTestResult.textContent = "";
       void refreshForActiveTab(message.changedTabId);
     } else {
       void request(MESSAGE.GET_DASHBOARD);

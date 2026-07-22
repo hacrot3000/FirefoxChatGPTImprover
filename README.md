@@ -1,5 +1,4 @@
-# FirefoxChatGPTImprover
-A tool for me to work with my ChatGPT and system
+# FirefoxChatImprover
 
 <!-- FIREFOX_CHAT_IMPROVER_PHASE00_BEGIN -->
 ## Kế hoạch và workflow phát triển add-on
@@ -75,3 +74,17 @@ Nút kích hoạt trong sidebar nay xin quyền đúng website hiện tại bằ
 
 Sidebar tự động chuyển sang đúng session khi active tab của Firefox thay đổi. Mỗi tab tiếp tục giữ profile, cấu hình, mode và runtime riêng theo `tabId`; phản hồi đồng bộ cũ bị loại bỏ khi chuyển tab nhanh.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE02_V022_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE03_BEGIN -->
+## Phase 03 — Monitor engine và kiểm tra selector
+
+Add-on đã theo dõi element thực tế bằng `MutationObserver` cho từng tab độc lập. Monitor hỗ trợ điều kiện hiện/ẩn, các điều kiện attribute AND/OR và tự tìm lại element khi SPA thay node.
+
+Sidebar có nút **Kiểm tra và highlight** cho monitor/target selector, hỗ trợ ID, class, CSS selector và attribute; kết quả hiển thị tổng số element, số hiện và số ẩn.
+
+Tài liệu chi tiết: `document/PHASE_03_MONITOR_ENGINE_SELECTOR_TEST.md`.
+
+Phase hiện tại: **Phase 03 — monitor engine, visibility condition và selector test**.
+
+Phase tiếp theo: **Phase 04 — baseline target mới và tự click theo chu kỳ**.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE03_END -->
