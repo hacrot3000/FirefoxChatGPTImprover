@@ -154,3 +154,19 @@ Tài liệu: `document/PHASE_06_NATIVE_MESSAGING_SHELL.md`.
 
 Phase tiếp theo: **Phase 07 — kiểm thử integration và hardening**.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE06_END -->
+
+## Phase 07 — Test và hardening
+
+Chạy toàn bộ test:
+
+```bash
+./tools/test_firefox_addon.sh
+```
+
+Mở DOM fixture:
+
+```bash
+./tools/run_phase07_fixture.sh
+```
+
+Chi tiết: `document/PHASE_07_TEST_HARDENING.md`.

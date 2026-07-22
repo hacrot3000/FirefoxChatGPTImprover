@@ -1,0 +1,8 @@
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+body { margin: 0; }
+main { max-width: 900px; margin: auto; padding: 24px; }
+section { border: 1px solid color-mix(in srgb, currentColor 25%, transparent); border-radius: 8px; padding: 16px; margin: 16px 0; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
+button { padding: 8px 12px; }
+#target-host { display: flex; flex-wrap: wrap; gap: 8px; min-height: 48px; }
+#fixture-log { min-height: 140px; white-space: pre-wrap; }

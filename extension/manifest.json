@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.6.0",
-  "description": "Private Firefox sidebar helper with independent multi-tab monitoring, target automation, alerts, activity logs and local shell commands through Native Messaging.",
+  "version": "0.7.0",
+  "description": "Private Firefox sidebar helper with independent multi-tab monitoring, target automation, alerts, hardened Native Messaging shell commands and Phase 07 diagnostics.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-assistant@duongtc.local",
@@ -48,5 +48,8 @@
   "icons": {
     "48": "icons/icon.svg",
     "96": "icons/icon.svg"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none';"
   }
 }

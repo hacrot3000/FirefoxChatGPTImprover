@@ -1265,9 +1265,58 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     MESSAGE.CONTENT_RUNTIME_EVENT
   ]);
 
+
+  const SIDEBAR_REQUEST_TYPES = new Set([
+    MESSAGE.GET_DASHBOARD,
+    MESSAGE.ACTIVATE_CURRENT,
+    MESSAGE.PAUSE_TAB,
+    MESSAGE.RESUME_TAB,
+    MESSAGE.STOP_TAB,
+    MESSAGE.ASSIGN_PROFILE,
+    MESSAGE.SAVE_TAB_CONFIG,
+    MESSAGE.RESET_TAB_CONFIG,
+    MESSAGE.CREATE_PROFILE,
+    MESSAGE.DUPLICATE_PROFILE,
+    MESSAGE.SAVE_PROFILE,
+    MESSAGE.DELETE_PROFILE,
+    MESSAGE.EXPORT_SETTINGS,
+    MESSAGE.IMPORT_SETTINGS,
+    MESSAGE.TEST_SELECTOR,
+    MESSAGE.TEST_TARGET_ACTION,
+    MESSAGE.CLEAR_HIGHLIGHTS,
+    MESSAGE.CLEAR_SESSION_LOGS,
+    MESSAGE.GET_NATIVE_STATUS,
+    MESSAGE.RUN_SHELL,
+    MESSAGE.STOP_SHELL,
+    MESSAGE.CLEAR_SHELL_OUTPUT
+  ]);
+
+  function validateRequestSender(message, sender) {
+    if (message.type === MESSAGE.CONTENT_RUNTIME_EVENT) {
+      if (!Number.isInteger(sender?.tab?.id)) {
+        throw new Error("CONTENT_RUNTIME_EVENT chỉ được nhận từ content script trong một tab.");
+      }
+      return;
+    }
+    if (SIDEBAR_REQUEST_TYPES.has(message.type)) {
+      if (sender?.tab) {
+        throw new Error("Yêu cầu quản trị chỉ được gửi từ sidebar, không phải content script.");
+      }
+      const sidebarPrefix = browser.runtime.getURL("sidebar/");
+      if (typeof sender?.url !== "string" || !sender.url.startsWith(sidebarPrefix)) {
+        throw new Error("Yêu cầu quản trị không xuất phát từ sidebar hợp lệ.");
+      }
+    }
+  }
+
   browser.runtime.onMessage.addListener((message, sender) => {
     if (!message || !requestTypes.has(message.type)) {
       return undefined;
+    }
+    try {
+      validateRequestSender(message, sender);
+    } catch (error) {
+      return Promise.resolve(errorResponse(error));
     }
     return handleRequest(message, sender);
   });

@@ -23,9 +23,10 @@ from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Callable
 
 HOST_NAME = "com.duongtc.firefox_chat_assistant"
-HOST_VERSION = "0.6.0"
+HOST_VERSION = "0.7.0"
 MAX_MESSAGE_BYTES = 1024 * 1024
 MAX_COMMAND_CHARS = 32768
+MAX_OUTPUT_CHUNK_CHARS = 65536
 STOP_GRACE_SECONDS = 3.0
 
 
@@ -276,13 +277,14 @@ class ProcessManager:
     def _read_stream(self, context: RunContext, stream_name: str, stream: Any) -> None:
         try:
             for line in iter(stream.readline, ""):
-                self.emit({
-                    "event": "output",
-                    "runId": context.run_id,
-                    "tabId": context.tab_id,
-                    "stream": stream_name,
-                    "text": line,
-                })
+                for offset in range(0, len(line), MAX_OUTPUT_CHUNK_CHARS):
+                    self.emit({
+                        "event": "output",
+                        "runId": context.run_id,
+                        "tabId": context.tab_id,
+                        "stream": stream_name,
+                        "text": line[offset:offset + MAX_OUTPUT_CHUNK_CHARS],
+                    })
         finally:
             stream.close()
 
@@ -302,11 +304,15 @@ class ProcessManager:
             "stopped": context.stopping,
         })
 
-    def stop(self, run_id: str) -> None:
+    def stop(self, run_id: str, tab_id: int | None = None) -> None:
         with self.lock:
             context = self.runs.get(run_id)
             if context is None or context.process is None:
                 raise ValueError("Không tìm thấy command đang chạy.")
+            if tab_id is not None and context.tab_id != tab_id:
+                raise ValueError("tabId không khớp command đang chạy.")
+            if context.stopping:
+                return
             context.stopping = True
             process = context.process
         self.emit({"event": "stopping", "runId": context.run_id, "tabId": context.tab_id})
@@ -358,7 +364,9 @@ def run_host(reader: BinaryIO = sys.stdin.buffer, writer: MessageWriter | None =
                 elif action == "run":
                     manager.start(message)
                 elif action == "stop":
-                    manager.stop(str(message.get("runId") or ""))
+                    raw_tab_id = message.get("tabId")
+                    tab_id = raw_tab_id if isinstance(raw_tab_id, int) else None
+                    manager.stop(str(message.get("runId") or ""), tab_id)
                 else:
                     raise ValueError("Action native host không được hỗ trợ.")
             except Exception as error:

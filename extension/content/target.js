@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_TARGET_ENGINE?.VERSION >= 2) {
+  if (globalThis.FCI_TARGET_ENGINE?.VERSION >= 3) {
     return;
   }
 
@@ -12,6 +12,39 @@
   const ACTION_HIGHLIGHT_STYLE_ID = "fci-target-action-highlight-style";
   const ACTION_TOAST_ID = "fci-target-action-toast";
   let activeActionCleanup = null;
+
+  function targetObserverOptionsForConfig(rawConfig) {
+    const config = Settings.normalizeConfig(rawConfig);
+    const selector = config.target.selector || {};
+    const attributes = new Set([
+      "id",
+      "class",
+      "style",
+      "hidden",
+      "visible",
+      "aria-hidden",
+      "disabled",
+      "aria-disabled"
+    ]);
+    if (selector.kind === "attribute" && selector.attributeName) {
+      attributes.add(String(selector.attributeName));
+    }
+    if (selector.kind === "css") {
+      const value = String(selector.value || "");
+      for (const match of value.matchAll(/\[\s*([A-Za-z_][A-Za-z0-9_.:-]*)/g)) {
+        attributes.add(match[1]);
+      }
+    }
+    for (const attribute of config.target.fingerprintAttributes || []) {
+      attributes.add(attribute);
+    }
+    return {
+      attributes: true,
+      attributeFilter: [...attributes].sort(),
+      childList: true,
+      subtree: true
+    };
+  }
 
   function normalizeText(value) {
     return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, 180);
@@ -501,11 +534,10 @@
           schedule("target-mutation");
         }
       });
-      observer.observe(document.documentElement, {
-        attributes: true,
-        childList: true,
-        subtree: true
-      });
+      if (!document.documentElement) {
+        throw new Error("Document chưa có documentElement để theo dõi target.");
+      }
+      observer.observe(document.documentElement, targetObserverOptionsForConfig(config));
     }
 
     function handleMonitorRuntime(monitorRuntime) {
@@ -563,11 +595,12 @@
   }
 
   Object.defineProperty(globalThis, "FCI_TARGET_ENGINE", {
-    configurable: false,
+    configurable: true,
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 2,
+      VERSION: 3,
+      targetObserverOptionsForConfig,
       elementFingerprint,
       elementEnabled,
       fingerprintCounts,

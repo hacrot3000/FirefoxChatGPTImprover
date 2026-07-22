@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_MONITOR_ENGINE?.VERSION >= 3) {
+  if (globalThis.FCI_MONITOR_ENGINE?.VERSION >= 4) {
     return;
   }
 
@@ -76,6 +76,65 @@
     return {
       css,
       elements: [...document.querySelectorAll(css)]
+    };
+  }
+
+  function selectorObservedAttributes(selector) {
+    const attributes = new Set();
+    const normalized = selector && typeof selector === "object" ? selector : {};
+    if (normalized.kind === "id") {
+      attributes.add("id");
+    } else if (normalized.kind === "class") {
+      attributes.add("class");
+    } else if (normalized.kind === "attribute" && normalized.attributeName) {
+      attributes.add(String(normalized.attributeName));
+    } else if (normalized.kind === "css") {
+      const value = String(normalized.value || "");
+      if (value.includes("#")) {
+        attributes.add("id");
+      }
+      if (value.includes(".")) {
+        attributes.add("class");
+      }
+      for (const match of value.matchAll(/\[\s*([A-Za-z_][A-Za-z0-9_.:-]*)/g)) {
+        attributes.add(match[1]);
+      }
+    }
+    return attributes;
+  }
+
+  function observerOptionsForConfig(rawConfig) {
+    const config = Settings.normalizeConfig(rawConfig);
+    const attributes = new Set([
+      "id",
+      "class",
+      "style",
+      "hidden",
+      "visible",
+      "aria-hidden",
+      "disabled",
+      "aria-disabled"
+    ]);
+    for (const attribute of selectorObservedAttributes(config.monitor.selector)) {
+      attributes.add(attribute);
+    }
+    let characterData = false;
+    for (const condition of config.monitor.conditions || []) {
+      if (!condition.enabled) {
+        continue;
+      }
+      if (condition.attribute === "textContent") {
+        characterData = true;
+      } else if (condition.attribute) {
+        attributes.add(condition.attribute);
+      }
+    }
+    return {
+      attributes: true,
+      attributeFilter: [...attributes].sort(),
+      childList: true,
+      subtree: true,
+      characterData
     };
   }
 
@@ -547,8 +606,7 @@
         monitorAttributeMatchedCount: runtime.monitorAttributeMatchedCount,
         visibilityTransitionMode: runtime.visibilityTransitionMode,
         lastVisibilityTransition: runtime.lastVisibilityTransition,
-        conditionMatched: runtime.conditionMatched,
-        lastTransition: runtime.lastTransition
+        conditionMatched: runtime.conditionMatched
       });
       if (!force && signature === lastSignature) {
         return;
@@ -611,11 +669,10 @@
       resetVisibilityTracking();
       stopped = false;
       observer = new MutationObserver(() => schedule("mutation"));
-      observer.observe(document.documentElement, {
-        attributes: true,
-        childList: true,
-        subtree: true
-      });
+      if (!document.documentElement) {
+        throw new Error("Document chưa có documentElement để theo dõi.");
+      }
+      observer.observe(document.documentElement, observerOptionsForConfig(config));
       evaluate(reason);
     }
 
@@ -654,11 +711,12 @@
   }
 
   Object.defineProperty(globalThis, "FCI_MONITOR_ENGINE", {
-    configurable: false,
+    configurable: true,
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 3,
+      VERSION: 4,
+      observerOptionsForConfig,
       inspectVisibility,
       visibilityMatches,
       queryElements,

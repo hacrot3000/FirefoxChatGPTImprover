@@ -2,8 +2,13 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatImproverRuntimeV5";
-  if (globalThis[INSTANCE_KEY]) {
+  const RUNTIME_VERSION = 7;
+  const previousRuntime = globalThis[INSTANCE_KEY];
+  if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
+  }
+  if (typeof previousRuntime?.shutdown === "function") {
+    previousRuntime.shutdown("runtime-upgrade");
   }
 
   const { MESSAGE, MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
@@ -192,7 +197,7 @@
     return { cleared: true, updatedAt: new Date().toISOString() };
   }
 
-  browser.runtime.onMessage.addListener((message) => {
+  function onRuntimeMessage(message) {
     if (!message || typeof message.type !== "string") {
       return undefined;
     }
@@ -251,8 +256,37 @@
       default:
         return undefined;
     }
-  });
+  }
 
-  globalThis[INSTANCE_KEY] = Object.freeze({ snapshot, clearHighlights });
+  let shutdownDone = false;
+  function shutdown(reason = "shutdown") {
+    if (shutdownDone) {
+      return;
+    }
+    shutdownDone = true;
+    try {
+      browser.runtime.onMessage.removeListener(onRuntimeMessage);
+    } catch (_error) {
+      // Extension reload can invalidate the runtime API before cleanup.
+    }
+    targetAutomation.stop();
+    monitor.stop();
+    MonitorEngine.clearSelectorHighlights();
+    TargetEngine.clearActionHighlights();
+    alertController.stop(reason);
+    state.mode = MODE.INACTIVE;
+    state.runtime.monitorState = MONITOR_STATE.IDLE;
+    applyDocumentMarker();
+  }
+
+  browser.runtime.onMessage.addListener(onRuntimeMessage);
+  window.addEventListener("pagehide", () => shutdown("pagehide"), { once: true });
+
+  Object.defineProperty(globalThis, INSTANCE_KEY, {
+    configurable: true,
+    enumerable: false,
+    writable: false,
+    value: Object.freeze({ VERSION: RUNTIME_VERSION, snapshot, clearHighlights, shutdown })
+  });
   applyDocumentMarker();
 })();

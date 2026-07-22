@@ -5,7 +5,7 @@ const manifest = JSON.parse(fs.readFileSync("extension/manifest.json", "utf8"));
 const protocol = fs.readFileSync("extension/shared/protocol.js", "utf8");
 const background = fs.readFileSync("extension/background/background.js", "utf8");
 const sidebar = fs.readFileSync("extension/sidebar/sidebar.js", "utf8");
-assert.strictEqual(manifest.version, "0.6.0");
+assert(Number(manifest.version.split('.')[1]) >= 6, `Phase 06 contract requires version >=0.6.0, got ${manifest.version}`);
 assert(manifest.permissions.includes("nativeMessaging"));
 for (const token of ["GET_NATIVE_STATUS", "RUN_SHELL", "STOP_SHELL", "CLEAR_SHELL_OUTPUT"]) {
   assert(protocol.includes(token), `missing protocol token ${token}`);

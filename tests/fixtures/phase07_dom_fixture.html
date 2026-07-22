@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Firefox ChatAI Assistant — Phase 07 Fixture</title>
+  <link rel="stylesheet" href="phase07_fixture.css">
+</head>
+<body>
+  <main>
+    <h1>Phase 07 DOM Fixture</h1>
+    <p>Mở trang này trong hai tab, kích hoạt add-on và dùng các nút dưới đây để kiểm tra session độc lập.</p>
+    <section class="controls">
+      <button id="toggle-visibility">Ẩn/hiện monitor</button>
+      <button id="toggle-label">Đổi aria-label</button>
+      <button id="replace-monitor">React-style replace monitor</button>
+      <button id="add-target">Thêm target mới</button>
+      <button id="add-hidden-target">Thêm target ẩn</button>
+      <button id="add-disabled-target">Thêm target disabled</button>
+      <button id="mutation-storm">Mutation storm ×100</button>
+      <button id="clear-targets">Xóa target</button>
+    </section>
+    <section>
+      <h2>Monitor</h2>
+      <div id="monitor-host">
+        <button id="composer-submit-button" aria-label="Send prompt" data-testid="send-button" class="composer-submit-btn">Send prompt</button>
+      </div>
+    </section>
+    <section>
+      <h2>Targets</h2>
+      <div id="target-host"></div>
+    </section>
+    <section>
+      <h2>Fixture log</h2>
+      <pre id="fixture-log"></pre>
+    </section>
+  </main>
+  <script src="phase07_fixture.js"></script>
+</body>
+</html>

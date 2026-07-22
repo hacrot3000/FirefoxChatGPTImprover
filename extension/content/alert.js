@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 1) {
+  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 2) {
     return;
   }
 
@@ -161,11 +161,11 @@
   }
 
   Object.defineProperty(globalThis, "FCI_ALERT_ENGINE", {
-    configurable: false,
+    configurable: true,
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 1,
+      VERSION: 2,
       shouldAlert,
       alertTitle,
       createAlertController
