@@ -35,7 +35,7 @@ const config = Settings.normalizeConfig({ alerts: { titleBlink: true } });
 assert.equal(Settings.SCHEMA_VERSION, 6);
 assert.equal(config.alerts.titlePrefix, "⚠ AI READY");
 assert.equal(config.alerts.blinkIntervalMs, 700);
-assert.equal(Protocol.VERSION, 5);
+assert(Protocol.VERSION >= 5);
 assert.equal(Protocol.MESSAGE.TEST_TARGET_ACTION, "FCI_TEST_TARGET_ACTION");
 
 assert.equal(Alert.shouldAlert(

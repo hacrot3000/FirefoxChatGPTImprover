@@ -280,7 +280,10 @@
     </section>
 
     <section class="card" aria-labelledby="shellHeading">
-      <h2 id="shellHeading">Shell command</h2>
+      <div class="section-title-row">
+        <h2 id="shellHeading">Shell command</h2>
+        <span id="nativeHostStatus" class="native-status" data-state="offline">Native: chưa kiểm tra</span>
+      </div>
       <label>Working directory<input id="workingDirectory" type="text"
           placeholder="/home/duongtc/FirefoxChatImprover"></label>
       <label>Command<textarea id="shellCommand" rows="4"
@@ -290,10 +293,24 @@
           <option value="background">Chạy nền và lấy log</option>
         </select></label>
       <label class="check-row"><input id="confirmBeforeRun" type="checkbox">Xác nhận trước khi chạy</label>
+      <dl class="shell-details">
+        <div><dt>Trạng thái tab</dt><dd id="shellRunStatus">idle</dd></div>
+        <div><dt>PID</dt><dd id="shellRunPid">—</dd></div>
+        <div class="details-wide"><dt>Run ID</dt><dd id="shellRunId">—</dd></div>
+      </dl>
+      <div class="button-grid shell-actions">
+        <button id="checkNativeButton" type="button">Kiểm tra Native Host</button>
+        <button id="runShellButton" type="button" class="primary">Chạy lệnh</button>
+        <button id="stopShellButton" type="button" class="danger">Dừng lệnh</button>
+        <button id="clearShellOutputButton" type="button">Xóa output</button>
+      </div>
+      <pre id="shellOutput" class="shell-output" aria-live="polite">Chưa có output.</pre>
       <details class="help-menu">
         <summary aria-label="Trợ giúp shell command" title="Trợ giúp">?</summary>
         <div class="help-popover" role="tooltip">
-          Cấu hình shell đã được lưu theo profile/tab. Native Messaging và nút chạy lệnh sẽ được triển khai ở Phase 06.
+          <p><strong>Chạy nền</strong> stream riêng stdout/stderr vào khung output. <strong>Mở terminal</strong> phù hợp script cần nhập tương tác.</p>
+          <p>Mỗi tab có một command session riêng. Nút Dừng chỉ gửi tín hiệu tới process group do tab này khởi chạy.</p>
+          <p>Native Host phải được cài/cập nhật bằng task <code>Firefox Add-on: Install/Update Native Host</code>.</p>
         </div>
       </details>
     </section>

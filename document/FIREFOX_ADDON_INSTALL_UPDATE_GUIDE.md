@@ -241,3 +241,28 @@ Profile tạm của `web-ext` không mặc định giữ dữ liệu qua lần c
 - web-ext command reference: https://extensionworkshop.com/documentation/develop/web-ext-command-reference/
 - Signing and distribution: https://extensionworkshop.com/documentation/publish/signing-and-distribution-overview/
 - Native Messaging: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging
+
+## Phase 06 — cài/cập nhật Native Messaging Host
+
+Native host không nằm bên trong tiến trình WebExtension. Mỗi khi `native-host/native_host.py` thay đổi, chạy Build Task:
+
+```text
+Firefox Add-on: Install/Update Native Host
+```
+
+File được cài theo user:
+
+```text
+~/.local/share/firefox-chat-ai-assistant/native_host.py
+~/.mozilla/native-messaging-hosts/com.duongtc.firefox_chat_assistant.json
+```
+
+Sau đó reload add-on hoặc restart phiên `web-ext run`. Dùng nút `Kiểm tra Native Host` trong sidebar để xác nhận kết nối.
+
+Gỡ host:
+
+```text
+Firefox Add-on: Uninstall Native Host
+```
+
+Không chạy installer bằng `sudo`; host phải chạy cùng tài khoản người dùng đang chạy Firefox.

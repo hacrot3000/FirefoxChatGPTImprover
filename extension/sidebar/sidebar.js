@@ -17,6 +17,7 @@
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), clearLogsButton: $("#clearLogsButton"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"),
+    nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"),
     saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), messageBox: $("#messageBox")
   };
 
@@ -26,7 +27,7 @@
     [MODE.PAUSED]: "Đang tạm dừng",
     [MODE.ERROR]: "Có lỗi"
   };
-  let dashboard = { currentTab: {}, sessions: [], store: Settings.defaultStore() };
+  let dashboard = { currentTab: {}, sessions: [], store: Settings.defaultStore(), nativeHost: { connected: false, runs: [] } };
   let selectedTabId = null;
   let selectedProfileId = null;
   let busy = false;
@@ -47,6 +48,48 @@
 
   function selectedSession() {
     return sessionById(selectedTabId);
+  }
+
+  function selectedShellRun() {
+    const runs = Array.isArray(dashboard.nativeHost?.runs) ? dashboard.nativeHost.runs : [];
+    return runs.find((run) => Number(run.tabId) === Number(selectedTabId)) || {
+      tabId: selectedTabId,
+      runId: null,
+      status: "idle",
+      pid: null,
+      output: [],
+      error: null,
+      returnCode: null
+    };
+  }
+
+  function shellIsActive(run) {
+    return ["starting", "running", "terminal", "stopping"].includes(run?.status);
+  }
+
+  function renderShellState() {
+    const native = dashboard.nativeHost || {};
+    const run = selectedShellRun();
+    elements.nativeHostStatus.dataset.state = native.connected ? "online" : (native.lastError ? "error" : "offline");
+    elements.nativeHostStatus.textContent = native.connected
+      ? `Native ${native.hostVersion || "online"}`
+      : (native.lastError ? "Native lỗi" : "Native chưa kiểm tra");
+    elements.nativeHostStatus.title = native.lastError || native.lastSeenAt || "";
+    elements.shellRunStatus.textContent = run.error
+      ? `${run.status}: ${run.error}`
+      : (run.returnCode === null || run.returnCode === undefined
+        ? (run.status || "idle")
+        : `${run.status} (rc=${run.returnCode})`);
+    elements.shellRunPid.textContent = Number.isInteger(run.pid) ? String(run.pid) : "—";
+    elements.shellRunId.textContent = run.runId || "—";
+    const output = Array.isArray(run.output) ? run.output : [];
+    elements.shellOutput.textContent = output.length
+      ? output.map((item) => `${item.stream === "stderr" ? "[stderr] " : (item.stream === "system" ? "[system] " : "")}${item.text}`).join("")
+      : "Chưa có output.";
+    elements.checkNativeButton.disabled = busy;
+    elements.runShellButton.disabled = busy || !selectedSession() || shellIsActive(run);
+    elements.stopShellButton.disabled = busy || !shellIsActive(run);
+    elements.clearShellOutputButton.disabled = busy || output.length === 0;
   }
 
   function addConditionRow(condition = null) {
@@ -279,6 +322,7 @@
     elements.copyLogsButton.disabled = busy || !session;
     elements.clearLogsButton.disabled = busy || !session;
     renderActivityLog();
+    renderShellState();
 
     const profile = profileById(selectedProfileId);
     elements.profileName.value = profile?.name || "";
@@ -474,6 +518,54 @@
     });
   }
 
+  function commandConfirmation(shell) {
+    return `Chạy command local?
+
+Working directory:
+${shell.workingDirectory}
+
+Mode: ${shell.mode}
+
+Command:
+${shell.command}`;
+  }
+
+  function runShellCommand() {
+    const session = selectedSession();
+    if (!session) {
+      showMessage("Hãy kích hoạt tab trước khi chạy command.", "error");
+      return;
+    }
+    const shell = readConfig().shell;
+    if (!shell.workingDirectory.trim() || !shell.command.trim()) {
+      showMessage("Working directory và command không được để trống.", "error");
+      return;
+    }
+    if (shell.confirmBeforeRun && !confirm(commandConfirmation(shell))) {
+      return;
+    }
+    void request(MESSAGE.RUN_SHELL, {
+      tabId: selectedTabId,
+      cwd: shell.workingDirectory,
+      command: shell.command,
+      mode: shell.mode
+    }, shell.mode === "terminal" ? "Đã yêu cầu mở terminal." : "Đã bắt đầu chạy command nền.");
+  }
+
+  function stopShellCommand() {
+    const run = selectedShellRun();
+    if (!shellIsActive(run)) {
+      showMessage("Tab này không có command đang chạy.", "error");
+      return;
+    }
+    if (!confirm(`Dừng command của tab ${selectedTabId}?
+
+${run.command || ""}`)) {
+      return;
+    }
+    void request(MESSAGE.STOP_SHELL, { tabId: selectedTabId }, "Đã gửi yêu cầu dừng command.");
+  }
+
   async function copySelectedLogs() {
     const text = selectedLogs().map(formatLogLine).join("\n");
     if (!text) {
@@ -581,6 +673,10 @@
     }
   });
   elements.clearHighlightsButton.addEventListener("click", () => void request(MESSAGE.CLEAR_HIGHLIGHTS, { tabId: selectedTabId }, "Đã xóa highlight trên tab."));
+  elements.checkNativeButton.addEventListener("click", () => void request(MESSAGE.GET_NATIVE_STATUS, {}, "Đã gửi yêu cầu kiểm tra Native Host."));
+  elements.runShellButton.addEventListener("click", runShellCommand);
+  elements.stopShellButton.addEventListener("click", stopShellCommand);
+  elements.clearShellOutputButton.addEventListener("click", () => void request(MESSAGE.CLEAR_SHELL_OUTPUT, { tabId: selectedTabId }, "Đã xóa output của tab."));
   elements.refreshButton.addEventListener("click", () => void request(MESSAGE.GET_DASHBOARD));
   elements.activateButton.addEventListener("click", activateCurrentTab);
   elements.pauseButton.addEventListener("click", () => void request(MESSAGE.PAUSE_TAB, { tabId: selectedTabId }, "Đã tạm dừng tab."));

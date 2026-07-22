@@ -10,4 +10,6 @@ done
 node tests/test_phase04_target_logic.js
 node tests/test_phase05_alert_logic.js
 node tests/test_phase05_selector_preview_logic.js
+node tests/test_phase06_extension_contract.js
+python3 tests/test_phase06_native_host.py
 printf 'PASS: FirefoxChatImprover static JavaScript and unit tests.\n'

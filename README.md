@@ -136,3 +136,21 @@ Header sidebar được thu gọn thành một hàng thấp, giữ nguyên tên 
 
 Tài liệu chi tiết: `document/PHASE_05_V0_5_2_COMPACT_HEADER_STATUS.md`.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE05_V052_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE06_BEGIN -->
+## Phase 06 — Native Messaging và shell local
+
+Đã bổ sung Python Native Messaging Host, command session riêng theo `tabId`, stream stdout/stderr, mở terminal tương tác và stop process group đúng run ID.
+
+Các Build Task mới:
+
+- `Firefox Add-on: Install/Update Native Host`;
+- `Firefox Add-on: Uninstall Native Host`;
+- `Firefox Add-on: Test Native Host`.
+
+Sau khi áp dụng patch, cần chạy task Install/Update Native Host rồi reload development add-on.
+
+Tài liệu: `document/PHASE_06_NATIVE_MESSAGING_SHELL.md`.
+
+Phase tiếp theo: **Phase 07 — kiểm thử integration và hardening**.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE06_END -->

@@ -8,6 +8,323 @@
   let storePromise = null;
   let recoveryPromise = null;
 
+  const NATIVE_HOST_NAME = "com.duongtc.firefox_chat_assistant";
+  const SHELL_OUTPUT_LIMIT = 500;
+  const SHELL_OUTPUT_CHAR_LIMIT = 200000;
+  const shellRuns = new Map();
+  const runToTab = new Map();
+  const shellBroadcastTimers = new Map();
+  let nativePort = null;
+  let nativeState = {
+    connected: false,
+    hostName: NATIVE_HOST_NAME,
+    hostVersion: null,
+    lastError: null,
+    lastSeenAt: null
+  };
+
+  function emptyShellRun(tabId) {
+    return {
+      tabId,
+      runId: null,
+      mode: null,
+      status: "idle",
+      pid: null,
+      cwd: "",
+      command: "",
+      startedAt: null,
+      endedAt: null,
+      returnCode: null,
+      stopped: false,
+      error: null,
+      output: []
+    };
+  }
+
+  function shellRunForTab(tabId) {
+    if (!shellRuns.has(tabId)) {
+      shellRuns.set(tabId, emptyShellRun(tabId));
+    }
+    return shellRuns.get(tabId);
+  }
+
+  function publicShellRun(tabId) {
+    return clone(shellRuns.get(tabId) || emptyShellRun(tabId));
+  }
+
+  function appendShellOutput(run, stream, text) {
+    const value = String(text || "");
+    if (!value) {
+      return;
+    }
+    run.output.push({ at: Settings.nowIso(), stream: stream || "system", text: value });
+    if (run.output.length > SHELL_OUTPUT_LIMIT) {
+      run.output.splice(0, run.output.length - SHELL_OUTPUT_LIMIT);
+    }
+    let total = run.output.reduce((sum, item) => sum + item.text.length, 0);
+    while (total > SHELL_OUTPUT_CHAR_LIMIT && run.output.length > 1) {
+      total -= run.output.shift().text.length;
+    }
+  }
+
+  function nativeDashboardState() {
+    return {
+      ...clone(nativeState),
+      runs: [...shellRuns.values()].map((run) => clone(run))
+    };
+  }
+
+  function scheduleShellBroadcast(tabId) {
+    if (shellBroadcastTimers.has(tabId)) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      shellBroadcastTimers.delete(tabId);
+      void broadcast("native-shell-output", tabId);
+    }, 120);
+    shellBroadcastTimers.set(tabId, timer);
+  }
+
+  function disconnectNativePort() {
+    if (!nativePort) {
+      return;
+    }
+    const port = nativePort;
+    nativePort = null;
+    try {
+      port.disconnect();
+    } catch (_error) {
+      // Port may already be disconnected.
+    }
+  }
+
+  async function handleNativeMessage(message) {
+    nativeState.connected = true;
+    nativeState.lastSeenAt = Settings.nowIso();
+    nativeState.lastError = null;
+    if (message?.hostName) {
+      nativeState.hostName = message.hostName;
+    }
+    if (message?.hostVersion) {
+      nativeState.hostVersion = message.hostVersion;
+    }
+
+    const event = String(message?.event || "");
+    if (event === "hello" || event === "status") {
+      await broadcast("native-status");
+      return;
+    }
+
+    const tabId = Number(message?.tabId ?? runToTab.get(String(message?.runId || "")));
+    if (!Number.isInteger(tabId)) {
+      await broadcast("native-event");
+      return;
+    }
+    const run = shellRunForTab(tabId);
+    if (message?.runId && run.runId && message.runId !== run.runId) {
+      return;
+    }
+
+    if (event === "started") {
+      run.status = message.mode === "terminal" ? "terminal" : "running";
+      run.pid = Number.isInteger(message.pid) ? message.pid : null;
+      run.startedAt = run.startedAt || Settings.nowIso();
+      run.error = null;
+      appendShellOutput(run, "system", `[started] pid=${run.pid ?? "—"} mode=${message.mode || run.mode}\n`);
+    } else if (event === "output") {
+      appendShellOutput(run, message.stream === "stderr" ? "stderr" : "stdout", message.text);
+    } else if (event === "stopping") {
+      run.status = "stopping";
+      appendShellOutput(run, "system", "[stopping] SIGTERM đã được gửi.\n");
+    } else if (event === "killed") {
+      appendShellOutput(run, "system", "[killed] Process không dừng đúng hạn và đã nhận SIGKILL.\n");
+    } else if (event === "exited") {
+      run.status = "exited";
+      run.returnCode = Number.isInteger(message.returnCode) ? message.returnCode : null;
+      run.stopped = Boolean(message.stopped);
+      run.endedAt = Settings.nowIso();
+      appendShellOutput(run, "system", `[exited] returnCode=${run.returnCode ?? "—"}${run.stopped ? " stopped=true" : ""}\n`);
+      if (run.runId) {
+        runToTab.delete(run.runId);
+      }
+    } else if (event === "error") {
+      run.status = "error";
+      run.error = String(message.error || "Native host báo lỗi không xác định.");
+      run.endedAt = Settings.nowIso();
+      appendShellOutput(run, "stderr", `[error] ${run.error}\n`);
+      if (run.runId) {
+        runToTab.delete(run.runId);
+      }
+    } else if (event === "fatal") {
+      nativeState.lastError = String(message.error || "Native host fatal error.");
+    }
+
+    if (event === "output") {
+      scheduleShellBroadcast(tabId);
+      return;
+    }
+
+    const session = sessions.get(tabId);
+    if (session && ["started", "stopping", "exited", "error"].includes(event)) {
+      appendLog(
+        session,
+        event === "error" ? "user" : "debug",
+        `shell-${event}`,
+        event === "error" ? run.error : `Shell ${event}: ${run.command}`,
+        { runId: run.runId, pid: run.pid, returnCode: run.returnCode }
+      );
+      await persistSession(session);
+    }
+    await broadcast("native-shell-event", tabId);
+  }
+
+  function handleNativeDisconnect(port) {
+    if (nativePort !== port) {
+      return;
+    }
+    nativePort = null;
+    const lastError = browser.runtime.lastError?.message || "Native host đã ngắt kết nối.";
+    nativeState = {
+      ...nativeState,
+      connected: false,
+      lastError,
+      lastSeenAt: Settings.nowIso()
+    };
+    for (const run of shellRuns.values()) {
+      if (["starting", "running", "terminal", "stopping"].includes(run.status)) {
+        run.status = "error";
+        run.error = lastError;
+        run.endedAt = Settings.nowIso();
+        appendShellOutput(run, "stderr", `[native disconnected] ${lastError}\n`);
+      }
+    }
+    runToTab.clear();
+    void broadcast("native-disconnected");
+  }
+
+  function ensureNativePort() {
+    if (nativePort) {
+      return nativePort;
+    }
+    try {
+      const port = browser.runtime.connectNative(NATIVE_HOST_NAME);
+      nativePort = port;
+      nativeState = {
+        ...nativeState,
+        connected: true,
+        lastError: null,
+        lastSeenAt: Settings.nowIso()
+      };
+      port.onMessage.addListener((message) => {
+        void handleNativeMessage(message);
+      });
+      port.onDisconnect.addListener(() => handleNativeDisconnect(port));
+      port.postMessage({ action: "ping" });
+      return port;
+    } catch (error) {
+      nativeState = {
+        ...nativeState,
+        connected: false,
+        lastError: error instanceof Error ? error.message : String(error),
+        lastSeenAt: Settings.nowIso()
+      };
+      throw error;
+    }
+  }
+
+  function assertSidebarSender(sender) {
+    if (sender?.tab) {
+      throw new Error("Content script không được phép điều khiển Native Messaging.");
+    }
+    const sidebarPrefix = browser.runtime.getURL("sidebar/");
+    if (typeof sender?.url !== "string" || !sender.url.startsWith(sidebarPrefix)) {
+      throw new Error("Lệnh shell chỉ được phép gửi trực tiếp từ sidebar của add-on.");
+    }
+  }
+
+  function validateShellPayload(message) {
+    const tabId = Number(message.tabId);
+    if (!Number.isInteger(tabId)) {
+      throw new Error("tabId của command không hợp lệ.");
+    }
+    const cwd = String(message.cwd || "").trim();
+    if (!cwd.startsWith("/")) {
+      throw new Error("Working directory phải là đường dẫn tuyệt đối.");
+    }
+    const command = String(message.command || "");
+    if (!command.trim()) {
+      throw new Error("Command đang trống.");
+    }
+    if (command.includes("\u0000")) {
+      throw new Error("Command chứa ký tự NUL không hợp lệ.");
+    }
+    const mode = message.mode === "terminal" ? "terminal" : "background";
+    return { tabId, cwd, command, mode };
+  }
+
+  async function checkNativeStatus(sender) {
+    assertSidebarSender(sender);
+    const port = ensureNativePort();
+    port.postMessage({ action: "ping" });
+    return nativeDashboardState();
+  }
+
+  async function runShell(message, sender) {
+    assertSidebarSender(sender);
+    const { tabId, cwd, command, mode } = validateShellPayload(message);
+    const session = sessions.get(tabId);
+    if (!session) {
+      throw new Error("Tab này chưa được kích hoạt; không có session để gắn command.");
+    }
+    const current = shellRunForTab(tabId);
+    if (["starting", "running", "terminal", "stopping"].includes(current.status)) {
+      throw new Error("Tab này đang có command chưa kết thúc.");
+    }
+    const runId = `tab-${tabId}-${crypto.randomUUID()}`;
+    const run = {
+      ...emptyShellRun(tabId),
+      runId,
+      mode,
+      status: "starting",
+      cwd,
+      command,
+      startedAt: Settings.nowIso()
+    };
+    shellRuns.set(tabId, run);
+    runToTab.set(runId, tabId);
+    appendShellOutput(run, "system", `[request] cwd=${cwd}\n[command] ${command}\n`);
+    appendLog(session, "user", "shell-run-request", `Yêu cầu chạy command ở chế độ ${mode}.`, { runId, cwd, command });
+    await persistSession(session);
+    const port = ensureNativePort();
+    port.postMessage({ action: "run", runId, tabId, cwd, command, mode });
+    await broadcast("native-shell-starting", tabId);
+    return publicShellRun(tabId);
+  }
+
+  async function stopShell(message, sender) {
+    assertSidebarSender(sender);
+    const tabId = Number(message.tabId);
+    const run = shellRuns.get(tabId);
+    if (!run?.runId || !["starting", "running", "terminal", "stopping"].includes(run.status)) {
+      throw new Error("Tab này không có command đang chạy để dừng.");
+    }
+    const port = ensureNativePort();
+    run.status = "stopping";
+    port.postMessage({ action: "stop", runId: run.runId, tabId });
+    await broadcast("native-shell-stopping", tabId);
+    return publicShellRun(tabId);
+  }
+
+  async function clearShellOutput(message, sender) {
+    assertSidebarSender(sender);
+    const tabId = Number(message.tabId);
+    const run = shellRunForTab(tabId);
+    run.output = [];
+    await broadcast("native-shell-output-cleared", tabId);
+    return publicShellRun(tabId);
+  }
+
+
   function clone(value) {
     return Settings.clone(value);
   }
@@ -770,7 +1087,8 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       protocolVersion: globalThis.FCI_PROTOCOL.VERSION,
       currentTab: tabMeta(tab),
       sessions: publicSessions,
-      store
+      store,
+      nativeHost: nativeDashboardState()
     };
   }
 
@@ -885,6 +1203,18 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
           await clearSessionLogs(Number(message.tabId));
           return { ok: true, dashboard: await dashboard() };
 
+        case MESSAGE.GET_NATIVE_STATUS:
+          return { ok: true, nativeHost: await checkNativeStatus(sender), dashboard: await dashboard() };
+
+        case MESSAGE.RUN_SHELL:
+          return { ok: true, shellRun: await runShell(message, sender), dashboard: await dashboard() };
+
+        case MESSAGE.STOP_SHELL:
+          return { ok: true, shellRun: await stopShell(message, sender), dashboard: await dashboard() };
+
+        case MESSAGE.CLEAR_SHELL_OUTPUT:
+          return { ok: true, shellRun: await clearShellOutput(message, sender), dashboard: await dashboard() };
+
         case MESSAGE.CONTENT_RUNTIME_EVENT:
           return { ok: true, runtime: await updateRuntimeFromContent(message, sender) };
 
@@ -928,6 +1258,10 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     MESSAGE.TEST_TARGET_ACTION,
     MESSAGE.CLEAR_HIGHLIGHTS,
     MESSAGE.CLEAR_SESSION_LOGS,
+    MESSAGE.GET_NATIVE_STATUS,
+    MESSAGE.RUN_SHELL,
+    MESSAGE.STOP_SHELL,
+    MESSAGE.CLEAR_SHELL_OUTPUT,
     MESSAGE.CONTENT_RUNTIME_EVENT
   ]);
 
@@ -963,6 +1297,23 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
   });
 
   browser.tabs.onRemoved.addListener((tabId) => {
+    const shellRun = shellRuns.get(tabId);
+    if (shellRun?.runId && ["starting", "running", "terminal", "stopping"].includes(shellRun.status)) {
+      try {
+        ensureNativePort().postMessage({ action: "stop", runId: shellRun.runId, tabId });
+      } catch (_error) {
+        // Native host may already be unavailable during browser shutdown.
+      }
+    }
+    shellRuns.delete(tabId);
+    const timer = shellBroadcastTimers.get(tabId);
+    if (timer) {
+      clearTimeout(timer);
+      shellBroadcastTimers.delete(tabId);
+    }
+    if (shellRun?.runId) {
+      runToTab.delete(shellRun.runId);
+    }
     if (!sessions.has(tabId)) {
       return;
     }
