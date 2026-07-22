@@ -7,7 +7,8 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 EXTENSION = ROOT / "extension"
 manifest = json.loads((EXTENSION / "manifest.json").read_text(encoding="utf-8"))
-assert manifest["version"] == "0.7.0"
+version_parts = tuple(int(part) for part in manifest["version"].split("."))
+assert len(version_parts) == 3 and version_parts >= (0, 7, 0)
 required = {"activeTab", "scripting", "storage", "tabs", "sessions", "notifications", "nativeMessaging"}
 assert set(manifest.get("permissions", [])) == required
 assert manifest.get("optional_host_permissions") == ["*://*/*"]

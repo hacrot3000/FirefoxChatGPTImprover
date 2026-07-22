@@ -244,10 +244,10 @@ Profile tạm của `web-ext` không mặc định giữ dữ liệu qua lần c
 
 ## Phase 06 — cài/cập nhật Native Messaging Host
 
-Native host không nằm bên trong tiến trình WebExtension. Mỗi khi `native-host/native_host.py` thay đổi, chạy Build Task:
+Native host không nằm bên trong tiến trình WebExtension. Mỗi khi `native-host/native_host.py` thay đổi, chạy trực tiếp:
 
-```text
-Firefox Add-on: Install/Update Native Host
+```bash
+./native-host/install_native_host.sh
 ```
 
 File được cài theo user:
@@ -259,10 +259,29 @@ File được cài theo user:
 
 Sau đó reload add-on hoặc restart phiên `web-ext run`. Dùng nút `Kiểm tra Native Host` trong sidebar để xác nhận kết nối.
 
-Gỡ host:
+Gỡ host hoặc self-test:
 
-```text
-Firefox Add-on: Uninstall Native Host
+```bash
+./native-host/uninstall_native_host.sh
+python3 ./native-host/native_host.py --self-test
 ```
 
 Không chạy installer bằng `sudo`; host phải chạy cùng tài khoản người dùng đang chạy Firefox.
+
+## Phase 08 — release, XPI ký và cập nhật
+
+Build Task `Firefox Add-on: Build` nay chạy release workflow đầy đủ: test, lint, build ZIP chưa ký, checksum, metadata và release note trong `dist/releases/<version>/`.
+
+Ký XPI dùng riêng:
+
+```bash
+export WEB_EXT_API_KEY='JWT issuer'
+export WEB_EXT_API_SECRET='JWT secret'
+./tools/sign_firefox_addon_unlisted.sh
+```
+
+Cài lâu dài bằng Firefox **Add-ons and themes → bánh răng → Install Add-on From File…**, chọn XPI đã ký trong `dist/signed/<version>/`.
+
+Không thêm `update_url` trước khi có endpoint HTTPS ổn định. Khi cần self-host update, dùng `tools/generate_firefox_update_manifest.py`; rollback phải phát hành lại source ổn định với một version mới cao hơn, không hạ version.
+
+Hướng dẫn đầy đủ: `document/PHASE_08_RELEASE_INSTALL_UPDATE_ROLLBACK.md`.

@@ -179,3 +179,23 @@ DOM fixture và các công cụ kiểm tra chuyên biệt vẫn tồn tại như
 Gói patch từ Phase 07 v0.7.1 trở đi chỉ chứa script `patch_*.py` và resource thật sự cần thiết; không đính kèm lại file source không thay đổi.
 
 Chi tiết: `document/PHASE_07_TEST_HARDENING.md`.
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE08_BEGIN -->
+## Phase 08 — Release, cài lâu dài và cập nhật/rollback
+
+Build Task `Firefox Add-on: Build` nay tạo release có thể truy vết trong `dist/releases/<version>/`, gồm ZIP chưa ký, SHA-256, metadata và release note. Workflow vẫn không thêm task theo phase.
+
+Công cụ chuyên biệt:
+
+```bash
+./tools/bump_firefox_addon_version.py --patch
+./tools/sign_firefox_addon_unlisted.sh
+./tools/generate_firefox_update_manifest.py --help
+```
+
+XPI cài lâu dài trên Firefox Release phải là bản đã được Mozilla ký. Native Messaging Host tiếp tục cài/cập nhật riêng.
+
+Tài liệu: `document/PHASE_08_RELEASE_INSTALL_UPDATE_ROLLBACK.md`.
+
+Phase baseline 00–08 đã hoàn tất. Phase tiếp theo là **Phase 09 — các nâng cấp tùy chọn**.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE08_END -->
