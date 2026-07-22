@@ -65,3 +65,28 @@ Add-on vẫn chỉ inject source trang sau thao tác trực tiếp bằng toolba
 5. Lưu cấu hình riêng cho một tab, sửa profile và xác nhận tab riêng không bị ghi đè.
 6. Reload sidebar và xác nhận danh sách/profile vẫn còn.
 7. Dừng một tab và xác nhận session còn lại không thay đổi.
+
+
+## Hotfix v0.2.1 — quyền kích hoạt từ sidebar
+
+Nút “Kích hoạt tab hiện tại” nằm trong sidebar không tự nhận quyền tạm thời `activeTab` giống thao tác bấm biểu tượng toolbar. Bản v0.2.1 khai báo `optional_host_permissions` và gọi `browser.permissions.request()` trực tiếp từ click handler của sidebar.
+
+- Chỉ xin quyền cho hostname của tab đang kích hoạt, không tự động đọc mọi website.
+- Firefox hỏi quyền một lần cho mỗi website; quyền đã cấp được dùng cho các tab khác cùng website.
+- Session runtime vẫn độc lập theo `tabId`; việc dùng chung host permission không làm dùng chung profile, trạng thái, baseline, badge hay log.
+- Toolbar vẫn có thể dùng `activeTab` mà không cần quyền host lâu dài.
+- Nếu người dùng từ chối, add-on giữ tab ở trạng thái chưa kích hoạt và hiển thị lỗi rõ ràng.
+
+
+## Hotfix v0.2.2 — sidebar đồng bộ theo active tab
+
+Sidebar trước đây giữ `selectedTabId` cũ miễn tab đó vẫn có trong danh sách session. Vì vậy khi người dùng chuyển từ tab 1 sang tab 2, giao diện vẫn hiển thị session của tab 1 và nút “Kích hoạt tab hiện tại” bị vô hiệu hóa sai.
+
+Bản v0.2.2 áp dụng các nguyên tắc sau:
+
+- Background gửi chính xác `activeInfo.tabId` cùng sự kiện `active-tab-changed`.
+- Sidebar ép chọn tab vừa trở thành active và nạp lại profile, cấu hình, mode cùng các nút thao tác của riêng tab đó.
+- Các thay đổi khác như cập nhật title/profile vẫn giữ lựa chọn thủ công trong selectbox, không giật sidebar về tab active một cách không cần thiết.
+- Dùng sequence number để bỏ qua phản hồi cũ nếu người dùng chuyển tab liên tiếp quá nhanh.
+- Yêu cầu kích hoạt mang theo `tabId` tại thời điểm bấm nút, nên không thể vô tình kích hoạt nhầm tab nếu active tab đổi trong lúc Firefox đang hỏi quyền.
+- Session runtime vẫn nằm độc lập trong `Map<tabId, session>`; hotfix chỉ sửa lớp đồng bộ giao diện, không gộp trạng thái giữa các tab.

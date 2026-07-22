@@ -24,6 +24,14 @@
     }
   }
 
+  function hostPermissionPattern(rawUrl) {
+    if (!isSupportedUrl(rawUrl)) {
+      return null;
+    }
+    const url = new URL(rawUrl);
+    return `${url.protocol}//${url.hostname}/*`;
+  }
+
   function tabMeta(tab) {
     return {
       tabId: Number.isInteger(tab?.id) ? tab.id : null,
@@ -247,6 +255,16 @@
       Settings.profileById(store, store.defaultProfileId) || store.profiles[0];
     if (!Settings.urlAllowed(profile.config, tab.url)) {
       throw new Error("URL hiện tại không khớp allowlist của profile đã chọn.");
+    }
+
+    if (source === "sidebar") {
+      const origin = hostPermissionPattern(tab.url);
+      const granted = origin && await browser.permissions.contains({ origins: [origin] });
+      if (!granted) {
+        throw new Error(
+          "Firefox chưa cấp quyền truy cập website này. Hãy bấm lại “Kích hoạt tab hiện tại” và chấp nhận hộp thoại quyền."
+        );
+      }
     }
 
     await browser.scripting.executeScript({
@@ -496,7 +514,10 @@
           return { ok: true, dashboard: await dashboard() };
 
         case MESSAGE.ACTIVATE_CURRENT: {
-          const tab = await currentTab();
+          const requestedTabId = Number(message.tabId);
+          const tab = Number.isInteger(requestedTabId)
+            ? await browser.tabs.get(requestedTabId)
+            : await currentTab();
           await activateTab(tab, "sidebar", message.profileId || null);
           return { ok: true, dashboard: await dashboard() };
         }
@@ -622,8 +643,8 @@
     }
   });
 
-  browser.tabs.onActivated.addListener(() => {
-    void broadcast("active-tab-changed");
+  browser.tabs.onActivated.addListener((activeInfo) => {
+    void broadcast("active-tab-changed", activeInfo.tabId);
   });
 
   browser.tabs.onRemoved.addListener((tabId) => {

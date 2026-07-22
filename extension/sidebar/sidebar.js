@@ -28,6 +28,7 @@
   let selectedTabId = null;
   let selectedProfileId = null;
   let busy = false;
+  let activeTabRefreshSerial = 0;
 
   function showMessage(text = "", level = "info") {
     elements.messageBox.textContent = text;
@@ -150,7 +151,7 @@
     });
   }
 
-  function renderSelectors() {
+  function renderSelectors(preferredTabId = null) {
     const oldTab = selectedTabId;
     elements.tabSelect.replaceChildren();
     const current = dashboard.currentTab;
@@ -165,9 +166,14 @@
       elements.tabSelect.add(new Option(`${marker}[${session.mode}] ${session.title || session.url || session.tabId}`, String(session.tabId)));
     }
     const validIds = [...elements.tabSelect.options].map((option) => Number(option.value));
-    selectedTabId = validIds.includes(Number(oldTab))
-      ? Number(oldTab)
-      : (Number.isInteger(current.tabId) ? current.tabId : validIds[0] || null);
+    const preferred = preferredTabId === null || preferredTabId === undefined
+      ? null
+      : Number(preferredTabId);
+    selectedTabId = preferred !== null && validIds.includes(preferred)
+      ? preferred
+      : (validIds.includes(Number(oldTab))
+        ? Number(oldTab)
+        : (Number.isInteger(current.tabId) ? current.tabId : validIds[0] || null));
     if (selectedTabId !== null) {
       elements.tabSelect.value = String(selectedTabId);
     }
@@ -210,12 +216,96 @@
     }
   }
 
-  function render(nextDashboard, loadForm = true) {
+  function render(nextDashboard, loadForm = true, preferredTabId = null) {
     if (nextDashboard) {
       dashboard = nextDashboard;
     }
-    renderSelectors();
+    renderSelectors(preferredTabId);
     renderDetails(loadForm);
+  }
+
+  function hostPermissionPattern(rawUrl) {
+    try {
+      const url = new URL(rawUrl);
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        return null;
+      }
+      return `${url.protocol}//${url.hostname}/*`;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function activateCurrentTab() {
+    const current = dashboard.currentTab;
+    if (!Number.isInteger(current?.tabId) || Number(current.tabId) !== Number(selectedTabId)) {
+      showMessage("Hãy chọn đúng tab hiện tại trước khi kích hoạt.", "error");
+      return;
+    }
+
+    const activationTabId = current.tabId;
+    const activeTabSerialAtStart = activeTabRefreshSerial;
+    const origin = hostPermissionPattern(current.url);
+    if (!origin) {
+      showMessage("Chỉ có thể kích hoạt trên trang HTTP hoặc HTTPS thông thường.", "error");
+      return;
+    }
+
+    // Call permissions.request() directly inside the click handler so Firefox
+    // recognizes this as a user action. Request only the current website.
+    const permissionRequest = browser.permissions.request({ origins: [origin] });
+    setBusy(true);
+    showMessage(`Đang yêu cầu quyền truy cập ${origin}`);
+
+    void permissionRequest.then(async (granted) => {
+      if (!granted) {
+        throw new Error("Bạn chưa cấp quyền truy cập website này nên tab chưa được kích hoạt.");
+      }
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.ACTIVATE_CURRENT,
+        tabId: activationTabId,
+        profileId: selectedProfileId
+      });
+      if (!response) {
+        throw new Error("Background script không trả về phản hồi.");
+      }
+      if (!response.ok) {
+        throw new Error(response.error || "Không thể kích hoạt tab hiện tại.");
+      }
+      if (response.dashboard && activeTabSerialAtStart === activeTabRefreshSerial) {
+        render(response.dashboard, true, activationTabId);
+      }
+      showMessage(`Đã cấp quyền website và kích hoạt tab ${activationTabId}.`, "success");
+    }).catch((error) => {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    }).finally(() => {
+      setBusy(false);
+    });
+  }
+
+  async function refreshForActiveTab(preferredTabId) {
+    const refreshSerial = ++activeTabRefreshSerial;
+    try {
+      const response = await browser.runtime.sendMessage({ type: MESSAGE.GET_DASHBOARD });
+      if (refreshSerial !== activeTabRefreshSerial) {
+        return;
+      }
+      if (!response) {
+        throw new Error("Background script không trả về phản hồi.");
+      }
+      if (!response.ok) {
+        throw new Error(response.error || "Không thể đồng bộ tab hiện tại.");
+      }
+      const requestedTabId = Number(preferredTabId);
+      const tabId = Number.isInteger(requestedTabId)
+        ? requestedTabId
+        : response.dashboard?.currentTab?.tabId;
+      render(response.dashboard, true, tabId);
+    } catch (error) {
+      if (refreshSerial === activeTabRefreshSerial) {
+        showMessage(error instanceof Error ? error.message : String(error), "error");
+      }
+    }
   }
 
   function setBusy(value) {
@@ -269,7 +359,7 @@
   });
   elements.addConditionButton.addEventListener("click", () => addConditionRow());
   elements.refreshButton.addEventListener("click", () => void request(MESSAGE.GET_DASHBOARD));
-  elements.activateButton.addEventListener("click", () => void request(MESSAGE.ACTIVATE_CURRENT, { profileId: selectedProfileId }, "Đã kích hoạt tab hiện tại."));
+  elements.activateButton.addEventListener("click", activateCurrentTab);
   elements.pauseButton.addEventListener("click", () => void request(MESSAGE.PAUSE_TAB, { tabId: selectedTabId }, "Đã tạm dừng tab."));
   elements.resumeButton.addEventListener("click", () => void request(MESSAGE.RESUME_TAB, { tabId: selectedTabId }, "Đã tiếp tục tab."));
   elements.stopButton.addEventListener("click", () => void request(MESSAGE.STOP_TAB, { tabId: selectedTabId }, "Đã dừng tab."));
@@ -318,7 +408,12 @@
   });
 
   browser.runtime.onMessage.addListener((message) => {
-    if (message?.type === MESSAGE.DASHBOARD_CHANGED) {
+    if (message?.type !== MESSAGE.DASHBOARD_CHANGED) {
+      return undefined;
+    }
+    if (message.reason === "active-tab-changed") {
+      void refreshForActiveTab(message.changedTabId);
+    } else {
       void request(MESSAGE.GET_DASHBOARD);
     }
     return undefined;

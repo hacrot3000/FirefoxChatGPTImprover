@@ -63,3 +63,15 @@ Phase hiện tại: **Phase 02 — multi-tab session, profile và cấu hình**.
 
 Phase tiếp theo: **Phase 03 — engine theo dõi trạng thái element bằng MutationObserver**.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE02_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE02_V021_BEGIN -->
+### Phase 02 v0.2.1 — sidebar host-permission hotfix
+
+Nút kích hoạt trong sidebar nay xin quyền đúng website hiện tại bằng optional host permission trước khi inject content script. Quyền website và session tab là hai lớp độc lập: quyền có thể dùng lại cho cùng hostname, còn profile/trạng thái runtime vẫn riêng theo `tabId`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE02_V021_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE02_V022_BEGIN -->
+### Phase 02 v0.2.2 — active-tab sidebar synchronization
+
+Sidebar tự động chuyển sang đúng session khi active tab của Firefox thay đổi. Mỗi tab tiếp tục giữ profile, cấu hình, mode và runtime riêng theo `tabId`; phản hồi đồng bộ cũ bị loại bỏ khi chuyển tab nhanh.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE02_V022_END -->
