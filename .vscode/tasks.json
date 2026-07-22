@@ -1,11 +1,14 @@
 {
     "version": "2.0.0",
-    "_comment": "",
+    "_comment": "FirefoxChatImprover project tasks. All runnable project actions are available from the VS Code Build Tasks menu.",
     "tasks": [
         {
             "label": "Patchs: Run Python Patch",
             "type": "shell",
             "command": "./tools/run_python_patches.sh",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "problemMatcher": [],
             "group": {
                 "kind": "build",
@@ -22,6 +25,9 @@
             "label": "Zip staged changes",
             "type": "shell",
             "command": "./zip_staged_changes.sh",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "problemMatcher": [],
             "group": {
                 "kind": "build",
@@ -34,5 +40,86 @@
                 "panel": "shared"
             }
         },
+        {
+            "label": "Firefox Add-on: Setup Dev Environment",
+            "type": "shell",
+            "command": "./tools/setup_firefox_addon_dev.sh",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Firefox Add-on: Run Dev (Auto Reload)",
+            "type": "shell",
+            "command": "./tools/run_firefox_addon_dev.sh",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "runOptions": {
+                "instanceLimit": 1
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        },
+        {
+            "label": "Firefox Add-on: Lint",
+            "type": "shell",
+            "command": "./tools/lint_firefox_addon.sh",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Firefox Add-on: Build",
+            "type": "shell",
+            "command": "./tools/build_firefox_addon.sh",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            }
+        }
     ]
 }

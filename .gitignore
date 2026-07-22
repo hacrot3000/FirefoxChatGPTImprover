@@ -123,3 +123,7 @@ patchs/patched/*
 test-results/*
 main-esp32c3/logs/*
 
+
+
+.firefox-dev-tools/
+dist/

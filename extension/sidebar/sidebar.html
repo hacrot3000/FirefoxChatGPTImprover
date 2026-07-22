@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FirefoxChatImprover</title>
+    <link rel="stylesheet" href="sidebar.css">
+  </head>
+  <body data-mode="inactive">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Firefox add-on cá nhân</p>
+        <h1>FirefoxChatImprover</h1>
+      </div>
+      <span id="statusPill" class="status-pill">Chưa kích hoạt</span>
+    </header>
+
+    <main>
+      <section class="card" aria-labelledby="currentTabHeading">
+        <h2 id="currentTabHeading">Tab hiện tại</h2>
+        <dl class="details">
+          <div>
+            <dt>Tab ID</dt>
+            <dd id="tabId">—</dd>
+          </div>
+          <div>
+            <dt>Trạng thái</dt>
+            <dd id="modeText">Chưa kích hoạt</dd>
+          </div>
+          <div class="details-wide">
+            <dt>URL</dt>
+            <dd id="tabUrl">—</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="card" aria-labelledby="controlsHeading">
+        <h2 id="controlsHeading">Điều khiển</h2>
+        <div class="button-grid">
+          <button id="activateButton" type="button" class="primary">Kích hoạt</button>
+          <button id="pauseButton" type="button">Tạm dừng</button>
+          <button id="stopButton" type="button" class="danger">Dừng</button>
+          <button id="refreshButton" type="button">Làm mới trạng thái</button>
+        </div>
+        <p class="hint">
+          Cách chắc chắn nhất để cấp quyền cho tab là bấm biểu tượng add-on trên toolbar.
+          Add-on không tự inject vào các trang khác.
+        </p>
+      </section>
+
+      <section class="card phase-card" aria-labelledby="phaseHeading">
+        <h2 id="phaseHeading">Phase 01</h2>
+        <p>
+          Khung WebExtension, sidebar và kích hoạt thủ công đã hoạt động.
+          Theo dõi DOM, tự click và chạy shell sẽ được bổ sung ở các phase sau.
+        </p>
+      </section>
+
+      <output id="messageBox" class="message-box" aria-live="polite"></output>
+    </main>
+
+    <script src="../shared/protocol.js"></script>
+    <script src="sidebar.js"></script>
+  </body>
+</html>
