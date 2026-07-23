@@ -297,3 +297,8 @@ Stability windows now recover from callbacks that execute slightly before their 
 ## Phase 15 v0.15.4 version-contract hotfix
 
 Historical feature tests now validate the minimum version that introduced their contract instead of pinning the manifest to that exact release. Later hotfix and feature versions therefore remain compatible with the Phase 15 v0.15.2 English UI/title/help test.
+
+
+## Phase 16 — Command presets and per-tab command history
+
+Shell commands can now be saved as profile/tab presets. Optional allowlist mode is enforced in the background before Native Messaging is used. Each activated tab keeps its own bounded command history, which can be loaded or cleared from the sidebar.

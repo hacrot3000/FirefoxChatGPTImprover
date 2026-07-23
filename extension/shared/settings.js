@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 11) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 12) {
     return;
   }
 
-  const SCHEMA_VERSION = 11;
+  const SCHEMA_VERSION = 12;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
@@ -120,6 +120,18 @@
     };
   }
 
+  function defaultShellPreset(name = "Command preset", id = null) {
+    return {
+      id: id || makeId("command-preset"),
+      name,
+      enabled: true,
+      workingDirectory: "",
+      command: "",
+      mode: "terminal",
+      confirmBeforeRun: true
+    };
+  }
+
   function defaultConfig() {
     const rule = defaultRule();
     return {
@@ -148,7 +160,12 @@
         workingDirectory: "",
         command: "",
         mode: "terminal",
-        confirmBeforeRun: true
+        confirmBeforeRun: true,
+        requirePresetMatch: false,
+        rememberHistory: true,
+        historyLimit: 20,
+        selectedPresetId: "",
+        presets: []
       }
     };
   }
@@ -256,6 +273,34 @@
     };
   }
 
+  function normalizeShellPreset(raw, index = 0) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const fallbackId = `command-preset-${index + 1}`;
+    return {
+      id: safeString(source.id, fallbackId).trim() || fallbackId,
+      name: safeString(source.name, `Command preset ${index + 1}`).trim() || `Command preset ${index + 1}`,
+      enabled: safeBoolean(source.enabled, true),
+      workingDirectory: safeString(source.workingDirectory).trim(),
+      command: safeString(source.command),
+      mode: source.mode === "background" ? "background" : "terminal",
+      confirmBeforeRun: safeBoolean(source.confirmBeforeRun, true)
+    };
+  }
+
+  function matchingShellPreset(rawConfig, rawCommand) {
+    const config = normalizeConfig(rawConfig);
+    const command = rawCommand && typeof rawCommand === "object" ? rawCommand : {};
+    const cwd = safeString(command.workingDirectory ?? command.cwd).trim();
+    const text = safeString(command.command);
+    const mode = command.mode === "background" ? "background" : "terminal";
+    return config.shell.presets.find((preset) =>
+      preset.enabled &&
+      preset.workingDirectory === cwd &&
+      preset.command === text &&
+      preset.mode === mode
+    ) || null;
+  }
+
   function normalizeConfig(raw) {
     const source = raw && typeof raw === "object" ? raw : {};
     const defaults = defaultConfig();
@@ -295,6 +340,23 @@
     const requestedRuleId = safeString(source.activeRuleId);
     let activeRule = rules.find((rule) => rule.id === requestedRuleId) || rules[0];
 
+    const presets = [];
+    const usedPresetIds = new Set();
+    const rawPresets = Array.isArray(shell.presets) ? shell.presets : [];
+    rawPresets.forEach((rawPreset, index) => {
+      const preset = normalizeShellPreset(rawPreset, index);
+      let id = preset.id;
+      let suffix = 2;
+      while (usedPresetIds.has(id)) {
+        id = `${preset.id}-${suffix++}`;
+      }
+      usedPresetIds.add(id);
+      presets.push({ ...preset, id });
+    });
+    const requestedPresetId = safeString(shell.selectedPresetId);
+    const selectedPresetId = presets.some((preset) => preset.id === requestedPresetId)
+      ? requestedPresetId
+      : "";
 
     return {
       activation: {
@@ -321,7 +383,12 @@
         workingDirectory: safeString(shell.workingDirectory).trim(),
         command: safeString(shell.command),
         mode: shell.mode === "background" ? "background" : "terminal",
-        confirmBeforeRun: safeBoolean(shell.confirmBeforeRun, true)
+        confirmBeforeRun: safeBoolean(shell.confirmBeforeRun, true),
+        requirePresetMatch: safeBoolean(shell.requirePresetMatch, false),
+        rememberHistory: safeBoolean(shell.rememberHistory, true),
+        historyLimit: safeInteger(shell.historyLimit, 20, 1, 100),
+        selectedPresetId,
+        presets
       }
     };
   }
@@ -543,6 +610,21 @@
     const config = normalizeConfig(raw);
     const errors = [];
 
+    for (const preset of config.shell.presets) {
+      if (!preset.enabled) {
+        continue;
+      }
+      if (!preset.name) {
+        errors.push("Command preset: name is missing.");
+      }
+      if (!preset.workingDirectory.startsWith("/")) {
+        errors.push(`Command preset “${preset.name}”: working directory must be an absolute path.`);
+      }
+      if (!preset.command.trim()) {
+        errors.push(`Command preset “${preset.name}”: command is empty.`);
+      }
+    }
+
     for (const rule of config.rules) {
       const labelPrefix = `Rule “${rule.name}”`;
       for (const [label, selector] of [
@@ -611,9 +693,12 @@
       makeId,
       defaultConfig,
       defaultRule,
+      defaultShellPreset,
       defaultStore,
       normalizeConfig,
       normalizeRule,
+      normalizeShellPreset,
+      matchingShellPreset,
       configForRule,
       normalizeProfile,
       normalizeStore,

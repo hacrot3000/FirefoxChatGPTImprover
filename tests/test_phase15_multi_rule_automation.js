@@ -30,7 +30,7 @@ vm.runInContext(fs.readFileSync(path.join(root, "extension/shared/settings.js"),
 const Settings = context.FCI_SETTINGS;
 const { MONITOR_STATE } = context.FCI_PROTOCOL;
 
-assert.equal(Settings.SCHEMA_VERSION, 11);
+assert(Settings.SCHEMA_VERSION >= 11, `Phase 15 requires settings schema >= 11, got ${Settings.SCHEMA_VERSION}`);
 const defaults = Settings.defaultConfig();
 assert.equal(defaults.rules.length, 1);
 assert.equal(defaults.activeRuleId, defaults.rules[0].id);

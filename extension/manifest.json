@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.15.4",
+  "version": "0.16.0",
   "description": "Private Firefox sidebar helper with independent multi-tab, multi-rule monitoring/action pipelines, restart-safe recovery, lossless profile persistence and Native Messaging shell commands.",
   "browser_specific_settings": {
     "gecko": {

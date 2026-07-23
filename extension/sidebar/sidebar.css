@@ -309,3 +309,20 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 .runtime-badge[data-state="error"] { border-color: var(--error); color: var(--error); }
 .card[data-collapsed="true"] > .help-menu { display: block; }
 .card[data-collapsed="true"] > .help-menu .help-popover { top: 27px; }
+
+
+/* Phase 16: command presets, allowlist and per-tab command history. */
+.shell-preset-panel {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 9px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, Canvas 96%, LinkText 4%);
+}
+.shell-preset-actions,
+.shell-history-actions { margin-bottom: 7px; }
+#shellPresetSelect,
+#shellHistorySelect { min-width: 0; }
+#shellPresetSelect option:disabled { color: var(--muted); }

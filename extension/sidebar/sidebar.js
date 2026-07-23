@@ -18,7 +18,8 @@
     targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), clearLogsButton: $("#clearLogsButton"),
-    workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"),
+    shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
+    workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"),
     saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), messageBox: $("#messageBox")
   };
@@ -34,6 +35,8 @@
   let selectedProfileId = null;
   let selectedRuleId = null;
   let formConfigDraft = Settings.defaultConfig();
+  let shellPresetsDraft = [];
+  let selectedShellPresetId = "";
   let busy = false;
   let activeTabRefreshSerial = 0;
   let collapsedGroups = {};
@@ -155,6 +158,62 @@
     return ["starting", "running", "terminal", "stopping"].includes(run?.status);
   }
 
+  function selectedShellPreset() {
+    return shellPresetsDraft.find((preset) => preset.id === selectedShellPresetId) || null;
+  }
+
+  function renderShellPresetOptions() {
+    const custom = document.createElement("option");
+    custom.value = "";
+    custom.textContent = "Custom command";
+    const options = shellPresetsDraft.map((preset) => {
+      const option = document.createElement("option");
+      option.value = preset.id;
+      option.textContent = `${preset.enabled ? "●" : "○"} ${preset.name}`;
+      return option;
+    });
+    elements.shellPresetSelect.replaceChildren(custom, ...options);
+    if (!shellPresetsDraft.some((preset) => preset.id === selectedShellPresetId)) {
+      selectedShellPresetId = "";
+    }
+    elements.shellPresetSelect.value = selectedShellPresetId;
+    const preset = selectedShellPreset();
+    elements.shellPresetName.value = preset?.name || "";
+    elements.shellPresetEnabled.checked = preset?.enabled !== false;
+    elements.loadShellPresetButton.disabled = busy || !preset;
+    elements.updateShellPresetButton.disabled = busy || !preset;
+    elements.deleteShellPresetButton.disabled = busy || !preset;
+  }
+
+  function renderShellHistory() {
+    const selectedHistoryId = elements.shellHistorySelect.value;
+    const history = Array.isArray(selectedSession()?.shellHistory) ? selectedSession().shellHistory : [];
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = history.length ? "Select a recent command" : "No command history";
+    const options = history.map((entry) => {
+      const option = document.createElement("option");
+      option.value = entry.id;
+      const when = entry.startedAt ? new Date(entry.startedAt).toLocaleTimeString() : "";
+      option.textContent = `${when} · ${entry.presetName || entry.command || "Command"} · ${entry.status || "requested"}`;
+      return option;
+    });
+    elements.shellHistorySelect.replaceChildren(empty, ...options);
+    if (history.some((entry) => entry.id === selectedHistoryId)) {
+      elements.shellHistorySelect.value = selectedHistoryId;
+    }
+    elements.loadShellHistoryButton.disabled = busy || history.length === 0;
+    elements.clearShellHistoryButton.disabled = busy || history.length === 0;
+  }
+
+  function loadShellValues(source) {
+    if (!source) return;
+    elements.workingDirectory.value = source.workingDirectory || source.cwd || "";
+    elements.shellCommand.value = source.command || "";
+    elements.shellMode.value = source.mode === "background" ? "background" : "terminal";
+    elements.confirmBeforeRun.checked = source.confirmBeforeRun !== false;
+  }
+
   function renderShellState() {
     const native = dashboard.nativeHost || {};
     const run = selectedShellRun();
@@ -178,6 +237,11 @@
     elements.runShellButton.disabled = busy || !selectedSession() || shellIsActive(run);
     elements.stopShellButton.disabled = busy || !shellIsActive(run);
     elements.clearShellOutputButton.disabled = busy || output.length === 0;
+    const preset = selectedShellPreset();
+    elements.loadShellPresetButton.disabled = busy || !preset;
+    elements.updateShellPresetButton.disabled = busy || !preset;
+    elements.deleteShellPresetButton.disabled = busy || !preset;
+    renderShellHistory();
   }
 
   function addConditionRow(condition = null) {
@@ -332,10 +396,17 @@
     elements.notificationAlert.checked = value.alerts.notification;
     elements.dismissOnUserActivity.checked = value.alerts.dismissOnUserActivity;
     elements.activeTabTimeoutSeconds.value = String(value.alerts.activeTabTimeoutSeconds);
+    shellPresetsDraft = Settings.clone(value.shell.presets || []);
+    selectedShellPresetId = value.shell.selectedPresetId || "";
+    elements.requireShellPresetMatch.checked = value.shell.requirePresetMatch;
+    elements.rememberShellHistory.checked = value.shell.rememberHistory;
+    elements.shellHistoryLimit.value = String(value.shell.historyLimit);
     elements.workingDirectory.value = value.shell.workingDirectory;
     elements.shellCommand.value = value.shell.command;
     elements.shellMode.value = value.shell.mode;
     elements.confirmBeforeRun.checked = value.shell.confirmBeforeRun;
+    renderShellPresetOptions();
+    renderShellHistory();
     renderRuleRuntimeSummary();
   }
 
@@ -439,7 +510,12 @@
         workingDirectory: elements.workingDirectory.value,
         command: elements.shellCommand.value,
         mode: elements.shellMode.value,
-        confirmBeforeRun: elements.confirmBeforeRun.checked
+        confirmBeforeRun: elements.confirmBeforeRun.checked,
+        requirePresetMatch: elements.requireShellPresetMatch.checked,
+        rememberHistory: elements.rememberShellHistory.checked,
+        historyLimit: Number(elements.shellHistoryLimit.value),
+        selectedPresetId: selectedShellPresetId,
+        presets: shellPresetsDraft
       }
     });
   }
@@ -1027,6 +1103,73 @@
     });
   }
 
+  function createShellPresetFromForm(name, id = null) {
+    return Settings.normalizeShellPreset({
+      id: id || Settings.makeId("command-preset"),
+      name,
+      enabled: elements.shellPresetEnabled.checked,
+      workingDirectory: elements.workingDirectory.value,
+      command: elements.shellCommand.value,
+      mode: elements.shellMode.value,
+      confirmBeforeRun: elements.confirmBeforeRun.checked
+    }, shellPresetsDraft.length);
+  }
+
+  function loadSelectedShellPreset() {
+    const preset = selectedShellPreset();
+    if (!preset) {
+      showMessage("Select a command preset first.", "error");
+      return;
+    }
+    loadShellValues(preset);
+    showMessage(`Loaded preset “${preset.name}”. Save the profile or tab configuration to persist changes.`, "success");
+  }
+
+  function newShellPreset() {
+    const name = elements.shellPresetName.value.trim() || prompt("New command preset name:", "Command preset");
+    if (!name) return;
+    const preset = createShellPresetFromForm(name);
+    shellPresetsDraft.push(preset);
+    selectedShellPresetId = preset.id;
+    renderShellPresetOptions();
+    showMessage("Command preset added to the draft. Save the profile or tab configuration to persist it.", "success");
+  }
+
+  function updateShellPreset() {
+    const preset = selectedShellPreset();
+    if (!preset) {
+      showMessage("Select a command preset first.", "error");
+      return;
+    }
+    const updated = createShellPresetFromForm(elements.shellPresetName.value.trim() || preset.name, preset.id);
+    shellPresetsDraft = shellPresetsDraft.map((item) => item.id === preset.id ? updated : item);
+    renderShellPresetOptions();
+    showMessage("Command preset updated in the draft. Save the profile or tab configuration to persist it.", "success");
+  }
+
+  function deleteShellPreset() {
+    const preset = selectedShellPreset();
+    if (!preset || !confirm(`Delete command preset “${preset.name}”?`)) return;
+    shellPresetsDraft = shellPresetsDraft.filter((item) => item.id !== preset.id);
+    selectedShellPresetId = "";
+    renderShellPresetOptions();
+    showMessage("Command preset deleted from the draft. Save the profile or tab configuration to persist it.", "success");
+  }
+
+  function loadSelectedShellHistory() {
+    const id = elements.shellHistorySelect.value;
+    const history = Array.isArray(selectedSession()?.shellHistory) ? selectedSession().shellHistory : [];
+    const entry = history.find((item) => item.id === id);
+    if (!entry) {
+      showMessage("Select a command history entry first.", "error");
+      return;
+    }
+    loadShellValues(entry);
+    selectedShellPresetId = entry.presetId || "";
+    renderShellPresetOptions();
+    showMessage("Command history entry loaded into the editor.", "success");
+  }
+
   function commandConfirmation(shell) {
     return `Run local command?
 
@@ -1324,6 +1467,20 @@ ${run.command || ""}`)) {
     }
   });
   elements.clearHighlightsButton.addEventListener("click", () => void request(MESSAGE.CLEAR_HIGHLIGHTS, { tabId: selectedTabId }, "Tab highlights cleared."));
+  elements.shellPresetSelect.addEventListener("change", () => {
+    selectedShellPresetId = elements.shellPresetSelect.value;
+    renderShellPresetOptions();
+  });
+  elements.loadShellPresetButton.addEventListener("click", loadSelectedShellPreset);
+  elements.newShellPresetButton.addEventListener("click", newShellPreset);
+  elements.updateShellPresetButton.addEventListener("click", updateShellPreset);
+  elements.deleteShellPresetButton.addEventListener("click", deleteShellPreset);
+  elements.loadShellHistoryButton.addEventListener("click", loadSelectedShellHistory);
+  elements.clearShellHistoryButton.addEventListener("click", () => {
+    if (selectedSession() && confirm("Clear command history for this tab session?")) {
+      void request(MESSAGE.CLEAR_SHELL_HISTORY, { tabId: selectedTabId }, "Tab command history cleared.");
+    }
+  });
   elements.checkNativeButton.addEventListener("click", () => void request(MESSAGE.GET_NATIVE_STATUS, {}, "Native Host status requested."));
   elements.runShellButton.addEventListener("click", runShellCommand);
   elements.stopShellButton.addEventListener("click", stopShellCommand);

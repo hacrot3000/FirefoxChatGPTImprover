@@ -176,6 +176,8 @@
         event === "error" ? run.error : `Shell ${event}: ${run.command}`,
         { runId: run.runId, pid: run.pid, returnCode: run.returnCode }
       );
+      const store = await loadStore();
+      syncShellHistory(session, run, sessionConfig(session, store));
       await persistSession(session);
     }
     await broadcast("native-shell-event", tabId);
@@ -245,7 +247,42 @@
     }
   }
 
-  function validateShellPayload(message) {
+  function normalizeShellHistory(raw, limit = 20) {
+    const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
+    const entries = Array.isArray(raw) ? raw : [];
+    return entries.filter((entry) => entry && typeof entry === "object").slice(0, safeLimit).map((entry) => ({
+      id: String(entry.id || Settings.makeId("shell-history")),
+      runId: entry.runId ? String(entry.runId) : null,
+      startedAt: String(entry.startedAt || Settings.nowIso()),
+      endedAt: entry.endedAt ? String(entry.endedAt) : null,
+      cwd: String(entry.cwd || entry.workingDirectory || ""),
+      workingDirectory: String(entry.workingDirectory || entry.cwd || ""),
+      command: String(entry.command || ""),
+      mode: entry.mode === "background" ? "background" : "terminal",
+      presetId: entry.presetId ? String(entry.presetId) : null,
+      presetName: entry.presetName ? String(entry.presetName) : null,
+      status: String(entry.status || "requested"),
+      returnCode: Number.isInteger(entry.returnCode) ? entry.returnCode : null,
+      error: entry.error ? String(entry.error) : null,
+      confirmBeforeRun: entry.confirmBeforeRun !== false
+    }));
+  }
+
+  function syncShellHistory(session, run, config) {
+    if (!session || !config?.shell?.rememberHistory || !run?.historyId) return;
+    session.shellHistory = normalizeShellHistory(session.shellHistory, config.shell.historyLimit);
+    const entry = session.shellHistory.find((item) => item.id === run.historyId);
+    if (!entry) return;
+    Object.assign(entry, {
+      runId: run.runId || entry.runId,
+      endedAt: run.endedAt || entry.endedAt,
+      status: run.status || entry.status,
+      returnCode: Number.isInteger(run.returnCode) ? run.returnCode : null,
+      error: run.error || null
+    });
+  }
+
+  function validateShellPayload(message, config) {
     const tabId = Number(message.tabId);
     if (!Number.isInteger(tabId)) {
       throw new Error("The command tab ID is invalid.");
@@ -262,7 +299,11 @@
       throw new Error("The command contains an invalid NUL character.");
     }
     const mode = message.mode === "terminal" ? "terminal" : "background";
-    return { tabId, cwd, command, mode };
+    const preset = Settings.matchingShellPreset(config, { workingDirectory: cwd, command, mode });
+    if (config.shell.requirePresetMatch && !preset) {
+      throw new Error("This command is not allowed because it does not match an enabled command preset.");
+    }
+    return { tabId, cwd, command, mode, preset };
   }
 
   async function checkNativeStatus(sender) {
@@ -274,29 +315,56 @@
 
   async function runShell(message, sender) {
     assertSidebarSender(sender);
-    const { tabId, cwd, command, mode } = validateShellPayload(message);
+    const tabId = Number(message.tabId);
     const session = sessions.get(tabId);
     if (!session) {
       throw new Error("This tab is not activated, so there is no session for the command.");
     }
+    const store = await loadStore();
+    const config = sessionConfig(session, store);
+    const { cwd, command, mode, preset } = validateShellPayload(message, config);
     const current = shellRunForTab(tabId);
     if (["starting", "running", "terminal", "stopping"].includes(current.status)) {
       throw new Error("This tab already has a command that has not finished.");
     }
     const runId = `tab-${tabId}-${crypto.randomUUID()}`;
+    const historyId = config.shell.rememberHistory ? Settings.makeId("shell-history") : null;
     const run = {
       ...emptyShellRun(tabId),
       runId,
+      historyId,
       mode,
       status: "starting",
       cwd,
       command,
+      presetId: preset?.id || null,
+      presetName: preset?.name || null,
       startedAt: Settings.nowIso()
     };
     shellRuns.set(tabId, run);
     runToTab.set(runId, tabId);
     appendShellOutput(run, "system", `[request] cwd=${cwd}\n[command] ${command}\n`);
-    appendLog(session, "user", "shell-run-request", `Command requested in ${mode} mode.`, { runId, cwd, command });
+    if (config.shell.rememberHistory) {
+      session.shellHistory = normalizeShellHistory(session.shellHistory, config.shell.historyLimit);
+      session.shellHistory.unshift({
+        id: historyId,
+        runId,
+        startedAt: run.startedAt,
+        endedAt: null,
+        cwd,
+        workingDirectory: cwd,
+        command,
+        mode,
+        presetId: preset?.id || null,
+        presetName: preset?.name || null,
+        status: "starting",
+        returnCode: null,
+        error: null,
+        confirmBeforeRun: preset?.confirmBeforeRun ?? config.shell.confirmBeforeRun
+      });
+      session.shellHistory = normalizeShellHistory(session.shellHistory, config.shell.historyLimit);
+    }
+    appendLog(session, "user", "shell-run-request", `Command requested in ${mode} mode${preset ? ` using preset “${preset.name}”` : ""}.`, { runId, cwd, command, presetId: preset?.id || null });
     await persistSession(session);
     const port = ensureNativePort();
     port.postMessage({ action: "run", runId, tabId, cwd, command, mode });
@@ -325,6 +393,20 @@
     run.output = [];
     await broadcast("native-shell-output-cleared", tabId);
     return publicShellRun(tabId);
+  }
+
+  async function clearShellHistory(message, sender) {
+    assertSidebarSender(sender);
+    const tabId = Number(message.tabId);
+    const session = sessions.get(tabId);
+    if (!session) {
+      throw new Error("This tab is not activated.");
+    }
+    session.shellHistory = [];
+    appendLog(session, "user", "shell-history-cleared", "Command history cleared for this tab session.");
+    await persistSession(session);
+    await broadcast("shell-history-cleared", tabId);
+    return [];
   }
 
 
@@ -485,7 +567,8 @@
       tabConfig: null,
       configRevision: 1,
       runtime: newRuntime(),
-      logs: { user: [], debug: [] }
+      logs: { user: [], debug: [] },
+      shellHistory: []
     };
   }
 
@@ -756,7 +839,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       ...tabMeta(tab),
       sessionToken: stored.sessionToken || Settings.makeId("session"),
       runtime: { ...newRuntime(), ...(stored.runtime || {}) },
-      logs: normalizeLogs(stored.logs)
+      logs: normalizeLogs(stored.logs),
+      shellHistory: normalizeShellHistory(stored.shellHistory, 100)
     };
     if (!Settings.profileById(store, recovered.profileId)) {
       recovered.profileId = store.defaultProfileId;
@@ -1569,6 +1653,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
         case MESSAGE.CLEAR_SHELL_OUTPUT:
           return { ok: true, shellRun: await clearShellOutput(message, sender), dashboard: await dashboard() };
+
+        case MESSAGE.CLEAR_SHELL_HISTORY:
+          return { ok: true, shellHistory: await clearShellHistory(message, sender), dashboard: await dashboard() };
 
         case MESSAGE.CONTENT_RUNTIME_EVENT:
           return { ok: true, runtime: await updateRuntimeFromContent(message, sender) };

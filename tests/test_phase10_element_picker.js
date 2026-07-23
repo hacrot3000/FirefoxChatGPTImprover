@@ -72,7 +72,8 @@ assert.equal(result.selector.kind, "class");
 assert.match(result.css, /composer-submit-btn/);
 
 const protocol = fs.readFileSync(path.join(root, "extension/shared/protocol.js"), "utf8");
-assert(protocol.includes('VERSION: 7'));
+const protocolVersion = Number(/VERSION:\s*(\d+)/.exec(protocol)?.[1] || 0);
+assert(protocolVersion >= 7, `Phase 10 requires protocol version >= 7, got ${protocolVersion}`);
 for (const token of ["START_ELEMENT_PICKER", "CANCEL_ELEMENT_PICKER", "CONTENT_PICKER_RESULT", "PICKER_RESULT"]) {
   assert(protocol.includes(token), `missing picker protocol ${token}`);
 }

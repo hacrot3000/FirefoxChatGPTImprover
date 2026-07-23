@@ -1,12 +1,12 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_PROTOCOL?.VERSION >= 7) {
+  if (globalThis.FCI_PROTOCOL?.VERSION >= 8) {
     return;
   }
 
   const protocol = Object.freeze({
-    VERSION: 7,
+    VERSION: 8,
     MESSAGE: Object.freeze({
       GET_DASHBOARD: "FCI_GET_DASHBOARD",
       ACTIVATE_CURRENT: "FCI_ACTIVATE_CURRENT",
@@ -33,6 +33,7 @@
       RUN_SHELL: "FCI_RUN_SHELL",
       STOP_SHELL: "FCI_STOP_SHELL",
       CLEAR_SHELL_OUTPUT: "FCI_CLEAR_SHELL_OUTPUT",
+      CLEAR_SHELL_HISTORY: "FCI_CLEAR_SHELL_HISTORY",
       DASHBOARD_CHANGED: "FCI_DASHBOARD_CHANGED",
       CONTENT_ACTIVATE: "FCI_CONTENT_ACTIVATE",
       CONTENT_PAUSE: "FCI_CONTENT_PAUSE",

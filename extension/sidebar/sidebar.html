@@ -394,6 +394,20 @@
         <h2 id="shellHeading">Shell command</h2>
         <span id="nativeHostStatus" class="native-status" data-state="offline">Native: not checked</span>
       </div>
+      <div class="shell-preset-panel">
+        <div class="selector-grid compact-fields">
+          <label>Command preset<select id="shellPresetSelect"><option value="">Custom command</option></select></label>
+          <label>Preset name<input id="shellPresetName" type="text" placeholder="Build and test"></label>
+        </div>
+        <label class="check-row"><input id="shellPresetEnabled" type="checkbox">Preset is enabled</label>
+        <div class="button-grid shell-preset-actions">
+          <button id="loadShellPresetButton" type="button">Load preset</button>
+          <button id="newShellPresetButton" type="button">New preset</button>
+          <button id="updateShellPresetButton" type="button">Update preset</button>
+          <button id="deleteShellPresetButton" type="button" class="danger">Delete preset</button>
+        </div>
+        <label class="check-row"><input id="requireShellPresetMatch" type="checkbox">Only run commands matching an enabled preset</label>
+      </div>
       <label>Working directory<input id="workingDirectory" type="text"
           placeholder="/home/duongtc/FirefoxChatImprover"></label>
       <label>Command<textarea id="shellCommand" rows="4"
@@ -403,6 +417,15 @@
           <option value="background">Run in background and capture output</option>
         </select></label>
       <label class="check-row"><input id="confirmBeforeRun" type="checkbox">Confirm before running</label>
+      <div class="selector-grid compact-fields">
+        <label>Recent command<select id="shellHistorySelect"><option value="">No command history</option></select></label>
+        <label>History limit<input id="shellHistoryLimit" type="number" min="1" max="100" step="1"></label>
+      </div>
+      <label class="check-row"><input id="rememberShellHistory" type="checkbox">Remember command history for this tab session</label>
+      <div class="button-grid shell-history-actions">
+        <button id="loadShellHistoryButton" type="button">Load history entry</button>
+        <button id="clearShellHistoryButton" type="button" class="danger">Clear tab history</button>
+      </div>
       <dl class="shell-details">
         <div><dt>Tab status</dt><dd id="shellRunStatus">idle</dd></div>
         <div><dt>PID</dt><dd id="shellRunPid">—</dd></div>
@@ -419,7 +442,8 @@
         <summary aria-label="Shell command help" title="Help">?</summary>
         <div class="help-popover" role="tooltip">
           <p><strong>Background mode</strong> streams stdout and stderr into the output panel. <strong>Terminal mode</strong> is intended for interactive scripts.</p>
-          <p>Each tab has its own command session. Stop only signals the process group started by that tab.</p>
+          <p>Each tab has its own command session and bounded history. Stop only signals the process group started by that tab.</p>
+          <p>Presets are stored in the current profile or tab configuration. When allowlist mode is enabled, the background rejects any command that does not exactly match an enabled preset.</p>
           <p>Install or update the Native Host with <code>./native-host/install_host.sh</code>. The shared Patch + Test task continues to run the full test suite.</p>
         </div>
       </details>
