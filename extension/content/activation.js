@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatImproverRuntimeV6";
-  const RUNTIME_VERSION = 8;
+  const RUNTIME_VERSION = 13;
   const previousRuntime = globalThis[INSTANCE_KEY];
   if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
@@ -14,12 +14,15 @@
   const { MESSAGE, MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const MonitorEngine = globalThis.FCI_MONITOR_ENGINE;
   const TargetEngine = globalThis.FCI_TARGET_ENGINE;
+  const RuleEngine = globalThis.FCI_RULE_ENGINE;
   const AlertEngine = globalThis.FCI_ALERT_ENGINE;
   let state = {
     mode: MODE.INACTIVE,
     activatedAt: null,
     updatedAt: new Date().toISOString(),
     source: null,
+    tabId: null,
+    sessionToken: null,
     url: location.href,
     profileId: null,
     profileName: null,
@@ -29,6 +32,14 @@
     runtime: {
       monitorState: MONITOR_STATE.IDLE,
       cycle: 0,
+      ruleCount: 1,
+      enabledRuleCount: 1,
+      matchedRuleCount: 0,
+      matchedRuleIds: [],
+      activeRuleId: "rule-default",
+      lastRuleId: null,
+      lastRuleName: null,
+      ruleRuntimes: {},
       baselineCount: 0,
       candidateCount: 0,
       targetState: "disabled",
@@ -52,11 +63,18 @@
       visibilityTransitionMode: "none",
       lastVisibilityTransition: null,
       conditionMatched: false,
+      pendingMonitorState: null,
+      stabilityStartedAt: null,
+      stabilityDueAt: null,
+      stabilityDelayMs: 0,
+      matchStableMs: 0,
+      resetStableMs: 0,
       lastReason: null,
       lastTransition: null,
       alertActive: false,
       alertCycle: 0,
       titleBlinking: false,
+      monitorTitleSpinning: false,
       originalTitle: document.title || "",
       displayedTitle: document.title || "",
       alertStartedAt: null,
@@ -94,6 +112,8 @@
       activatedAt: state.activatedAt,
       updatedAt: state.updatedAt,
       source: state.source,
+      tabId: state.tabId,
+      sessionToken: state.sessionToken,
       url: location.href,
       profileId: state.profileId,
       profileName: state.profileName,
@@ -109,7 +129,11 @@
     applyDocumentMarker();
     void browser.runtime.sendMessage({
       type: MESSAGE.CONTENT_RUNTIME_EVENT,
-      payload: { runtime: { ...state.runtime } }
+      payload: {
+        tabId: state.tabId,
+        sessionToken: state.sessionToken,
+        runtime: { ...state.runtime }
+      }
     }).catch(() => {
       // Extension reload or tab shutdown can invalidate the runtime context.
     });
@@ -132,13 +156,7 @@
     publishRuntimeEvent({ ...state.runtime, ...alertRuntime, lastEventAt: runtime.lastEventAt });
   }
 
-  const targetAutomation = TargetEngine.createTargetAutomation({ onRuntime: sendRuntimeEvent });
-  const monitor = MonitorEngine.createMonitor({
-    onRuntime(runtime) {
-      sendRuntimeEvent(runtime);
-      targetAutomation.handleMonitorRuntime(runtime);
-    }
-  });
+  const ruleAutomation = RuleEngine.createRuleAutomation({ onRuntime: sendRuntimeEvent });
 
   function applySession(session, mode = null) {
     const now = new Date().toISOString();
@@ -148,6 +166,8 @@
       activatedAt: session?.activatedAt || state.activatedAt || now,
       updatedAt: now,
       source: session?.source || state.source,
+      tabId: Number.isInteger(session?.tabId) ? session.tabId : state.tabId,
+      sessionToken: session?.sessionToken || state.sessionToken,
       url: location.href,
       profileId: session?.profileId || state.profileId,
       profileName: session?.profileName || state.profileName,
@@ -161,14 +181,12 @@
     };
 
     if (state.mode === MODE.PAUSED) {
-      targetAutomation.pause();
-      monitor.pause();
+      ruleAutomation.start(state.config, "session-applied-paused-baseline", state.runtime.cycle);
+      ruleAutomation.pause();
     } else if (state.mode === MODE.ACTIVE) {
-      targetAutomation.start(state.config, "session-applied-baseline");
-      monitor.start(state.config, "session-applied");
+      ruleAutomation.start(state.config, "session-applied", state.runtime.cycle);
     } else {
-      targetAutomation.stop();
-      monitor.stop();
+      ruleAutomation.stop();
     }
     state.runtime = {
       ...state.runtime,
@@ -184,16 +202,13 @@
     state.url = location.href;
 
     if (mode === MODE.PAUSED) {
-      targetAutomation.pause();
-      monitor.pause();
+      ruleAutomation.pause();
       state.runtime = { ...state.runtime, ...alertController.apply(state.config, state.runtime, mode, "pause") };
     } else if (mode === MODE.ACTIVE) {
-      targetAutomation.resume(state.config);
-      monitor.resume(state.config);
+      ruleAutomation.resume(state.config);
       state.runtime = { ...state.runtime, ...alertController.apply(state.config, state.runtime, mode, "resume") };
     } else {
-      targetAutomation.stop();
-      monitor.stop();
+      ruleAutomation.stop();
       MonitorEngine.clearSelectorHighlights();
       TargetEngine.clearActionHighlights();
       state.runtime.monitorState = MONITOR_STATE.IDLE;
@@ -282,8 +297,7 @@
     } catch (_error) {
       // Extension reload can invalidate the runtime API before cleanup.
     }
-    targetAutomation.stop();
-    monitor.stop();
+    ruleAutomation.stop();
     MonitorEngine.clearSelectorHighlights();
     TargetEngine.clearActionHighlights();
     alertController.stop(reason);

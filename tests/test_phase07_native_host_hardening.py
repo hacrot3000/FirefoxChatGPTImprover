@@ -41,7 +41,7 @@ reader = BytesIO(host.encode_message({"action": "not-supported", "tabId": 1}))
 assert host.run_host(reader, collector) == 0
 assert collector.messages[0]["event"] == "hello"
 assert collector.messages[1]["event"] == "error"
-assert "không được hỗ trợ" in collector.messages[1]["error"]
+assert "not supported" in collector.messages[1]["error"]
 
 # Stop phải bị giới hạn đúng runId + tabId.
 stream_events: queue.Queue[dict] = queue.Queue()
@@ -60,7 +60,7 @@ assert ready
 try:
     manager.stop(run_id, 99)
 except ValueError as error:
-    assert "tabId không khớp" in str(error)
+    assert "tab ID does not match" in str(error)
 else:
     raise AssertionError("stop with wrong tabId must fail")
 manager.stop(run_id, 42)

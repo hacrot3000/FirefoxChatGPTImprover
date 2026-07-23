@@ -197,7 +197,6 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 .group-toggle:focus-visible { color: LinkText; }
 .card[data-collapsed="true"] { padding-top: 8px; padding-bottom: 8px; }
 .card[data-collapsed="true"] > :not(.group-heading):not(.help-menu) { display: none !important; }
-.card[data-collapsed="true"] > .help-menu { display: none; }
 .card[data-collapsed="true"] .group-heading h2 { margin-bottom: 0; }
 .card[data-collapsed="true"].sticky-actions { bottom: 8px; }
 
@@ -236,3 +235,77 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 .pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyExpectation,
 .pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyTimeoutMs,
 .pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyPollIntervalMs { opacity: .55; }
+
+/* Phase 14 v0.14.1: compact actions remain available in collapsed group headings. */
+.group-heading-actions { display: flex; flex: none; align-items: center; gap: 4px; }
+.icon-button {
+  display: inline-grid;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+  place-items: center;
+}
+.collapsed-only { display: none; }
+.card[data-collapsed="true"] .collapsed-only { display: inline-grid; }
+.group-heading-actions .danger:disabled { opacity: 0.45; }
+
+/* Phase 15 — compact multi-rule controls */
+.rule-enabled-row {
+  align-self: end;
+  min-height: 32px;
+}
+.rule-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+#ruleRuntimeSummary[data-state="matched"] {
+  border-color: #2da44e;
+  background: rgba(45, 164, 78, .12);
+}
+#ruleRuntimeSummary[data-state="disabled"] {
+  opacity: .72;
+}
+
+
+/* Phase 15 v0.15.2: compact rule runtime disclosure and reliable help popovers. */
+.rule-runtime-details {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: Canvas;
+}
+.rule-runtime-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 30px;
+  padding: 5px 8px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.rule-runtime-details > .selector-test-result {
+  padding: 0 8px 8px;
+}
+.runtime-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.runtime-badge[data-state="matched"] { border-color: var(--active); color: var(--active); }
+.runtime-badge[data-state="disabled"] { opacity: .7; }
+.runtime-badge[data-state="error"] { border-color: var(--error); color: var(--error); }
+.card[data-collapsed="true"] > .help-menu { display: block; }
+.card[data-collapsed="true"] > .help-menu .help-popover { top: 27px; }

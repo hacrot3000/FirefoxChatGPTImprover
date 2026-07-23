@@ -73,34 +73,34 @@ class MessageWriter:
 
 def _require_non_root() -> None:
     if hasattr(os, "geteuid") and os.geteuid() == 0 and os.environ.get("FCI_NATIVE_HOST_ALLOW_ROOT_FOR_TEST") != "1":
-        raise ValueError("Native host từ chối chạy command bằng tài khoản root.")
+        raise ValueError("The Native Host refuses to run commands as root.")
 
 
 def validate_run_request(message: dict[str, Any]) -> tuple[str, int, Path, str, str]:
     run_id = str(message.get("runId") or "").strip()
     if not run_id or len(run_id) > 160:
-        raise ValueError("runId không hợp lệ.")
+        raise ValueError("The run ID is invalid.")
     tab_id = message.get("tabId")
     if not isinstance(tab_id, int) or tab_id < 0:
-        raise ValueError("tabId không hợp lệ.")
+        raise ValueError("The tab ID is invalid.")
     raw_cwd = str(message.get("cwd") or "").strip()
     cwd = Path(raw_cwd).expanduser()
     if not cwd.is_absolute():
-        raise ValueError("Working directory phải là đường dẫn tuyệt đối.")
+        raise ValueError("The working directory must be an absolute path.")
     if not cwd.exists():
-        raise ValueError("Working directory không tồn tại.")
+        raise ValueError("The working directory does not exist.")
     if not cwd.is_dir():
-        raise ValueError("Working directory không phải thư mục.")
+        raise ValueError("The working directory is not a directory.")
     command = str(message.get("command") or "")
     if not command.strip():
-        raise ValueError("Command đang trống.")
+        raise ValueError("The command is empty.")
     if len(command) > MAX_COMMAND_CHARS:
-        raise ValueError("Command vượt quá giới hạn cho phép.")
+        raise ValueError("The command exceeds the allowed length.")
     if "\x00" in command:
-        raise ValueError("Command chứa ký tự NUL không hợp lệ.")
+        raise ValueError("The command contains an invalid NUL character.")
     mode = str(message.get("mode") or "background")
     if mode not in {"background", "terminal"}:
-        raise ValueError("Chế độ command không hợp lệ.")
+        raise ValueError("The command mode is invalid.")
     _require_non_root()
     return run_id, tab_id, cwd.resolve(), command, mode
 
@@ -178,10 +178,10 @@ class ProcessManager:
         run_id, tab_id, cwd, command, mode = validate_run_request(message)
         with self.lock:
             if run_id in self.runs:
-                raise ValueError("runId đã tồn tại.")
+                raise ValueError("The run ID already exists.")
             for current in self.runs.values():
                 if current.tab_id == tab_id:
-                    raise ValueError("Tab này đang có một command chạy nền.")
+                    raise ValueError("This tab already has a background command running.")
             context = RunContext(run_id, tab_id, str(cwd), command, mode)
             self.runs[run_id] = context
 
@@ -195,7 +195,7 @@ class ProcessManager:
         if launcher is None:
             with self.lock:
                 self.runs.pop(context.run_id, None)
-            raise ValueError("Không tìm thấy terminal hỗ trợ: gnome-terminal, kgx, xfce4-terminal, konsole hoặc x-terminal-emulator.")
+            raise ValueError("No supported terminal was found: gnome-terminal, kgx, xfce4-terminal, konsole, or x-terminal-emulator.")
         script = make_terminal_script(cwd, command)
         executable, arguments = launcher
         try:
@@ -308,9 +308,9 @@ class ProcessManager:
         with self.lock:
             context = self.runs.get(run_id)
             if context is None or context.process is None:
-                raise ValueError("Không tìm thấy command đang chạy.")
+                raise ValueError("No running command was found.")
             if tab_id is not None and context.tab_id != tab_id:
-                raise ValueError("tabId không khớp command đang chạy.")
+                raise ValueError("The tab ID does not match the running command.")
             if context.stopping:
                 return
             context.stopping = True
@@ -368,7 +368,7 @@ def run_host(reader: BinaryIO = sys.stdin.buffer, writer: MessageWriter | None =
                     tab_id = raw_tab_id if isinstance(raw_tab_id, int) else None
                     manager.stop(str(message.get("runId") or ""), tab_id)
                 else:
-                    raise ValueError("Action native host không được hỗ trợ.")
+                    raise ValueError("The Native Host action is not supported.")
             except Exception as error:
                 output.send({
                     "event": "error",

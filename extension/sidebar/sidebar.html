@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 
 <head>
   <meta charset="utf-8">
@@ -13,17 +13,21 @@
     <div>
       <p class="eyebrow">Firefox ChatAI Assistant</p>
     </div>
-    <span id="statusPill" class="status-pill">Chưa kích hoạt</span>
+    <span id="statusPill" class="status-pill">Inactive</span>
   </header>
 
   <main>
     <section class="card" data-group-id="tabs" aria-labelledby="tabsHeading">
       <div class="section-title-row">
-        <h2 id="tabsHeading">Tab và session</h2>
-        <button id="refreshButton" type="button" class="compact">Làm mới</button>
+        <h2 id="tabsHeading">Tabs and sessions</h2>
+        <div class="group-heading-actions">
+          <button id="tabPrimaryQuickButton" type="button" class="compact icon-button collapsed-only" aria-label="Activate, resume, or pause this tab" title="Activate, resume, or pause this tab">▶</button>
+          <button id="tabStopQuickButton" type="button" class="compact icon-button danger collapsed-only" aria-label="Stop this tab" title="Stop this tab">■</button>
+          <button id="refreshButton" type="button" class="compact icon-button" aria-label="Refresh status" title="Refresh status">↻</button>
+        </div>
       </div>
       <label>
-        Tab đang cấu hình
+        Selected tab
         <select id="tabSelect"></select>
       </label>
       <dl class="details">
@@ -32,8 +36,8 @@
           <dd id="tabId">—</dd>
         </div>
         <div>
-          <dt>Trạng thái</dt>
-          <dd id="modeText">Chưa kích hoạt</dd>
+          <dt>Status</dt>
+          <dd id="modeText">Inactive</dd>
         </div>
         <div>
           <dt>Config</dt>
@@ -48,19 +52,27 @@
           <dd id="monitorStateText">—</dd>
         </div>
         <div>
-          <dt>Tìm thấy</dt>
+          <dt>Found</dt>
           <dd id="monitorCountText">—</dd>
         </div>
         <div>
-          <dt>Thỏa điều kiện</dt>
+          <dt>Matched</dt>
           <dd id="monitorMatchedText">—</dd>
         </div>
         <div>
-          <dt>Chu kỳ</dt>
+          <dt>Cycle</dt>
           <dd id="monitorCycleText">—</dd>
         </div>
         <div>
-          <dt>Cảnh báo</dt>
+          <dt>Enabled rules</dt>
+          <dd id="ruleCountText">—</dd>
+        </div>
+        <div>
+          <dt>Rules MATCHED</dt>
+          <dd id="matchedRuleCountText">—</dd>
+        </div>
+        <div>
+          <dt>Alerts</dt>
           <dd id="alertStateText">—</dd>
         </div>
         <div>
@@ -72,19 +84,19 @@
           <dd id="baselineCountText">—</dd>
         </div>
         <div>
-          <dt>Target mới</dt>
+          <dt>New targets</dt>
           <dd id="candidateCountText">—</dd>
         </div>
         <div>
-          <dt>Đã xử lý</dt>
+          <dt>Handled</dt>
           <dd id="targetActionCountText">—</dd>
         </div>
         <div class="details-wide">
-          <dt>Target action cuối</dt>
+          <dt>Last target action</dt>
           <dd id="lastTargetActionText">—</dd>
         </div>
         <div class="details-wide">
-          <dt>Chuyển trạng thái cuối</dt>
+          <dt>Last transition</dt>
           <dd id="monitorTransitionText">—</dd>
         </div>
         <div class="details-wide">
@@ -93,35 +105,34 @@
         </div>
       </dl>
       <div class="button-grid four">
-        <button id="activateButton" type="button" class="primary">Kích hoạt tab hiện tại</button>
-        <button id="pauseButton" type="button">Tạm dừng</button>
-        <button id="resumeButton" type="button">Tiếp tục</button>
-        <button id="stopButton" type="button" class="danger">Dừng</button>
+        <button id="activateButton" type="button" class="primary">Activate current tab</button>
+        <button id="pauseButton" type="button">Pause</button>
+        <button id="resumeButton" type="button">Resume</button>
+        <button id="stopButton" type="button" class="danger">Stop</button>
       </div>
       <details class="help-menu help-menu-tab">
-        <summary aria-label="Trợ giúp tab và session" title="Trợ giúp">?</summary>
+        <summary aria-label="Tabs and sessions help" title="Help">?</summary>
         <div class="help-popover" role="tooltip">
-          Mỗi tab giữ session, profile, cấu hình và trạng thái riêng theo tabId. Sidebar tự chuyển sang đúng session khi
-          bạn đổi active tab. Lần đầu kích hoạt trên mỗi website, Firefox sẽ hỏi quyền truy cập website đó.
+          Each tab keeps its own session, profile, configuration, and runtime state by tab ID. The sidebar follows the active tab automatically. Firefox asks for site access the first time a site is activated.
         </div>
       </details>
     </section>
 
     <section class="card" data-group-id="profiles" aria-labelledby="profileHeading">
-      <h2 id="profileHeading">Profile cấu hình</h2>
+      <h2 id="profileHeading">Configuration profiles</h2>
       <label>
         Profile
         <select id="profileSelect"></select>
       </label>
       <label>
-        Tên profile
+        Profile name
         <input id="profileName" type="text" autocomplete="off">
       </label>
       <div class="button-grid">
-        <button id="assignProfileButton" type="button">Áp dụng cho tab</button>
-        <button id="newProfileButton" type="button">Profile mới</button>
-        <button id="duplicateProfileButton" type="button">Nhân bản</button>
-        <button id="deleteProfileButton" type="button" class="danger">Xóa profile</button>
+        <button id="assignProfileButton" type="button">Apply to tab</button>
+        <button id="newProfileButton" type="button">New profile</button>
+        <button id="duplicateProfileButton" type="button">Duplicate</button>
+        <button id="deleteProfileButton" type="button" class="danger">Delete profile</button>
       </div>
     </section>
 
@@ -129,38 +140,66 @@
       <h2 id="activationHeading">URL activation</h2>
       <label class="check-row">
         <input id="autoProfileByUrl" type="checkbox">
-        Tự chọn profile khớp URL khi kích hoạt tab chưa active
+        Automatically select a matching profile when activating an inactive tab
       </label>
       <div class="two-column compact-fields">
         <label class="check-row">
           <input id="routingEnabled" type="checkbox">
-          Profile tham gia chọn theo URL
+          Include this profile in URL routing
         </label>
-        <label>Độ ưu tiên
+        <labelPriority
           <input id="routingPriority" type="number" min="-1000" max="1000" step="1">
         </label>
       </div>
       <label class="check-row">
         <input id="requireUrlMatch" type="checkbox">
-        Chỉ cho phép URL khớp allowlist
+        Require the URL to match the allowlist
       </label>
       <label>
-        URL pattern, mỗi dòng một giá trị; hỗ trợ dấu <code>*</code>
+        URL patterns, one per line; supports <code>*</code>
         <textarea id="urlPatterns" rows="3" placeholder="https://ai.company.local/*"></textarea>
       </label>
       <div class="button-grid routing-actions">
-        <button id="testUrlRoutingButton" type="button">Kiểm tra URL hiện tại</button>
-        <button id="useRoutedProfileButton" type="button">Chọn profile phù hợp</button>
+        <button id="testUrlRoutingButton" type="button">Test current URL</button>
+        <button id="useRoutedProfileButton" type="button">Use matching profile</button>
       </div>
       <output id="urlRoutingResult" class="selector-test-result routing-result"></output>
-      <details class="compact-help">
-        <summary aria-label="Trợ giúp chọn profile theo URL" title="Trợ giúp">?</summary>
-        <div class="help-popover">Profile có độ ưu tiên lớn hơn được chọn trước. Nếu bằng nhau, pattern cụ thể hơn được ưu tiên. Tab đã active không tự đổi profile.</div>
+      <details class="help-menu">
+        <summary aria-label="URL profile routing help" title="Help">?</summary>
+        <div class="help-popover">Higher-priority profiles are selected first. If priorities are equal, the more specific pattern wins. Active tabs never switch profiles automatically.</div>
+      </details>
+    </section>
+
+    <section class="card" data-group-id="rules" aria-labelledby="rulesHeading">
+      <h2 id="rulesHeading">Automation rules</h2>
+      <label>
+        Selected rule
+        <select id="ruleSelect"></select>
+      </label>
+      <div class="two-column compact-fields">
+        <label>Rule name<input id="ruleName" type="text" autocomplete="off"></label>
+        <label class="check-row rule-enabled-row"><input id="ruleEnabled" type="checkbox">Enable this rule</label>
+      </div>
+      <div class="button-grid rule-actions">
+        <button id="newRuleButton" type="button">New rule</button>
+        <button id="duplicateRuleButton" type="button">Duplicate rule</button>
+        <button id="deleteRuleButton" type="button" class="danger">Delete rule</button>
+      </div>
+      <details id="ruleRuntimeDetails" class="rule-runtime-details">
+        <summary>
+          <span>Rule runtime</span>
+          <span id="ruleRuntimeBadge" class="runtime-badge" data-state="idle">Not running</span>
+        </summary>
+        <output id="ruleRuntimeSummary" class="selector-test-result" aria-live="polite"></output>
+      </details>
+      <details class="help-menu">
+        <summary aria-label="Automation rules help" title="Help">?</summary>
+        <div class="help-popover">Each rule has its own monitor, target, baseline, cycle, and pipeline. Multiple rules can run at the same time in one tab. The Monitor element and New target element sections below edit the selected rule.</div>
       </details>
     </section>
 
     <section class="card" data-group-id="monitor" aria-labelledby="monitorHeading">
-      <h2 id="monitorHeading">Element theo dõi</h2>
+      <h2 id="monitorHeading">Monitor element</h2>
       <div class="selector-grid">
         <label>Tag<select id="monitorTag">
             <option>*</option>
@@ -170,55 +209,66 @@
             <option>input</option>
             <option>a</option>
           </select></label>
-        <label>Kiểu<select id="monitorKind">
+        <label>Type<select id="monitorKind">
             <option value="css">CSS selector</option>
             <option value="id">ID</option>
             <option value="class">Class</option>
             <option value="attribute">Attribute</option>
           </select></label>
       </div>
-      <label>Tên attribute khi dùng kiểu Attribute<input id="monitorAttributeName" type="text"
+      <label>Attribute name when Type is Attribute<input id="monitorAttributeName" type="text"
           placeholder="data-testid"></label>
-      <label>Giá trị selector<input id="monitorValue" type="text"
-          placeholder="#composer-submit-button hoặc class-name"></label>
-      <label>Theo dõi chuyển trạng thái ẩn/hiện
+      <label>Selector value<input id="monitorValue" type="text"
+          placeholder="#composer-submit-button or class-name"></label>
+      <label>Visibility transition trigger
         <select id="monitorVisibilityTransition">
-          <option value="none">Không theo dõi ẩn/hiện</option>
-          <option value="hidden_to_visible">Ẩn → hiện</option>
-          <option value="visible_to_hidden">Hiện → ẩn</option>
+          <option value="none">Do not track visibility transitions</option>
+          <option value="hidden_to_visible">Hidden → visible</option>
+          <option value="visible_to_hidden">Visible → hidden</option>
         </select>
       </label>
+      <div class="selector-grid">
+        <label>Match stability (ms)
+          <input id="matchStableMs" type="number" min="0" max="60000" step="50" value="0">
+        </label>
+        <label>Reset stability (ms)
+          <input id="resetStableMs" type="number" min="0" max="60000" step="50" value="0">
+        </label>
+      </div>
       <details class="help-menu">
-        <summary aria-label="Trợ giúp element theo dõi" title="Trợ giúp">?</summary>
+        <summary aria-label="Monitor element help" title="Help">?</summary>
         <div class="help-popover" role="tooltip">
-          <p>Trạng thái lúc kích hoạt chỉ dùng làm baseline và không tự MATCHED. “Ẩn” gồm <code>display:none</code>,
-            <code>visibility:hidden/collapse</code>, thuộc tính <code>hidden</code>, <code>visible=false</code>,
-            <code>aria-hidden=true</code> hoặc không có vùng hiển thị.</p>
-          <p>Có thể xóa hoặc tắt toàn bộ điều kiện attribute để chỉ theo dõi chuyển trạng thái ẩn/hiện.</p>
-          <p>Nút “Chọn trên trang” cho phép rê chuột để xem element, click để tự điền selector hoặc nhấn Esc để hủy.
-            Nút kiểm tra đánh dấu tất cả element khớp selector bằng viền cam; element đồng thời thỏa điều kiện
-            attribute được đánh dấu bằng viền xanh.</p>
+          <p>The activation state is used only as a baseline and never triggers MATCHED by itself. Hidden includes <code>display:none</code>,
+            <code>visibility:hidden/collapse</code>, the <code>hidden</code>, <code>visible=false</code>,
+            <code>aria-hidden=true</code> attribute, or no rendered box.</p>
+          <p>You can remove or disable every attribute condition to track only the visibility transition.</p>
+          <p>The stability windows ignore brief state flicker caused by React re-rendering. A value of <code>0</code> keeps immediate behavior.</p>
+          <p>Use “Pick on page” to hover an element and click it to fill the selector; press Esc to cancel. The test button outlines selector matches in orange and condition matches in green.</p>
         </div>
       </details>
       <div class="section-title-row subheading">
-        <label>Ghép điều kiện<select id="conditionJoin">
-            <option value="all">Tất cả đúng (AND)</option>
-            <option value="any">Một điều kiện đúng (OR)</option>
+        <label>Condition join<select id="conditionJoin">
+            <option value="all">All conditions (AND)</option>
+            <option value="any">Any condition (OR)</option>
           </select></label>
-        <button id="addConditionButton" type="button" class="compact">+ Điều kiện</button>
+        <button id="addConditionButton" type="button" class="compact">+ Condition</button>
       </div>
       <div id="conditionsList" class="condition-list"></div>
       <div class="button-grid selector-picker-actions selector-test-row-bottom">
-        <button id="monitorPickerButton" type="button">Chọn trên trang</button>
-        <button id="monitorTestButton" type="button">Kiểm tra điều kiện</button>
+        <button id="monitorPickerButton" type="button">Pick on page</button>
+        <button id="monitorTestButton" type="button">Test conditions</button>
       </div>
       <output id="monitorTestResult" class="selector-test-result" aria-live="polite"></output>
     </section>
 
     <section class="card" data-group-id="target" aria-labelledby="targetHeading">
-      <h2 id="targetHeading">Target element mới</h2>
-      <label class="check-row"><input id="targetEnabled" type="checkbox">Bật xử lý target mới khi monitor
-        MATCHED</label>
+      <div class="section-title-row">
+        <h2 id="targetHeading">New target element</h2>
+        <div class="group-heading-actions">
+          <button id="targetClickQuickButton" type="button" class="compact icon-button collapsed-only" aria-label="Simulate a user click on the current target" title="Simulate a user click on the current target">☝</button>
+        </div>
+      </div>
+      <label class="check-row"><input id="targetEnabled" type="checkbox">Process new targets while the monitor is MATCHED</label>
       <div class="selector-grid">
         <label>Tag<select id="targetTag">
             <option>*</option>
@@ -228,168 +278,162 @@
             <option>input</option>
             <option>a</option>
           </select></label>
-        <label>Kiểu<select id="targetKind">
+        <label>Type<select id="targetKind">
             <option value="css">CSS selector</option>
             <option value="id">ID</option>
             <option value="class">Class</option>
             <option value="attribute">Attribute</option>
           </select></label>
       </div>
-      <label>Tên attribute<input id="targetAttributeName" type="text" placeholder="data-testid"></label>
-      <label>Giá trị selector<input id="targetValue" type="text" placeholder="class-name hoặc CSS selector"></label>
+      <label>Attribute name<input id="targetAttributeName" type="text" placeholder="data-testid"></label>
+      <label>Selector value<input id="targetValue" type="text" placeholder="class-name or CSS selector"></label>
       <div class="button-grid selector-picker-actions">
-        <button id="targetPickerButton" type="button">Chọn trên trang</button>
-        <button id="targetTestButton" type="button">Kiểm tra và highlight</button>
+        <button id="targetPickerButton" type="button">Pick on page</button>
+        <button id="targetTestButton" type="button">Test and highlight</button>
       </div>
       <output id="targetTestResult" class="selector-test-result"></output>
       <div class="button-grid target-test-actions">
-        <button id="targetDryRunTestButton" type="button">Dry-run target hiện tại</button>
-        <button id="targetClickTestButton" type="button" class="danger">Click thử có xác nhận</button>
+        <button id="targetDryRunTestButton" type="button">Dry run current target</button>
+        <button id="targetClickTestButton" type="button" class="danger">Test click with confirmation</button>
       </div>
       <div class="selector-grid">
-        <label>Chiến lược click<select id="clickStrategy">
-            <option value="newest">Mới cuối cùng</option>
-            <option value="oldest">Mới đầu tiên</option>
-            <option value="all">Tất cả element mới</option>
+        <label>Click strategy<select id="clickStrategy">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="all">All new elements</option>
           </select></label>
-        <label>Giới hạn mỗi chu kỳ<input id="maxClicksPerCycle" type="number" min="1" max="100"></label>
+        <label>Per-cycle limit<input id="maxClicksPerCycle" type="number" min="1" max="100"></label>
       </div>
-      <label class="check-row"><input id="visibleOnly" type="checkbox">Chỉ element đang hiển thị</label>
-      <label class="check-row"><input id="enabledOnly" type="checkbox">Chỉ element có thể click</label>
-      <label class="check-row"><input id="dryRun" type="checkbox">Dry-run, chỉ đánh dấu chưa click</label>
-      <label>Thuộc tính fingerprint, phân cách bằng dấu phẩy<input id="fingerprintAttributes" type="text"></label>
+      <label class="check-row"><input id="visibleOnly" type="checkbox">Visible elements only</label>
+      <label class="check-row"><input id="enabledOnly" type="checkbox">Clickable elements only</label>
+      <label class="check-row"><input id="dryRun" type="checkbox">Dry run: mark without clicking</label>
+      <label>Fingerprint attributes, comma-separated<input id="fingerprintAttributes" type="text"></label>
       <div class="pipeline-panel">
-        <label class="check-row"><input id="pipelineEnabled" type="checkbox">Bật pipeline delay/click/verify</label>
+        <label class="check-row"><input id="pipelineEnabled" type="checkbox">Enable delay/click/verify pipeline</label>
         <div class="selector-grid">
-          <label>Delay trước action (ms)<input id="preActionDelayMs" type="number" min="0" max="60000" step="50"></label>
-          <label>Delay sau action (ms)<input id="postActionDelayMs" type="number" min="0" max="60000" step="50"></label>
+          <label>Pre-action delay (ms)<input id="preActionDelayMs" type="number" min="0" max="60000" step="50"></label>
+          <label>Post-action delay (ms)<input id="postActionDelayMs" type="number" min="0" max="60000" step="50"></label>
         </div>
-        <label class="check-row"><input id="verifyEnabled" type="checkbox">Verify sau khi click thật</label>
+        <label class="check-row"><input id="verifyEnabled" type="checkbox">Verify after a real click</label>
         <div class="selector-grid">
-          <label>Tag verify<select id="verifyTag">
+          <label>Verify tag<select id="verifyTag">
               <option>*</option><option>button</option><option>div</option><option>span</option><option>input</option><option>a</option>
             </select></label>
-          <label>Kiểu verify<select id="verifyKind">
+          <label>Verify type<select id="verifyKind">
               <option value="css">CSS selector</option><option value="id">ID</option><option value="class">Class</option><option value="attribute">Attribute</option>
             </select></label>
         </div>
-        <label>Tên attribute verify<input id="verifyAttributeName" type="text" placeholder="data-testid"></label>
-        <label>Giá trị selector verify<input id="verifyValue" type="text" placeholder="Selector trạng thái sau action"></label>
+        <label>Verification attribute name<input id="verifyAttributeName" type="text" placeholder="data-testid"></label>
+        <label>Verification selector value<input id="verifyValue" type="text" placeholder="Selector for the post-action state"></label>
         <div class="button-grid selector-picker-actions">
-          <button id="verifyPickerButton" type="button">Chọn verify trên trang</button>
-          <button id="verifyTestButton" type="button">Kiểm tra verify</button>
+          <button id="verifyPickerButton" type="button">Pick verify element</button>
+          <button id="verifyTestButton" type="button">Test verification</button>
         </div>
         <output id="verifyTestResult" class="selector-test-result"></output>
         <div class="selector-grid">
-          <label>Kỳ vọng verify<select id="verifyExpectation">
-              <option value="exists">Element tồn tại</option>
-              <option value="not_exists">Element biến mất</option>
-              <option value="visible">Có element đang hiện</option>
-              <option value="hidden">Element tồn tại nhưng đều ẩn</option>
+          <label>Verification expectation<select id="verifyExpectation">
+              <option value="exists">Element exists</option>
+              <option value="not_exists">Element does not exist</option>
+              <option value="visible">At least one element is visible</option>
+              <option value="hidden">Elements exist but are all hidden</option>
             </select></label>
-          <label>Timeout verify (ms)<input id="verifyTimeoutMs" type="number" min="100" max="120000" step="100"></label>
+          <label>Verification timeout (ms)<input id="verifyTimeoutMs" type="number" min="100" max="120000" step="100"></label>
         </div>
-        <label>Chu kỳ kiểm tra verify (ms)<input id="verifyPollIntervalMs" type="number" min="50" max="5000" step="50"></label>
+        <label>Verification polling interval (ms)<input id="verifyPollIntervalMs" type="number" min="50" max="5000" step="50"></label>
         <output id="pipelineRuntimeText" class="selector-test-result" aria-live="polite"></output>
       </div>
       <details class="help-menu">
-        <summary aria-label="Trợ giúp target element" title="Trợ giúp">?</summary>
+        <summary aria-label="New target element help" title="Help">?</summary>
         <div class="help-popover" role="tooltip">
-          Có thể dùng “Chọn trên trang”, rê chuột và click target cần lấy selector; nhấn Esc để hủy. Khi kích hoạt hoặc
-          khi monitor rời MATCHED, các target hiện có được lưu làm baseline và không bị click. Trong
-          lúc MATCHED, chỉ target vượt baseline mới được xử lý. Dry-run vẫn đánh dấu target là đã xử lý trong chu kỳ để
-          tránh lặp vô hạn. Pipeline cho phép chờ trước action, click/dry-run, chờ sau action rồi verify trạng thái DOM.
-          Pipeline pending được hủy ngay khi tab pause/stop, config đổi hoặc monitor re-arm sang chu kỳ mới.
+          Use “Pick on page” to select a target. On activation, or when the monitor leaves MATCHED, existing targets become the baseline and are not clicked. While MATCHED, only targets newer than the baseline are handled. Dry run still marks targets as handled for the cycle. Pending pipelines are cancelled when the tab is paused or stopped, the configuration changes, or the monitor re-arms.
         </div>
       </details>
     </section>
 
     <section class="card" data-group-id="alerts" aria-labelledby="alertsHeading">
-      <h2 id="alertsHeading">Cảnh báo</h2>
+      <h2 id="alertsHeading">Alerts</h2>
       <div class="checks-grid">
-        <label class="check-row"><input id="titleBlink" type="checkbox">Nhấp nháy title</label>
+        <label class="check-row"><input id="titleBlink" type="checkbox">Blink tab title</label>
         <label class="check-row"><input id="badgeAlert" type="checkbox">Badge toolbar</label>
-        <label class="check-row"><input id="sidebarAlert" type="checkbox">Đổi trạng thái sidebar</label>
-        <label class="check-row"><input id="notificationAlert" type="checkbox">Notification</label>
+        <label class="check-row"><input id="sidebarAlert" type="checkbox">Update sidebar status</label>
+        <label class="check-row"><input id="notificationAlert" type="checkbox">Desktop notification</label>
       </div>
       <div class="selector-grid">
-        <label>Nhãn trên title<input id="titlePrefix" type="text" placeholder="⚠ AI READY"></label>
-        <label>Chu kỳ nhấp nháy (ms)<input id="blinkIntervalMs" type="number" min="250" max="5000" step="50"></label>
+        <label>Title label<input id="titlePrefix" type="text" placeholder="⚠ AI READY"></label>
+        <label>Blink interval (ms)<input id="blinkIntervalMs" type="number" min="250" max="5000" step="50"></label>
       </div>
-      <label class="check-row"><input id="dismissOnUserActivity" type="checkbox">Tắt cảnh báo khi có thao tác thật trong tab</label>
-      <label>Timeout dự phòng khi tab active liên tục (giây; 0 = tắt)
+      <label class="check-row"><input id="dismissOnUserActivity" type="checkbox">Dismiss alerts after real user activity in the tab</label>
+      <label>Fallback timeout while the tab stays active (seconds; 0 = disabled)
         <input id="activeTabTimeoutSeconds" type="number" min="0" max="3600" step="1">
       </label>
       <details class="help-menu">
-        <summary aria-label="Trợ giúp cảnh báo" title="Trợ giúp">?</summary>
+        <summary aria-label="Alerts help" title="Help">?</summary>
         <div class="help-popover" role="tooltip">
-          Cảnh báo được giữ theo từng chu kỳ cho đến khi có thao tác người dùng thật trong tab (pointer, phím, wheel hoặc touch),
-          hoặc tab hiển thị liên tục đủ số giây timeout. Việc xác nhận cảnh báo không dừng monitor. Monitor chỉ re-arm khi
-          element trở về trạng thái không đạt điều kiện, rồi chu kỳ MATCHED tiếp theo mới bật cảnh báo và xử lý target lại.
+          An alert remains latched for its cycle until the tab receives trusted user input, or it stays visible for the configured timeout. Dismissing the alert does not stop monitoring. The monitor re-arms only after the condition becomes false, and the next MATCHED cycle triggers alerts and target handling again.
         </div>
       </details>
     </section>
 
     <section class="card" data-group-id="activity" aria-labelledby="activityHeading">
       <div class="section-title-row">
-        <h2 id="activityHeading">Nhật ký hoạt động của tab</h2>
-        <label class="inline-select">Kênh<select id="logChannel">
-            <option value="user">Người dùng</option>
+        <h2 id="activityHeading">Tab activity log</h2>
+        <label class="inline-select">Channel<select id="logChannel">
+            <option value="user">User</option>
             <option value="debug">Debug</option>
           </select></label>
       </div>
       <ol id="activityLog" class="activity-log" aria-live="polite"></ol>
       <div class="button-grid">
         <button id="copyLogsButton" type="button">Copy log</button>
-        <button id="clearLogsButton" type="button" class="danger">Xóa log tab</button>
+        <button id="clearLogsButton" type="button" class="danger">Clear tab log</button>
       </div>
     </section>
 
     <section class="card" data-group-id="shell" aria-labelledby="shellHeading">
       <div class="section-title-row">
         <h2 id="shellHeading">Shell command</h2>
-        <span id="nativeHostStatus" class="native-status" data-state="offline">Native: chưa kiểm tra</span>
+        <span id="nativeHostStatus" class="native-status" data-state="offline">Native: not checked</span>
       </div>
       <label>Working directory<input id="workingDirectory" type="text"
           placeholder="/home/duongtc/FirefoxChatImprover"></label>
       <label>Command<textarea id="shellCommand" rows="4"
           placeholder="./tools/run_python_patches.sh && ./test_ble_ota_commands.py"></textarea></label>
-      <label>Chế độ<select id="shellMode">
-          <option value="terminal">Mở terminal tương tác</option>
-          <option value="background">Chạy nền và lấy log</option>
+      <label>Mode<select id="shellMode">
+          <option value="terminal">Open an interactive terminal</option>
+          <option value="background">Run in background and capture output</option>
         </select></label>
-      <label class="check-row"><input id="confirmBeforeRun" type="checkbox">Xác nhận trước khi chạy</label>
+      <label class="check-row"><input id="confirmBeforeRun" type="checkbox">Confirm before running</label>
       <dl class="shell-details">
-        <div><dt>Trạng thái tab</dt><dd id="shellRunStatus">idle</dd></div>
+        <div><dt>Tab status</dt><dd id="shellRunStatus">idle</dd></div>
         <div><dt>PID</dt><dd id="shellRunPid">—</dd></div>
         <div class="details-wide"><dt>Run ID</dt><dd id="shellRunId">—</dd></div>
       </dl>
       <div class="button-grid shell-actions">
-        <button id="checkNativeButton" type="button">Kiểm tra Native Host</button>
-        <button id="runShellButton" type="button" class="primary">Chạy lệnh</button>
-        <button id="stopShellButton" type="button" class="danger">Dừng lệnh</button>
-        <button id="clearShellOutputButton" type="button">Xóa output</button>
+        <button id="checkNativeButton" type="button">Check Native Host</button>
+        <button id="runShellButton" type="button" class="primary">Run command</button>
+        <button id="stopShellButton" type="button" class="danger">Stop command</button>
+        <button id="clearShellOutputButton" type="button">Clear output</button>
       </div>
-      <pre id="shellOutput" class="shell-output" aria-live="polite">Chưa có output.</pre>
+      <pre id="shellOutput" class="shell-output" aria-live="polite">No output yet.</pre>
       <details class="help-menu">
-        <summary aria-label="Trợ giúp shell command" title="Trợ giúp">?</summary>
+        <summary aria-label="Shell command help" title="Help">?</summary>
         <div class="help-popover" role="tooltip">
-          <p><strong>Chạy nền</strong> stream riêng stdout/stderr vào khung output. <strong>Mở terminal</strong> phù hợp script cần nhập tương tác.</p>
-          <p>Mỗi tab có một command session riêng. Nút Dừng chỉ gửi tín hiệu tới process group do tab này khởi chạy.</p>
-          <p>Native Host được cài/cập nhật bằng <code>./native-host/install_host.sh</code>; workflow test chung vẫn dùng task Patch + Test.</p>
+          <p><strong>Background mode</strong> streams stdout and stderr into the output panel. <strong>Terminal mode</strong> is intended for interactive scripts.</p>
+          <p>Each tab has its own command session. Stop only signals the process group started by that tab.</p>
+          <p>Install or update the Native Host with <code>./native-host/install_host.sh</code>. The shared Patch + Test task continues to run the full test suite.</p>
         </div>
       </details>
     </section>
 
     <section class="card sticky-actions" data-group-id="save" aria-labelledby="saveHeading">
-      <h2 id="saveHeading">Lưu cấu hình</h2>
+      <h2 id="saveHeading">Save configuration</h2>
       <div class="button-grid">
-        <button id="saveProfileButton" type="button" class="primary">Lưu vào profile</button>
-        <button id="saveTabButton" type="button">Lưu riêng cho tab</button>
-        <button id="resetTabButton" type="button">Tab dùng lại profile</button>
+        <button id="saveProfileButton" type="button" class="primary">Save to profile</button>
+        <button id="saveTabButton" type="button">Save for this tab</button>
+        <button id="resetTabButton" type="button">Use profile for tab</button>
         <button id="exportButton" type="button">Export JSON</button>
         <button id="importButton" type="button">Import JSON</button>
-        <button id="clearHighlightsButton" type="button">Xóa highlight</button>
+        <button id="clearHighlightsButton" type="button">Clear highlights</button>
         <input id="importFile" type="file" accept="application/json,.json" hidden>
       </div>
     </section>
@@ -399,21 +443,21 @@
 
   <template id="conditionTemplate">
     <div class="condition-row">
-      <label class="check-row"><input data-field="enabled" type="checkbox">Bật</label>
-      <input data-field="attribute" type="text" placeholder="aria-label" aria-label="Tên attribute">
-      <select data-field="operator" aria-label="Phép so sánh">
-        <option value="exists">Tồn tại</option>
-        <option value="not_exists">Không tồn tại</option>
-        <option value="equals">Bằng</option>
-        <option value="not_equals">Khác</option>
-        <option value="contains">Chứa</option>
-        <option value="not_contains">Không chứa</option>
+      <label class="check-row"><input data-field="enabled" type="checkbox">Enabled</label>
+      <input data-field="attribute" type="text" placeholder="aria-label" aria-label="Attribute name">
+      <select data-field="operator" aria-label="Comparison operator">
+        <option value="exists">Exists</option>
+        <option value="not_exists">Does not exist</option>
+        <option value="equals">Equals</option>
+        <option value="not_equals">Does not equal</option>
+        <option value="contains">Contains</option>
+        <option value="not_contains">Does not contain</option>
         <option value="regex">Regex</option>
-        <option value="not_regex">Không khớp regex</option>
+        <option value="not_regex">Does not match regex</option>
       </select>
-      <input data-field="value" type="text" placeholder="Giá trị" aria-label="Giá trị">
-      <label class="check-row"><input data-field="caseSensitive" type="checkbox">Phân biệt hoa thường</label>
-      <button data-action="remove-condition" type="button" class="danger compact">Xóa</button>
+      <input data-field="value" type="text" placeholder="Value" aria-label="Value">
+      <label class="check-row"><input data-field="caseSensitive" type="checkbox">Case-sensitive</label>
+      <button data-action="remove-condition" type="button" class="danger compact">Remove</button>
     </div>
   </template>
 

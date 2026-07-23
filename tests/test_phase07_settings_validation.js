@@ -32,7 +32,7 @@ const invalidRegex = Settings.validateConfig({
   }
 });
 assert.equal(invalidRegex.ok, false);
-assert(invalidRegex.errors.some((item) => item.includes("regex không hợp lệ")));
+assert(invalidRegex.errors.some((item) => item.includes("regex is invalid")));
 
 const allowed = Settings.normalizeConfig({ activation: { requireUrlMatch: true, urlPatterns: ["https://ai.example.local/*"] } });
 assert.equal(Settings.urlAllowed(allowed, "https://ai.example.local/chat/1"), true);

@@ -24,6 +24,13 @@ node tests/test_phase09_sidebar_groups.js
 node tests/test_phase10_element_picker.js
 node tests/test_phase11_url_profile_routing.js
 node tests/test_phase12_action_pipeline.js
+node tests/test_phase13_monitor_stability.js
+node tests/test_phase14_session_recovery.js
+node tests/test_phase14_compact_controls.js
+node tests/test_phase14_v0142_sidebar_form_persistence.js
+node tests/test_phase15_multi_rule_automation.js
+node tests/test_phase15_v0151_timer_session_isolation.js
+node tests/test_phase15_v0152_english_title_help.js
 
 WEB_EXT_BIN="${ROOT}/.firefox-dev-tools/node_modules/.bin/web-ext"
 if [ -x "$WEB_EXT_BIN" ]; then
@@ -31,4 +38,4 @@ if [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-12 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker, URL profile-routing and action-pipeline tests.\n'
+printf 'PASS: FirefoxChatImprover Phase 04-15 v0.15.4 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker, URL profile-routing, action-pipeline, deterministic monitor-stability, early-timer-rearm, session-recovery, compact-controls, monitor-title-spinner, multi-rule automation, runtime-isolation, forward-compatible version contracts, English-UI, title-de-duplication and help-popover tests.\n'

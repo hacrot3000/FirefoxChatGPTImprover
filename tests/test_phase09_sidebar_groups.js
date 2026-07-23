@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.html"), "utf8");
 const js = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.css"), "utf8");
-const expectedGroups = ["tabs", "profiles", "activation", "monitor", "target", "alerts", "activity", "shell", "save"];
+const expectedGroups = ["tabs", "profiles", "activation", "rules", "monitor", "target", "alerts", "activity", "shell", "save"];
 for (const group of expectedGroups) {
   assert(html.includes(`data-group-id="${group}"`), `missing collapsible group ${group}`);
 }

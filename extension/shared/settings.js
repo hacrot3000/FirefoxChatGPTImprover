@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 9) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 11) {
     return;
   }
 
-  const SCHEMA_VERSION = 9;
+  const SCHEMA_VERSION = 11;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
@@ -70,7 +70,58 @@
     };
   }
 
+  function defaultMonitorConfig() {
+    return {
+      selector: defaultSelector("#composer-submit-button"),
+      visibilityTransition: "none",
+      matchStableMs: 0,
+      resetStableMs: 0,
+      conditionJoin: "all",
+      conditions: [defaultCondition()]
+    };
+  }
+
+  function defaultTargetConfig() {
+    return {
+      enabled: false,
+      selector: defaultSelector(""),
+      clickStrategy: "newest",
+      visibleOnly: true,
+      enabledOnly: true,
+      dryRun: true,
+      maxClicksPerCycle: 1,
+      fingerprintAttributes: [
+        "data-message-id",
+        "data-testid",
+        "id",
+        "href",
+        "aria-label"
+      ],
+      pipeline: {
+        enabled: false,
+        preActionDelayMs: 0,
+        postActionDelayMs: 0,
+        verifyEnabled: false,
+        verifySelector: defaultSelector(""),
+        verifyExpectation: "exists",
+        verifyTimeoutMs: 5000,
+        verifyPollIntervalMs: 150
+      }
+    };
+  }
+
+  function defaultRule(name = "Rule 1", id = "rule-default") {
+    return {
+      id,
+      name,
+      enabled: true,
+      monitor: defaultMonitorConfig(),
+      target: defaultTargetConfig()
+    };
+  }
+
   function defaultConfig() {
+    const rule = defaultRule();
     return {
       activation: {
         requireUrlMatch: false,
@@ -78,38 +129,11 @@
         routingEnabled: true,
         routingPriority: 0
       },
-      monitor: {
-        selector: defaultSelector("#composer-submit-button"),
-        visibilityTransition: "none",
-        conditionJoin: "all",
-        conditions: [defaultCondition()]
-      },
-      target: {
-        enabled: false,
-        selector: defaultSelector(""),
-        clickStrategy: "newest",
-        visibleOnly: true,
-        enabledOnly: true,
-        dryRun: true,
-        maxClicksPerCycle: 1,
-        fingerprintAttributes: [
-          "data-message-id",
-          "data-testid",
-          "id",
-          "href",
-          "aria-label"
-        ],
-        pipeline: {
-          enabled: false,
-          preActionDelayMs: 0,
-          postActionDelayMs: 0,
-          verifyEnabled: false,
-          verifySelector: defaultSelector(""),
-          verifyExpectation: "exists",
-          verifyTimeoutMs: 5000,
-          verifyPollIntervalMs: 150
-        }
-      },
+      activeRuleId: rule.id,
+      rules: [rule],
+      // Legacy projections keep older tools/tests and single-rule consumers compatible.
+      monitor: clone(rule.monitor),
+      target: clone(rule.target),
       alerts: {
         titleBlink: true,
         titlePrefix: "⚠ AI READY",
@@ -151,30 +175,126 @@
     };
   }
 
+  function normalizeMonitorConfig(raw, fallback = defaultMonitorConfig()) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const conditions = Array.isArray(source.conditions)
+      ? source.conditions.map(normalizeCondition)
+      : clone(fallback.conditions || []);
+    const legacyVisibilityTransition = source.visibility === "visible"
+      ? "hidden_to_visible"
+      : (source.visibility === "hidden" ? "visible_to_hidden" : "none");
+    const visibilityTransition = VISIBILITY_TRANSITIONS.has(source.visibilityTransition)
+      ? source.visibilityTransition
+      : legacyVisibilityTransition;
+    return {
+      selector: normalizeSelector(source.selector, fallback.selector),
+      visibilityTransition,
+      matchStableMs: safeInteger(source.matchStableMs, fallback.matchStableMs, 0, 60000),
+      resetStableMs: safeInteger(source.resetStableMs, fallback.resetStableMs, 0, 60000),
+      conditionJoin: source.conditionJoin === "any" ? "any" : "all",
+      conditions
+    };
+  }
+
+  function normalizeTargetConfig(raw, fallback = defaultTargetConfig()) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const fingerprintAttributes = Array.isArray(source.fingerprintAttributes)
+      ? source.fingerprintAttributes
+      : fallback.fingerprintAttributes;
+    const pipeline = source.pipeline && typeof source.pipeline === "object" ? source.pipeline : {};
+    return {
+      enabled: safeBoolean(source.enabled, false),
+      selector: normalizeSelector(source.selector, fallback.selector),
+      clickStrategy: ["oldest", "newest", "all"].includes(source.clickStrategy)
+        ? source.clickStrategy
+        : "newest",
+      visibleOnly: safeBoolean(source.visibleOnly, true),
+      enabledOnly: safeBoolean(source.enabledOnly, true),
+      dryRun: safeBoolean(source.dryRun, true),
+      maxClicksPerCycle: safeInteger(source.maxClicksPerCycle, 1, 1, 100),
+      fingerprintAttributes: [...new Set(
+        fingerprintAttributes.map((item) => safeString(item).trim()).filter(Boolean)
+      )],
+      pipeline: {
+        enabled: safeBoolean(pipeline.enabled, false),
+        preActionDelayMs: safeInteger(pipeline.preActionDelayMs, 0, 0, 60000),
+        postActionDelayMs: safeInteger(pipeline.postActionDelayMs, 0, 0, 60000),
+        verifyEnabled: safeBoolean(pipeline.verifyEnabled, false),
+        verifySelector: normalizeSelector(pipeline.verifySelector, fallback.pipeline.verifySelector),
+        verifyExpectation: ["exists", "not_exists", "visible", "hidden"].includes(pipeline.verifyExpectation)
+          ? pipeline.verifyExpectation
+          : "exists",
+        verifyTimeoutMs: safeInteger(pipeline.verifyTimeoutMs, 5000, 100, 120000),
+        verifyPollIntervalMs: safeInteger(pipeline.verifyPollIntervalMs, 150, 50, 5000)
+      }
+    };
+  }
+
+  function migrateGeneratedRuleName(value, fallback) {
+    const name = safeString(value, fallback).trim() || fallback;
+    const match = /^Quy tắc\s+(\d+)$/u.exec(name);
+    return match ? `Rule ${match[1]}` : name;
+  }
+
+  function migrateGeneratedProfileName(value, fallback) {
+    const name = safeString(value, fallback).trim() || fallback;
+    if (name === "Mặc định") return "Default";
+    if (name === "Profile mới") return "New profile";
+    return name;
+  }
+
+  function normalizeRule(raw, index = 0) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const fallbackId = index === 0 ? "rule-default" : `rule-${index + 1}`;
+    const id = safeString(source.id, fallbackId).trim() || fallbackId;
+    return {
+      id,
+      name: migrateGeneratedRuleName(source.name, `Rule ${index + 1}`),
+      enabled: safeBoolean(source.enabled, true),
+      monitor: normalizeMonitorConfig(source.monitor),
+      target: normalizeTargetConfig(source.target)
+    };
+  }
+
   function normalizeConfig(raw) {
     const source = raw && typeof raw === "object" ? raw : {};
     const defaults = defaultConfig();
     const activation = source.activation || {};
-    const monitor = source.monitor || {};
-    const target = source.target || {};
     const alerts = source.alerts || {};
     const shell = source.shell || {};
     const patterns = Array.isArray(activation.urlPatterns)
       ? activation.urlPatterns
       : safeString(activation.urlPatterns).split(/\r?\n/);
-    const fingerprintAttributes = Array.isArray(target.fingerprintAttributes)
-      ? target.fingerprintAttributes
-      : defaults.target.fingerprintAttributes;
-    const pipeline = target.pipeline && typeof target.pipeline === "object" ? target.pipeline : {};
-    const conditions = Array.isArray(monitor.conditions)
-      ? monitor.conditions.map(normalizeCondition)
-      : defaults.monitor.conditions;
-    const legacyVisibilityTransition = monitor.visibility === "visible"
-      ? "hidden_to_visible"
-      : (monitor.visibility === "hidden" ? "visible_to_hidden" : "none");
-    const visibilityTransition = VISIBILITY_TRANSITIONS.has(monitor.visibilityTransition)
-      ? monitor.visibilityTransition
-      : legacyVisibilityTransition;
+
+    const legacyMonitor = normalizeMonitorConfig(source.monitor, defaults.monitor);
+    const legacyTarget = normalizeTargetConfig(source.target, defaults.target);
+    const rawRules = Array.isArray(source.rules) && source.rules.length
+      ? source.rules
+      : [{
+          id: safeString(source.activeRuleId, "rule-default") || "rule-default",
+          name: "Rule 1",
+          enabled: true,
+          monitor: legacyMonitor,
+          target: legacyTarget
+        }];
+    const rules = [];
+    const usedRuleIds = new Set();
+    rawRules.forEach((rawRule, index) => {
+      const rule = normalizeRule(rawRule, index);
+      let id = rule.id;
+      let suffix = 2;
+      while (usedRuleIds.has(id)) {
+        id = `${rule.id}-${suffix++}`;
+      }
+      usedRuleIds.add(id);
+      rules.push({ ...rule, id });
+    });
+    if (!rules.length) {
+      rules.push(defaultRule());
+    }
+    const requestedRuleId = safeString(source.activeRuleId);
+    let activeRule = rules.find((rule) => rule.id === requestedRuleId) || rules[0];
+
 
     return {
       activation: {
@@ -183,38 +303,10 @@
         routingEnabled: safeBoolean(activation.routingEnabled, true),
         routingPriority: safeInteger(activation.routingPriority, 0, -1000, 1000)
       },
-      monitor: {
-        selector: normalizeSelector(monitor.selector, defaults.monitor.selector),
-        visibilityTransition,
-        conditionJoin: monitor.conditionJoin === "any" ? "any" : "all",
-        conditions
-      },
-      target: {
-        enabled: safeBoolean(target.enabled, false),
-        selector: normalizeSelector(target.selector, defaults.target.selector),
-        clickStrategy: ["oldest", "newest", "all"].includes(target.clickStrategy)
-          ? target.clickStrategy
-          : "newest",
-        visibleOnly: safeBoolean(target.visibleOnly, true),
-        enabledOnly: safeBoolean(target.enabledOnly, true),
-        dryRun: safeBoolean(target.dryRun, true),
-        maxClicksPerCycle: safeInteger(target.maxClicksPerCycle, 1, 1, 100),
-        fingerprintAttributes: [...new Set(
-          fingerprintAttributes.map((item) => safeString(item).trim()).filter(Boolean)
-        )],
-        pipeline: {
-          enabled: safeBoolean(pipeline.enabled, false),
-          preActionDelayMs: safeInteger(pipeline.preActionDelayMs, 0, 0, 60000),
-          postActionDelayMs: safeInteger(pipeline.postActionDelayMs, 0, 0, 60000),
-          verifyEnabled: safeBoolean(pipeline.verifyEnabled, false),
-          verifySelector: normalizeSelector(pipeline.verifySelector, defaults.target.pipeline.verifySelector),
-          verifyExpectation: ["exists", "not_exists", "visible", "hidden"].includes(pipeline.verifyExpectation)
-            ? pipeline.verifyExpectation
-            : "exists",
-          verifyTimeoutMs: safeInteger(pipeline.verifyTimeoutMs, 5000, 100, 120000),
-          verifyPollIntervalMs: safeInteger(pipeline.verifyPollIntervalMs, 150, 50, 5000)
-        }
-      },
+      activeRuleId: activeRule.id,
+      rules,
+      monitor: clone(activeRule.monitor),
+      target: clone(activeRule.target),
       alerts: {
         titleBlink: safeBoolean(alerts.titleBlink, true),
         titlePrefix: safeString(alerts.titlePrefix, defaults.alerts.titlePrefix).trim() || defaults.alerts.titlePrefix,
@@ -232,6 +324,12 @@
         confirmBeforeRun: safeBoolean(shell.confirmBeforeRun, true)
       }
     };
+  }
+
+  function configForRule(rawConfig, ruleId) {
+    const config = normalizeConfig(rawConfig);
+    const rule = config.rules.find((item) => item.id === ruleId) || config.rules[0];
+    return normalizeConfig({ ...config, activeRuleId: rule.id, monitor: rule.monitor, target: rule.target });
   }
 
   function cssEscape(value) {
@@ -255,7 +353,7 @@
     if (selector.kind === "id") {
       const value = selector.value.replace(/^#/, "").trim();
       if (!value) {
-        throw new Error("Selector ID chưa có giá trị.");
+        throw new Error("The ID selector has no value.");
       }
       return `${tag}#${cssEscape(value)}`;
     }
@@ -267,7 +365,7 @@
         .map((item) => item.trim())
         .filter(Boolean);
       if (!classes.length) {
-        throw new Error("Selector class chưa có giá trị.");
+        throw new Error("The class selector has no value.");
       }
       return `${tag}${classes.map((item) => `.${cssEscape(item)}`).join("")}`;
     }
@@ -275,21 +373,21 @@
     if (selector.kind === "attribute") {
       const name = selector.attributeName.trim();
       if (!name || !/^[A-Za-z_][A-Za-z0-9_.:-]*$/.test(name)) {
-        throw new Error("Tên attribute không hợp lệ.");
+        throw new Error("The attribute name is invalid.");
       }
       return selector.value
         ? `${tag}[${name}=${JSON.stringify(selector.value)}]`
         : `${tag}[${name}]`;
     }
 
-    throw new Error("Kiểu selector không được hỗ trợ.");
+    throw new Error("The selector type is not supported.");
   }
 
-  function createProfile(name = "Mặc định", baseConfig = null, id = null) {
+  function createProfile(name = "Default", baseConfig = null, id = null) {
     const timestamp = nowIso();
     return {
       id: id || makeId(),
-      name: safeString(name, "Profile mới").trim() || "Profile mới",
+      name: migrateGeneratedProfileName(name, "New profile"),
       createdAt: timestamp,
       updatedAt: timestamp,
       config: normalizeConfig(baseConfig || defaultConfig())
@@ -302,7 +400,7 @@
     const timestamp = nowIso();
     return {
       id,
-      name: safeString(source.name, "Profile").trim() || "Profile",
+      name: migrateGeneratedProfileName(source.name, "Profile"),
       createdAt: safeString(source.createdAt, timestamp),
       updatedAt: safeString(source.updatedAt, timestamp),
       config: normalizeConfig(source.config)
@@ -310,7 +408,7 @@
   }
 
   function defaultStore() {
-    const profile = createProfile("Mặc định", defaultConfig(), DEFAULT_PROFILE_ID);
+    const profile = createProfile("Default", defaultConfig(), DEFAULT_PROFILE_ID);
     return {
       schemaVersion: SCHEMA_VERSION,
       revision: 1,
@@ -445,42 +543,45 @@
     const config = normalizeConfig(raw);
     const errors = [];
 
-    for (const [label, selector] of [
-      ["monitor", config.monitor.selector],
-      ["target", config.target.selector],
-      ["verify", config.target.pipeline.verifySelector]
-    ]) {
-      if (label === "verify") {
-        if (!config.target.pipeline.verifyEnabled) {
-          continue;
+    for (const rule of config.rules) {
+      const labelPrefix = `Rule “${rule.name}”`;
+      for (const [label, selector] of [
+        ["monitor", rule.monitor.selector],
+        ["target", rule.target.selector],
+        ["verify", rule.target.pipeline.verifySelector]
+      ]) {
+        if (label === "verify") {
+          if (!rule.target.pipeline.verifyEnabled) {
+            continue;
+          }
+          if (!selector.value) {
+            errors.push(`${labelPrefix}, Verification selector: value is missing.`);
+            continue;
+          }
         }
-        if (!selector.value) {
-          errors.push("Selector verify: chưa có giá trị.");
-          continue;
-        }
-      }
-      try {
-        const css = selectorToCss(selector);
-        if (typeof document !== "undefined") {
-          document.createDocumentFragment().querySelector(css);
-        }
-      } catch (error) {
-        errors.push(`Selector ${label}: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
-
-    for (const condition of config.monitor.conditions) {
-      if (!condition.enabled) {
-        continue;
-      }
-      if (!condition.attribute) {
-        errors.push("Condition: thiếu tên attribute.");
-      }
-      if (["regex", "not_regex"].includes(condition.operator)) {
         try {
-          new RegExp(condition.value);
-        } catch (_error) {
-          errors.push(`Condition ${condition.attribute}: regex không hợp lệ.`);
+          const css = selectorToCss(selector);
+          if (typeof document !== "undefined") {
+            document.createDocumentFragment().querySelector(css);
+          }
+        } catch (error) {
+          errors.push(`${labelPrefix}, Selector ${label}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
+      for (const condition of rule.monitor.conditions) {
+        if (!condition.enabled) {
+          continue;
+        }
+        if (!condition.attribute) {
+          errors.push(`${labelPrefix}, condition: attribute name is missing.`);
+        }
+        if (["regex", "not_regex"].includes(condition.operator)) {
+          try {
+            new RegExp(condition.value);
+          } catch (_error) {
+            errors.push(`${labelPrefix}, condition ${condition.attribute}: regex is invalid.`);
+          }
         }
       }
     }
@@ -509,8 +610,11 @@
       nowIso,
       makeId,
       defaultConfig,
+      defaultRule,
       defaultStore,
       normalizeConfig,
+      normalizeRule,
+      configForRule,
       normalizeProfile,
       normalizeStore,
       createProfile,

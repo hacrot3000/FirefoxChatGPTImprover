@@ -10,7 +10,7 @@ assert(manifest.permissions.includes("nativeMessaging"));
 for (const token of ["GET_NATIVE_STATUS", "RUN_SHELL", "STOP_SHELL", "CLEAR_SHELL_OUTPUT"]) {
   assert(protocol.includes(token), `missing protocol token ${token}`);
 }
-assert(background.includes("Content script không được phép điều khiển Native Messaging"));
+assert(background.includes("Content scripts are not allowed to control Native Messaging"));
 assert(background.includes("browser.runtime.connectNative(NATIVE_HOST_NAME)"));
 assert(sidebar.includes("commandConfirmation"));
 assert(sidebar.includes("MESSAGE.RUN_SHELL"));

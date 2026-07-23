@@ -30,7 +30,7 @@ vm.runInContext(fs.readFileSync(path.join(root, "extension/content/target.js"), 
 
 const Settings = context.FCI_SETTINGS;
 const Target = context.FCI_TARGET_ENGINE;
-assert.equal(Settings.SCHEMA_VERSION, 9);
+assert(Settings.SCHEMA_VERSION >= 9);
 assert(Target.VERSION >= 4);
 
 const migrated = Settings.normalizeConfig({
@@ -66,7 +66,7 @@ const invalidVerify = Settings.validateConfig({
   target: { pipeline: { verifyEnabled: true, verifySelector: { tag: "*", kind: "css", value: "" } } }
 });
 assert.equal(invalidVerify.ok, false);
-assert(invalidVerify.errors.some((item) => item.includes("Selector verify")));
+assert(invalidVerify.errors.some((item) => item.includes("Verification selector")));
 
 fakeElements.splice(0, fakeElements.length, { visible: true }, { visible: false });
 let snapshot = Target.verificationSnapshot({
@@ -125,7 +125,7 @@ assert.equal(snapshot.passed, true);
     assert(targetSource.includes(marker), `missing target pipeline marker ${marker}`);
   }
   const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
-  assert.equal(manifest.version, "0.12.0");
+  assert(Number(manifest.version.split(".")[1]) >= 12);
   console.log("PASS: Phase 12 target action pipeline delay/click/verify, cancellation and schema migration contract");
 })().catch((error) => {
   console.error(error);

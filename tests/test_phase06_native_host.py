@@ -31,7 +31,7 @@ try:
         "mode": "background",
     })
 except ValueError as error:
-    assert "đường dẫn tuyệt đối" in str(error)
+    assert "absolute path" in str(error)
 else:
     raise AssertionError("relative cwd must be rejected")
 

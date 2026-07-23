@@ -1,12 +1,76 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 3) {
+  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 6) {
     return;
   }
 
   const { MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
+  const MONITOR_SPINNER_FRAMES = Object.freeze(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]);
+  const TITLE_BASE_ATTRIBUTE = "data-fci-base-title";
+  const TITLE_PREFIX_ATTRIBUTE = "data-fci-title-prefix";
+
+  function escapeRegExp(value) {
+    return String(value ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function stripManagedTitleDecorations(value, prefixes = []) {
+    let title = String(value ?? "").trim();
+    const exactPrefixes = [...new Set([
+      ...prefixes,
+      "⚠ AI READY",
+      "AI READY",
+      "READY",
+      "RUNNING",
+      "MATCHED",
+      "MONITORING"
+    ].map((item) => String(item || "").trim()).filter(Boolean))];
+
+    for (let pass = 0; pass < 20 && title; pass += 1) {
+      const before = title;
+      title = title.replace(/^[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s*/u, "").trimStart();
+      for (const prefix of exactPrefixes) {
+        const escaped = escapeRegExp(prefix);
+        title = title.replace(new RegExp(`^\\[${escaped}\\]\\s*`, "iu"), "").trimStart();
+        title = title.replace(new RegExp(`^${escaped}(?:\\s*[-:|·]\\s*|\\s+)`, "iu"), "").trimStart();
+      }
+      title = title.replace(/^\[[^\]]*(?:READY|RUNNING|MATCHED|MONITORING|ALERT)[^\]]*\]\s*/iu, "").trimStart();
+      title = title.replace(/^(?:AI\s*)?(?:READY|RUNNING|MATCHED|MONITORING)\s*(?:[-:|·]\s*)/iu, "").trimStart();
+      if (title === before) break;
+    }
+    return title;
+  }
+
+  function storedBaseTitle(prefix) {
+    const root = document.documentElement;
+    const stored = typeof root?.getAttribute === "function" ? (root.getAttribute(TITLE_BASE_ATTRIBUTE) || "") : "";
+    const storedPrefix = typeof root?.getAttribute === "function" ? (root.getAttribute(TITLE_PREFIX_ATTRIBUTE) || "") : "";
+    const cleanedStored = stripManagedTitleDecorations(stored, [prefix, storedPrefix]);
+    const cleanedCurrent = stripManagedTitleDecorations(document.title || "", [prefix, storedPrefix]);
+    const value = cleanedStored || cleanedCurrent;
+    if (typeof root?.setAttribute === "function" && value) root.setAttribute(TITLE_BASE_ATTRIBUTE, value);
+    return value;
+  }
+
+  function rememberBaseTitle(value, prefix) {
+    const root = document.documentElement;
+    const storedPrefix = typeof root?.getAttribute === "function" ? root.getAttribute(TITLE_PREFIX_ATTRIBUTE) : "";
+    const clean = stripManagedTitleDecorations(value, [prefix, storedPrefix]);
+    if (typeof root?.setAttribute === "function" && clean) root.setAttribute(TITLE_BASE_ATTRIBUTE, clean);
+    if (typeof root?.setAttribute === "function" && prefix) root.setAttribute(TITLE_PREFIX_ATTRIBUTE, String(prefix));
+    return clean;
+  }
+
+  function shouldSpinMonitorTitle(runtime, mode) {
+    return Boolean(mode === MODE.ACTIVE && runtime?.monitorState === MONITOR_STATE.WAITING);
+  }
+
+  function monitorTitle(frame, baseTitle) {
+    const cleanFrame = String(frame || MONITOR_SPINNER_FRAMES[0]).trim() || MONITOR_SPINNER_FRAMES[0];
+    const cleanBase = String(baseTitle || "").trim();
+    return cleanBase ? `${cleanFrame} ${cleanBase}` : cleanFrame;
+  }
 
   function alertChannelsEnabled(config) {
     const normalized = Settings.normalizeConfig(config);
@@ -47,10 +111,18 @@
   }
 
   function createAlertController({ onRuntime, clock } = {}) {
+    const schedulerSource = clock && typeof clock === "object" ? clock : globalThis;
+    const nowFunction = typeof clock?.now === "function" ? clock.now : Date.now;
+    const setTimeoutFunction = typeof clock?.setTimeout === "function" ? clock.setTimeout : globalThis.setTimeout;
+    const clearTimeoutFunction = typeof clock?.clearTimeout === "function" ? clock.clearTimeout : globalThis.clearTimeout;
+    const setIntervalFunction = typeof clock?.setInterval === "function" ? clock.setInterval : globalThis.setInterval;
+    const clearIntervalFunction = typeof clock?.clearInterval === "function" ? clock.clearInterval : globalThis.clearInterval;
     const scheduler = {
-      now: typeof clock?.now === "function" ? clock.now : () => Date.now(),
-      setTimeout: typeof clock?.setTimeout === "function" ? clock.setTimeout : setTimeout,
-      clearTimeout: typeof clock?.clearTimeout === "function" ? clock.clearTimeout : clearTimeout
+      now: () => Reflect.apply(nowFunction, schedulerSource, []),
+      setTimeout: (callback, delay) => Reflect.apply(setTimeoutFunction, schedulerSource, [callback, delay]),
+      clearTimeout: (timerId) => Reflect.apply(clearTimeoutFunction, schedulerSource, [timerId]),
+      setInterval: (callback, delay) => Reflect.apply(setIntervalFunction, schedulerSource, [callback, delay]),
+      clearInterval: (timerId) => Reflect.apply(clearIntervalFunction, schedulerSource, [timerId])
     };
     let config = Settings.defaultConfig();
     let mode = MODE.INACTIVE;
@@ -58,8 +130,10 @@
     let active = false;
     let blinkTimer = null;
     let blinkOn = false;
+    let monitorSpinTimer = null;
+    let monitorSpinIndex = 0;
     let titleObserver = null;
-    let baseTitle = document.title || "";
+    let baseTitle = storedBaseTitle("⚠ AI READY") || document.title || "";
     let lastWrittenTitle = null;
     let alertStartedAt = null;
     let alertCycle = 0;
@@ -92,10 +166,11 @@
         if (current === lastWrittenTitle) {
           return;
         }
-        baseTitle = current;
-        if (active && config.alerts.titleBlink) {
-          writeTitle(blinkOn ? alertTitle(config.alerts.titlePrefix, baseTitle) : baseTitle);
+        const cleaned = rememberBaseTitle(current, config.alerts.titlePrefix);
+        if (cleaned) {
+          baseTitle = cleaned;
         }
+        applyCurrentTitleFrame();
       });
       titleObserver.observe(target, { childList: true, characterData: true, subtree: true });
     }
@@ -110,8 +185,15 @@
 
     function clearBlinkTimer() {
       if (blinkTimer) {
-        clearInterval(blinkTimer);
+        scheduler.clearInterval(blinkTimer);
         blinkTimer = null;
+      }
+    }
+
+    function clearMonitorSpinTimer() {
+      if (monitorSpinTimer) {
+        scheduler.clearInterval(monitorSpinTimer);
+        monitorSpinTimer = null;
       }
     }
 
@@ -125,7 +207,9 @@
 
     function restoreTitle() {
       clearBlinkTimer();
+      clearMonitorSpinTimer();
       blinkOn = false;
+      monitorSpinIndex = 0;
       if (lastWrittenTitle !== null && document.title === lastWrittenTitle) {
         writeTitle(baseTitle);
       }
@@ -137,6 +221,7 @@
         alertActive: active,
         alertCycle,
         titleBlinking: Boolean(active && config.alerts.titleBlink),
+        monitorTitleSpinning: Boolean(monitorSpinTimer),
         originalTitle: baseTitle,
         displayedTitle: document.title || "",
         alertStartedAt,
@@ -178,19 +263,48 @@
       }, seconds * 1000);
     }
 
-    function refreshTitleBlink() {
-      clearBlinkTimer();
-      if (!active || !config.alerts.titleBlink) {
-        restoreTitle();
+    function monitorSpinWanted() {
+      return shouldSpinMonitorTitle(runtime, mode) && !(active && config.alerts.titleBlink);
+    }
+
+    function applyCurrentTitleFrame() {
+      if (active && config.alerts.titleBlink) {
+        writeTitle(blinkOn ? alertTitle(config.alerts.titlePrefix, baseTitle) : baseTitle);
         return;
       }
-      ensureTitleObserver();
-      blinkOn = true;
-      writeTitle(alertTitle(config.alerts.titlePrefix, baseTitle));
-      blinkTimer = setInterval(() => {
-        blinkOn = !blinkOn;
-        writeTitle(blinkOn ? alertTitle(config.alerts.titlePrefix, baseTitle) : baseTitle);
-      }, config.alerts.blinkIntervalMs);
+      if (monitorSpinWanted()) {
+        writeTitle(monitorTitle(MONITOR_SPINNER_FRAMES[monitorSpinIndex], baseTitle));
+      }
+    }
+
+    function refreshTitlePresentation() {
+      if (active && config.alerts.titleBlink) {
+        clearMonitorSpinTimer();
+        ensureTitleObserver();
+        if (!blinkTimer) {
+          blinkOn = true;
+          blinkTimer = scheduler.setInterval(() => {
+            blinkOn = !blinkOn;
+            applyCurrentTitleFrame();
+          }, config.alerts.blinkIntervalMs);
+        }
+        applyCurrentTitleFrame();
+        return;
+      }
+      if (monitorSpinWanted()) {
+        clearBlinkTimer();
+        ensureTitleObserver();
+        if (!monitorSpinTimer) {
+          monitorSpinIndex = 0;
+          monitorSpinTimer = scheduler.setInterval(() => {
+            monitorSpinIndex = (monitorSpinIndex + 1) % MONITOR_SPINNER_FRAMES.length;
+            applyCurrentTitleFrame();
+          }, 180);
+        }
+        applyCurrentTitleFrame();
+        return;
+      }
+      restoreTitle();
     }
 
     function startAlert(reason, cycle, restored = false) {
@@ -204,9 +318,9 @@
       alertAcknowledgedAt = null;
       alertDismissReason = null;
       if (newCycle || !baseTitle) {
-        baseTitle = runtime?.originalTitle || document.title || baseTitle || "";
+        baseTitle = rememberBaseTitle(runtime?.originalTitle || document.title || baseTitle || "", config.alerts.titlePrefix) || baseTitle || "";
       }
-      refreshTitleBlink();
+      refreshTitlePresentation();
       scheduleActiveTimeout();
       return emit(reason, true);
     }
@@ -222,6 +336,7 @@
       } else if (wasActive) {
         alertDismissReason = reason;
       }
+      refreshTitlePresentation();
       return emit(reason, wasActive || acknowledge, notify);
     }
 
@@ -282,6 +397,10 @@
 
     function apply(nextConfig, nextRuntime, nextMode, reason = "apply") {
       config = Settings.normalizeConfig(nextConfig);
+      const cleanedTitle = rememberBaseTitle(baseTitle || document.title || "", config.alerts.titlePrefix);
+      if (cleanedTitle) {
+        baseTitle = cleanedTitle;
+      }
       runtime = { ...(nextRuntime || {}) };
       mode = nextMode || MODE.INACTIVE;
       ensureActivityListeners();
@@ -306,10 +425,12 @@
         return stopAlert(reason);
       }
       if (decision.action === "keep") {
-        refreshTitleBlink();
+        refreshTitlePresentation();
         if (!activeTimeoutTimer) {
           scheduleActiveTimeout();
         }
+      } else {
+        refreshTitlePresentation();
       }
       return emit(reason);
     }
@@ -339,11 +460,17 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 3,
+      VERSION: 6,
+      TITLE_BASE_ATTRIBUTE,
+      TITLE_PREFIX_ATTRIBUTE,
+      stripManagedTitleDecorations,
+      MONITOR_SPINNER_FRAMES,
       alertChannelsEnabled,
       shouldAlert,
+      shouldSpinMonitorTitle,
       deriveAlertDecision,
       alertTitle,
+      monitorTitle,
       createAlertController
     })
   });

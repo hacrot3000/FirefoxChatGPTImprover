@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.12.0",
-  "description": "Private Firefox sidebar helper with independent multi-tab monitoring, URL-routed profiles, visual element picking, latched alerts, target action pipelines with delay and verification, Native Messaging shell commands and traceable release packaging.",
+  "version": "0.15.4",
+  "description": "Private Firefox sidebar helper with independent multi-tab, multi-rule monitoring/action pipelines, restart-safe recovery, lossless profile persistence and Native Messaging shell commands.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-assistant@duongtc.local",
@@ -27,7 +27,7 @@
     "*://*/*"
   ],
   "action": {
-    "default_title": "Mở và kích hoạt Firefox ChatAI Assistant",
+    "default_title": "Open and activate Firefox ChatAI Assistant",
     "default_icon": {
       "48": "icons/icon.svg",
       "96": "icons/icon.svg"
@@ -37,6 +37,7 @@
     "scripts": [
       "shared/protocol.js",
       "shared/settings.js",
+      "shared/recovery.js",
       "background/background.js"
     ]
   },

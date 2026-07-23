@@ -45,14 +45,14 @@ const Message = context.FCI_PROTOCOL.MESSAGE;
     { tab: { id: 1 }, url: "https://ai.example.local/chat" }
   );
   assert.equal(shellFromContent.ok, false);
-  assert(shellFromContent.error.includes("chỉ được gửi từ sidebar"));
+  assert(shellFromContent.error.includes("only from the sidebar"));
 
   const runtimeFromSidebar = await requestListener(
     { type: Message.CONTENT_RUNTIME_EVENT, payload: { runtime: {} } },
     { url: "moz-extension://phase07/sidebar/sidebar.html" }
   );
   assert.equal(runtimeFromSidebar.ok, false);
-  assert(runtimeFromSidebar.error.includes("chỉ được nhận từ content script"));
+  assert(runtimeFromSidebar.error.includes("only from a content script"));
 
   assert.equal(requestListener({ type: "UNKNOWN" }, {}), undefined);
   const source = fs.readFileSync(path.join(root, "extension/background/background.js"), "utf8");

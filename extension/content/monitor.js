@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_MONITOR_ENGINE?.VERSION >= 4) {
+  if (globalThis.FCI_MONITOR_ENGINE?.VERSION >= 5) {
     return;
   }
 
@@ -380,8 +380,8 @@
     const toast = document.createElement("div");
     toast.id = HIGHLIGHT_TOAST_ID;
     toast.textContent = monitorConfig
-      ? `FirefoxChatImprover: selector ${inspected.length} · thỏa điều kiện ${matched.length} · không thỏa ${unmatched.length}`
-      : `FirefoxChatImprover: ${selected.length}/${inspected.length} phần tử được chọn · hiện ${visibleCount} · ẩn ${inspected.length - visibleCount}`;
+      ? `FirefoxChatImprover: selector ${inspected.length} · condition matches ${matched.length} · condition misses ${unmatched.length}`
+      : `FirefoxChatImprover: ${selected.length}/${inspected.length} element(s) selected · visible ${visibleCount} · hidden ${inspected.length - visibleCount}`;
     Object.assign(toast.style, {
       position: "fixed",
       zIndex: "2147483647",
@@ -443,6 +443,7 @@
     let config = Settings.defaultConfig();
     let observer = null;
     let debounceTimer = null;
+    let stabilityTimer = null;
     let monitorState = MONITOR_STATE.IDLE;
     let cycle = 0;
     let lastSignature = "";
@@ -451,6 +452,10 @@
     let visibilityRecords = new Map();
     let baselineReady = false;
     let stopped = true;
+    let pendingMonitorState = null;
+    let stabilityStartedAt = null;
+    let stabilityDueAt = null;
+    let stabilityDelayMs = 0;
 
     function sourceVisibility(mode) {
       return mode === "hidden_to_visible" ? false : true;
@@ -575,6 +580,46 @@
       };
     }
 
+    function clearStabilityTimer() {
+      if (stabilityTimer) {
+        clearTimeout(stabilityTimer);
+        stabilityTimer = null;
+      }
+    }
+
+    function scheduleStabilityCheck(delayMs) {
+      clearStabilityTimer();
+      const safeDelayMs = Math.max(1, Math.ceil(Number(delayMs) || 0));
+      stabilityTimer = setTimeout(() => {
+        stabilityTimer = null;
+        const due = stabilityDueAt ? new Date(stabilityDueAt).getTime() : 0;
+        const remainingMs = due ? due - Date.now() : 0;
+        if (remainingMs > 0) {
+          scheduleStabilityCheck(remainingMs);
+          return;
+        }
+        evaluate("stability-timeout");
+      }, safeDelayMs);
+    }
+
+    function clearPendingStability() {
+      clearStabilityTimer();
+      pendingMonitorState = null;
+      stabilityStartedAt = null;
+      stabilityDueAt = null;
+      stabilityDelayMs = 0;
+    }
+
+    function stabilityDelayFor(nextState) {
+      if (nextState === MONITOR_STATE.MATCHED) {
+        return config.monitor.matchStableMs;
+      }
+      if (nextState === MONITOR_STATE.WAITING && monitorState === MONITOR_STATE.MATCHED) {
+        return config.monitor.resetStableMs;
+      }
+      return 0;
+    }
+
     function runtimeFromEvaluation(evaluation, reason, transition = null) {
       return {
         monitorState,
@@ -588,6 +633,12 @@
         visibilityTransitionMode: config.monitor.visibilityTransition,
         lastVisibilityTransition: evaluation?.lastVisibilityTransition || lastVisibilityTransition,
         conditionMatched: Boolean(evaluation?.matched),
+        pendingMonitorState,
+        stabilityStartedAt,
+        stabilityDueAt,
+        stabilityDelayMs,
+        matchStableMs: config.monitor.matchStableMs,
+        resetStableMs: config.monitor.resetStableMs,
         lastReason: reason,
         lastTransition: transition,
         lastEventAt: new Date().toISOString()
@@ -606,13 +657,55 @@
         monitorAttributeMatchedCount: runtime.monitorAttributeMatchedCount,
         visibilityTransitionMode: runtime.visibilityTransitionMode,
         lastVisibilityTransition: runtime.lastVisibilityTransition,
-        conditionMatched: runtime.conditionMatched
+        conditionMatched: runtime.conditionMatched,
+        pendingMonitorState: runtime.pendingMonitorState,
+        stabilityStartedAt: runtime.stabilityStartedAt,
+        stabilityDueAt: runtime.stabilityDueAt,
+        stabilityDelayMs: runtime.stabilityDelayMs
       });
       if (!force && signature === lastSignature) {
         return;
       }
       lastSignature = signature;
       onRuntime?.(runtime);
+    }
+
+    function commitState(nextState, evaluation, reason) {
+      const previousState = monitorState;
+      clearPendingStability();
+      let transition = null;
+      if (nextState !== previousState) {
+        transition = `${previousState}->${nextState}`;
+        if (nextState === MONITOR_STATE.MATCHED) {
+          cycle += 1;
+        }
+        monitorState = nextState;
+      }
+      emit(runtimeFromEvaluation(evaluation, reason, transition), Boolean(transition));
+    }
+
+    function armStability(nextState, evaluation, reason, delayMs) {
+      if (pendingMonitorState !== nextState) {
+        clearPendingStability();
+        const now = Date.now();
+        pendingMonitorState = nextState;
+        stabilityDelayMs = delayMs;
+        stabilityStartedAt = new Date(now).toISOString();
+        stabilityDueAt = new Date(now + delayMs).toISOString();
+        scheduleStabilityCheck(delayMs);
+        emit(runtimeFromEvaluation(evaluation, reason), true);
+        return;
+      }
+
+      const due = stabilityDueAt ? new Date(stabilityDueAt).getTime() : 0;
+      const remainingMs = due ? due - Date.now() : 0;
+      if (due && remainingMs <= 0) {
+        commitState(nextState, evaluation, "stability-confirmed");
+        return;
+      }
+      if (due && !stabilityTimer) {
+        scheduleStabilityCheck(remainingMs);
+      }
     }
 
     function evaluate(reason = "mutation") {
@@ -624,18 +717,23 @@
         const evaluation = applyVisibilityTransition(rawEvaluation);
         lastEvaluation = evaluation;
         const nextState = evaluation.matched ? MONITOR_STATE.MATCHED : MONITOR_STATE.WAITING;
-        const previousState = monitorState;
-        let transition = null;
-        if (nextState !== previousState) {
-          transition = `${previousState}->${nextState}`;
-          if (nextState === MONITOR_STATE.MATCHED) {
-            cycle += 1;
-          }
-          monitorState = nextState;
+
+        if (nextState === monitorState) {
+          const hadPending = Boolean(pendingMonitorState);
+          clearPendingStability();
+          emit(runtimeFromEvaluation(evaluation, reason), hadPending);
+          return;
         }
-        emit(runtimeFromEvaluation(evaluation, reason, transition), Boolean(transition));
+
+        const delayMs = stabilityDelayFor(nextState);
+        if (delayMs <= 0) {
+          commitState(nextState, evaluation, reason);
+          return;
+        }
+        armStability(nextState, evaluation, reason, delayMs);
       } catch (error) {
         const previousState = monitorState;
+        clearPendingStability();
         monitorState = MONITOR_STATE.ERROR;
         emit({
           ...runtimeFromEvaluation(null, reason, `${previousState}->${MONITOR_STATE.ERROR}`),
@@ -661,6 +759,7 @@
         clearTimeout(debounceTimer);
         debounceTimer = null;
       }
+      clearPendingStability();
     }
 
     function start(nextConfig, reason = "start") {
@@ -670,7 +769,7 @@
       stopped = false;
       observer = new MutationObserver(() => schedule("mutation"));
       if (!document.documentElement) {
-        throw new Error("Document chưa có documentElement để theo dõi.");
+        throw new Error("The document has no documentElement to observe.");
       }
       observer.observe(document.documentElement, observerOptionsForConfig(config));
       evaluate(reason);
@@ -715,7 +814,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 4,
+      VERSION: 5,
       observerOptionsForConfig,
       inspectVisibility,
       visibilityMatches,

@@ -65,7 +65,7 @@ for (const relative of [
 const Settings = context.FCI_SETTINGS;
 const Protocol = context.FCI_PROTOCOL;
 const Alert = context.FCI_ALERT_ENGINE;
-assert.equal(Alert.VERSION, 3);
+assert(Alert.VERSION >= 5);
 const emitted = [];
 const config = Settings.normalizeConfig({
   alerts: {

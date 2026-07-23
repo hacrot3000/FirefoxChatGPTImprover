@@ -160,11 +160,11 @@
     toast.id = ACTION_TOAST_ID;
     toast.textContent = context === "test"
       ? (dryRun
-        ? `FirefoxChatImprover test: đánh dấu ${elements.length} target hiện tại, chưa click.`
-        : `FirefoxChatImprover test: đã click ${elements.length} target hiện tại.`)
+        ? `FirefoxChatImprover test: highlighted ${elements.length} current target(s) without clicking.`
+        : `FirefoxChatImprover test: clicked ${elements.length} current target(s).`)
       : (dryRun
-        ? `FirefoxChatImprover dry-run: đánh dấu ${elements.length} target mới, chưa click.`
-        : `FirefoxChatImprover: đã click ${elements.length} target mới.`);
+        ? `FirefoxChatImprover dry run: highlighted ${elements.length} new target(s) without clicking.`
+        : `FirefoxChatImprover: clicked ${elements.length} new target(s).`);
     Object.assign(toast.style, {
       position: "fixed",
       zIndex: "2147483647",
@@ -529,13 +529,13 @@
       for (const item of selected) {
         const element = item.element;
         if (!element?.isConnected) {
-          lastError = "Target đã rời DOM trước khi action chạy.";
+          lastError = "The target left the DOM before the action ran.";
           continue;
         }
         const visibleOk = !config.target.visibleOnly || MonitorEngine.inspectVisibility(element).visible;
         const enabledOk = !config.target.enabledOnly || elementEnabled(element);
         if (!visibleOk || !enabledOk) {
-          lastError = "Target không còn visible/enabled khi action chạy.";
+          lastError = "The target was no longer visible or enabled when the action ran.";
           continue;
         }
         actedElements.push(element);
@@ -583,7 +583,7 @@
         if (!action.actedElements.length) {
           pipelineState = "failed";
           targetState = TARGET_STATE.ARMED;
-          emit({ lastTargetAction: "pipeline-no-action", lastTargetError: action.lastError || "Không còn target hợp lệ." }, true);
+          emit({ lastTargetAction: "pipeline-no-action", lastTargetError: action.lastError || "No eligible targets remain." }, true);
           return;
         }
 
@@ -620,7 +620,7 @@
           lastTargetAction: result.passed ? `verify-pass:${result.expectation}` : `verify-fail:${result.expectation}`,
           lastTargetError: result.passed
             ? null
-            : `Verify ${result.expectation} không đạt sau ${result.elapsedMs} ms (${result.count} element, ${result.visibleCount} visible).`
+            : `Verification ${result.expectation} was not satisfied after ${result.elapsedMs} ms (${result.count} element(s), ${result.visibleCount} visible).`
         }, true);
       } catch (error) {
         if (!pipelineCancelled(token)) {
@@ -740,7 +740,7 @@
         }
       });
       if (!document.documentElement) {
-        throw new Error("Document chưa có documentElement để theo dõi target.");
+        throw new Error("The document has no documentElement for target observation.");
       }
       observer.observe(document.documentElement, targetObserverOptionsForConfig(config));
     }

@@ -226,11 +226,74 @@ Khi kích hoạt tab chưa active, add-on có thể tự chọn profile khớp U
 Tài liệu: `document/PHASE_11_URL_PROFILE_ROUTING.md`.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE11_END -->
 
+<!-- FIREFOX_CHAT_IMPROVER_PHASE13_BEGIN -->
+## Phase 13 — Monitor stability windows
 
-<!-- FIREFOX_CHAT_IMPROVER_PHASE12_BEGIN -->
-## Phase 12 — Target action pipeline delay/click/verify
+Monitor có thể yêu cầu condition giữ liên tục trước khi MATCHED và giữ trạng thái không đạt liên tục trước khi re-arm. Trạng thái chớp nhanh do React re-render bị hủy, không tăng cycle và không chạy target pipeline.
 
-Target automation có thể chạy pipeline `delay trước → click/dry-run → delay sau → verify DOM`. Pipeline và trạng thái verify độc lập theo `tabId`/monitor cycle; pending action bị hủy khi re-arm, pause, stop hoặc config đổi.
+Tài liệu: `document/PHASE_13_MONITOR_STABILITY_WINDOWS.md`.
 
-Profile cũ giữ hành vi click tức thời vì pipeline mặc định tắt. Tài liệu: `document/PHASE_12_TARGET_ACTION_PIPELINE.md`.
-<!-- FIREFOX_CHAT_IMPROVER_PHASE12_END -->
+Phase hiện tại: **Phase 13 — ổn định match/reset và chống trigger giả**.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE13_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE14_BEGIN -->
+## Phase 14 — Khôi phục session sau reload/navigation
+
+Session active/paused được giữ theo từng `tabId`, tự re-inject content runtime sau background reload hoặc navigation, rồi lập baseline mới để không lặp target action cũ. Nếu thiếu quyền website hoặc URL không còn phù hợp, session không bị xóa mà chuyển sang trạng thái cần khôi phục thủ công.
+
+Tài liệu: `document/PHASE_14_SESSION_RECOVERY.md`.
+
+Phase hiện tại: **Phase 14 — restart-safe multi-tab session recovery**.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE14_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE14_V0141_BEGIN -->
+### Phase 14 v0.14.1 — compact controls và monitor title spinner
+
+Khi group **Tab và session** thu gọn, các nút play/pause, stop và refresh vẫn nằm trên title. Group **Target element mới** có nút click thử target ngay trên title khi thu gọn. Tab đang active nhưng monitor còn `WAITING` hiển thị spinner động ở đầu title; alert blink vẫn có ưu tiên cao hơn.
+
+Tài liệu: `document/PHASE_14_V0_14_1_COMPACT_CONTROLS_MONITOR_SPINNER.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE14_V0141_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE15_BEGIN -->
+## Phase 15 — Nhiều monitor/action rule trong cùng tab
+
+Mỗi profile hoặc tab config có thể chứa nhiều automation rule. Mỗi rule giữ monitor, target, baseline, cycle và action pipeline riêng; nhiều rule chạy đồng thời nhưng vẫn nằm trong session độc lập của từng `tabId`.
+
+Sidebar bổ sung group **Automation rules** để tạo, nhân bản, bật/tắt, xóa và chọn rule đang chỉnh. Profile cũ tự migration thành một rule duy nhất, không mất selector hoặc condition hiện có.
+
+Tài liệu: `document/PHASE_15_MULTI_RULE_AUTOMATION.md`.
+
+Phase hiện tại: **Phase 15 — multi-rule monitor/action automation**.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE15_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE15_V0151_BEGIN -->
+### Phase 15 v0.15.1 — timer/session isolation hotfix
+
+Sửa timer binding của cảnh báo, rollback activation dở dang và thêm `sessionToken` để runtime event cũ hoặc sai tab không thể cập nhật session khác. Test stability được chống flaky bằng polling có timeout.
+
+Tài liệu: `document/PHASE_15_V0_15_1_TIMER_SESSION_ISOLATION_HOTFIX.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE15_V0151_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE15_V0152_BEGIN -->
+### Phase 15 v0.15.2 — English UI and title/help hotfix
+
+- The complete add-on UI now uses English.
+- Repeated READY/RUNNING/alert/spinner title decorations are normalized after reload.
+- Rule runtime status is collapsed by default, and `?` help popovers work consistently.
+- Historical generated Vietnamese default names are migrated to English without renaming custom names.
+
+Details: `document/PHASE_15_V0_15_2_ENGLISH_UI_TITLE_DEDUP_HELP.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE15_V0152_END -->
+
+
+## Phase 15 v0.15.3 stability timer hotfix
+
+Stability windows now recover from callbacks that execute slightly before their recorded deadline. The Phase 13 regression test uses a deterministic fake clock, so repeated Patch + Test and Build runs no longer depend on host timing.
+
+
+## Phase 15 v0.15.4 version-contract hotfix
+
+Historical feature tests now validate the minimum version that introduced their contract instead of pinning the manifest to that exact release. Later hotfix and feature versions therefore remain compatible with the Phase 15 v0.15.2 English UI/title/help test.

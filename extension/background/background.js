@@ -3,6 +3,7 @@
 
   const { MESSAGE, MODE, CONFIG_MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
+  const Recovery = globalThis.FCI_RECOVERY;
   const TAB_SESSION_KEY = "firefoxChatImprover.tabSession.v2";
   const sessions = new Map();
   const pickerStates = new Map();
@@ -15,6 +16,7 @@
   const shellRuns = new Map();
   const runToTab = new Map();
   const shellBroadcastTimers = new Map();
+  const runtimeBroadcastTimers = new Map();
   let nativePort = null;
   let nativeState = {
     connected: false,
@@ -136,9 +138,9 @@
       appendShellOutput(run, message.stream === "stderr" ? "stderr" : "stdout", message.text);
     } else if (event === "stopping") {
       run.status = "stopping";
-      appendShellOutput(run, "system", "[stopping] SIGTERM đã được gửi.\n");
+      appendShellOutput(run, "system", "[stopping] SIGTERM sent.\n");
     } else if (event === "killed") {
-      appendShellOutput(run, "system", "[killed] Process không dừng đúng hạn và đã nhận SIGKILL.\n");
+      appendShellOutput(run, "system", "[killed] The process did not stop in time and received SIGKILL.\n");
     } else if (event === "exited") {
       run.status = "exited";
       run.returnCode = Number.isInteger(message.returnCode) ? message.returnCode : null;
@@ -150,7 +152,7 @@
       }
     } else if (event === "error") {
       run.status = "error";
-      run.error = String(message.error || "Native host báo lỗi không xác định.");
+      run.error = String(message.error || "The Native Host reported an unknown error.");
       run.endedAt = Settings.nowIso();
       appendShellOutput(run, "stderr", `[error] ${run.error}\n`);
       if (run.runId) {
@@ -184,7 +186,7 @@
       return;
     }
     nativePort = null;
-    const lastError = browser.runtime.lastError?.message || "Native host đã ngắt kết nối.";
+    const lastError = browser.runtime.lastError?.message || "The Native Host disconnected.";
     nativeState = {
       ...nativeState,
       connected: false,
@@ -235,29 +237,29 @@
 
   function assertSidebarSender(sender) {
     if (sender?.tab) {
-      throw new Error("Content script không được phép điều khiển Native Messaging.");
+      throw new Error("Content scripts are not allowed to control Native Messaging.");
     }
     const sidebarPrefix = browser.runtime.getURL("sidebar/");
     if (typeof sender?.url !== "string" || !sender.url.startsWith(sidebarPrefix)) {
-      throw new Error("Lệnh shell chỉ được phép gửi trực tiếp từ sidebar của add-on.");
+      throw new Error("Shell commands may be sent only from the extension sidebar.");
     }
   }
 
   function validateShellPayload(message) {
     const tabId = Number(message.tabId);
     if (!Number.isInteger(tabId)) {
-      throw new Error("tabId của command không hợp lệ.");
+      throw new Error("The command tab ID is invalid.");
     }
     const cwd = String(message.cwd || "").trim();
     if (!cwd.startsWith("/")) {
-      throw new Error("Working directory phải là đường dẫn tuyệt đối.");
+      throw new Error("The working directory must be an absolute path.");
     }
     const command = String(message.command || "");
     if (!command.trim()) {
-      throw new Error("Command đang trống.");
+      throw new Error("The command is empty.");
     }
     if (command.includes("\u0000")) {
-      throw new Error("Command chứa ký tự NUL không hợp lệ.");
+      throw new Error("The command contains an invalid NUL character.");
     }
     const mode = message.mode === "terminal" ? "terminal" : "background";
     return { tabId, cwd, command, mode };
@@ -275,11 +277,11 @@
     const { tabId, cwd, command, mode } = validateShellPayload(message);
     const session = sessions.get(tabId);
     if (!session) {
-      throw new Error("Tab này chưa được kích hoạt; không có session để gắn command.");
+      throw new Error("This tab is not activated, so there is no session for the command.");
     }
     const current = shellRunForTab(tabId);
     if (["starting", "running", "terminal", "stopping"].includes(current.status)) {
-      throw new Error("Tab này đang có command chưa kết thúc.");
+      throw new Error("This tab already has a command that has not finished.");
     }
     const runId = `tab-${tabId}-${crypto.randomUUID()}`;
     const run = {
@@ -294,7 +296,7 @@
     shellRuns.set(tabId, run);
     runToTab.set(runId, tabId);
     appendShellOutput(run, "system", `[request] cwd=${cwd}\n[command] ${command}\n`);
-    appendLog(session, "user", "shell-run-request", `Yêu cầu chạy command ở chế độ ${mode}.`, { runId, cwd, command });
+    appendLog(session, "user", "shell-run-request", `Command requested in ${mode} mode.`, { runId, cwd, command });
     await persistSession(session);
     const port = ensureNativePort();
     port.postMessage({ action: "run", runId, tabId, cwd, command, mode });
@@ -307,7 +309,7 @@
     const tabId = Number(message.tabId);
     const run = shellRuns.get(tabId);
     if (!run?.runId || !["starting", "running", "terminal", "stopping"].includes(run.status)) {
-      throw new Error("Tab này không có command đang chạy để dừng.");
+      throw new Error("This tab has no running command to stop.");
     }
     const port = ensureNativePort();
     run.status = "stopping";
@@ -388,7 +390,7 @@
   }
 
   function profileName(session, store) {
-    return Settings.profileById(store, session.profileId)?.name || "Profile không tồn tại";
+    return Settings.profileById(store, session.profileId)?.name || "Profile not found";
   }
 
   function publicSession(session, store) {
@@ -403,6 +405,14 @@
     return {
       monitorState: MONITOR_STATE.IDLE,
       cycle: 0,
+      ruleCount: 1,
+      enabledRuleCount: 1,
+      matchedRuleCount: 0,
+      matchedRuleIds: [],
+      activeRuleId: "rule-default",
+      lastRuleId: null,
+      lastRuleName: null,
+      ruleRuntimes: {},
       baselineCount: 0,
       candidateCount: 0,
       targetState: "disabled",
@@ -431,6 +441,12 @@
       visibilityTransitionMode: "none",
       lastVisibilityTransition: null,
       conditionMatched: false,
+      pendingMonitorState: null,
+      stabilityStartedAt: null,
+      stabilityDueAt: null,
+      stabilityDelayMs: 0,
+      matchStableMs: 0,
+      resetStableMs: 0,
       lastReason: null,
       lastTransition: null,
       alertActive: false,
@@ -444,7 +460,13 @@
       lastUserActivityAt: null,
       activeVisibleSince: null,
       lastAlertReason: null,
-      lastEventAt: null
+      lastEventAt: null,
+      recoveryState: Recovery.STATE.NONE,
+      recoveryReason: null,
+      recoveryStartedAt: null,
+      recoveredAt: null,
+      recoveryAttempts: 0,
+      navigationPending: false
     };
   }
 
@@ -456,6 +478,7 @@
       activatedAt: now,
       updatedAt: now,
       source,
+      sessionToken: Settings.makeId("session"),
       error: null,
       profileId,
       configMode: CONFIG_MODE.PROFILE,
@@ -530,6 +553,14 @@
       return;
     }
     const config = sessionConfig(session, store);
+    if ([Recovery.STATE.PERMISSION_REQUIRED, Recovery.STATE.URL_BLOCKED, Recovery.STATE.FAILED].includes(session.runtime?.recoveryState)) {
+      await applyBadge(session.tabId, "?", "#8250df");
+      return;
+    }
+    if (session.runtime?.recoveryState === Recovery.STATE.NAVIGATION_PENDING) {
+      await applyBadge(session.tabId, "…", "#57606a");
+      return;
+    }
     if (session.mode === MODE.ERROR) {
       await applyBadge(session.tabId, "!", "#cf222e");
       return;
@@ -565,9 +596,9 @@
     await browser.notifications.create(`fci-tab-${session.tabId}`, {
       type: "basic",
       iconUrl: browser.runtime.getURL("icons/icon.svg"),
-      title: "Firefox ChatAI Assistant — điều kiện đã đạt",
+      title: "Firefox ChatAI Assistant — condition matched",
       message: `${session.runtime.originalTitle || session.title || session.url}
-Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
+Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     });
   }
 
@@ -580,6 +611,25 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       });
     } catch (_error) {
       // Sidebar may be closed.
+    }
+  }
+
+  function scheduleRuntimeBroadcast(tabId) {
+    if (runtimeBroadcastTimers.has(tabId)) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      runtimeBroadcastTimers.delete(tabId);
+      void broadcast("runtime-updated", tabId);
+    }, 120);
+    runtimeBroadcastTimers.set(tabId, timer);
+  }
+
+  function assertPersistedConfig(expected, actual, label) {
+    const left = JSON.stringify(Settings.normalizeConfig(expected));
+    const right = JSON.stringify(Settings.normalizeConfig(actual));
+    if (left !== right) {
+      throw new Error(`${label}: the persisted configuration does not match the input.`);
     }
   }
 
@@ -601,6 +651,91 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     return response;
   }
 
+  async function hasHostPermission(rawUrl) {
+    const origin = hostPermissionPattern(rawUrl);
+    return Boolean(origin && await browser.permissions.contains({ origins: [origin] }));
+  }
+
+  function recoveryRuntime(session, reason) {
+    return Recovery.prepareRuntime(
+      { ...newRuntime(), ...(session.runtime || {}) },
+      session.mode,
+      reason,
+      Settings.nowIso()
+    );
+  }
+
+  async function markRecoveryDeferred(session, store, state, reason) {
+    session.runtime = {
+      ...recoveryRuntime(session, reason),
+      recoveryState: state,
+      recoveryReason: reason,
+      navigationPending: state === Recovery.STATE.NAVIGATION_PENDING
+    };
+    session.updatedAt = Settings.nowIso();
+    appendLog(session, "user", "session-recovery-deferred", reason, { state, url: session.url });
+    await persistSession(session);
+    await updateBadge(session, store);
+    await broadcast("session-recovery-deferred", session.tabId);
+    return false;
+  }
+
+  async function reattachSession(session, store, reason = "background-recovery") {
+    const tab = await browser.tabs.get(session.tabId);
+    session.url = tab.url || session.url;
+    session.title = tab.title || session.title;
+    session.windowId = tab.windowId;
+    session.index = tab.index;
+
+    const config = sessionConfig(session, store);
+    const permitted = await hasHostPermission(session.url);
+    const decision = Recovery.decision({
+      supportedUrl: isSupportedUrl(session.url),
+      urlAllowed: Settings.urlAllowed(config, session.url),
+      hostPermission: permitted
+    });
+    if (decision === Recovery.STATE.URL_BLOCKED) {
+      session.mode = MODE.PAUSED;
+      return markRecoveryDeferred(
+        session,
+        store,
+        decision,
+        "The current URL no longer matches the profile or tab configuration; the session remains paused."
+      );
+    }
+    if (decision === Recovery.STATE.PERMISSION_REQUIRED) {
+      return markRecoveryDeferred(
+        session,
+        store,
+        decision,
+        "Firefox must grant site access again before the content runtime can be recovered."
+      );
+    }
+
+    session.runtime = recoveryRuntime(session, reason);
+    await ensureContentScripts(session.tabId);
+    const response = await applySessionToContent(session, store, MESSAGE.CONTENT_APPLY_SESSION);
+    session.runtime = {
+      ...session.runtime,
+      ...(response?.runtime || {}),
+      recoveryState: Recovery.STATE.ATTACHED,
+      recoveryReason: reason,
+      recoveredAt: Settings.nowIso(),
+      navigationPending: false
+    };
+    session.updatedAt = response?.updatedAt || Settings.nowIso();
+    appendLog(session, "user", "session-recovered", "The content runtime was recovered and a new baseline was created.", {
+      reason,
+      mode: session.mode,
+      url: session.url,
+      attempts: session.runtime.recoveryAttempts
+    });
+    await persistSession(session);
+    await updateBadge(session, store);
+    await broadcast("session-recovered", session.tabId);
+    return true;
+  }
+
   async function recoverOne(tab, store) {
     if (!Number.isInteger(tab?.id) || sessions.has(tab.id)) {
       return sessions.get(tab?.id) || null;
@@ -616,34 +751,32 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       return null;
     }
 
-    try {
-      const content = await browser.tabs.sendMessage(tab.id, {
-        type: MESSAGE.CONTENT_STATUS
-      });
-      if (![MODE.ACTIVE, MODE.PAUSED].includes(content?.mode)) {
-        throw new Error("content runtime is not active");
-      }
-      const recovered = {
-        ...stored,
-        ...tabMeta(tab),
-        mode: content.mode,
-        updatedAt: content.updatedAt || Settings.nowIso(),
-        runtime: { ...newRuntime(), ...(stored.runtime || {}), ...(content.runtime || {}) },
-        logs: normalizeLogs(stored.logs)
-      };
-      if (!Settings.profileById(store, recovered.profileId)) {
-        recovered.profileId = store.defaultProfileId;
-        recovered.configMode = CONFIG_MODE.PROFILE;
-        recovered.tabConfig = null;
-      }
-      sessions.set(tab.id, recovered);
-      await updateBadge(recovered, store);
-      return recovered;
-    } catch (_error) {
-      await removePersistedSession(tab.id);
-      await applyBadge(tab.id, "", null);
-      return null;
+    const recovered = {
+      ...stored,
+      ...tabMeta(tab),
+      sessionToken: stored.sessionToken || Settings.makeId("session"),
+      runtime: { ...newRuntime(), ...(stored.runtime || {}) },
+      logs: normalizeLogs(stored.logs)
+    };
+    if (!Settings.profileById(store, recovered.profileId)) {
+      recovered.profileId = store.defaultProfileId;
+      recovered.configMode = CONFIG_MODE.PROFILE;
+      recovered.tabConfig = null;
     }
+    sessions.set(tab.id, recovered);
+    try {
+      await reattachSession(recovered, store, "background-startup");
+    } catch (error) {
+      recovered.runtime = {
+        ...recoveryRuntime(recovered, "background-startup"),
+        recoveryState: Recovery.STATE.FAILED,
+        recoveryReason: error instanceof Error ? error.message : String(error)
+      };
+      appendLog(recovered, "user", "session-recovery-failed", recovered.runtime.recoveryReason);
+      await persistSession(recovered);
+      await updateBadge(recovered, store);
+    }
+    return recovered;
   }
 
   async function recoverAll() {
@@ -668,6 +801,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
         "content/monitor.js",
         "content/target.js",
         "content/alert.js",
+        "content/rules.js",
         "content/picker.js",
         "content/activation.js"
       ]
@@ -681,7 +815,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
 
   async function startElementPicker(tabId, kind) {
     if (!["monitor", "target", "verify"].includes(kind)) {
-      throw new Error("Loại element picker không hợp lệ.");
+      throw new Error("The element picker type is invalid.");
     }
     await ensureInteractiveTab(tabId);
     const previous = pickerStates.get(tabId);
@@ -700,7 +834,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       payload: { kind }
     });
     if (!response?.ok) {
-      throw new Error(response?.error || "Không thể bắt đầu element picker.");
+      throw new Error(response?.error || "Could not start the element picker.");
     }
     const state = {
       tabId,
@@ -732,7 +866,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
   async function handleElementPickerResult(message, sender) {
     const tabId = sender?.tab?.id;
     if (!Number.isInteger(tabId)) {
-      throw new Error("Element picker result không có tabId hợp lệ.");
+      throw new Error("The element picker result has no valid tab ID.");
     }
     const activePicker = pickerStates.get(tabId);
     if (!activePicker) {
@@ -741,7 +875,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     const payload = message.payload && typeof message.payload === "object" ? message.payload : {};
     const kind = payload.kind === activePicker.kind ? activePicker.kind : null;
     if (!kind) {
-      throw new Error("Element picker result không khớp phiên chọn đang hoạt động.");
+      throw new Error("The element picker result does not match the active picker session.");
     }
     pickerStates.delete(tabId);
     const result = {
@@ -766,8 +900,8 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
         "user",
         result.cancelled ? "element-picker-cancelled" : "element-picker-selected",
         result.cancelled
-          ? `Đã hủy chọn ${kind === "monitor" ? "element theo dõi" : (kind === "verify" ? "element verify" : "target")}.`
-          : `Đã chọn ${kind === "monitor" ? "element theo dõi" : (kind === "verify" ? "element verify" : "target")}: ${result.css}`,
+          ? `Cancelled ${kind === "monitor" ? "monitor element" : (kind === "verify" ? "verification element" : "target")} selection.`
+          : `Selected ${kind === "monitor" ? "monitor element" : (kind === "verify" ? "verification element" : "target")}: ${result.css}`,
         result
       );
       await persistSession(session);
@@ -784,16 +918,16 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     const tab = await browser.tabs.get(tabId);
     const active = await currentTab();
     if (!Number.isInteger(active?.id) || active.id !== tabId) {
-      throw new Error("Chỉ kiểm tra/highlight được tab đang hiển thị hiện tại.");
+      throw new Error("Only the currently displayed tab can be tested or highlighted.");
     }
     if (!isSupportedUrl(tab.url)) {
-      throw new Error("Chỉ có thể kiểm tra selector trên trang HTTP hoặc HTTPS thông thường.");
+      throw new Error("Selectors can be tested only on normal HTTP or HTTPS pages.");
     }
 
     const origin = hostPermissionPattern(tab.url);
     const granted = origin && await browser.permissions.contains({ origins: [origin] });
     if (!granted) {
-      throw new Error("Firefox chưa cấp quyền truy cập website hiện tại.");
+      throw new Error("Firefox has not granted access to the current site.");
     }
 
     await ensureContentScripts(tabId);
@@ -809,7 +943,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       }
     });
     if (!response?.ok) {
-      throw new Error(response?.error || "Không thể kiểm tra selector.");
+      throw new Error(response?.error || "Could not test the selector.");
     }
     return response.result;
   }
@@ -818,15 +952,15 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     const tab = await browser.tabs.get(tabId);
     const active = await currentTab();
     if (!Number.isInteger(active?.id) || active.id !== tabId) {
-      throw new Error("Chỉ thao tác thử trên tab đang hiển thị hiện tại.");
+      throw new Error("Test actions are allowed only in the currently displayed tab.");
     }
     if (!isSupportedUrl(tab.url)) {
-      throw new Error("Chỉ có thể thao tác trên trang HTTP hoặc HTTPS thông thường.");
+      throw new Error("Actions are allowed only on normal HTTP or HTTPS pages.");
     }
     const origin = hostPermissionPattern(tab.url);
     const granted = origin && await browser.permissions.contains({ origins: [origin] });
     if (!granted) {
-      throw new Error("Firefox chưa cấp quyền truy cập website hiện tại.");
+      throw new Error("Firefox has not granted access to the current site.");
     }
     await ensureContentScripts(tabId);
     return tab;
@@ -843,7 +977,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       }
     });
     if (!response?.ok) {
-      throw new Error(response?.error || "Không thể thử target action.");
+      throw new Error(response?.error || "Could not test the target action.");
     }
     const session = sessions.get(tabId);
     if (session) {
@@ -852,8 +986,8 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
         "user",
         click ? "target-test-click" : "target-test-dry-run",
         click
-          ? `Đã click thử ${response.result.selectedCount} target hiện tại.`
-          : `Đã highlight thử ${response.result.selectedCount} target hiện tại.`,
+          ? `Clicked ${response.result.selectedCount} current target(s) for testing.`
+          : `Highlighted ${response.result.selectedCount} current target(s) for testing.`,
         response.result
       );
       await persistSession(session);
@@ -868,7 +1002,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       type: MESSAGE.CONTENT_CLEAR_HIGHLIGHTS
     });
     if (!response?.ok) {
-      throw new Error(response?.error || "Không thể xóa highlight.");
+      throw new Error(response?.error || "Could not clear highlights.");
     }
     return response.result;
   }
@@ -876,7 +1010,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
   async function clearSessionLogs(tabId) {
     const session = sessions.get(tabId);
     if (!session) {
-      throw new Error("Tab này chưa được kích hoạt.");
+      throw new Error("This tab is not activated.");
     }
     session.logs = { user: [], debug: [] };
     await persistSession(session);
@@ -886,10 +1020,18 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
   async function updateRuntimeFromContent(message, sender) {
     const tabId = sender?.tab?.id;
     if (!Number.isInteger(tabId)) {
-      throw new Error("Runtime event không có tabId hợp lệ.");
+      throw new Error("The runtime event has no valid tab ID.");
     }
     const session = sessions.get(tabId);
     if (!session) {
+      return null;
+    }
+    const payloadTabId = Number(message.payload?.tabId);
+    if (Number.isInteger(payloadTabId) && payloadTabId !== tabId) {
+      return null;
+    }
+    const incomingSessionToken = message.payload?.sessionToken;
+    if (session.sessionToken && incomingSessionToken !== session.sessionToken) {
       return null;
     }
     const store = await loadStore();
@@ -937,7 +1079,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
         session,
         "user",
         "alert-started",
-        `Cảnh báo chu kỳ ${session.runtime.alertCycle || session.runtime.cycle || 0} đã bật.`,
+        `Alert cycle ${session.runtime.alertCycle || session.runtime.cycle || 0} started.`,
         { monitorState: session.runtime.monitorState, reason: session.runtime.lastAlertReason }
       );
     }
@@ -946,7 +1088,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
         session,
         "user",
         "alert-dismissed",
-        `Cảnh báo đã xác nhận: ${session.runtime.alertDismissReason || "unknown"}.`,
+        `Alert dismissed: ${session.runtime.alertDismissReason || "unknown"}.`,
         { acknowledgedAt: session.runtime.alertAcknowledgedAt }
       );
     }
@@ -957,21 +1099,34 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       await clearNotification(tabId);
     }
     await persistSession(session);
-    await broadcast("runtime-updated", tabId);
+    scheduleRuntimeBroadcast(tabId);
     return clone(session.runtime);
   }
 
   async function activateTab(tab, source, requestedProfileId = null) {
     if (!Number.isInteger(tab?.id)) {
-      throw new Error("Không xác định được tab hiện tại.");
+      throw new Error("Could not determine the current tab.");
     }
     if (!isSupportedUrl(tab.url)) {
-      throw new Error("Chỉ có thể kích hoạt trên trang HTTP hoặc HTTPS thông thường.");
+      throw new Error("Only normal HTTP or HTTPS pages can be activated.");
     }
 
     const store = await loadStore();
     const existing = sessions.get(tab.id);
     if (existing) {
+      const recoveryState = existing.runtime?.recoveryState;
+      if ([
+        Recovery.STATE.PERMISSION_REQUIRED,
+        Recovery.STATE.URL_BLOCKED,
+        Recovery.STATE.FAILED,
+        Recovery.STATE.NAVIGATION_PENDING
+      ].includes(recoveryState)) {
+        const attached = await reattachSession(existing, store, "manual-recovery");
+        if (!attached) {
+          throw new Error(existing.runtime?.recoveryReason || "Could not recover the session in the current tab.");
+        }
+        return publicSession(existing, store);
+      }
       if (existing.mode === MODE.PAUSED) {
         return resumeTab(tab.id);
       }
@@ -983,7 +1138,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       routing?.profile ||
       Settings.profileById(store, store.defaultProfileId) || store.profiles[0];
     if (!Settings.urlAllowed(profile.config, tab.url)) {
-      throw new Error("URL hiện tại không khớp allowlist của profile đã chọn.");
+      throw new Error("The current URL does not match the selected profile allowlist.");
     }
 
     if (source === "sidebar") {
@@ -991,7 +1146,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       const granted = origin && await browser.permissions.contains({ origins: [origin] });
       if (!granted) {
         throw new Error(
-          "Firefox chưa cấp quyền truy cập website này. Hãy bấm lại “Kích hoạt tab hiện tại” và chấp nhận hộp thoại quyền."
+          "Firefox has not granted access to this site. Click “Activate current tab” again and accept the permission prompt."
         );
       }
     }
@@ -999,24 +1154,38 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     await ensureContentScripts(tab.id);
 
     const session = makeSession(tab, profile.id, source);
-    await applySessionToContent(session, store, MESSAGE.CONTENT_ACTIVATE);
-    appendLog(session, "user", "activated", `Đã kích hoạt tab bằng ${source}.`, {
-      url: tab.url,
-      profileId: profile.id,
-      profileRouting: requestedProfileId ? "manual" : (routing?.matched ? "url-match" : "default-fallback"),
-      matchedPattern: routing?.candidates?.[0]?.bestPattern || null
-    });
-    sessions.set(tab.id, session);
-    await persistSession(session);
-    await updateBadge(session, store);
-    await broadcast("activated", tab.id);
-    return publicSession(session, store);
+    try {
+      await applySessionToContent(session, store, MESSAGE.CONTENT_ACTIVATE);
+      appendLog(session, "user", "activated", `Tab activated by ${source}.`, {
+        url: tab.url,
+        profileId: profile.id,
+        profileRouting: requestedProfileId ? "manual" : (routing?.matched ? "url-match" : "default-fallback"),
+        matchedPattern: routing?.candidates?.[0]?.bestPattern || null
+      });
+      sessions.set(tab.id, session);
+      await persistSession(session);
+      await updateBadge(session, store);
+      await broadcast("activated", tab.id);
+      return publicSession(session, store);
+    } catch (error) {
+      sessions.delete(tab.id);
+      try {
+        await browser.tabs.sendMessage(tab.id, { type: MESSAGE.CONTENT_STOP });
+      } catch (_stopError) {
+        // A partially initialized content runtime may already be gone.
+      }
+      await removePersistedSession(tab.id);
+      await clearNotification(tab.id);
+      await applyBadge(tab.id, "", null);
+      await broadcast("activation-rolled-back", tab.id);
+      throw error;
+    }
   }
 
   async function pauseTab(tabId) {
     const session = sessions.get(tabId);
     if (!session) {
-      throw new Error("Tab này chưa được kích hoạt.");
+      throw new Error("This tab is not activated.");
     }
     const response = await browser.tabs.sendMessage(tabId, {
       type: MESSAGE.CONTENT_PAUSE
@@ -1024,7 +1193,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     session.mode = MODE.PAUSED;
     session.updatedAt = response?.updatedAt || Settings.nowIso();
     session.runtime = { ...session.runtime, ...(response?.runtime || {}), monitorState: MONITOR_STATE.PAUSED };
-    appendLog(session, "user", "paused", "Đã tạm dừng theo dõi tab.");
+    appendLog(session, "user", "paused", "Tab monitoring paused.");
     const store = await loadStore();
     await persistSession(session);
     await clearNotification(tabId);
@@ -1035,15 +1204,15 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
   async function resumeTab(tabId) {
     const session = sessions.get(tabId);
     if (!session) {
-      throw new Error("Tab này chưa được kích hoạt.");
+      throw new Error("This tab is not activated.");
     }
     const response = await browser.tabs.sendMessage(tabId, {
       type: MESSAGE.CONTENT_RESUME
     });
     session.mode = MODE.ACTIVE;
     session.updatedAt = response?.updatedAt || Settings.nowIso();
-    session.runtime = { ...session.runtime, ...(response?.runtime || {}), monitorState: MONITOR_STATE.IDLE };
-    appendLog(session, "user", "resumed", "Đã tiếp tục theo dõi tab và lập baseline mới.");
+    session.runtime = { ...session.runtime, ...(response?.runtime || {}) };
+    appendLog(session, "user", "resumed", "Tab monitoring resumed with a new baseline.");
     const store = await loadStore();
     await persistSession(session);
     await updateBadge(session, store);
@@ -1076,13 +1245,13 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     const session = sessions.get(tabId);
     const profile = Settings.profileById(store, profileId);
     if (!session) {
-      throw new Error("Tab này chưa được kích hoạt.");
+      throw new Error("This tab is not activated.");
     }
     if (!profile) {
-      throw new Error("Không tìm thấy profile.");
+      throw new Error("Profile not found.");
     }
     if (!Settings.urlAllowed(profile.config, session.url)) {
-      throw new Error("URL của tab không khớp allowlist profile.");
+      throw new Error("The tab URL does not match the profile allowlist.");
     }
     session.profileId = profile.id;
     session.configMode = CONFIG_MODE.PROFILE;
@@ -1098,14 +1267,14 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     const store = await loadStore();
     const session = sessions.get(tabId);
     if (!session) {
-      throw new Error("Tab này chưa được kích hoạt.");
+      throw new Error("This tab is not activated.");
     }
     const validation = Settings.validateConfig(rawConfig);
     if (!validation.ok) {
       throw new Error(validation.errors.join("\n"));
     }
     if (!Settings.urlAllowed(validation.config, session.url)) {
-      throw new Error("URL của tab không khớp allowlist trong cấu hình tab.");
+      throw new Error("The tab URL does not match the tab configuration allowlist.");
     }
     session.configMode = CONFIG_MODE.TAB;
     session.tabConfig = validation.config;
@@ -1120,7 +1289,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     const store = await loadStore();
     const session = sessions.get(tabId);
     if (!session) {
-      throw new Error("Tab này chưa được kích hoạt.");
+      throw new Error("This tab is not activated.");
     }
     session.configMode = CONFIG_MODE.PROFILE;
     session.tabConfig = null;
@@ -1170,11 +1339,16 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     incoming.updatedAt = Settings.nowIso();
     const index = store.profiles.findIndex((profile) => profile.id === incoming.id);
     if (index < 0) {
-      throw new Error("Không tìm thấy profile để lưu.");
+      throw new Error("Could not find the profile to save.");
     }
     incoming.createdAt = store.profiles[index].createdAt;
     store.profiles[index] = incoming;
     const saved = await saveStore(store);
+    const persistedProfile = Settings.profileById(saved, incoming.id);
+    if (!persistedProfile) {
+      throw new Error("The saved profile was not found in storage.");
+    }
+    assertPersistedConfig(incoming.config, persistedProfile.config, "Save profile");
     await updateProfileSessions(incoming.id, saved);
     await broadcast("profile-saved");
     return saved;
@@ -1183,13 +1357,13 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
   async function deleteProfile(profileId) {
     const store = await loadStore();
     if (store.profiles.length <= 1) {
-      throw new Error("Phải giữ lại ít nhất một profile.");
+      throw new Error("At least one profile must remain.");
     }
     if (profileId === store.defaultProfileId) {
-      throw new Error("Không thể xóa profile mặc định.");
+      throw new Error("The default profile cannot be deleted.");
     }
     if (!Settings.profileById(store, profileId)) {
-      throw new Error("Không tìm thấy profile.");
+      throw new Error("Profile not found.");
     }
     store.profiles = store.profiles.filter((profile) => profile.id !== profileId);
     const saved = await saveStore(store);
@@ -1211,6 +1385,13 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
   async function importSettings(text) {
     const imported = Settings.importStore(text);
     const saved = await saveStore(imported);
+    for (const importedProfile of imported.profiles) {
+      const persistedProfile = Settings.profileById(saved, importedProfile.id);
+      if (!persistedProfile) {
+        throw new Error(`Import settings: profile ${importedProfile.id} was not found after saving.`);
+      }
+      assertPersistedConfig(importedProfile.config, persistedProfile.config, `Import profile ${importedProfile.name}`);
+    }
     for (const session of sessions.values()) {
       if (!Settings.profileById(saved, session.profileId)) {
         session.profileId = saved.defaultProfileId;
@@ -1307,9 +1488,9 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
           const store = await loadStore();
           const base = Settings.profileById(store, message.profileId);
           if (!base) {
-            throw new Error("Không tìm thấy profile để nhân bản.");
+            throw new Error("Could not find the profile to duplicate.");
           }
-          const result = await createProfile(message.name || `${base.name} - bản sao`, base.id);
+          const result = await createProfile(message.name || `${base.name} - copy`, base.id);
           return { ok: true, profileId: result.profileId, dashboard: await dashboard() };
         }
 
@@ -1476,17 +1657,17 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
   function validateRequestSender(message, sender) {
     if ([MESSAGE.CONTENT_RUNTIME_EVENT, MESSAGE.CONTENT_PICKER_RESULT].includes(message.type)) {
       if (!Number.isInteger(sender?.tab?.id)) {
-        throw new Error("Content event chỉ được nhận từ content script trong một tab.");
+        throw new Error("Content events are accepted only from a content script in a tab.");
       }
       return;
     }
     if (SIDEBAR_REQUEST_TYPES.has(message.type)) {
       if (sender?.tab) {
-        throw new Error("Yêu cầu quản trị chỉ được gửi từ sidebar, không phải content script.");
+        throw new Error("Administrative requests may be sent only from the sidebar, not from content scripts.");
       }
       const sidebarPrefix = browser.runtime.getURL("sidebar/");
       if (typeof sender?.url !== "string" || !sender.url.startsWith(sidebarPrefix)) {
-        throw new Error("Yêu cầu quản trị không xuất phát từ sidebar hợp lệ.");
+        throw new Error("The administrative request did not originate from the valid sidebar.");
       }
     }
   }
@@ -1508,13 +1689,43 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     if (!session) {
       return;
     }
-    const navigated =
-      changeInfo.status === "loading" ||
-      (typeof changeInfo.url === "string" && changeInfo.url !== session.url);
-    if (navigated) {
-      void stopTab(tabId, tab);
+
+    const urlChanged = typeof changeInfo.url === "string" && changeInfo.url !== session.url;
+    if (changeInfo.status === "loading" || urlChanged) {
+      session.url = tab.url || changeInfo.url || session.url;
+      session.title = tab.title || session.title;
+      session.windowId = tab.windowId;
+      session.index = tab.index;
+      session.runtime = {
+        ...recoveryRuntime(session, "tab-navigation"),
+        recoveryState: Recovery.STATE.NAVIGATION_PENDING,
+        recoveryReason: "Waiting for the page to finish loading before reconnecting the monitor.",
+        navigationPending: true,
+        recoveryAttempts: Number(session.runtime?.recoveryAttempts || 0)
+      };
+      session.updatedAt = Settings.nowIso();
+      void clearNotification(tabId);
+      void persistSession(session);
+      void loadStore().then((store) => updateBadge(session, store));
+      void broadcast("tab-navigation-pending", tabId);
       return;
     }
+
+    if (changeInfo.status === "complete" && session.runtime?.navigationPending) {
+      void loadStore().then((store) => reattachSession(session, store, "tab-navigation")).catch(async (error) => {
+        session.runtime = {
+          ...session.runtime,
+          recoveryState: Recovery.STATE.FAILED,
+          recoveryReason: error instanceof Error ? error.message : String(error),
+          navigationPending: false
+        };
+        appendLog(session, "user", "session-recovery-failed", session.runtime.recoveryReason);
+        await persistSession(session);
+        await broadcast("session-recovery-failed", tabId);
+      });
+      return;
+    }
+
     if (typeof changeInfo.title === "string" && !session.runtime?.alertActive) {
       session.title = changeInfo.title;
       session.updatedAt = Settings.nowIso();
@@ -1568,4 +1779,9 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     void browser.tabs.update(tabId, { active: true }).catch(() => { });
     void clearNotification(tabId);
   });
+
+  void recoverAll().catch((error) => {
+    console.error("FirefoxChatImprover: startup session recovery failed", error);
+  });
+
 })();

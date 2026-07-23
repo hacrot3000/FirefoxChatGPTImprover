@@ -466,3 +466,46 @@ Tiêu chí hoàn tất:
 - Không action trùng trong lúc đang delay/verify.
 - Pipeline không chạy sang monitor cycle hoặc tab khác.
 - Verify failure được báo rõ và cycle kế tiếp có thể re-arm bình thường.
+
+
+### Phase 13 — Monitor stability windows
+
+**Mục tiêu:** Chống trigger/re-arm giả do DOM hoặc attribute chớp nhanh.
+
+Công việc:
+
+- Cấu hình thời gian condition phải đạt liên tục trước MATCHED.
+- Cấu hình thời gian condition phải không đạt liên tục trước WAITING/re-arm.
+- Hủy pending khi condition đảo lại, pause, stop hoặc config đổi.
+- Công bố pending state trong runtime/sidebar theo từng tab.
+- Giữ mặc định 0 ms để tương thích profile cũ.
+
+Tiêu chí hoàn tất:
+
+- Flicker ngắn hơn ngưỡng không tăng cycle và không chạy action.
+- Chỉ cạnh ổn định mới tạo MATCHED/re-arm.
+- Timer không rò sang tab hoặc chu kỳ khác.
+
+### Phase 14 — Restart-safe session recovery
+
+Đã hoàn tất khôi phục session theo `tabId`, re-inject content runtime sau reload/navigation, lập baseline mới và giữ trạng thái cần cấp quyền thay vì xóa session.
+
+### Phase 15 — Nhiều monitor/action rule
+
+**Mục tiêu:** Một tab có thể theo dõi nhiều luồng DOM độc lập trong cùng profile hoặc tab config.
+
+Công việc:
+
+- Nâng schema và migration cấu hình một rule cũ sang `rules[]`.
+- Rule editor trong sidebar: chọn, tạo, nhân bản, bật/tắt và xóa.
+- Monitor/target engine instance riêng cho từng rule.
+- Runtime tổng hợp theo tab và runtime chi tiết theo `ruleId`.
+- Cycle cảnh báo tổng hợp tăng khi bất kỳ rule nào có cạnh mới sang `MATCHED`.
+- Giữ pause/resume/stop và session recovery độc lập theo tab.
+
+Tiêu chí hoàn tất:
+
+- Hai rule trong cùng tab có thể `WAITING/MATCHED` độc lập.
+- Baseline hoặc pipeline của rule này không bị reset bởi rule khác.
+- Profile cũ không mất monitor selector, condition hoặc target config.
+- Sidebar chỉ lưu thay đổi rule sau thao tác lưu rõ ràng.

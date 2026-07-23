@@ -57,6 +57,20 @@ assert.equal(Alert.shouldAlert(
 ), false);
 assert.equal(Alert.alertTitle("READY", "Internal AI"), "[READY] Internal AI");
 assert.equal(Alert.alertTitle("", ""), "[⚠ AI READY]");
+assert.equal(Alert.shouldSpinMonitorTitle(
+  { monitorState: Protocol.MONITOR_STATE.WAITING },
+  Protocol.MODE.ACTIVE
+), true);
+assert.equal(Alert.shouldSpinMonitorTitle(
+  { monitorState: Protocol.MONITOR_STATE.MATCHED },
+  Protocol.MODE.ACTIVE
+), false);
+assert.equal(Alert.shouldSpinMonitorTitle(
+  { monitorState: Protocol.MONITOR_STATE.WAITING },
+  Protocol.MODE.PAUSED
+), false);
+assert.equal(Alert.monitorTitle("⠋", "Internal AI"), "⠋ Internal AI");
+assert.equal(Alert.MONITOR_SPINNER_FRAMES.length >= 4, true);
 
 const clamped = Settings.normalizeConfig({ alerts: { blinkIntervalMs: 10 } });
 assert.equal(clamped.alerts.blinkIntervalMs, 250);

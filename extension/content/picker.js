@@ -100,7 +100,7 @@
 
   function buildSelector(element, doc = document) {
     if (!element || element.nodeType !== 1 || isPickerUi(element)) {
-      throw new Error("Element được chọn không hợp lệ.");
+      throw new Error("The selected element is invalid.");
     }
     const tag = String(element.tagName || "*").toLowerCase();
     const id = String(element.id || "").trim();
@@ -150,7 +150,7 @@
 
   function elementSummary(element) {
     if (!element) {
-      return "Chưa chọn element";
+      return "No element selected";
     }
     const tag = String(element.tagName || "element").toLowerCase();
     const id = element.id ? `#${element.id}` : "";
@@ -218,7 +218,7 @@
       width: `${Math.max(1, rect.width)}px`,
       height: `${Math.max(1, rect.height)}px`
     });
-    state.label.textContent = `${elementSummary(element)} — click để chọn, Esc để hủy`;
+    state.label.textContent = `${elementSummary(element)} — click to select, Esc to cancel`;
     const labelTop = rect.top >= 34 ? rect.top - 30 : Math.min(window.innerHeight - 28, rect.bottom + 4);
     Object.assign(state.label.style, {
       display: "block",
@@ -308,15 +308,15 @@
 
   function start(kind) {
     if (!["monitor", "target", "verify"].includes(kind)) {
-      throw new Error("Loại element picker không hợp lệ.");
+      throw new Error("The element picker type is invalid.");
     }
     if (state.active) cancel("replaced", false);
     state.active = true;
     state.kind = kind;
     state.startedAt = new Date().toISOString();
     ensureUi();
-    const kindLabel = kind === "monitor" ? "element theo dõi" : (kind === "verify" ? "element verify" : "target");
-    state.label.textContent = `Đang chọn ${kindLabel}: rê chuột và click, Esc để hủy`;
+    const kindLabel = kind === "monitor" ? "monitor element" : (kind === "verify" ? "verification element" : "target");
+    state.label.textContent = `Picking ${kindLabel}: hover and click, or press Esc to cancel`;
     Object.assign(state.label.style, { display: "block", left: "8px", top: "8px" });
     document.addEventListener("pointermove", onPointerMove, true);
     document.addEventListener("pointerdown", onPointerDown, true);
