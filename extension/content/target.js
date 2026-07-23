@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_TARGET_ENGINE?.VERSION >= 3) {
+  if (globalThis.FCI_TARGET_ENGINE?.VERSION >= 4) {
     return;
   }
 
@@ -242,6 +242,56 @@
     };
   }
 
+  function delay(milliseconds) {
+    const value = Math.max(0, Number(milliseconds) || 0);
+    return value ? new Promise((resolve) => setTimeout(resolve, value)) : Promise.resolve();
+  }
+
+  function verificationSnapshot(rawPipeline) {
+    const pipeline = rawPipeline && typeof rawPipeline === "object" ? rawPipeline : {};
+    const selector = pipeline.verifySelector || Settings.defaultConfig().target.pipeline.verifySelector;
+    const css = Settings.selectorToCss(selector);
+    const elements = [...document.querySelectorAll(css)];
+    const visibleCount = elements.filter((element) => MonitorEngine.inspectVisibility(element).visible).length;
+    const expectation = ["exists", "not_exists", "visible", "hidden"].includes(pipeline.verifyExpectation)
+      ? pipeline.verifyExpectation
+      : "exists";
+    let passed = false;
+    if (expectation === "exists") {
+      passed = elements.length > 0;
+    } else if (expectation === "not_exists") {
+      passed = elements.length === 0;
+    } else if (expectation === "visible") {
+      passed = visibleCount > 0;
+    } else if (expectation === "hidden") {
+      passed = elements.length > 0 && visibleCount === 0;
+    }
+    return {
+      css,
+      expectation,
+      passed,
+      count: elements.length,
+      visibleCount,
+      hiddenCount: Math.max(0, elements.length - visibleCount)
+    };
+  }
+
+  async function waitForVerification(rawPipeline, isCancelled = () => false) {
+    const pipeline = rawPipeline && typeof rawPipeline === "object" ? rawPipeline : {};
+    const timeoutMs = Math.max(100, Number(pipeline.verifyTimeoutMs) || 5000);
+    const pollIntervalMs = Math.max(50, Math.min(timeoutMs, Number(pipeline.verifyPollIntervalMs) || 150));
+    const startedAt = Date.now();
+    let snapshot = verificationSnapshot(pipeline);
+    while (!snapshot.passed && Date.now() - startedAt < timeoutMs) {
+      if (isCancelled()) {
+        return { ...snapshot, cancelled: true, elapsedMs: Date.now() - startedAt };
+      }
+      await delay(pollIntervalMs);
+      snapshot = verificationSnapshot(pipeline);
+    }
+    return { ...snapshot, cancelled: false, elapsedMs: Date.now() - startedAt };
+  }
+
   function createTargetAutomation({ onRuntime }) {
     let config = Settings.defaultConfig();
     let observer = null;
@@ -262,6 +312,11 @@
     let lastSignature = "";
     let lastRuntime = null;
     let currentCss = "";
+    let pipelineToken = 0;
+    let pipelineBusy = false;
+    let pipelineState = "idle";
+    let pipelineStartedAt = null;
+    let verifyResult = null;
 
     function runtime(fields = {}) {
       return {
@@ -276,6 +331,11 @@
         clickedCount: clickedThisCycle,
         dryRunCount: dryRunThisCycle,
         targetCycle: monitorCycle,
+        pipelineEnabled: Boolean(config.target.pipeline?.enabled),
+        pipelineState,
+        pipelineBusy,
+        pipelineStartedAt,
+        verifyResult,
         lastTargetAction: null,
         lastTargetAt: null,
         lastTargetError: null,
@@ -297,6 +357,10 @@
         clickedCount: next.clickedCount,
         dryRunCount: next.dryRunCount,
         targetCycle: next.targetCycle,
+        pipelineEnabled: next.pipelineEnabled,
+        pipelineState: next.pipelineState,
+        pipelineBusy: next.pipelineBusy,
+        verifyResult: next.verifyResult,
         lastTargetAction: next.lastTargetAction,
         lastTargetError: next.lastTargetError
       });
@@ -317,7 +381,32 @@
       return [...document.querySelectorAll(currentCss)];
     }
 
+    function eligibleElements(elements) {
+      return elements.filter((element) => {
+        const visibleOk = !config.target.visibleOnly || MonitorEngine.inspectVisibility(element).visible;
+        const enabledOk = !config.target.enabledOnly || elementEnabled(element);
+        return visibleOk && enabledOk;
+      });
+    }
+
+    function resetPipelineState() {
+      pipelineBusy = false;
+      pipelineState = "idle";
+      pipelineStartedAt = null;
+      verifyResult = null;
+    }
+
+    function cancelPipeline(reason = "cancelled", shouldEmit = false) {
+      pipelineToken += 1;
+      const wasBusy = pipelineBusy;
+      resetPipelineState();
+      if (shouldEmit && wasBusy) {
+        emit({ lastTargetAction: `pipeline-${reason}` }, true);
+      }
+    }
+
     function resetCycleAccounting() {
+      cancelPipeline("cycle-reset");
       handledNodes = new WeakSet();
       handledCounts = new Map();
       addedOrder = new WeakMap();
@@ -345,11 +434,7 @@
       emit({
         baselineCount: elements.length,
         targetTotalCount: elements.length,
-        targetEligibleCount: elements.filter((element) => {
-          const visibleOk = !config.target.visibleOnly || MonitorEngine.inspectVisibility(element).visible;
-          const enabledOk = !config.target.enabledOnly || elementEnabled(element);
-          return visibleOk && enabledOk;
-        }).length,
+        targetEligibleCount: eligibleElements(elements).length,
         lastTargetAction: reason
       }, true);
     }
@@ -408,15 +493,165 @@
       return candidates;
     }
 
-    function markHandled(item, dryRun) {
+    function reserveHandled(item) {
       handledNodes.add(item.element);
       handledCounts.set(item.fingerprint, (handledCounts.get(item.fingerprint) || 0) + 1);
       actionsThisCycle += 1;
+    }
+
+    function recordAction(dryRun) {
       if (dryRun) {
         dryRunThisCycle += 1;
       } else {
         clickedThisCycle += 1;
       }
+    }
+
+    function selectCandidates(candidates) {
+      const remainingLimit = Math.max(0, config.target.maxClicksPerCycle - actionsThisCycle);
+      if (!remainingLimit || !candidates.length) {
+        return [];
+      }
+      let selected;
+      if (config.target.clickStrategy === "oldest") {
+        selected = candidates.slice(0, 1);
+      } else if (config.target.clickStrategy === "newest") {
+        selected = candidates.slice(-1);
+      } else {
+        selected = candidates.slice(0, remainingLimit);
+      }
+      return selected.slice(0, remainingLimit);
+    }
+
+    function performAction(selected) {
+      let lastError = null;
+      const actedElements = [];
+      for (const item of selected) {
+        const element = item.element;
+        if (!element?.isConnected) {
+          lastError = "Target đã rời DOM trước khi action chạy.";
+          continue;
+        }
+        const visibleOk = !config.target.visibleOnly || MonitorEngine.inspectVisibility(element).visible;
+        const enabledOk = !config.target.enabledOnly || elementEnabled(element);
+        if (!visibleOk || !enabledOk) {
+          lastError = "Target không còn visible/enabled khi action chạy.";
+          continue;
+        }
+        actedElements.push(element);
+        recordAction(config.target.dryRun);
+        if (!config.target.dryRun) {
+          try {
+            element.click();
+          } catch (error) {
+            lastError = error instanceof Error ? error.message : String(error);
+          }
+        }
+      }
+      if (actedElements.length) {
+        highlightAction(actedElements, config.target.dryRun);
+        targetState = TARGET_STATE.ACTED;
+      }
+      return { actedElements, lastError };
+    }
+
+    function pipelineCancelled(token) {
+      return token !== pipelineToken || stopped || !monitorMatched;
+    }
+
+    async function runPipeline(selected, reason) {
+      const pipeline = config.target.pipeline || Settings.defaultConfig().target.pipeline;
+      const token = ++pipelineToken;
+      pipelineBusy = true;
+      pipelineState = pipeline.preActionDelayMs > 0 ? "pre-delay" : "acting";
+      pipelineStartedAt = new Date().toISOString();
+      verifyResult = null;
+      selected.forEach(reserveHandled);
+      emit({ lastTargetAction: `pipeline-start:${selected.length}` }, true);
+
+      try {
+        await delay(pipeline.preActionDelayMs);
+        if (pipelineCancelled(token)) {
+          return;
+        }
+        pipelineState = "acting";
+        emit({ lastTargetAction: reason }, true);
+        const action = performAction(selected);
+        if (action.lastError) {
+          emit({ lastTargetError: action.lastError }, true);
+        }
+        if (!action.actedElements.length) {
+          pipelineState = "failed";
+          targetState = TARGET_STATE.ARMED;
+          emit({ lastTargetAction: "pipeline-no-action", lastTargetError: action.lastError || "Không còn target hợp lệ." }, true);
+          return;
+        }
+
+        pipelineState = pipeline.postActionDelayMs > 0 ? "post-delay" : "acted";
+        emit({
+          lastTargetAction: config.target.dryRun ? `dry-run:${action.actedElements.length}` : `click:${action.actedElements.length}`,
+          lastTargetAt: new Date().toISOString(),
+          lastTargetError: action.lastError
+        }, true);
+        await delay(pipeline.postActionDelayMs);
+        if (pipelineCancelled(token)) {
+          return;
+        }
+
+        if (config.target.dryRun || !pipeline.verifyEnabled) {
+          pipelineState = config.target.dryRun ? "dry-run-complete" : "completed";
+          verifyResult = config.target.dryRun && pipeline.verifyEnabled
+            ? { passed: null, skipped: true, reason: "dry-run" }
+            : null;
+          emit({ lastTargetAction: pipelineState }, true);
+          return;
+        }
+
+        pipelineState = "verifying";
+        emit({ lastTargetAction: "verify-start" }, true);
+        const result = await waitForVerification(pipeline, () => pipelineCancelled(token));
+        if (result.cancelled || pipelineCancelled(token)) {
+          return;
+        }
+        verifyResult = result;
+        pipelineState = result.passed ? "verified" : "verify-failed";
+        targetState = result.passed ? TARGET_STATE.ACTED : TARGET_STATE.ERROR;
+        emit({
+          lastTargetAction: result.passed ? `verify-pass:${result.expectation}` : `verify-fail:${result.expectation}`,
+          lastTargetError: result.passed
+            ? null
+            : `Verify ${result.expectation} không đạt sau ${result.elapsedMs} ms (${result.count} element, ${result.visibleCount} visible).`
+        }, true);
+      } catch (error) {
+        if (!pipelineCancelled(token)) {
+          pipelineState = "failed";
+          targetState = TARGET_STATE.ERROR;
+          emit({
+            lastTargetAction: "pipeline-error",
+            lastTargetError: error instanceof Error ? error.message : String(error)
+          }, true);
+        }
+      } finally {
+        if (token === pipelineToken) {
+          pipelineBusy = false;
+          schedule("pipeline-complete-rescan");
+        }
+      }
+    }
+
+    function runImmediate(selected, reason) {
+      selected.forEach(reserveHandled);
+      const action = performAction(selected);
+      if (!action.actedElements.length) {
+        targetState = TARGET_STATE.ARMED;
+      }
+      emit({
+        lastTargetAction: action.actedElements.length
+          ? (config.target.dryRun ? `dry-run:${action.actedElements.length}` : `click:${action.actedElements.length}`)
+          : reason,
+        lastTargetAt: action.actedElements.length ? new Date().toISOString() : lastRuntime?.lastTargetAt || null,
+        lastTargetError: action.lastError
+      }, Boolean(action.actedElements.length || action.lastError));
     }
 
     function scan(reason = "target-mutation") {
@@ -425,70 +660,39 @@
       }
       try {
         const elements = queryTargetElements();
-        const eligible = elements.filter((element) => {
-          const visibleOk = !config.target.visibleOnly || MonitorEngine.inspectVisibility(element).visible;
-          const enabledOk = !config.target.enabledOnly || elementEnabled(element);
-          return visibleOk && enabledOk;
-        });
-        let candidates = collectCandidates(elements).filter((item) => eligible.includes(item.element));
-
-        if (!monitorMatched) {
-          targetState = TARGET_STATE.WAITING;
-          emit({
-            baselineCount: [...baselineCounts.values()].reduce((sum, count) => sum + count, 0),
-            targetTotalCount: elements.length,
-            targetEligibleCount: eligible.length,
-            candidateCount: candidates.length,
-            lastTargetAction: reason
-          });
-          return;
-        }
-
-        const remainingLimit = Math.max(0, config.target.maxClicksPerCycle - actionsThisCycle);
-        let selected = [];
-        if (remainingLimit > 0 && candidates.length) {
-          if (config.target.clickStrategy === "oldest") {
-            selected = candidates.slice(0, 1);
-          } else if (config.target.clickStrategy === "newest") {
-            selected = candidates.slice(-1);
-          } else {
-            selected = candidates.slice(0, remainingLimit);
-          }
-          selected = selected.slice(0, remainingLimit);
-        }
-
-        let lastError = null;
-        const actedElements = [];
-        for (const item of selected) {
-          markHandled(item, config.target.dryRun);
-          actedElements.push(item.element);
-          if (!config.target.dryRun) {
-            try {
-              item.element.click();
-            } catch (error) {
-              lastError = error instanceof Error ? error.message : String(error);
-            }
-          }
-        }
-        if (actedElements.length) {
-          highlightAction(actedElements, config.target.dryRun);
-          targetState = TARGET_STATE.ACTED;
-        } else {
-          targetState = TARGET_STATE.ARMED;
-        }
-
-        candidates = collectCandidates(elements).filter((item) => eligible.includes(item.element));
-        emit({
+        const eligible = eligibleElements(elements);
+        const candidates = collectCandidates(elements).filter((item) => eligible.includes(item.element));
+        const counts = {
           baselineCount: [...baselineCounts.values()].reduce((sum, count) => sum + count, 0),
           targetTotalCount: elements.length,
           targetEligibleCount: eligible.length,
-          candidateCount: candidates.length,
-          lastTargetAction: actedElements.length
-            ? (config.target.dryRun ? `dry-run:${actedElements.length}` : `click:${actedElements.length}`)
-            : reason,
-          lastTargetAt: actedElements.length ? new Date().toISOString() : lastRuntime?.lastTargetAt || null,
-          lastTargetError: lastError
-        }, Boolean(actedElements.length || lastError));
+          candidateCount: candidates.length
+        };
+
+        if (!monitorMatched) {
+          targetState = TARGET_STATE.WAITING;
+          emit({ ...counts, lastTargetAction: reason });
+          return;
+        }
+        if (pipelineBusy) {
+          emit({ ...counts, lastTargetAction: `pipeline:${pipelineState}` });
+          return;
+        }
+
+        const selected = selectCandidates(candidates);
+        if (!selected.length) {
+          if (targetState !== TARGET_STATE.ERROR) {
+            targetState = TARGET_STATE.ARMED;
+          }
+          emit({ ...counts, lastTargetAction: reason });
+          return;
+        }
+
+        if (config.target.pipeline?.enabled) {
+          void runPipeline(selected, reason);
+        } else {
+          runImmediate(selected, reason);
+        }
       } catch (error) {
         targetState = TARGET_STATE.ERROR;
         emit({
@@ -520,6 +724,7 @@
     function start(nextConfig, reason = "activation-baseline") {
       config = Settings.normalizeConfig(nextConfig);
       disconnectObserver();
+      cancelPipeline("restart");
       stopped = false;
       monitorMatched = false;
       monitorCycle = 0;
@@ -553,6 +758,7 @@
         scan("monitor-matched");
       } else if (!matched && monitorMatched) {
         monitorMatched = false;
+        cancelPipeline("monitor-rearmed");
         establishBaseline("monitor-rearmed-baseline");
       } else if (matched) {
         scan("monitor-still-matched");
@@ -561,6 +767,7 @@
 
     function pause() {
       disconnectObserver();
+      cancelPipeline("pause");
       stopped = true;
       targetState = TARGET_STATE.PAUSED;
       clearActionHighlights();
@@ -569,6 +776,7 @@
 
     function stop() {
       disconnectObserver();
+      cancelPipeline("stop");
       stopped = true;
       monitorMatched = false;
       targetState = config.target.enabled ? TARGET_STATE.WAITING : TARGET_STATE.DISABLED;
@@ -599,7 +807,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 3,
+      VERSION: 4,
       targetObserverOptionsForConfig,
       elementFingerprint,
       elementEnabled,
@@ -607,6 +815,8 @@
       newSlotCount,
       clearActionHighlights,
       testTargetAction,
+      verificationSnapshot,
+      waitForVerification,
       createTargetAutomation
     })
   });

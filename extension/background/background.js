@@ -414,6 +414,11 @@
       clickedCount: 0,
       dryRunCount: 0,
       targetCycle: 0,
+      pipelineEnabled: false,
+      pipelineState: "idle",
+      pipelineBusy: false,
+      pipelineStartedAt: null,
+      verifyResult: null,
       lastTargetAction: null,
       lastTargetAt: null,
       lastTargetError: null,
@@ -675,7 +680,7 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
   }
 
   async function startElementPicker(tabId, kind) {
-    if (!["monitor", "target"].includes(kind)) {
+    if (!["monitor", "target", "verify"].includes(kind)) {
       throw new Error("Loại element picker không hợp lệ.");
     }
     await ensureInteractiveTab(tabId);
@@ -761,8 +766,8 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
         "user",
         result.cancelled ? "element-picker-cancelled" : "element-picker-selected",
         result.cancelled
-          ? `Đã hủy chọn ${kind === "monitor" ? "element theo dõi" : "target"}.`
-          : `Đã chọn ${kind === "monitor" ? "element theo dõi" : "target"}: ${result.css}`,
+          ? `Đã hủy chọn ${kind === "monitor" ? "element theo dõi" : (kind === "verify" ? "element verify" : "target")}.`
+          : `Đã chọn ${kind === "monitor" ? "element theo dõi" : (kind === "verify" ? "element verify" : "target")}: ${result.css}`,
         result
       );
       await persistSession(session);
@@ -913,6 +918,10 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
         session.runtime.lastTargetAction,
         { clicked: session.runtime.clickedCount, dryRun: session.runtime.dryRunCount }
       );
+    }
+    if (session.runtime.pipelineState && session.runtime.pipelineState !== previous.pipelineState) {
+      const channel = ["verified", "verify-failed", "failed"].includes(session.runtime.pipelineState) ? "user" : "debug";
+      appendLog(session, channel, "target-pipeline", session.runtime.pipelineState, session.runtime.verifyResult || null);
     }
     if (session.runtime.lastTargetError && session.runtime.lastTargetError !== previous.lastTargetError) {
       appendLog(session, "user", "target-error", session.runtime.lastTargetError);

@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 8) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 9) {
     return;
   }
 
-  const SCHEMA_VERSION = 8;
+  const SCHEMA_VERSION = 9;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
@@ -98,7 +98,17 @@
           "id",
           "href",
           "aria-label"
-        ]
+        ],
+        pipeline: {
+          enabled: false,
+          preActionDelayMs: 0,
+          postActionDelayMs: 0,
+          verifyEnabled: false,
+          verifySelector: defaultSelector(""),
+          verifyExpectation: "exists",
+          verifyTimeoutMs: 5000,
+          verifyPollIntervalMs: 150
+        }
       },
       alerts: {
         titleBlink: true,
@@ -155,6 +165,7 @@
     const fingerprintAttributes = Array.isArray(target.fingerprintAttributes)
       ? target.fingerprintAttributes
       : defaults.target.fingerprintAttributes;
+    const pipeline = target.pipeline && typeof target.pipeline === "object" ? target.pipeline : {};
     const conditions = Array.isArray(monitor.conditions)
       ? monitor.conditions.map(normalizeCondition)
       : defaults.monitor.conditions;
@@ -190,7 +201,19 @@
         maxClicksPerCycle: safeInteger(target.maxClicksPerCycle, 1, 1, 100),
         fingerprintAttributes: [...new Set(
           fingerprintAttributes.map((item) => safeString(item).trim()).filter(Boolean)
-        )]
+        )],
+        pipeline: {
+          enabled: safeBoolean(pipeline.enabled, false),
+          preActionDelayMs: safeInteger(pipeline.preActionDelayMs, 0, 0, 60000),
+          postActionDelayMs: safeInteger(pipeline.postActionDelayMs, 0, 0, 60000),
+          verifyEnabled: safeBoolean(pipeline.verifyEnabled, false),
+          verifySelector: normalizeSelector(pipeline.verifySelector, defaults.target.pipeline.verifySelector),
+          verifyExpectation: ["exists", "not_exists", "visible", "hidden"].includes(pipeline.verifyExpectation)
+            ? pipeline.verifyExpectation
+            : "exists",
+          verifyTimeoutMs: safeInteger(pipeline.verifyTimeoutMs, 5000, 100, 120000),
+          verifyPollIntervalMs: safeInteger(pipeline.verifyPollIntervalMs, 150, 50, 5000)
+        }
       },
       alerts: {
         titleBlink: safeBoolean(alerts.titleBlink, true),
@@ -424,8 +447,18 @@
 
     for (const [label, selector] of [
       ["monitor", config.monitor.selector],
-      ["target", config.target.selector]
+      ["target", config.target.selector],
+      ["verify", config.target.pipeline.verifySelector]
     ]) {
+      if (label === "verify") {
+        if (!config.target.pipeline.verifyEnabled) {
+          continue;
+        }
+        if (!selector.value) {
+          errors.push("Selector verify: chưa có giá trị.");
+          continue;
+        }
+      }
       try {
         const css = selectorToCss(selector);
         if (typeof document !== "undefined") {

@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatAssistantElementPickerV1";
-  const VERSION = 1;
+  const VERSION = 2;
   const previous = globalThis[INSTANCE_KEY];
   if (previous?.VERSION >= VERSION) {
     return;
@@ -307,7 +307,7 @@
   }
 
   function start(kind) {
-    if (!["monitor", "target"].includes(kind)) {
+    if (!["monitor", "target", "verify"].includes(kind)) {
       throw new Error("Loại element picker không hợp lệ.");
     }
     if (state.active) cancel("replaced", false);
@@ -315,7 +315,8 @@
     state.kind = kind;
     state.startedAt = new Date().toISOString();
     ensureUi();
-    state.label.textContent = `Đang chọn ${kind === "monitor" ? "element theo dõi" : "target"}: rê chuột và click, Esc để hủy`;
+    const kindLabel = kind === "monitor" ? "element theo dõi" : (kind === "verify" ? "element verify" : "target");
+    state.label.textContent = `Đang chọn ${kindLabel}: rê chuột và click, Esc để hủy`;
     Object.assign(state.label.style, { display: "block", left: "8px", top: "8px" });
     document.addEventListener("pointermove", onPointerMove, true);
     document.addEventListener("pointerdown", onPointerDown, true);

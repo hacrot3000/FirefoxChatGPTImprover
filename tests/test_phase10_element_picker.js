@@ -37,7 +37,7 @@ const context = vm.createContext({
 context.globalThis = context;
 vm.runInContext(fs.readFileSync(path.join(root, "extension/content/picker.js"), "utf8"), context, { filename: "picker.js" });
 const Picker = context.FCI_ELEMENT_PICKER;
-assert.equal(Picker.VERSION, 1);
+assert(Picker.VERSION >= 1);
 
 function element({ tag = "BUTTON", id = "", classes = [], attrs = {}, parent = null } = {}) {
   return {

@@ -258,13 +258,48 @@
       <label class="check-row"><input id="enabledOnly" type="checkbox">Chỉ element có thể click</label>
       <label class="check-row"><input id="dryRun" type="checkbox">Dry-run, chỉ đánh dấu chưa click</label>
       <label>Thuộc tính fingerprint, phân cách bằng dấu phẩy<input id="fingerprintAttributes" type="text"></label>
+      <div class="pipeline-panel">
+        <label class="check-row"><input id="pipelineEnabled" type="checkbox">Bật pipeline delay/click/verify</label>
+        <div class="selector-grid">
+          <label>Delay trước action (ms)<input id="preActionDelayMs" type="number" min="0" max="60000" step="50"></label>
+          <label>Delay sau action (ms)<input id="postActionDelayMs" type="number" min="0" max="60000" step="50"></label>
+        </div>
+        <label class="check-row"><input id="verifyEnabled" type="checkbox">Verify sau khi click thật</label>
+        <div class="selector-grid">
+          <label>Tag verify<select id="verifyTag">
+              <option>*</option><option>button</option><option>div</option><option>span</option><option>input</option><option>a</option>
+            </select></label>
+          <label>Kiểu verify<select id="verifyKind">
+              <option value="css">CSS selector</option><option value="id">ID</option><option value="class">Class</option><option value="attribute">Attribute</option>
+            </select></label>
+        </div>
+        <label>Tên attribute verify<input id="verifyAttributeName" type="text" placeholder="data-testid"></label>
+        <label>Giá trị selector verify<input id="verifyValue" type="text" placeholder="Selector trạng thái sau action"></label>
+        <div class="button-grid selector-picker-actions">
+          <button id="verifyPickerButton" type="button">Chọn verify trên trang</button>
+          <button id="verifyTestButton" type="button">Kiểm tra verify</button>
+        </div>
+        <output id="verifyTestResult" class="selector-test-result"></output>
+        <div class="selector-grid">
+          <label>Kỳ vọng verify<select id="verifyExpectation">
+              <option value="exists">Element tồn tại</option>
+              <option value="not_exists">Element biến mất</option>
+              <option value="visible">Có element đang hiện</option>
+              <option value="hidden">Element tồn tại nhưng đều ẩn</option>
+            </select></label>
+          <label>Timeout verify (ms)<input id="verifyTimeoutMs" type="number" min="100" max="120000" step="100"></label>
+        </div>
+        <label>Chu kỳ kiểm tra verify (ms)<input id="verifyPollIntervalMs" type="number" min="50" max="5000" step="50"></label>
+        <output id="pipelineRuntimeText" class="selector-test-result" aria-live="polite"></output>
+      </div>
       <details class="help-menu">
         <summary aria-label="Trợ giúp target element" title="Trợ giúp">?</summary>
         <div class="help-popover" role="tooltip">
           Có thể dùng “Chọn trên trang”, rê chuột và click target cần lấy selector; nhấn Esc để hủy. Khi kích hoạt hoặc
           khi monitor rời MATCHED, các target hiện có được lưu làm baseline và không bị click. Trong
           lúc MATCHED, chỉ target vượt baseline mới được xử lý. Dry-run vẫn đánh dấu target là đã xử lý trong chu kỳ để
-          tránh lặp vô hạn.
+          tránh lặp vô hạn. Pipeline cho phép chờ trước action, click/dry-run, chờ sau action rồi verify trạng thái DOM.
+          Pipeline pending được hủy ngay khi tab pause/stop, config đổi hoặc monitor re-arm sang chu kỳ mới.
         </div>
       </details>
     </section>

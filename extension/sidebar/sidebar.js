@@ -14,7 +14,7 @@
     profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     autoProfileByUrl: $("#autoProfileByUrl"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), urlRoutingResult: $("#urlRoutingResult"),
     monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
-    targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
+    targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), clearLogsButton: $("#clearLogsButton"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"),
@@ -210,6 +210,17 @@
     elements.enabledOnly.checked = value.target.enabledOnly;
     elements.dryRun.checked = value.target.dryRun;
     elements.fingerprintAttributes.value = value.target.fingerprintAttributes.join(", ");
+    elements.pipelineEnabled.checked = value.target.pipeline.enabled;
+    elements.preActionDelayMs.value = String(value.target.pipeline.preActionDelayMs);
+    elements.postActionDelayMs.value = String(value.target.pipeline.postActionDelayMs);
+    elements.verifyEnabled.checked = value.target.pipeline.verifyEnabled;
+    elements.verifyTag.value = value.target.pipeline.verifySelector.tag;
+    elements.verifyKind.value = value.target.pipeline.verifySelector.kind;
+    elements.verifyAttributeName.value = value.target.pipeline.verifySelector.attributeName;
+    elements.verifyValue.value = value.target.pipeline.verifySelector.value;
+    elements.verifyExpectation.value = value.target.pipeline.verifyExpectation;
+    elements.verifyTimeoutMs.value = String(value.target.pipeline.verifyTimeoutMs);
+    elements.verifyPollIntervalMs.value = String(value.target.pipeline.verifyPollIntervalMs);
     elements.titleBlink.checked = value.alerts.titleBlink;
     elements.titlePrefix.value = value.alerts.titlePrefix;
     elements.blinkIntervalMs.value = String(value.alerts.blinkIntervalMs);
@@ -248,7 +259,7 @@
 
   function renderPickerButtons(currentIsSelected) {
     const picker = selectedPicker();
-    for (const [kind, button] of [["monitor", elements.monitorPickerButton], ["target", elements.targetPickerButton]]) {
+    for (const [kind, button] of [["monitor", elements.monitorPickerButton], ["target", elements.targetPickerButton], ["verify", elements.verifyPickerButton]]) {
       const active = picker?.kind === kind && picker?.status === "active";
       button.dataset.pickerActive = active ? "true" : "false";
       button.textContent = active ? "Hủy chọn (Esc)" : "Chọn trên trang";
@@ -273,9 +284,12 @@
       return;
     }
     writeSelector(result.kind, result.selector);
-    const output = result.kind === "monitor" ? elements.monitorTestResult : elements.targetTestResult;
+    const output = result.kind === "monitor"
+      ? elements.monitorTestResult
+      : (result.kind === "verify" ? elements.verifyTestResult : elements.targetTestResult);
     output.textContent = `Đã chọn ${result.elementSummary || result.css}; selector khớp ${result.matchCount || 0} element.`;
-    showMessage(`Đã điền selector ${result.kind === "monitor" ? "element theo dõi" : "target"}: ${result.css}`, "success");
+    const kindLabel = result.kind === "monitor" ? "element theo dõi" : (result.kind === "verify" ? "element verify" : "target");
+    showMessage(`Đã điền selector ${kindLabel}: ${result.css}`, "success");
     renderDetails(false);
   }
 
@@ -318,7 +332,17 @@
         visibleOnly: elements.visibleOnly.checked,
         enabledOnly: elements.enabledOnly.checked,
         dryRun: elements.dryRun.checked,
-        fingerprintAttributes: elements.fingerprintAttributes.value.split(",")
+        fingerprintAttributes: elements.fingerprintAttributes.value.split(","),
+        pipeline: {
+          enabled: elements.pipelineEnabled.checked,
+          preActionDelayMs: Number(elements.preActionDelayMs.value),
+          postActionDelayMs: Number(elements.postActionDelayMs.value),
+          verifyEnabled: elements.verifyEnabled.checked,
+          verifySelector: readSelector("verify"),
+          verifyExpectation: elements.verifyExpectation.value,
+          verifyTimeoutMs: Number(elements.verifyTimeoutMs.value),
+          verifyPollIntervalMs: Number(elements.verifyPollIntervalMs.value)
+        }
       },
       alerts: {
         titleBlink: elements.titleBlink.checked,
@@ -487,6 +511,15 @@
     elements.candidateCountText.textContent = session ? `${runtime.candidateCount || 0} / tổng ${runtime.targetTotalCount || 0}` : "—";
     elements.targetActionCountText.textContent = session ? `${runtime.handledCount || 0} (click ${runtime.clickedCount || 0}, dry-run ${runtime.dryRunCount || 0})` : "—";
     elements.lastTargetActionText.textContent = runtime.lastTargetError || runtime.lastTargetAction || "—";
+    if (session) {
+      const verify = runtime.verifyResult;
+      const verifyText = verify?.skipped
+        ? `verify bỏ qua (${verify.reason || "unknown"})`
+        : (verify ? `${verify.passed ? "PASS" : "FAIL"} ${verify.expectation || ""}; ${verify.count || 0} element, ${verify.visibleCount || 0} visible` : "chưa verify");
+      elements.pipelineRuntimeText.textContent = `Pipeline: ${runtime.pipelineState || "idle"}${runtime.pipelineBusy ? " (đang chạy)" : ""}; ${verifyText}.`;
+    } else {
+      elements.pipelineRuntimeText.textContent = "";
+    }
     elements.monitorTransitionText.textContent = runtime.lastVisibilityTransition || runtime.lastTransition || runtime.lastReason || "—";
     elements.tabUrl.textContent = session?.url || (currentIsSelected ? dashboard.currentTab.url : "") || "—";
     elements.activateButton.disabled = busy || !currentIsSelected || Boolean(session);
@@ -502,6 +535,7 @@
     renderPickerButtons(currentIsSelected);
     elements.monitorTestButton.disabled = busy || !currentIsSelected;
     elements.targetTestButton.disabled = busy || !currentIsSelected;
+    elements.verifyTestButton.disabled = busy || !currentIsSelected;
     elements.targetDryRunTestButton.disabled = busy || !currentIsSelected;
     elements.targetClickTestButton.disabled = busy || !currentIsSelected;
     elements.clearHighlightsButton.disabled = busy || !currentIsSelected;
@@ -654,13 +688,19 @@
     const matchedCount = kind === "monitor"
       ? Number(result.conditionMatchedCount ?? result.selectedCount) || 0
       : Number(result.selectedCount) || 0;
+    const expectation = kind === "verify" ? elements.verifyExpectation.value : null;
+    const verifyPass = kind !== "verify" ? null : (
+      expectation === "not_exists"
+        ? totalCount === 0
+        : (expectation === "hidden" ? totalCount > 0 && matchedCount === totalCount : matchedCount > 0)
+    );
     summary.append(
-      selectorTestStat("Khớp selector", totalCount, "found", totalCount === 0),
+      selectorTestStat("Khớp selector", totalCount, "found", kind === "verify" && expectation === "not_exists" ? false : totalCount === 0),
       selectorTestStat(
-        kind === "monitor" ? "Thỏa điều kiện" : "Được chọn",
-        matchedCount,
+        kind === "monitor" ? "Thỏa điều kiện" : (kind === "verify" ? "Kỳ vọng verify" : "Được chọn"),
+        kind === "verify" ? (verifyPass ? "PASS" : "FAIL") : matchedCount,
         "matched",
-        matchedCount === 0
+        kind === "verify" ? !verifyPass : matchedCount === 0
       )
     );
 
@@ -691,11 +731,15 @@
       return;
     }
 
-    const output = kind === "monitor" ? elements.monitorTestResult : elements.targetTestResult;
+    const output = kind === "monitor"
+      ? elements.monitorTestResult
+      : (kind === "verify" ? elements.verifyTestResult : elements.targetTestResult);
     const selector = readSelector(kind);
     const visibility = kind === "monitor"
       ? "any"
-      : (elements.visibleOnly.checked ? "visible" : "any");
+      : (kind === "verify"
+        ? (elements.verifyExpectation.value === "visible" ? "visible" : (elements.verifyExpectation.value === "hidden" ? "hidden" : "any"))
+        : (elements.visibleOnly.checked ? "visible" : "any"));
 
     output.textContent = "Đang kiểm tra…";
     const permissionRequest = browser.permissions.request({ origins: [origin] });
@@ -719,11 +763,21 @@
       const matchedCount = kind === "monitor"
         ? Number(response.result.conditionMatchedCount ?? response.result.selectedCount) || 0
         : Number(response.result.selectedCount) || 0;
+      const expectation = elements.verifyExpectation.value;
+      const verifyPass = kind !== "verify" ? null : (
+        expectation === "not_exists"
+          ? Number(response.result.totalCount) === 0
+          : (expectation === "hidden"
+            ? Number(response.result.totalCount) > 0 && matchedCount === Number(response.result.totalCount)
+            : matchedCount > 0)
+      );
       showMessage(
         kind === "monitor"
           ? `Tìm thấy ${response.result.totalCount} element; ${matchedCount} element thỏa điều kiện.`
-          : `Đã kiểm tra selector target: ${response.result.selectedCount}/${response.result.totalCount} element được chọn.`,
-        matchedCount > 0 ? "success" : "error"
+          : (kind === "verify"
+            ? `Verify ${expectation}: tìm thấy ${response.result.totalCount}, phù hợp visibility ${matchedCount}; ${verifyPass ? "PASS" : "chưa đạt"}.`
+            : `Đã kiểm tra selector target: ${response.result.selectedCount}/${response.result.totalCount} element được chọn.`),
+        (kind === "verify" ? verifyPass : matchedCount > 0) ? "success" : "error"
       );
     }).catch((error) => {
       output.textContent = "Kiểm tra thất bại.";
@@ -940,6 +994,8 @@ ${run.command || ""}`)) {
   elements.monitorTestButton.addEventListener("click", () => testSelector("monitor"));
   elements.targetPickerButton.addEventListener("click", () => toggleElementPicker("target"));
   elements.targetTestButton.addEventListener("click", () => testSelector("target"));
+  elements.verifyPickerButton.addEventListener("click", () => toggleElementPicker("verify"));
+  elements.verifyTestButton.addEventListener("click", () => testSelector("verify"));
   elements.targetDryRunTestButton.addEventListener("click", () => testTargetAction(false));
   elements.targetClickTestButton.addEventListener("click", () => testTargetAction(true));
   elements.logChannel.addEventListener("change", renderActivityLog);
@@ -1014,6 +1070,7 @@ ${run.command || ""}`)) {
     if (message.reason === "active-tab-changed") {
       elements.monitorTestResult.textContent = "";
       elements.targetTestResult.textContent = "";
+      elements.verifyTestResult.textContent = "";
       void refreshForActiveTab(message.changedTabId);
     } else {
       void request(MESSAGE.GET_DASHBOARD);

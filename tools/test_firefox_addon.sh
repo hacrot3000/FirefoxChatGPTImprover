@@ -23,6 +23,7 @@ node tests/test_phase09_alert_lifecycle.js
 node tests/test_phase09_sidebar_groups.js
 node tests/test_phase10_element_picker.js
 node tests/test_phase11_url_profile_routing.js
+node tests/test_phase12_action_pipeline.js
 
 WEB_EXT_BIN="${ROOT}/.firefox-dev-tools/node_modules/.bin/web-ext"
 if [ -x "$WEB_EXT_BIN" ]; then
@@ -30,4 +31,4 @@ if [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-11 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker and URL profile-routing tests.\n'
+printf 'PASS: FirefoxChatImprover Phase 04-12 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker, URL profile-routing and action-pipeline tests.\n'

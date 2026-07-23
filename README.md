@@ -225,3 +225,12 @@ Khi kích hoạt tab chưa active, add-on có thể tự chọn profile khớp U
 
 Tài liệu: `document/PHASE_11_URL_PROFILE_ROUTING.md`.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE11_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE12_BEGIN -->
+## Phase 12 — Target action pipeline delay/click/verify
+
+Target automation có thể chạy pipeline `delay trước → click/dry-run → delay sau → verify DOM`. Pipeline và trạng thái verify độc lập theo `tabId`/monitor cycle; pending action bị hủy khi re-arm, pause, stop hoặc config đổi.
+
+Profile cũ giữ hành vi click tức thời vì pipeline mặc định tắt. Tài liệu: `document/PHASE_12_TARGET_ACTION_PIPELINE.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE12_END -->

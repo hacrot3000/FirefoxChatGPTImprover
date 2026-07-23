@@ -443,3 +443,26 @@ Tiêu chí hoàn tất:
 - Profile priority/specificity được chọn ổn định.
 - Không có match thì fallback profile mặc định.
 - Không tự inject vào tab chỉ vì URL khớp.
+
+
+### Phase 12 — Target action pipeline delay/click/verify
+
+**Mục tiêu:** Cho phép action target chạy có delay và xác minh trạng thái DOM sau click mà vẫn giữ cycle/multi-tab độc lập.
+
+Công việc:
+
+- Bump settings schema lên 9 và migration profile cũ với pipeline mặc định tắt.
+- Thêm delay trước/sau action.
+- Thêm selector verify và bốn expectation: exists/not-exists/visible/hidden.
+- Poll verify có timeout và interval giới hạn.
+- Hủy pipeline pending khi re-arm, pause, stop, config update hoặc runtime restart.
+- Hiển thị pipeline runtime/verify result trong sidebar và activity log.
+- Mở rộng Element Picker cho verify selector.
+- Gom test Phase 12 vào task test chung.
+
+Tiêu chí hoàn tất:
+
+- Không thay đổi hành vi profile cũ nếu pipeline chưa bật.
+- Không action trùng trong lúc đang delay/verify.
+- Pipeline không chạy sang monitor cycle hoặc tab khác.
+- Verify failure được báo rõ và cycle kế tiếp có thể re-arm bình thường.

@@ -212,3 +212,27 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 .routing-result[data-state="fallback"] { color: var(--paused); }
 .routing-result[data-state="none"] { color: var(--muted); }
 .routing-result code { color: inherit; font-size: 10px; }
+
+/* Phase 12: compact target action pipeline and verification controls. */
+.pipeline-panel {
+  display: grid;
+  gap: 7px;
+  margin-top: 9px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, Canvas 96%, LinkText 4%);
+}
+.pipeline-panel > label,
+.pipeline-panel .selector-grid,
+.pipeline-panel .button-grid { margin-bottom: 0; }
+.pipeline-panel:has(#pipelineEnabled:not(:checked)) > :not(:first-child) { opacity: .55; }
+.pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyTag,
+.pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyKind,
+.pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyAttributeName,
+.pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyValue,
+.pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyPickerButton,
+.pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyTestButton,
+.pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyExpectation,
+.pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyTimeoutMs,
+.pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyPollIntervalMs { opacity: .55; }

@@ -62,5 +62,5 @@ const background = fs.readFileSync(path.join(root, "extension/background/backgro
 assert(background.includes("Settings.routeProfile(store, tab.url)"));
 assert(background.includes("routingPreview"));
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
-assert.equal(manifest.version, "0.11.0");
+assert(Number(manifest.version.split(".")[1]) >= 11);
 console.log("PASS: Phase 11 URL profile routing priority, specificity, fallback and UI/background contract");
