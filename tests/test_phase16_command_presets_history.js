@@ -15,7 +15,7 @@ const context = { console, URL, Date, JSON, RegExp, crypto: require("node:crypto
 context.globalThis = context;
 vm.runInNewContext(settingsSource, context, { filename: "settings.js" });
 const Settings = context.FCI_SETTINGS;
-assert.equal(Settings.SCHEMA_VERSION, 12);
+assert(Settings.SCHEMA_VERSION >= 12, `Phase 16 requires settings schema >= 12, got ${Settings.SCHEMA_VERSION}`);
 const config = Settings.normalizeConfig({ shell: {
   workingDirectory: "/tmp",
   command: "echo custom",

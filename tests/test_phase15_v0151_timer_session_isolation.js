@@ -49,8 +49,10 @@ const activation = fs.readFileSync(path.join(root, "extension/content/activation
 for (const marker of ["sessionToken: Settings.makeId(\"session\")", "incomingSessionToken !== session.sessionToken", "activation-rolled-back"]) {
   assert(background.includes(marker), `background missing isolation marker: ${marker}`);
 }
-for (const marker of ["sessionToken: state.sessionToken", "tabId: state.tabId", "const RUNTIME_VERSION = 13"]) {
+for (const marker of ["sessionToken: state.sessionToken", "tabId: state.tabId"]) {
   assert(activation.includes(marker), `activation missing isolation marker: ${marker}`);
 }
+const runtimeVersion = Number(/const RUNTIME_VERSION = (\d+);/.exec(activation)?.[1] || 0);
+assert(runtimeVersion >= 13, `activation runtime version must remain >= 13, got ${runtimeVersion}`);
 assert(!background.includes("monitorState: MONITOR_STATE.IDLE };"), "resume must preserve content monitor state");
 console.log("PASS: Phase 15 v0.15.1 bound timers, activation rollback and tab/session runtime isolation");

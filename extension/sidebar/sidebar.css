@@ -60,7 +60,6 @@ button.compact { min-height: 27px; padding: 4px 7px; font-size: 11px; }
   top: 8px;
   right: 8px;
 }
-.help-menu.help-menu-tab { right: 78px; }
 .help-menu summary {
   display: grid;
   width: 22px;
@@ -178,7 +177,7 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 
 /* Phase 09: independently collapsible sidebar groups without extra vertical help text. */
 .group-heading { align-items: center; }
-.group-title-cluster { display: flex; min-width: 0; align-items: center; gap: 6px; }
+.group-title-cluster { display: flex; flex: 1 1 auto; min-width: 0; align-items: center; gap: 6px; }
 .group-title-cluster h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .group-toggle {
   display: grid;
@@ -237,7 +236,24 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 .pipeline-panel:has(#verifyEnabled:not(:checked)) #verifyPollIntervalMs { opacity: .55; }
 
 /* Phase 14 v0.14.1: compact actions remain available in collapsed group headings. */
-.group-heading-actions { display: flex; flex: none; align-items: center; gap: 4px; }
+.group-heading-actions {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.group-heading-actions > .heading-help-menu {
+  position: relative;
+  inset: auto;
+  flex: 0 0 auto;
+  order: 999;
+}
+.group-heading-actions > .heading-help-menu .help-popover {
+  top: calc(100% + 4px);
+  right: 0;
+}
 .icon-button {
   display: inline-grid;
   width: 24px;
@@ -326,3 +342,19 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 #shellPresetSelect,
 #shellHistorySelect { min-width: 0; }
 #shellPresetSelect option:disabled { color: var(--muted); }
+
+/* Phase 17: per-rule command preset actions. */
+.rule-command-panel {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, Canvas 96%, LinkText 4%);
+}
+.rule-command-panel > label,
+.rule-command-panel .selector-grid { margin-bottom: 0; }
+.rule-command-panel:has(#ruleCommandEnabled:not(:checked)) > :not(:first-child) { opacity: .55; }
+#ruleCommandStatus[data-state="error"] { color: var(--error); }
+#ruleCommandStatus[data-state="ok"] { color: var(--active); }

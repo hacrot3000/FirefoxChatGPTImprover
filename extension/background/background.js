@@ -178,6 +178,26 @@
       );
       const store = await loadStore();
       syncShellHistory(session, run, sessionConfig(session, store));
+      if (run.source === "automation") {
+        const failed = event === "error" || (event === "exited" && Number(run.returnCode || 0) !== 0);
+        session.runtime = {
+          ...session.runtime,
+          automationCommandState: event === "started" ? "running" : (failed ? "failed" : (event === "exited" ? "completed" : event)),
+          lastAutomationCommandError: failed ? (run.error || `Command exited with code ${run.returnCode}.`) : null,
+          lastAutomationCommandRun: {
+            runId: run.runId,
+            ruleId: run.ruleId || null,
+            ruleName: run.ruleName || null,
+            trigger: run.trigger || null,
+            cycle: run.cycle ?? null,
+            presetId: run.presetId || null,
+            presetName: run.presetName || null,
+            status: run.status,
+            returnCode: run.returnCode,
+            endedAt: run.endedAt || null
+          }
+        };
+      }
       await persistSession(session);
     }
     await broadcast("native-shell-event", tabId);
@@ -264,7 +284,12 @@
       status: String(entry.status || "requested"),
       returnCode: Number.isInteger(entry.returnCode) ? entry.returnCode : null,
       error: entry.error ? String(entry.error) : null,
-      confirmBeforeRun: entry.confirmBeforeRun !== false
+      confirmBeforeRun: entry.confirmBeforeRun !== false,
+      source: entry.source === "automation" ? "automation" : "sidebar",
+      ruleId: entry.ruleId ? String(entry.ruleId) : null,
+      ruleName: entry.ruleName ? String(entry.ruleName) : null,
+      trigger: entry.trigger ? String(entry.trigger) : null,
+      cycle: Number.isInteger(Number(entry.cycle)) ? Number(entry.cycle) : null
     }));
   }
 
@@ -313,20 +338,17 @@
     return nativeDashboardState();
   }
 
-  async function runShell(message, sender) {
-    assertSidebarSender(sender);
-    const tabId = Number(message.tabId);
-    const session = sessions.get(tabId);
-    if (!session) {
-      throw new Error("This tab is not activated, so there is no session for the command.");
+  async function startShellRunForSession(session, config, shell, metadata = {}) {
+    const tabId = Number(session?.tabId);
+    if (!Number.isInteger(tabId)) {
+      throw new Error("The command tab ID is invalid.");
     }
-    const store = await loadStore();
-    const config = sessionConfig(session, store);
-    const { cwd, command, mode, preset } = validateShellPayload(message, config);
+    const { cwd, command, mode, preset } = shell;
     const current = shellRunForTab(tabId);
     if (["starting", "running", "terminal", "stopping"].includes(current.status)) {
       throw new Error("This tab already has a command that has not finished.");
     }
+    const source = metadata.source === "automation" ? "automation" : "sidebar";
     const runId = `tab-${tabId}-${crypto.randomUUID()}`;
     const historyId = config.shell.rememberHistory ? Settings.makeId("shell-history") : null;
     const run = {
@@ -339,11 +361,16 @@
       command,
       presetId: preset?.id || null,
       presetName: preset?.name || null,
+      source,
+      ruleId: metadata.ruleId || null,
+      ruleName: metadata.ruleName || null,
+      trigger: metadata.trigger || null,
+      cycle: Number.isInteger(Number(metadata.cycle)) ? Number(metadata.cycle) : null,
       startedAt: Settings.nowIso()
     };
     shellRuns.set(tabId, run);
     runToTab.set(runId, tabId);
-    appendShellOutput(run, "system", `[request] cwd=${cwd}\n[command] ${command}\n`);
+    appendShellOutput(run, "system", `[request:${source}] cwd=${cwd}\n[command] ${command}\n`);
     if (config.shell.rememberHistory) {
       session.shellHistory = normalizeShellHistory(session.shellHistory, config.shell.historyLimit);
       session.shellHistory.unshift({
@@ -360,16 +387,111 @@
         status: "starting",
         returnCode: null,
         error: null,
-        confirmBeforeRun: preset?.confirmBeforeRun ?? config.shell.confirmBeforeRun
+        confirmBeforeRun: preset?.confirmBeforeRun ?? config.shell.confirmBeforeRun,
+        source,
+        ruleId: metadata.ruleId || null,
+        ruleName: metadata.ruleName || null,
+        trigger: metadata.trigger || null,
+        cycle: Number.isInteger(Number(metadata.cycle)) ? Number(metadata.cycle) : null
       });
       session.shellHistory = normalizeShellHistory(session.shellHistory, config.shell.historyLimit);
     }
-    appendLog(session, "user", "shell-run-request", `Command requested in ${mode} mode${preset ? ` using preset “${preset.name}”` : ""}.`, { runId, cwd, command, presetId: preset?.id || null });
+    const sourceText = source === "automation"
+      ? `Automation rule “${metadata.ruleName || metadata.ruleId || "unknown"}” requested preset “${preset?.name || "unknown"}” after ${metadata.trigger || "rule event"}.`
+      : `Command requested in ${mode} mode${preset ? ` using preset “${preset.name}”` : ""}.`;
+    appendLog(session, "user", source === "automation" ? "automation-command-request" : "shell-run-request", sourceText, {
+      runId, cwd, command, presetId: preset?.id || null, ruleId: metadata.ruleId || null,
+      trigger: metadata.trigger || null, cycle: metadata.cycle ?? null
+    });
     await persistSession(session);
     const port = ensureNativePort();
     port.postMessage({ action: "run", runId, tabId, cwd, command, mode });
     await broadcast("native-shell-starting", tabId);
     return publicShellRun(tabId);
+  }
+
+  async function runShell(message, sender) {
+    assertSidebarSender(sender);
+    const tabId = Number(message.tabId);
+    const session = sessions.get(tabId);
+    if (!session) {
+      throw new Error("This tab is not activated, so there is no session for the command.");
+    }
+    const store = await loadStore();
+    const config = sessionConfig(session, store);
+    const shell = validateShellPayload(message, config);
+    return startShellRunForSession(session, config, shell, { source: "sidebar" });
+  }
+
+  async function processAutomationCommandRequest(session, rawRequest, store) {
+    const request = rawRequest && typeof rawRequest === "object" ? rawRequest : null;
+    if (!request) return null;
+    const requestId = String(request.requestId || "").trim();
+    if (!requestId) return null;
+    session.automationCommandRequestIds = Array.isArray(session.automationCommandRequestIds)
+      ? session.automationCommandRequestIds.map(String).slice(-199)
+      : [];
+    if (session.automationCommandRequestIds.includes(requestId)) {
+      return null;
+    }
+    session.automationCommandRequestIds.push(requestId);
+
+    const config = sessionConfig(session, store);
+    const ruleId = String(request.ruleId || "");
+    const rule = config.rules.find((item) => item.id === ruleId);
+    const fail = async (message, state = "rejected") => {
+      session.runtime = {
+        ...session.runtime,
+        automationCommandState: state,
+        lastAutomationCommandError: message,
+        lastAutomationCommandRequest: { ...clone(request), requestId }
+      };
+      appendLog(session, "user", "automation-command-rejected", message, { requestId, ruleId, presetId: request.presetId || null });
+      await persistSession(session);
+      await broadcast("automation-command-rejected", session.tabId);
+      return null;
+    };
+    if (!rule || !rule.enabled || !rule.commandAction?.enabled) {
+      return fail("The automation command request no longer matches an enabled rule.");
+    }
+    const action = rule.commandAction;
+    if (action.presetId !== String(request.presetId || "") || action.trigger !== String(request.trigger || "")) {
+      return fail("The automation command request does not match the saved rule action.");
+    }
+    const ruleCycle = Number(session.runtime?.ruleRuntimes?.[ruleId]?.cycle || 0);
+    if (Number(request.cycle || 0) !== ruleCycle || ruleCycle <= 0) {
+      return fail("The automation command request belongs to a stale monitor cycle.", "stale");
+    }
+    const preset = config.shell.presets.find((item) => item.id === action.presetId && item.enabled);
+    if (!preset) {
+      return fail("The command preset selected by the rule is missing or disabled.");
+    }
+    if (preset.confirmBeforeRun) {
+      return fail("Automatic command presets must have confirmation disabled.");
+    }
+    if (["starting", "running", "terminal", "stopping"].includes(shellRunForTab(session.tabId).status)) {
+      return fail("The rule command was skipped because this tab already has a running command.", "busy");
+    }
+
+    session.runtime = {
+      ...session.runtime,
+      automationCommandState: "starting",
+      lastAutomationCommandError: null,
+      lastAutomationCommandRequest: { ...clone(request), requestId }
+    };
+    return startShellRunForSession(session, config, {
+      tabId: session.tabId,
+      cwd: preset.workingDirectory,
+      command: preset.command,
+      mode: preset.mode,
+      preset
+    }, {
+      source: "automation",
+      ruleId,
+      ruleName: rule.name,
+      trigger: action.trigger,
+      cycle: ruleCycle
+    });
   }
 
   async function stopShell(message, sender) {
@@ -511,6 +633,9 @@
       pipelineBusy: false,
       pipelineStartedAt: null,
       verifyResult: null,
+      automationCommandState: "idle",
+      lastAutomationCommandRequest: null,
+      lastAutomationCommandError: null,
       lastTargetAction: null,
       lastTargetAt: null,
       lastTargetError: null,
@@ -568,7 +693,8 @@
       configRevision: 1,
       runtime: newRuntime(),
       logs: { user: [], debug: [] },
-      shellHistory: []
+      shellHistory: [],
+      automationCommandRequestIds: []
     };
   }
 
@@ -1120,7 +1246,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     }
     const store = await loadStore();
     const previous = { ...session.runtime };
-    const incoming = message.payload?.runtime || {};
+    const incoming = { ...(message.payload?.runtime || {}) };
+    const automationCommandRequest = incoming.commandRequest || null;
+    delete incoming.commandRequest;
     session.runtime = { ...session.runtime, ...incoming };
     session.updatedAt = session.runtime.lastEventAt || Settings.nowIso();
 
@@ -1181,6 +1309,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       await showMatchedNotification(session, store);
     } else if (alertDismissed) {
       await clearNotification(tabId);
+    }
+    if (automationCommandRequest) {
+      await processAutomationCommandRequest(session, automationCommandRequest, store);
     }
     await persistSession(session);
     scheduleRuntimeBroadcast(tabId);

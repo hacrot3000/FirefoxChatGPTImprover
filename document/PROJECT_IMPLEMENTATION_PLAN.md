@@ -509,3 +509,12 @@ Tiêu chí hoàn tất:
 - Baseline hoặc pipeline của rule này không bị reset bởi rule khác.
 - Profile cũ không mất monitor selector, condition hoặc target config.
 - Sidebar chỉ lưu thay đổi rule sau thao tác lưu rõ ràng.
+
+
+## Phase 17 — Rule-triggered command presets
+
+- Add an optional command action to each automation rule.
+- Support monitor-match, target-action, and verification-pass triggers.
+- Enforce exactly one request per rule cycle and trigger.
+- Resolve command details only in the background from an enabled saved preset.
+- Preserve per-tab command isolation, history, recovery, and Native Host safety checks.

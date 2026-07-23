@@ -302,3 +302,13 @@ Historical feature tests now validate the minimum version that introduced their 
 ## Phase 16 — Command presets and per-tab command history
 
 Shell commands can now be saved as profile/tab presets. Optional allowlist mode is enforced in the background before Native Messaging is used. Each activated tab keeps its own bounded command history, which can be loaded or cleared from the sidebar.
+
+
+## Phase 17 — Rule-triggered command presets
+
+An automation rule can optionally run an enabled command preset when its monitor matches, after a target click, or after verification passes. The page never supplies shell text: the background resolves and validates the saved preset, rule, session token, and cycle before contacting the Native Host.
+
+
+## Phase 17 v0.17.1 — Collision-free compact header actions
+
+Tabs/session quick controls and the target test-click control now share a flex header action group with Help fixed as the rightmost item, preventing overlap.

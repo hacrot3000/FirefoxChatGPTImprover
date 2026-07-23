@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 12) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 13) {
     return;
   }
 
-  const SCHEMA_VERSION = 12;
+  const SCHEMA_VERSION = 13;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
@@ -110,13 +110,23 @@
     };
   }
 
+  function defaultCommandAction() {
+    return {
+      enabled: false,
+      presetId: "",
+      trigger: "on_match",
+      allowDryRun: false
+    };
+  }
+
   function defaultRule(name = "Rule 1", id = "rule-default") {
     return {
       id,
       name,
       enabled: true,
       monitor: defaultMonitorConfig(),
-      target: defaultTargetConfig()
+      target: defaultTargetConfig(),
+      commandAction: defaultCommandAction()
     };
   }
 
@@ -260,6 +270,18 @@
     return name;
   }
 
+  function normalizeCommandAction(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    return {
+      enabled: safeBoolean(source.enabled, false),
+      presetId: safeString(source.presetId).trim(),
+      trigger: ["on_match", "after_target", "after_verify"].includes(source.trigger)
+        ? source.trigger
+        : "on_match",
+      allowDryRun: safeBoolean(source.allowDryRun, false)
+    };
+  }
+
   function normalizeRule(raw, index = 0) {
     const source = raw && typeof raw === "object" ? raw : {};
     const fallbackId = index === 0 ? "rule-default" : `rule-${index + 1}`;
@@ -269,7 +291,8 @@
       name: migrateGeneratedRuleName(source.name, `Rule ${index + 1}`),
       enabled: safeBoolean(source.enabled, true),
       monitor: normalizeMonitorConfig(source.monitor),
-      target: normalizeTargetConfig(source.target)
+      target: normalizeTargetConfig(source.target),
+      commandAction: normalizeCommandAction(source.commandAction)
     };
   }
 
@@ -651,6 +674,21 @@
         }
       }
 
+      if (rule.commandAction.enabled) {
+        if (!rule.commandAction.presetId) {
+          errors.push(`${labelPrefix}, command action: select an enabled command preset.`);
+        } else {
+          const preset = config.shell.presets.find((item) => item.id === rule.commandAction.presetId);
+          if (!preset) {
+            errors.push(`${labelPrefix}, command action: the selected preset does not exist.`);
+          } else if (!preset.enabled) {
+            errors.push(`${labelPrefix}, command action: the selected preset is disabled.`);
+          } else if (preset.confirmBeforeRun) {
+            errors.push(`${labelPrefix}, command action: automatic presets must not require confirmation.`);
+          }
+        }
+      }
+
       for (const condition of rule.monitor.conditions) {
         if (!condition.enabled) {
           continue;
@@ -693,6 +731,7 @@
       makeId,
       defaultConfig,
       defaultRule,
+      defaultCommandAction,
       defaultShellPreset,
       defaultStore,
       normalizeConfig,

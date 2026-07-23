@@ -20,10 +20,16 @@
     <section class="card" data-group-id="tabs" aria-labelledby="tabsHeading">
       <div class="section-title-row">
         <h2 id="tabsHeading">Tabs and sessions</h2>
-        <div class="group-heading-actions">
+        <div class="group-heading-actions" role="group" aria-label="Tabs and sessions actions">
           <button id="tabPrimaryQuickButton" type="button" class="compact icon-button collapsed-only" aria-label="Activate, resume, or pause this tab" title="Activate, resume, or pause this tab">▶</button>
           <button id="tabStopQuickButton" type="button" class="compact icon-button danger collapsed-only" aria-label="Stop this tab" title="Stop this tab">■</button>
           <button id="refreshButton" type="button" class="compact icon-button" aria-label="Refresh status" title="Refresh status">↻</button>
+          <details class="help-menu heading-help-menu">
+            <summary aria-label="Tabs and sessions help" title="Help">?</summary>
+            <div class="help-popover" role="tooltip">
+              Each tab keeps its own session, profile, configuration, and runtime state by tab ID. The sidebar follows the active tab automatically. Firefox asks for site access the first time a site is activated.
+            </div>
+          </details>
         </div>
       </div>
       <label>
@@ -110,12 +116,6 @@
         <button id="resumeButton" type="button">Resume</button>
         <button id="stopButton" type="button" class="danger">Stop</button>
       </div>
-      <details class="help-menu help-menu-tab">
-        <summary aria-label="Tabs and sessions help" title="Help">?</summary>
-        <div class="help-popover" role="tooltip">
-          Each tab keeps its own session, profile, configuration, and runtime state by tab ID. The sidebar follows the active tab automatically. Firefox asks for site access the first time a site is activated.
-        </div>
-      </details>
     </section>
 
     <section class="card" data-group-id="profiles" aria-labelledby="profileHeading">
@@ -192,9 +192,22 @@
         </summary>
         <output id="ruleRuntimeSummary" class="selector-test-result" aria-live="polite"></output>
       </details>
+      <div class="rule-command-panel">
+        <label class="check-row"><input id="ruleCommandEnabled" type="checkbox">Run a command preset for this rule</label>
+        <div class="selector-grid compact-fields">
+          <label>Command preset<select id="ruleCommandPreset"><option value="">Select an enabled preset</option></select></label>
+          <label>Trigger<select id="ruleCommandTrigger">
+              <option value="on_match">When the monitor becomes MATCHED</option>
+              <option value="after_target">After a target click</option>
+              <option value="after_verify">After verification passes</option>
+            </select></label>
+        </div>
+        <label class="check-row"><input id="ruleCommandAllowDryRun" type="checkbox">Allow the after-target trigger for dry-run actions</label>
+        <output id="ruleCommandStatus" class="selector-test-result" aria-live="polite"></output>
+      </div>
       <details class="help-menu">
         <summary aria-label="Automation rules help" title="Help">?</summary>
-        <div class="help-popover">Each rule has its own monitor, target, baseline, cycle, and pipeline. Multiple rules can run at the same time in one tab. The Monitor element and New target element sections below edit the selected rule.</div>
+        <div class="help-popover">Each rule has its own monitor, target, baseline, cycle, pipeline, and optional command action. Automatic commands resolve an enabled preset in the background and never accept command text from the web page. A preset used automatically must have confirmation disabled.</div>
       </details>
     </section>
 
@@ -264,8 +277,14 @@
     <section class="card" data-group-id="target" aria-labelledby="targetHeading">
       <div class="section-title-row">
         <h2 id="targetHeading">New target element</h2>
-        <div class="group-heading-actions">
+        <div class="group-heading-actions" role="group" aria-label="New target element actions">
           <button id="targetClickQuickButton" type="button" class="compact icon-button collapsed-only" aria-label="Simulate a user click on the current target" title="Simulate a user click on the current target">☝</button>
+          <details class="help-menu heading-help-menu">
+            <summary aria-label="New target element help" title="Help">?</summary>
+            <div class="help-popover" role="tooltip">
+              Use “Pick on page” to select a target. On activation, or when the monitor leaves MATCHED, existing targets become the baseline and are not clicked. While MATCHED, only targets newer than the baseline are handled. Dry run still marks targets as handled for the cycle. Pending pipelines are cancelled when the tab is paused or stopped, the configuration changes, or the monitor re-arms.
+            </div>
+          </details>
         </div>
       </div>
       <label class="check-row"><input id="targetEnabled" type="checkbox">Process new targets while the monitor is MATCHED</label>
@@ -342,12 +361,6 @@
         <label>Verification polling interval (ms)<input id="verifyPollIntervalMs" type="number" min="50" max="5000" step="50"></label>
         <output id="pipelineRuntimeText" class="selector-test-result" aria-live="polite"></output>
       </div>
-      <details class="help-menu">
-        <summary aria-label="New target element help" title="Help">?</summary>
-        <div class="help-popover" role="tooltip">
-          Use “Pick on page” to select a target. On activation, or when the monitor leaves MATCHED, existing targets become the baseline and are not clicked. While MATCHED, only targets newer than the baseline are handled. Dry run still marks targets as handled for the cycle. Pending pipelines are cancelled when the tab is paused or stopped, the configuration changes, or the monitor re-arms.
-        </div>
-      </details>
     </section>
 
     <section class="card" data-group-id="alerts" aria-labelledby="alertsHeading">

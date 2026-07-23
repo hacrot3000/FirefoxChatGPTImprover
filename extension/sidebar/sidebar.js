@@ -12,7 +12,7 @@
     monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), ruleCountText: $("#ruleCountText"), matchedRuleCountText: $("#matchedRuleCountText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"),
     profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
-    ruleSelect: $("#ruleSelect"), ruleName: $("#ruleName"), ruleEnabled: $("#ruleEnabled"), newRuleButton: $("#newRuleButton"), duplicateRuleButton: $("#duplicateRuleButton"), deleteRuleButton: $("#deleteRuleButton"), ruleRuntimeSummary: $("#ruleRuntimeSummary"), ruleRuntimeBadge: $("#ruleRuntimeBadge"),
+    ruleSelect: $("#ruleSelect"), ruleName: $("#ruleName"), ruleEnabled: $("#ruleEnabled"), newRuleButton: $("#newRuleButton"), duplicateRuleButton: $("#duplicateRuleButton"), deleteRuleButton: $("#deleteRuleButton"), ruleRuntimeSummary: $("#ruleRuntimeSummary"), ruleRuntimeBadge: $("#ruleRuntimeBadge"), ruleCommandEnabled: $("#ruleCommandEnabled"), ruleCommandPreset: $("#ruleCommandPreset"), ruleCommandTrigger: $("#ruleCommandTrigger"), ruleCommandAllowDryRun: $("#ruleCommandAllowDryRun"), ruleCommandStatus: $("#ruleCommandStatus"),
     autoProfileByUrl: $("#autoProfileByUrl"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), urlRoutingResult: $("#urlRoutingResult"),
     monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
     targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
@@ -281,6 +281,30 @@
     elements.deleteRuleButton.disabled = config.rules.length <= 1;
   }
 
+  function renderRuleCommandPresetOptions(rule = null) {
+    const currentValue = rule?.commandAction?.presetId || elements.ruleCommandPreset.value || "";
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = shellPresetsDraft.length ? "Select an enabled preset" : "No command presets configured";
+    const options = shellPresetsDraft.map((preset) => {
+      const option = document.createElement("option");
+      option.value = preset.id;
+      option.textContent = `${preset.enabled ? "●" : "○"} ${preset.name}${preset.confirmBeforeRun ? " · confirmation required" : ""}`;
+      option.disabled = !preset.enabled || preset.confirmBeforeRun;
+      return option;
+    });
+    elements.ruleCommandPreset.replaceChildren(empty, ...options);
+    elements.ruleCommandPreset.value = options.some((option) => option.value === currentValue) ? currentValue : "";
+    const selected = shellPresetsDraft.find((preset) => preset.id === currentValue) || null;
+    const invalid = Boolean(rule?.commandAction?.enabled) && (!selected || !selected.enabled || selected.confirmBeforeRun);
+    elements.ruleCommandStatus.dataset.state = invalid ? "error" : (rule?.commandAction?.enabled ? "ok" : "idle");
+    elements.ruleCommandStatus.textContent = invalid
+      ? "Select an enabled preset with confirmation disabled."
+      : (rule?.commandAction?.enabled
+        ? `Automatic command: ${selected?.name || "preset not selected"}.`
+        : "Automatic command is disabled for this rule.");
+  }
+
   function readRuleParts() {
     return {
       monitor: {
@@ -310,6 +334,12 @@
           verifyTimeoutMs: Number(elements.verifyTimeoutMs.value),
           verifyPollIntervalMs: Number(elements.verifyPollIntervalMs.value)
         }
+      },
+      commandAction: {
+        enabled: elements.ruleCommandEnabled.checked,
+        presetId: elements.ruleCommandPreset.value,
+        trigger: elements.ruleCommandTrigger.value,
+        allowDryRun: elements.ruleCommandAllowDryRun.checked
       }
     };
   }
@@ -350,6 +380,10 @@
     elements.verifyExpectation.value = value.target.pipeline.verifyExpectation;
     elements.verifyTimeoutMs.value = String(value.target.pipeline.verifyTimeoutMs);
     elements.verifyPollIntervalMs.value = String(value.target.pipeline.verifyPollIntervalMs);
+    elements.ruleCommandEnabled.checked = value.commandAction?.enabled === true;
+    elements.ruleCommandTrigger.value = value.commandAction?.trigger || "on_match";
+    elements.ruleCommandAllowDryRun.checked = value.commandAction?.allowDryRun === true;
+    renderRuleCommandPresetOptions(value);
   }
 
   function commitCurrentRuleDraft() {
@@ -364,7 +398,8 @@
       name: elements.ruleName.value.trim() || current.name || "Rule",
       enabled: elements.ruleEnabled.checked,
       monitor: parts.monitor,
-      target: parts.target
+      target: parts.target,
+      commandAction: parts.commandAction
     };
     const rules = config.rules.map((rule) => rule.id === updated.id ? updated : rule);
     formConfigDraft = Settings.normalizeConfig({
@@ -386,6 +421,8 @@
     elements.routingPriority.value = String(value.activation.routingPriority);
     elements.requireUrlMatch.checked = value.activation.requireUrlMatch;
     elements.urlPatterns.value = value.activation.urlPatterns.join("\n");
+    shellPresetsDraft = Settings.clone(value.shell.presets || []);
+    selectedShellPresetId = value.shell.selectedPresetId || "";
     renderRuleOptions();
     writeRuleFields(ruleById(value, selectedRuleId));
     elements.titleBlink.checked = value.alerts.titleBlink;
@@ -396,8 +433,6 @@
     elements.notificationAlert.checked = value.alerts.notification;
     elements.dismissOnUserActivity.checked = value.alerts.dismissOnUserActivity;
     elements.activeTabTimeoutSeconds.value = String(value.alerts.activeTabTimeoutSeconds);
-    shellPresetsDraft = Settings.clone(value.shell.presets || []);
-    selectedShellPresetId = value.shell.selectedPresetId || "";
     elements.requireShellPresetMatch.checked = value.shell.requirePresetMatch;
     elements.rememberShellHistory.checked = value.shell.rememberHistory;
     elements.shellHistoryLimit.value = String(value.shell.historyLimit);
@@ -672,6 +707,13 @@
       displayState,
       `${rule.name}: ${state}; cycle ${runtime.cycle || 0}; monitor ${runtime.monitorMatchedCount || 0}/${runtime.monitorCount || 0}; ${runtime.candidateCount || 0} new target(s); ${runtime.lastTargetAction || runtime.lastReason || "monitoring"}.`
     );
+    const commandState = session?.runtime?.lastAutomationCommandRequest?.ruleId === rule.id
+      ? (session.runtime.lastAutomationCommandError || session.runtime.automationCommandState || "idle")
+      : (rule.commandAction?.enabled ? "armed" : "disabled");
+    elements.ruleCommandStatus.dataset.state = session?.runtime?.lastAutomationCommandError ? "error" : (rule.commandAction?.enabled ? "ok" : "idle");
+    elements.ruleCommandStatus.textContent = rule.commandAction?.enabled
+      ? `Command action: ${commandState}.`
+      : "Automatic command is disabled for this rule.";
   }
 
   function renderDetails(loadForm = true) {
@@ -1132,6 +1174,7 @@
     shellPresetsDraft.push(preset);
     selectedShellPresetId = preset.id;
     renderShellPresetOptions();
+    renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
     showMessage("Command preset added to the draft. Save the profile or tab configuration to persist it.", "success");
   }
 
@@ -1144,6 +1187,7 @@
     const updated = createShellPresetFromForm(elements.shellPresetName.value.trim() || preset.name, preset.id);
     shellPresetsDraft = shellPresetsDraft.map((item) => item.id === preset.id ? updated : item);
     renderShellPresetOptions();
+    renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
     showMessage("Command preset updated in the draft. Save the profile or tab configuration to persist it.", "success");
   }
 
@@ -1153,6 +1197,7 @@
     shellPresetsDraft = shellPresetsDraft.filter((item) => item.id !== preset.id);
     selectedShellPresetId = "";
     renderShellPresetOptions();
+    renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
     showMessage("Command preset deleted from the draft. Save the profile or tab configuration to persist it.", "success");
   }
 
@@ -1337,7 +1382,8 @@ ${run.command || ""}`)) {
       name: name.trim() || defaultName,
       enabled: true,
       monitor: Settings.clone((source || Settings.defaultRule()).monitor),
-      target: Settings.clone((source || Settings.defaultRule()).target)
+      target: Settings.clone((source || Settings.defaultRule()).target),
+      commandAction: Settings.clone((source || Settings.defaultRule()).commandAction)
     };
     formConfigDraft = Settings.normalizeConfig({
       ...current,
@@ -1401,6 +1447,20 @@ ${run.command || ""}`)) {
     elements.ruleName.dispatchEvent(new Event("input"));
     renderRuleRuntimeSummary();
   });
+  for (const element of [elements.ruleCommandEnabled, elements.ruleCommandPreset, elements.ruleCommandTrigger, elements.ruleCommandAllowDryRun]) {
+    element.addEventListener("change", () => {
+      const rule = ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId);
+      renderRuleCommandPresetOptions({
+        ...(rule || Settings.defaultRule()),
+        commandAction: {
+          enabled: elements.ruleCommandEnabled.checked,
+          presetId: elements.ruleCommandPreset.value,
+          trigger: elements.ruleCommandTrigger.value,
+          allowDryRun: elements.ruleCommandAllowDryRun.checked
+        }
+      });
+    });
+  }
   elements.newRuleButton.addEventListener("click", () => addRule(false));
   elements.duplicateRuleButton.addEventListener("click", () => addRule(true));
   elements.deleteRuleButton.addEventListener("click", deleteSelectedRule);

@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatImproverRuntimeV6";
-  const RUNTIME_VERSION = 13;
+  const RUNTIME_VERSION = 14;
   const previousRuntime = globalThis[INSTANCE_KEY];
   if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
@@ -124,15 +124,21 @@
   }
 
   function publishRuntimeEvent(runtime) {
-    state.runtime = { ...state.runtime, ...runtime };
-    state.updatedAt = runtime.lastEventAt || new Date().toISOString();
+    const commandRequest = runtime?.commandRequest || null;
+    const persistentRuntime = { ...(runtime || {}) };
+    delete persistentRuntime.commandRequest;
+    state.runtime = { ...state.runtime, ...persistentRuntime };
+    state.updatedAt = persistentRuntime.lastEventAt || new Date().toISOString();
     applyDocumentMarker();
     void browser.runtime.sendMessage({
       type: MESSAGE.CONTENT_RUNTIME_EVENT,
       payload: {
         tabId: state.tabId,
         sessionToken: state.sessionToken,
-        runtime: { ...state.runtime }
+        runtime: {
+          ...state.runtime,
+          ...(commandRequest ? { commandRequest } : {})
+        }
       }
     }).catch(() => {
       // Extension reload or tab shutdown can invalidate the runtime context.

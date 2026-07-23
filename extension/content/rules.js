@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_RULE_ENGINE?.VERSION >= 1) {
+  if (globalThis.FCI_RULE_ENGINE?.VERSION >= 2) {
     return;
   }
 
@@ -44,7 +44,45 @@
       };
     }
 
-    function aggregateRuntime(reason = "rule-runtime", force = false) {
+    function commandRequestFor(entry, trigger) {
+      const action = entry.rule.commandAction || Settings.defaultCommandAction();
+      if (!action.enabled || action.trigger !== trigger || !action.presetId) {
+        return null;
+      }
+      const cycle = Number(entry.runtime.cycle || 0);
+      if (cycle <= 0) {
+        return null;
+      }
+      if (trigger === "after_target") {
+        const lastAction = String(entry.runtime.lastTargetAction || "");
+        const isClick = lastAction.startsWith("click:");
+        const isDryRun = lastAction.startsWith("dry-run:");
+        if (!isClick && !(action.allowDryRun && isDryRun)) {
+          return null;
+        }
+      }
+      if (trigger === "after_verify") {
+        if (entry.runtime.pipelineState !== "verified" || !entry.runtime.verifyResult?.passed) {
+          return null;
+        }
+      }
+      const requestId = `${entry.rule.id}:${cycle}:${trigger}`;
+      if (entry.commandRequestIds.has(requestId)) {
+        return null;
+      }
+      entry.commandRequestIds.add(requestId);
+      return {
+        requestId,
+        ruleId: entry.rule.id,
+        ruleName: entry.rule.name,
+        cycle,
+        presetId: action.presetId,
+        trigger,
+        requestedAt: new Date().toISOString()
+      };
+    }
+
+    function aggregateRuntime(reason = "rule-runtime", force = false, transient = null) {
       const values = [...entries.values()];
       const focused = focusedEntry();
       const changed = entries.get(lastChangedRuleId) || focused;
@@ -85,7 +123,8 @@
         targetEnabled: values.some((entry) => entry.runtime.targetEnabled),
         targetState: changed?.runtime.targetState || focused?.runtime.targetState || TARGET_STATE.DISABLED,
         lastReason: reason,
-        lastEventAt: new Date().toISOString()
+        lastEventAt: new Date().toISOString(),
+        ...(transient || {})
       };
       if (source.lastTransition) {
         runtime.lastTransition = changed ? `[${changed.rule.name}] ${source.lastTransition}` : source.lastTransition;
@@ -106,7 +145,7 @@
         lastTargetAction: runtime.lastTargetAction,
         lastTargetError: runtime.lastTargetError
       });
-      if (!force && signature === lastAggregateSignature) {
+      if (!force && !transient && signature === lastAggregateSignature) {
         return runtime;
       }
       lastAggregateSignature = signature;
@@ -118,17 +157,36 @@
       const previousState = entry.runtime.monitorState;
       entry.runtime = { ...entry.runtime, ...runtime };
       lastChangedRuleId = entry.rule.id;
+      let commandRequest = null;
       if (runtime.monitorState === MONITOR_STATE.MATCHED && previousState !== MONITOR_STATE.MATCHED) {
         aggregateCycle += 1;
+        commandRequest = commandRequestFor(entry, "on_match");
       }
       entry.target.handleMonitorRuntime(runtime);
-      aggregateRuntime(`monitor:${entry.rule.id}`, Boolean(runtime.lastTransition));
+      aggregateRuntime(
+        `monitor:${entry.rule.id}`,
+        Boolean(runtime.lastTransition || commandRequest),
+        commandRequest ? { commandRequest } : null
+      );
     }
 
     function onTargetRuntime(entry, runtime) {
+      const previousAction = entry.runtime.lastTargetAction;
+      const previousPipelineState = entry.runtime.pipelineState;
       entry.runtime = { ...entry.runtime, ...runtime };
       lastChangedRuleId = entry.rule.id;
-      aggregateRuntime(`target:${entry.rule.id}`, Boolean(runtime.lastTargetAction || runtime.lastTargetError));
+      let commandRequest = null;
+      if (entry.runtime.lastTargetAction !== previousAction) {
+        commandRequest = commandRequestFor(entry, "after_target");
+      }
+      if (!commandRequest && entry.runtime.pipelineState !== previousPipelineState) {
+        commandRequest = commandRequestFor(entry, "after_verify");
+      }
+      aggregateRuntime(
+        `target:${entry.rule.id}`,
+        Boolean(runtime.lastTargetAction || runtime.lastTargetError || commandRequest),
+        commandRequest ? { commandRequest } : null
+      );
     }
 
     function createEntry(rule) {
@@ -140,6 +198,7 @@
           cycle: 0,
           targetState: rule.target.enabled ? TARGET_STATE.WAITING : TARGET_STATE.DISABLED
         },
+        commandRequestIds: new Set(),
         monitor: null,
         target: null
       };
@@ -255,7 +314,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 1,
+      VERSION: 2,
       ruleConfig,
       createRuleAutomation
     })
