@@ -312,3 +312,10 @@ An automation rule can optionally run an enabled command preset when its monitor
 ## Phase 17 v0.17.1 — Collision-free compact header actions
 
 Tabs/session quick controls and the target test-click control now share a flex header action group with Help fixed as the rightmost item, preventing overlap.
+
+
+## Phase 18 — Sanitized support bundle export
+
+Use **Export support bundle** in the Tab activity log section to create a local ZIP with sanitized settings, per-tab runtime summaries, bounded user/debug logs, native-host status and diagnostics. Shell command text, working directories, output, session tokens, tab titles and URL query strings/fragments are excluded.
+
+Details: `document/PHASE_18_SUPPORT_BUNDLE_EXPORT.md`.

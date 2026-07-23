@@ -3,6 +3,7 @@
 
   const { MESSAGE, MODE, CONFIG_MODE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
+  const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
   const SIDEBAR_UI_STORAGE_KEY = "firefoxChatImprover.sidebarUi.v1";
   const $ = (selector) => document.querySelector(selector);
   const elements = {
@@ -17,7 +18,7 @@
     monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
     targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
-    logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), clearLogsButton: $("#clearLogsButton"),
+    logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), exportSupportBundleButton: $("#exportSupportBundleButton"), clearLogsButton: $("#clearLogsButton"),
     shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"),
@@ -1577,15 +1578,34 @@ ${run.command || ""}`)) {
       profile: { ...profile, name: elements.profileName.value, config: readConfig() }
     }, "Profile saved and active tabs using it were updated.");
   });
+  function downloadBlob(blob, filename) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    globalThis.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+
+  elements.exportSupportBundleButton.addEventListener("click", async () => {
+    const response = await request(MESSAGE.EXPORT_SUPPORT_BUNDLE, {}, "Support bundle exported.");
+    if (!response?.bundle) {
+      return;
+    }
+    const bytes = SupportBundle.buildZip(SupportBundle.bundleEntries(response.bundle));
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    downloadBlob(
+      new Blob([bytes], { type: "application/zip" }),
+      `firefox-chat-assistant-support-${response.bundle.extension?.version || "unknown"}-${stamp}.zip`
+    );
+  });
+
   elements.exportButton.addEventListener("click", async () => {
     const response = await request(MESSAGE.EXPORT_SETTINGS);
     if (!response?.text) return;
-    const blob = new Blob([response.text], { type: "application/json" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `firefox-chat-improver-settings-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    downloadBlob(
+      new Blob([response.text], { type: "application/json" }),
+      `firefox-chat-improver-settings-${new Date().toISOString().slice(0, 10)}.json`
+    );
   });
   elements.importButton.addEventListener("click", () => elements.importFile.click());
   elements.importFile.addEventListener("change", async () => {

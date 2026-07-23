@@ -4,6 +4,7 @@
   const { MESSAGE, MODE, CONFIG_MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
   const Recovery = globalThis.FCI_RECOVERY;
+  const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
   const TAB_SESSION_KEY = "firefoxChatImprover.tabSession.v2";
   const sessions = new Map();
   const pickerStates = new Map();
@@ -1622,6 +1623,108 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return saved;
   }
 
+  function supportNativeState() {
+    return SupportBundle.sanitizeValue({
+      connected: nativeState.connected,
+      hostName: nativeState.hostName,
+      hostVersion: nativeState.hostVersion,
+      lastError: nativeState.lastError,
+      lastSeenAt: nativeState.lastSeenAt,
+      runs: [...shellRuns.values()].map((run) => ({
+        tabId: run.tabId,
+        runId: run.runId,
+        mode: run.mode,
+        status: run.status,
+        pid: run.pid,
+        startedAt: run.startedAt,
+        endedAt: run.endedAt,
+        returnCode: run.returnCode,
+        stopped: run.stopped,
+        error: run.error,
+        outputEntryCount: Array.isArray(run.output) ? run.output.length : 0
+      }))
+    });
+  }
+
+  function supportSessionSummary(session, store) {
+    return SupportBundle.sanitizeValue({
+      tabId: session.tabId,
+      windowId: session.windowId,
+      index: session.index,
+      url: session.url,
+      mode: session.mode,
+      source: session.source,
+      activatedAt: session.activatedAt,
+      updatedAt: session.updatedAt,
+      error: session.error,
+      profileId: session.profileId,
+      profileName: profileName(session, store),
+      configMode: session.configMode,
+      configRevision: session.configRevision,
+      runtime: session.runtime,
+      effectiveConfig: sessionConfig(session, store),
+      shellHistoryCount: Array.isArray(session.shellHistory) ? session.shellHistory.length : 0
+    });
+  }
+
+  async function buildSupportBundle() {
+    await recoverAll();
+    const store = await loadStore();
+    const manifest = browser.runtime.getManifest();
+    const [platform, browserInfo] = await Promise.all([
+      browser.runtime.getPlatformInfo().catch(() => null),
+      typeof browser.runtime.getBrowserInfo === "function"
+        ? browser.runtime.getBrowserInfo().catch(() => null)
+        : Promise.resolve(null)
+    ]);
+    const orderedSessions = [...sessions.values()].sort((left, right) => left.tabId - right.tabId);
+    const logs = {};
+    for (const session of orderedSessions) {
+      const normalized = normalizeLogs(session.logs);
+      logs[`tab-${session.tabId}-user.json`] = SupportBundle.sanitizeValue(normalized.user);
+      logs[`tab-${session.tabId}-debug.json`] = SupportBundle.sanitizeValue(normalized.debug);
+    }
+    const modes = orderedSessions.reduce((result, session) => {
+      result[session.mode] = (result[session.mode] || 0) + 1;
+      return result;
+    }, {});
+    return {
+      formatVersion: 1,
+      generatedAt: Settings.nowIso(),
+      extension: {
+        name: manifest.name,
+        version: manifest.version,
+        manifestVersion: manifest.manifest_version,
+        protocolVersion: globalThis.FCI_PROTOCOL.VERSION,
+        settingsSchemaVersion: Settings.SCHEMA_VERSION
+      },
+      environment: SupportBundle.sanitizeValue({ platform, browser: browserInfo }),
+      privacy: {
+        sanitized: true,
+        excludes: [
+          "session tokens",
+          "tab titles",
+          "shell command text",
+          "working directories",
+          "shell output",
+          "command history entries",
+          "URL query strings and fragments"
+        ]
+      },
+      diagnostics: {
+        sessionCount: orderedSessions.length,
+        sessionModes: modes,
+        profileCount: store.profiles.length,
+        nativeConnected: nativeState.connected,
+        activeShellRunCount: [...shellRuns.values()].filter((run) => ["starting", "running", "terminal", "stopping"].includes(run.status)).length
+      },
+      settings: SupportBundle.sanitizeValue(store),
+      sessions: orderedSessions.map((session) => supportSessionSummary(session, store)),
+      logs,
+      nativeHost: supportNativeState()
+    };
+  }
+
   async function dashboard() {
     await recoverAll();
     const store = await loadStore();
@@ -1721,6 +1824,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
           const store = await loadStore();
           return { ok: true, text: Settings.exportStore(store) };
         }
+
+        case MESSAGE.EXPORT_SUPPORT_BUNDLE:
+          return { ok: true, bundle: await buildSupportBundle() };
 
         case MESSAGE.IMPORT_SETTINGS:
           await importSettings(message.text);
@@ -1829,6 +1935,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.SAVE_PROFILE,
     MESSAGE.DELETE_PROFILE,
     MESSAGE.EXPORT_SETTINGS,
+    MESSAGE.EXPORT_SUPPORT_BUNDLE,
     MESSAGE.IMPORT_SETTINGS,
     MESSAGE.TEST_SELECTOR,
     MESSAGE.START_ELEMENT_PICKER,
@@ -1859,6 +1966,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.SAVE_PROFILE,
     MESSAGE.DELETE_PROFILE,
     MESSAGE.EXPORT_SETTINGS,
+    MESSAGE.EXPORT_SUPPORT_BUNDLE,
     MESSAGE.IMPORT_SETTINGS,
     MESSAGE.TEST_SELECTOR,
     MESSAGE.START_ELEMENT_PICKER,

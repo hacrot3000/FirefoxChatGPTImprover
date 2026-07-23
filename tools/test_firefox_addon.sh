@@ -34,6 +34,7 @@ node tests/test_phase15_v0152_english_title_help.js
 node tests/test_phase16_command_presets_history.js
 node tests/test_phase17_rule_command_actions.js
 node tests/test_phase17_v0171_header_action_layout.js
+node tests/test_phase18_support_bundle.js
 
 WEB_EXT_BIN="${ROOT}/.firefox-dev-tools/node_modules/.bin/web-ext"
 if [ -x "$WEB_EXT_BIN" ]; then
@@ -41,4 +42,4 @@ if [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-17 v0.17.1 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker, URL profile-routing, action-pipeline, deterministic monitor-stability, early-timer-rearm, session-recovery, compact-controls, monitor-title-spinner, multi-rule automation, runtime-isolation, forward-compatible version contracts, English-UI, title-de-duplication, help-popovers, command-presets, background-enforced allowlist, per-tab command-history and rule-command-action and collision-free compact-header-control tests.\n'
+printf 'PASS: FirefoxChatImprover Phase 04-18 v0.18.0 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker, URL profile-routing, action-pipeline, deterministic monitor-stability, early-timer-rearm, session-recovery, compact-controls, monitor-title-spinner, multi-rule automation, runtime-isolation, forward-compatible version contracts, English-UI, title-de-duplication, help-popovers, command-presets, background-enforced allowlist, per-tab command-history, rule-command-actions, collision-free compact-header-controls and sanitized support-bundle export tests.\n'

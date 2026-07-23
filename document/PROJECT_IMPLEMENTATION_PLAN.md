@@ -518,3 +518,11 @@ Tiêu chí hoàn tất:
 - Enforce exactly one request per rule cycle and trigger.
 - Resolve command details only in the background from an enabled saved preset.
 - Preserve per-tab command isolation, history, recovery, and Native Host safety checks.
+
+
+## Phase 18 — Sanitized support bundle export
+
+- Export a local ZIP from the sidebar without a new Firefox permission.
+- Include sanitized settings, independent per-tab session/runtime summaries, bounded user/debug logs, Native Host status and diagnostic metadata.
+- Exclude shell command text, working directories, shell output/history, session tokens, tab titles and URL query/fragment data.
+- Keep the archive generation local and add the regression test to the existing combined test workflow.

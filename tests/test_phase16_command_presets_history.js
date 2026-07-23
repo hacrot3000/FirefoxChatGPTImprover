@@ -38,7 +38,7 @@ assert(Settings.validateConfig(config).ok);
 
 const protocolContext = { globalThis: {} };
 vm.runInNewContext(protocolSource, protocolContext, { filename: "protocol.js" });
-assert.equal(protocolContext.globalThis.FCI_PROTOCOL.VERSION, 8);
+assert(protocolContext.globalThis.FCI_PROTOCOL.VERSION >= 8);
 assert.equal(protocolContext.globalThis.FCI_PROTOCOL.MESSAGE.CLEAR_SHELL_HISTORY, "FCI_CLEAR_SHELL_HISTORY");
 
 for (const token of [
