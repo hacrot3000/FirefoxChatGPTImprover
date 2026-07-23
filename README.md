@@ -331,3 +331,14 @@ Configuration saves are verified after storage persistence. Working sessions can
 Download relocation and shell settings now use a separate local-action profile store. Profiles may be shared, selected by URL, or overridden per tab without changing automation profiles. Target-triggered downloads can be captured into Firefox's staging directory and moved by the Native Host to an absolute destination. Working-session files preserve local-action assignments and overrides.
 
 After applying this phase, update the Native Host with `./native-host/install_host.sh`. See `document/PHASE_21_LOCAL_ACTION_PROFILES_MANAGED_DOWNLOADS.md`.
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE22_BEGIN -->
+## Phase 22 — File-backed full command logs
+
+Background shell runs now keep a complete Native Host transcript on disk. The sidebar shows a bounded live tail and a paged full-log dialog with copy-selection, copy-page, copy-all, reopen, refresh, and delete controls. Compact Run/Stop/Open-log controls remain available in the collapsed Shell command heading.
+
+After applying this phase, reinstall/update the Native Host and reload the add-on.
+
+Details: `document/PHASE_22_FILE_BACKED_SHELL_LOG_VIEWER.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE22_END -->

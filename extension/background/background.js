@@ -18,7 +18,8 @@
 
   const NATIVE_HOST_NAME = "com.duongtc.firefox_chat_assistant";
   const SHELL_OUTPUT_LIMIT = 500;
-  const SHELL_OUTPUT_CHAR_LIMIT = 200000;
+  const SHELL_OUTPUT_CHAR_LIMIT = 200000; // UI tail only; the Native Host keeps the complete file-backed log.
+  const SHELL_LOG_READ_MAX_BYTES = 256 * 1024;
   const shellRuns = new Map();
   const downloadCaptures = new Map();
   const downloadJobs = new Map();
@@ -27,6 +28,7 @@
   const runToTab = new Map();
   const shellBroadcastTimers = new Map();
   const runtimeBroadcastTimers = new Map();
+  const pendingNativeRequests = new Map();
   let nativePort = null;
   let nativeState = {
     connected: false,
@@ -50,6 +52,8 @@
       returnCode: null,
       stopped: false,
       error: null,
+      logId: null,
+      logBytes: 0,
       output: []
     };
   }
@@ -420,6 +424,19 @@
     shellBroadcastTimers.set(tabId, timer);
   }
 
+  function nativeRequest(action, payload = {}, timeoutMs = 15000) {
+    const requestId = crypto.randomUUID();
+    const port = ensureNativePort();
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        pendingNativeRequests.delete(requestId);
+        reject(new Error(`Native Host request timed out: ${action}`));
+      }, timeoutMs);
+      pendingNativeRequests.set(requestId, { resolve, reject, timer });
+      port.postMessage({ action, requestId, ...payload });
+    });
+  }
+
   function disconnectNativePort() {
     if (!nativePort) {
       return;
@@ -445,6 +462,18 @@
     }
 
     const event = String(message?.event || "");
+    const requestId = String(message?.requestId || "");
+    if (requestId && pendingNativeRequests.has(requestId)) {
+      const pending = pendingNativeRequests.get(requestId);
+      pendingNativeRequests.delete(requestId);
+      clearTimeout(pending.timer);
+      if (event === "error" || event === "fatal") {
+        pending.reject(new Error(String(message.error || "The Native Host request failed.")));
+      } else {
+        pending.resolve(clone(message));
+      }
+      return;
+    }
     if (event === "hello" || event === "status") {
       await broadcast("native-status");
       return;
@@ -464,6 +493,8 @@
     if (message?.runId && run.runId && message.runId !== run.runId) {
       return;
     }
+    if (message?.logId) run.logId = String(message.logId);
+    if (Number.isFinite(Number(message?.logBytes))) run.logBytes = Math.max(0, Number(message.logBytes));
 
     if (event === "started") {
       run.status = message.mode === "terminal" ? "terminal" : "running";
@@ -561,6 +592,11 @@
       }
     }
     runToTab.clear();
+    for (const [requestId, pending] of pendingNativeRequests.entries()) {
+      clearTimeout(pending.timer);
+      pending.reject(new Error(lastError));
+      pendingNativeRequests.delete(requestId);
+    }
     void broadcast("native-disconnected");
   }
 
@@ -626,7 +662,9 @@
       ruleId: entry.ruleId ? String(entry.ruleId) : null,
       ruleName: entry.ruleName ? String(entry.ruleName) : null,
       trigger: entry.trigger ? String(entry.trigger) : null,
-      cycle: Number.isInteger(Number(entry.cycle)) ? Number(entry.cycle) : null
+      cycle: Number.isInteger(Number(entry.cycle)) ? Number(entry.cycle) : null,
+      logId: entry.logId ? String(entry.logId) : null,
+      logBytes: Math.max(0, Number(entry.logBytes) || 0)
     }));
   }
 
@@ -640,7 +678,9 @@
       endedAt: run.endedAt || entry.endedAt,
       status: run.status || entry.status,
       returnCode: Number.isInteger(run.returnCode) ? run.returnCode : null,
-      error: run.error || null
+      error: run.error || null,
+      logId: run.logId || entry.logId || null,
+      logBytes: Math.max(Number(run.logBytes) || 0, Number(entry.logBytes) || 0)
     });
   }
 
@@ -729,7 +769,9 @@
         ruleId: metadata.ruleId || null,
         ruleName: metadata.ruleName || null,
         trigger: metadata.trigger || null,
-        cycle: Number.isInteger(Number(metadata.cycle)) ? Number(metadata.cycle) : null
+        cycle: Number.isInteger(Number(metadata.cycle)) ? Number(metadata.cycle) : null,
+        logId: null,
+        logBytes: 0
       });
       session.shellHistory = normalizeShellHistory(session.shellHistory, config.shell.historyLimit);
     }
@@ -857,6 +899,51 @@
     run.output = [];
     await broadcast("native-shell-output-cleared", tabId);
     return publicShellRun(tabId);
+  }
+
+  function ownedShellLog(session, run, logId) {
+    if (!logId) return false;
+    if (run?.logId === logId) return true;
+    return Array.isArray(session?.shellHistory) && session.shellHistory.some((entry) => entry.logId === logId);
+  }
+
+  async function readShellLog(message, sender) {
+    assertSidebarSender(sender);
+    const tabId = Number(message.tabId);
+    const session = sessions.get(tabId);
+    const run = shellRunForTab(tabId);
+    const logId = String(message.logId || "");
+    if (!session || !ownedShellLog(session, run, logId)) {
+      throw new Error("The requested shell log does not belong to this tab session.");
+    }
+    return nativeRequest("read_log", {
+      logId,
+      offset: Math.max(0, Number(message.offset) || 0),
+      maxBytes: Math.min(SHELL_LOG_READ_MAX_BYTES, Math.max(1, Number(message.maxBytes) || SHELL_LOG_READ_MAX_BYTES)),
+      fromEnd: Boolean(message.fromEnd)
+    });
+  }
+
+  async function deleteShellLog(message, sender) {
+    assertSidebarSender(sender);
+    const tabId = Number(message.tabId);
+    const session = sessions.get(tabId);
+    const run = shellRunForTab(tabId);
+    const logId = String(message.logId || "");
+    if (!session || !ownedShellLog(session, run, logId)) {
+      throw new Error("The requested shell log does not belong to this tab session.");
+    }
+    await nativeRequest("delete_log", { logId });
+    if (run.logId === logId) {
+      run.logId = null;
+      run.logBytes = 0;
+    }
+    session.shellHistory = normalizeShellHistory(session.shellHistory, 100).map((entry) =>
+      entry.logId === logId ? { ...entry, logId: null, logBytes: 0 } : entry
+    );
+    await persistSession(session);
+    await broadcast("shell-log-deleted", tabId);
+    return { logId };
   }
 
   async function clearShellHistory(message, sender) {
@@ -2213,7 +2300,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         returnCode: run.returnCode,
         stopped: run.stopped,
         error: run.error,
-        outputEntryCount: Array.isArray(run.output) ? run.output.length : 0
+        outputEntryCount: Array.isArray(run.output) ? run.output.length : 0,
+        logBytes: Number(run.logBytes) || 0,
+        hasFileBackedLog: Boolean(run.logId)
       }))
     });
   }
@@ -2702,6 +2791,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
         case MESSAGE.CLEAR_SHELL_HISTORY:
           return { ok: true, shellHistory: await clearShellHistory(message, sender), dashboard: await dashboard() };
+
+        case MESSAGE.READ_SHELL_LOG:
+          return { ok: true, logChunk: await readShellLog(message, sender) };
+
+        case MESSAGE.DELETE_SHELL_LOG:
+          return { ok: true, deletedLog: await deleteShellLog(message, sender), dashboard: await dashboard() };
 
         case MESSAGE.ARM_DOWNLOAD_CAPTURE:
           return { ok: true, capture: await armDownloadCaptureFromContent(message, sender), dashboard: await dashboard() };

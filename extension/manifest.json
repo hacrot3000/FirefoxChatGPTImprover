@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.21.0",
-  "description": "Private Firefox sidebar helper with independent multi-tab automation, verified working-session restore, separate local-action profiles, managed download relocation and safe local command automation.",
+  "version": "0.22.0",
+  "description": "Private Firefox sidebar helper with independent multi-tab automation, verified working-session restore, managed download relocation, safe local commands and file-backed full terminal logs.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-assistant@duongtc.local",

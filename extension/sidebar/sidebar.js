@@ -24,7 +24,8 @@
     localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), executeShellAfterMove: $("#executeShellAfterMove"), downloadStateSummary: $("#downloadStateSummary"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
     shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
-    nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"),
+    nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"),
+    shellLogDialog: $("#shellLogDialog"), shellLogDialogTitle: $("#shellLogDialogTitle"), shellLogMetadata: $("#shellLogMetadata"), shellLogViewer: $("#shellLogViewer"), shellLogPageInfo: $("#shellLogPageInfo"), closeShellLogDialogButton: $("#closeShellLogDialogButton"), shellLogFirstButton: $("#shellLogFirstButton"), shellLogPreviousButton: $("#shellLogPreviousButton"), shellLogNextButton: $("#shellLogNextButton"), shellLogLastButton: $("#shellLogLastButton"), copyShellLogSelectionButton: $("#copyShellLogSelectionButton"), copyShellLogPageButton: $("#copyShellLogPageButton"), copyShellLogAllButton: $("#copyShellLogAllButton"), refreshShellLogButton: $("#refreshShellLogButton"), deleteShellLogButton: $("#deleteShellLogButton"),
     saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), saveWorkingSessionButton: $("#saveWorkingSessionButton"), importWorkingSessionButton: $("#importWorkingSessionButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), importWorkingSessionFile: $("#importWorkingSessionFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), messageBox: $("#messageBox")
   };
 
@@ -49,6 +50,10 @@
   const manualProfileSelectionByTab = new Map();
   const pendingPickerResults = new Map();
   const lastShownDownloadCaptureByTab = new Map();
+  const autoOpenedShellRunIds = new Set();
+  const lastShellStatusByTab = new Map();
+  const SHELL_LOG_PAGE_BYTES = 256 * 1024;
+  let shellLogState = { tabId: null, logId: null, runId: null, offset: 0, nextOffset: 0, totalBytes: 0, eof: true, pageOffsets: [], pageIndex: -1, text: "" };
   const FORM_RELOAD_MESSAGE_TYPES = new Set([
     MESSAGE.GET_DASHBOARD, MESSAGE.ACTIVATE_CURRENT, MESSAGE.STOP_TAB,
     MESSAGE.ASSIGN_PROFILE, MESSAGE.SAVE_TAB_CONFIG, MESSAGE.RESET_TAB_CONFIG,
@@ -237,6 +242,115 @@
     elements.confirmBeforeRun.checked = source.confirmBeforeRun !== false;
   }
 
+  function selectedShellLogDescriptor() {
+    const run = selectedShellRun();
+    if (run?.logId) {
+      return { tabId: selectedTabId, logId: run.logId, runId: run.runId, logBytes: Number(run.logBytes) || 0, label: run.presetName || run.command || "Current command" };
+    }
+    const history = Array.isArray(selectedSession()?.shellHistory) ? selectedSession().shellHistory : [];
+    const selectedId = elements.shellHistorySelect.value;
+    const entry = history.find((item) => item.id === selectedId && item.logId) || history.find((item) => item.logId);
+    return entry ? { tabId: selectedTabId, logId: entry.logId, runId: entry.runId, logBytes: Number(entry.logBytes) || 0, label: entry.presetName || entry.command || "Command history" } : null;
+  }
+
+  function decodeLogChunk(base64Value) {
+    const binary = atob(String(base64Value || ""));
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return new TextDecoder().decode(bytes);
+  }
+
+  function formatByteCount(value) {
+    const bytes = Math.max(0, Number(value) || 0);
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MiB`;
+  }
+
+  async function loadShellLogPage(descriptor, options = {}) {
+    if (!descriptor?.logId) throw new Error("No stored shell log is available for this tab.");
+    const response = await browser.runtime.sendMessage({
+      type: MESSAGE.READ_SHELL_LOG,
+      tabId: descriptor.tabId,
+      logId: descriptor.logId,
+      offset: Math.max(0, Number(options.offset) || 0),
+      maxBytes: SHELL_LOG_PAGE_BYTES,
+      fromEnd: Boolean(options.fromEnd)
+    });
+    if (!response?.ok) throw new Error(response?.error || "Could not read the stored shell log.");
+    const chunk = response.logChunk;
+    shellLogState = {
+      ...shellLogState,
+      tabId: descriptor.tabId,
+      logId: descriptor.logId,
+      runId: descriptor.runId || null,
+      offset: Number(chunk.offset) || 0,
+      nextOffset: Number(chunk.nextOffset) || 0,
+      totalBytes: Number(chunk.totalBytes) || 0,
+      eof: Boolean(chunk.eof),
+      text: decodeLogChunk(chunk.dataBase64)
+    };
+    const existingIndex = shellLogState.pageOffsets.indexOf(shellLogState.offset);
+    if (existingIndex >= 0) {
+      shellLogState.pageIndex = existingIndex;
+    } else {
+      shellLogState.pageOffsets.push(shellLogState.offset);
+      shellLogState.pageOffsets.sort((a, b) => a - b);
+      shellLogState.pageIndex = shellLogState.pageOffsets.indexOf(shellLogState.offset);
+    }
+    elements.shellLogViewer.value = shellLogState.text;
+    elements.shellLogViewer.scrollTop = options.fromEnd ? elements.shellLogViewer.scrollHeight : 0;
+    elements.shellLogPageInfo.textContent = `Bytes ${shellLogState.offset.toLocaleString()}–${shellLogState.nextOffset.toLocaleString()} of ${shellLogState.totalBytes.toLocaleString()} (${formatByteCount(shellLogState.totalBytes)}). Full log is stored by the Native Host.`;
+    elements.shellLogFirstButton.disabled = shellLogState.offset <= 0;
+    elements.shellLogPreviousButton.disabled = shellLogState.pageIndex <= 0;
+    elements.shellLogNextButton.disabled = shellLogState.eof;
+    elements.shellLogLastButton.disabled = shellLogState.eof;
+    return shellLogState;
+  }
+
+  async function openShellLogDialog(descriptor = selectedShellLogDescriptor(), fromEnd = true) {
+    if (!descriptor) {
+      showMessage("No stored shell log is available for this tab.", "error");
+      return;
+    }
+    shellLogState = { tabId: descriptor.tabId, logId: descriptor.logId, runId: descriptor.runId || null, offset: 0, nextOffset: 0, totalBytes: descriptor.logBytes || 0, eof: false, pageOffsets: [], pageIndex: -1, text: "" };
+    elements.shellLogDialogTitle.textContent = descriptor.label || "Full command log";
+    elements.shellLogMetadata.textContent = `Tab ${descriptor.tabId}${descriptor.runId ? ` · Run ${descriptor.runId}` : ""}`;
+    elements.shellLogViewer.value = "Loading stored log…";
+    if (!elements.shellLogDialog.open) elements.shellLogDialog.showModal();
+    try {
+      await loadShellLogPage(descriptor, { fromEnd });
+    } catch (error) {
+      elements.shellLogViewer.value = "";
+      elements.shellLogPageInfo.textContent = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  async function copyTextValue(text, successText) {
+    if (!text) throw new Error("There is no log text to copy.");
+    await navigator.clipboard.writeText(text);
+    showMessage(successText, "success");
+  }
+
+  async function copyAllShellLog() {
+    if (!shellLogState.logId) throw new Error("No stored shell log is open.");
+    if (shellLogState.totalBytes > 64 * 1024 * 1024 && !confirm(`This log is ${formatByteCount(shellLogState.totalBytes)}. Copying all may use substantial memory. Continue?`)) return;
+    const parts = [];
+    let offset = 0;
+    while (true) {
+      const response = await browser.runtime.sendMessage({ type: MESSAGE.READ_SHELL_LOG, tabId: shellLogState.tabId, logId: shellLogState.logId, offset, maxBytes: SHELL_LOG_PAGE_BYTES });
+      if (!response?.ok) throw new Error(response?.error || "Could not read the full shell log.");
+      const chunk = response.logChunk;
+      parts.push(decodeLogChunk(chunk.dataBase64));
+      const nextOffset = Number(chunk.nextOffset) || offset;
+      if (chunk.eof || nextOffset <= offset) break;
+      offset = nextOffset;
+      elements.shellLogPageInfo.textContent = `Preparing full copy: ${formatByteCount(offset)} / ${formatByteCount(chunk.totalBytes)}…`;
+    }
+    await copyTextValue(parts.join(""), "Full command log copied.");
+    elements.shellLogPageInfo.textContent = `Copied ${formatByteCount(shellLogState.totalBytes)} from the complete stored log.`;
+  }
+
   function renderShellState() {
     const native = dashboard.nativeHost || {};
     const run = selectedShellRun();
@@ -260,6 +374,17 @@
     elements.runShellButton.disabled = busy || !selectedSession() || shellIsActive(run);
     elements.stopShellButton.disabled = busy || !shellIsActive(run);
     elements.clearShellOutputButton.disabled = busy || output.length === 0;
+    const logDescriptor = selectedShellLogDescriptor();
+    elements.openShellLogButton.disabled = busy || !logDescriptor;
+    elements.openShellLogQuickButton.disabled = busy || !logDescriptor;
+    elements.runShellQuickButton.disabled = busy || !selectedSession() || shellIsActive(run);
+    elements.stopShellQuickButton.disabled = busy || !shellIsActive(run);
+    const previousStatus = lastShellStatusByTab.get(Number(selectedTabId));
+    lastShellStatusByTab.set(Number(selectedTabId), run.status);
+    if (["starting", "running", "stopping"].includes(previousStatus) && ["exited", "error"].includes(run.status) && run.logId && !autoOpenedShellRunIds.has(run.runId)) {
+      autoOpenedShellRunIds.add(run.runId);
+      queueMicrotask(() => void openShellLogDialog({ tabId: selectedTabId, logId: run.logId, runId: run.runId, logBytes: run.logBytes, label: run.presetName || run.command || "Completed command" }, true));
+    }
     const preset = selectedShellPreset();
     elements.loadShellPresetButton.disabled = busy || !preset;
     elements.updateShellPresetButton.disabled = busy || !preset;
@@ -1928,8 +2053,32 @@ ${run.command || ""}`)) {
   });
   elements.checkNativeButton.addEventListener("click", () => void request(MESSAGE.GET_NATIVE_STATUS, {}, "Native Host status requested."));
   elements.runShellButton.addEventListener("click", runShellCommand);
+  elements.runShellQuickButton.addEventListener("click", runShellCommand);
   elements.stopShellButton.addEventListener("click", stopShellCommand);
-  elements.clearShellOutputButton.addEventListener("click", () => void request(MESSAGE.CLEAR_SHELL_OUTPUT, { tabId: selectedTabId }, "Tab output cleared."));
+  elements.stopShellQuickButton.addEventListener("click", stopShellCommand);
+  elements.clearShellOutputButton.addEventListener("click", () => void request(MESSAGE.CLEAR_SHELL_OUTPUT, { tabId: selectedTabId }, "Live output tail cleared. The full stored log is unchanged."));
+  elements.openShellLogButton.addEventListener("click", () => void openShellLogDialog());
+  elements.openShellLogQuickButton.addEventListener("click", () => void openShellLogDialog());
+  elements.shellLogFirstButton.addEventListener("click", () => void loadShellLogPage(shellLogState, { offset: 0 }));
+  elements.shellLogPreviousButton.addEventListener("click", () => {
+    const offset = shellLogState.pageOffsets[Math.max(0, shellLogState.pageIndex - 1)] || 0;
+    void loadShellLogPage(shellLogState, { offset });
+  });
+  elements.shellLogNextButton.addEventListener("click", () => void loadShellLogPage(shellLogState, { offset: shellLogState.nextOffset }));
+  elements.shellLogLastButton.addEventListener("click", () => void loadShellLogPage(shellLogState, { fromEnd: true }));
+  elements.refreshShellLogButton.addEventListener("click", () => void loadShellLogPage(shellLogState, { fromEnd: true }));
+  elements.copyShellLogSelectionButton.addEventListener("click", () => {
+    const text = elements.shellLogViewer.value.slice(elements.shellLogViewer.selectionStart, elements.shellLogViewer.selectionEnd);
+    void copyTextValue(text, "Selected log text copied.").catch((error) => showMessage(error.message, "error"));
+  });
+  elements.copyShellLogPageButton.addEventListener("click", () => void copyTextValue(elements.shellLogViewer.value, "Current log page copied.").catch((error) => showMessage(error.message, "error")));
+  elements.copyShellLogAllButton.addEventListener("click", () => void copyAllShellLog().catch((error) => showMessage(error.message, "error")));
+  elements.deleteShellLogButton.addEventListener("click", () => {
+    if (!shellLogState.logId || !confirm("Delete this stored command log from disk?")) return;
+    void request(MESSAGE.DELETE_SHELL_LOG, { tabId: shellLogState.tabId, logId: shellLogState.logId }, "Stored command log deleted.").then((response) => {
+      if (response?.ok && elements.shellLogDialog.open) elements.shellLogDialog.close();
+    });
+  });
   elements.refreshButton.addEventListener("click", () => void request(MESSAGE.GET_DASHBOARD));
   elements.tabPrimaryQuickButton.addEventListener("click", runPrimaryTabAction);
   elements.tabStopQuickButton.addEventListener("click", () => void request(MESSAGE.STOP_TAB, { tabId: selectedTabId }, "Tab stopped."));

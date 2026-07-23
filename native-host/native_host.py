@@ -7,6 +7,8 @@ The host accepts only explicit actions from the extension background page.
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -23,10 +25,11 @@ from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Callable
 
 HOST_NAME = "com.duongtc.firefox_chat_assistant"
-HOST_VERSION = "0.8.0"
+HOST_VERSION = "0.9.0"
 MAX_MESSAGE_BYTES = 1024 * 1024
 MAX_COMMAND_CHARS = 32768
 MAX_OUTPUT_CHUNK_CHARS = 65536
+MAX_LOG_READ_BYTES = 256 * 1024
 STOP_GRACE_SECONDS = 3.0
 
 
@@ -198,6 +201,81 @@ def move_download(message: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _log_directory() -> Path:
+    root = Path(os.environ.get("XDG_STATE_HOME") or (Path.home() / ".local" / "state"))
+    directory = root / "firefox-chat-ai-assistant" / "logs"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory.resolve()
+
+
+def _log_id_for_run(run_id: str) -> str:
+    return hashlib.sha256(run_id.encode("utf-8")).hexdigest()
+
+
+def _validate_log_id(value: Any) -> str:
+    log_id = str(value or "").strip().lower()
+    if len(log_id) != 64 or any(character not in "0123456789abcdef" for character in log_id):
+        raise ValueError("The shell log ID is invalid.")
+    return log_id
+
+
+def _log_path(log_id: str) -> Path:
+    return _log_directory() / f"{_validate_log_id(log_id)}.log"
+
+
+def read_log_chunk(message: dict[str, Any]) -> dict[str, Any]:
+    log_id = _validate_log_id(message.get("logId"))
+    path = _log_path(log_id)
+    if not path.exists() or not path.is_file():
+        raise ValueError("The shell log file does not exist.")
+    total = path.stat().st_size
+    max_bytes = max(1, min(MAX_LOG_READ_BYTES, int(message.get("maxBytes") or MAX_LOG_READ_BYTES)))
+    if message.get("fromEnd"):
+        offset = max(0, total - max_bytes)
+        with path.open("rb") as stream:
+            stream.seek(offset)
+            while offset < total:
+                byte = stream.read(1)
+                if not byte or byte[0] & 0xC0 != 0x80:
+                    if byte:
+                        stream.seek(-1, os.SEEK_CUR)
+                    break
+                offset += 1
+            data = stream.read(max_bytes)
+    else:
+        offset = max(0, min(total, int(message.get("offset") or 0)))
+        with path.open("rb") as stream:
+            stream.seek(offset)
+            data = stream.read(max_bytes)
+    # Every log write is UTF-8. Drop only an incomplete trailing code point and
+    # return the exact byte offset consumed so sequential reads are lossless.
+    decoded = data.decode("utf-8", errors="ignore")
+    consumed = len(decoded.encode("utf-8"))
+    data = data[:consumed]
+    next_offset = offset + consumed
+    return {
+        "event": "log_chunk",
+        "requestId": message.get("requestId"),
+        "logId": log_id,
+        "offset": offset,
+        "nextOffset": next_offset,
+        "totalBytes": total,
+        "eof": next_offset >= total,
+        "dataBase64": base64.b64encode(data).decode("ascii"),
+    }
+
+
+def delete_log_file(message: dict[str, Any]) -> dict[str, Any]:
+    log_id = _validate_log_id(message.get("logId"))
+    path = _log_path(log_id)
+    path.unlink(missing_ok=True)
+    return {
+        "event": "log_deleted",
+        "requestId": message.get("requestId"),
+        "logId": log_id,
+    }
+
+
 def find_terminal_launcher() -> tuple[str, list[str]] | None:
     candidates: list[tuple[str, list[str]]] = [
         ("gnome-terminal", ["--"]),
@@ -241,6 +319,9 @@ class RunContext:
     cwd: str
     command: str
     mode: str
+    log_id: str = ""
+    log_path: str = ""
+    log_bytes: int = 0
     process: subprocess.Popen[str] | None = None
     started_at: float = field(default_factory=time.time)
     stopping: bool = False
@@ -262,6 +343,8 @@ class ProcessManager:
                     "pid": item.process.pid if item.process else None,
                     "cwd": item.cwd,
                     "startedAt": item.started_at,
+                    "logId": item.log_id,
+                    "logBytes": item.log_bytes,
                 }
                 for item in self.runs.values()
             ]
@@ -275,13 +358,32 @@ class ProcessManager:
             for current in self.runs.values():
                 if current.tab_id == tab_id:
                     raise ValueError("This tab already has a background command running.")
-            context = RunContext(run_id, tab_id, str(cwd), command, mode)
+            log_id = _log_id_for_run(run_id)
+            log_path = _log_path(log_id)
+            log_path.write_bytes(b"")
+            context = RunContext(run_id, tab_id, str(cwd), command, mode, log_id, str(log_path))
             self.runs[run_id] = context
+        self._append_log(context, "system", f"cwd={cwd}\ncommand={command}\nmode={mode}\n")
 
         if mode == "terminal":
             self._start_terminal(context, cwd, command)
         else:
             self._start_background(context, cwd, command)
+
+    def _append_log(self, context: RunContext, stream_name: str, text: str) -> int:
+        value = str(text or "")
+        if not value or not context.log_path:
+            return context.log_bytes
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        prefix = f"[{timestamp} {stream_name}] "
+        payload = (prefix + value + ("" if value.endswith("\n") else "\n")).encode("utf-8")
+        with self.lock:
+            path = Path(context.log_path)
+            with path.open("ab") as stream:
+                stream.write(payload)
+                stream.flush()
+            context.log_bytes += len(payload)
+            return context.log_bytes
 
     def _start_terminal(self, context: RunContext, cwd: Path, command: str) -> None:
         launcher = find_terminal_launcher()
@@ -315,12 +417,15 @@ class ProcessManager:
             "pid": process.pid,
             "cwd": context.cwd,
             "hostVersion": HOST_VERSION,
+            "logId": context.log_id,
+            "logBytes": context.log_bytes,
         })
         threading.Thread(target=self._wait_terminal, args=(context,), daemon=True).start()
 
     def _wait_terminal(self, context: RunContext) -> None:
         assert context.process is not None
         return_code = context.process.wait()
+        self._append_log(context, "system", f"process exited with returnCode={return_code} stopped={context.stopping}")
         with self.lock:
             self.runs.pop(context.run_id, None)
         self.emit({
@@ -330,6 +435,8 @@ class ProcessManager:
             "mode": context.mode,
             "returnCode": return_code,
             "stopped": context.stopping,
+            "logId": context.log_id,
+            "logBytes": context.log_bytes,
         })
 
     def _start_background(self, context: RunContext, cwd: Path, command: str) -> None:
@@ -357,6 +464,8 @@ class ProcessManager:
             "pid": process.pid,
             "cwd": context.cwd,
             "hostVersion": HOST_VERSION,
+            "logId": context.log_id,
+            "logBytes": context.log_bytes,
         })
         assert process.stdout is not None and process.stderr is not None
         readers = [
@@ -371,12 +480,16 @@ class ProcessManager:
         try:
             for line in iter(stream.readline, ""):
                 for offset in range(0, len(line), MAX_OUTPUT_CHUNK_CHARS):
+                    chunk = line[offset:offset + MAX_OUTPUT_CHUNK_CHARS]
+                    log_bytes = self._append_log(context, stream_name, chunk)
                     self.emit({
                         "event": "output",
                         "runId": context.run_id,
                         "tabId": context.tab_id,
                         "stream": stream_name,
-                        "text": line[offset:offset + MAX_OUTPUT_CHUNK_CHARS],
+                        "text": chunk,
+                        "logId": context.log_id,
+                        "logBytes": log_bytes,
                     })
         finally:
             stream.close()
@@ -386,6 +499,7 @@ class ProcessManager:
         return_code = context.process.wait()
         for thread in readers:
             thread.join(timeout=1.0)
+        self._append_log(context, "system", f"process exited with returnCode={return_code} stopped={context.stopping}")
         with self.lock:
             self.runs.pop(context.run_id, None)
         self.emit({
@@ -395,6 +509,8 @@ class ProcessManager:
             "mode": context.mode,
             "returnCode": return_code,
             "stopped": context.stopping,
+            "logId": context.log_id,
+            "logBytes": context.log_bytes,
         })
 
     def stop(self, run_id: str, tab_id: int | None = None) -> None:
@@ -408,7 +524,8 @@ class ProcessManager:
                 return
             context.stopping = True
             process = context.process
-        self.emit({"event": "stopping", "runId": context.run_id, "tabId": context.tab_id})
+        self._append_log(context, "system", "SIGTERM sent")
+        self.emit({"event": "stopping", "runId": context.run_id, "tabId": context.tab_id, "logId": context.log_id, "logBytes": context.log_bytes})
         try:
             os.killpg(process.pid, signal.SIGTERM)
         except ProcessLookupError:
@@ -424,7 +541,8 @@ class ProcessManager:
             pass
         try:
             os.killpg(context.process.pid, signal.SIGKILL)
-            self.emit({"event": "killed", "runId": context.run_id, "tabId": context.tab_id})
+            self._append_log(context, "system", "SIGKILL sent after timeout")
+            self.emit({"event": "killed", "runId": context.run_id, "tabId": context.tab_id, "logId": context.log_id, "logBytes": context.log_bytes})
         except ProcessLookupError:
             pass
 
@@ -462,11 +580,16 @@ def run_host(reader: BinaryIO = sys.stdin.buffer, writer: MessageWriter | None =
                     manager.stop(str(message.get("runId") or ""), tab_id)
                 elif action == "move_download":
                     output.send(move_download(message))
+                elif action == "read_log":
+                    output.send(read_log_chunk(message))
+                elif action == "delete_log":
+                    output.send(delete_log_file(message))
                 else:
                     raise ValueError("The Native Host action is not supported.")
             except Exception as error:
                 output.send({
                     "event": "error",
+                    "requestId": message.get("requestId"),
                     "runId": message.get("runId"),
                     "tabId": message.get("tabId"),
                     "error": str(error),

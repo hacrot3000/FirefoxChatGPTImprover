@@ -41,9 +41,28 @@
             }
         },
         {
-            "label": "Zip staged changes",
+            "label": "Firefox Add-on: Build",
             "type": "shell",
-            "command": "./zip_staged_changes.sh",
+            "command": "./tools/build_firefox_addon.sh",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            }
+        },        
+        {
+            "label": "Git: Add, Commit and Push",
+            "type": "shell",
+            "command": "./tools/git_commit_push.sh",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -60,9 +79,9 @@
             }
         },
         {
-            "label": "Git: Add, Commit and Push",
+            "label": "Zip staged changes",
             "type": "shell",
-            "command": "./tools/git_commit_push.sh",
+            "command": "./zip_staged_changes.sh",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -125,25 +144,6 @@
             "label": "Firefox Add-on: Lint",
             "type": "shell",
             "command": "./tools/lint_firefox_addon.sh",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "Firefox Add-on: Build",
-            "type": "shell",
-            "command": "./tools/build_firefox_addon.sh",
             "options": {
                 "cwd": "${workspaceFolder}"
             },

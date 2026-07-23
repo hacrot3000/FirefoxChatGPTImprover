@@ -449,8 +449,23 @@
 
     <section class="card" data-group-id="shell" aria-labelledby="shellHeading">
       <div class="section-title-row">
-        <h2 id="shellHeading">Shell command</h2>
-        <span id="nativeHostStatus" class="native-status" data-state="offline">Native: not checked</span>
+        <div class="shell-heading-title">
+          <h2 id="shellHeading">Shell command</h2>
+          <span id="nativeHostStatus" class="native-status" data-state="offline">Native: not checked</span>
+        </div>
+        <div class="group-heading-actions" role="group" aria-label="Shell command actions">
+          <button id="runShellQuickButton" type="button" class="compact icon-button collapsed-only" aria-label="Run command" title="Run command">▶</button>
+          <button id="stopShellQuickButton" type="button" class="compact icon-button danger collapsed-only" aria-label="Stop command" title="Stop command">■</button>
+          <button id="openShellLogQuickButton" type="button" class="compact icon-button collapsed-only" aria-label="Open full command log" title="Open full command log">▤</button>
+          <details class="help-menu heading-help-menu">
+            <summary aria-label="Shell command help" title="Help">?</summary>
+            <div class="help-popover" role="tooltip">
+              <p><strong>Background mode</strong> streams stdout and stderr and stores the complete transcript in a file-backed Native Host log. <strong>Terminal mode</strong> is interactive and records lifecycle events only.</p>
+              <p>Each tab has an independent command session and history. Full logs are read in pages, can be reopened after the dialog closes, and are not truncated by the sidebar tail buffer.</p>
+              <p>Presets belong to the selected local-action profile or tab override. Background allowlist validation remains authoritative.</p>
+            </div>
+          </details>
+        </div>
       </div>
       <div class="shell-preset-panel">
         <div class="selector-grid compact-fields">
@@ -493,18 +508,11 @@
         <button id="checkNativeButton" type="button">Check Native Host</button>
         <button id="runShellButton" type="button" class="primary">Run command</button>
         <button id="stopShellButton" type="button" class="danger">Stop command</button>
-        <button id="clearShellOutputButton" type="button">Clear output</button>
+        <button id="clearShellOutputButton" type="button">Clear output tail</button>
+        <button id="openShellLogButton" type="button">Open full log</button>
       </div>
       <pre id="shellOutput" class="shell-output" aria-live="polite">No output yet.</pre>
-      <details class="help-menu">
-        <summary aria-label="Shell command help" title="Help">?</summary>
-        <div class="help-popover" role="tooltip">
-          <p><strong>Background mode</strong> streams stdout and stderr into the output panel. <strong>Terminal mode</strong> is intended for interactive scripts.</p>
-          <p>Each tab has its own command session and bounded history. Stop only signals the process group started by that tab.</p>
-          <p>Presets are stored in the selected local-action profile or tab-specific local-action override. When allowlist mode is enabled, the background rejects any command that does not exactly match an enabled preset.</p>
-          <p>Install or update the Native Host with <code>./native-host/install_host.sh</code>. The shared Patch + Test task continues to run the full test suite.</p>
-        </div>
-      </details>
+      <small class="inline-result">The inline panel is a bounded live tail. The complete background-command transcript is stored by the Native Host and available through Open full log.</small>
     </section>
 
     <section class="card sticky-actions" data-group-id="save" aria-labelledby="saveHeading">
@@ -537,6 +545,33 @@
     </section>
 
     <output id="messageBox" class="message-box" aria-live="polite"></output>
+
+    <dialog id="shellLogDialog" class="shell-log-dialog">
+      <form method="dialog" class="dialog-panel shell-log-panel">
+        <div class="dialog-title-row">
+          <div>
+            <h2 id="shellLogDialogTitle">Full command log</h2>
+            <p id="shellLogMetadata" class="dialog-description"></p>
+          </div>
+          <button id="closeShellLogDialogButton" type="submit" value="cancel" class="compact icon-button" aria-label="Close log viewer" title="Close">×</button>
+        </div>
+        <textarea id="shellLogViewer" class="shell-log-viewer" readonly spellcheck="false" aria-label="Command log page"></textarea>
+        <output id="shellLogPageInfo" class="selector-test-result">No log loaded.</output>
+        <div class="button-grid shell-log-navigation">
+          <button id="shellLogFirstButton" type="button">First page</button>
+          <button id="shellLogPreviousButton" type="button">Previous</button>
+          <button id="shellLogNextButton" type="button">Next</button>
+          <button id="shellLogLastButton" type="button">Last page</button>
+        </div>
+        <div class="button-grid shell-log-copy-actions">
+          <button id="copyShellLogSelectionButton" type="button">Copy selection</button>
+          <button id="copyShellLogPageButton" type="button">Copy page</button>
+          <button id="copyShellLogAllButton" type="button">Copy all</button>
+          <button id="refreshShellLogButton" type="button">Refresh</button>
+          <button id="deleteShellLogButton" type="button" class="danger">Delete stored log</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="workingSessionDialog" class="working-session-dialog">
       <form method="dialog" class="working-session-panel">
