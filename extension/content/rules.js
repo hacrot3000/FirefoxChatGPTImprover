@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_RULE_ENGINE?.VERSION >= 2) {
+  if (globalThis.FCI_RULE_ENGINE?.VERSION >= 3) {
     return;
   }
 
@@ -18,7 +18,7 @@
     return Settings.configForRule(globalConfig, ruleId);
   }
 
-  function createRuleAutomation({ onRuntime } = {}) {
+  function createRuleAutomation({ onRuntime, onBeforeTargetClick = null } = {}) {
     let config = Settings.defaultConfig();
     let entries = new Map();
     let aggregateCycle = 0;
@@ -205,6 +205,9 @@
       entry.target = TargetEngine.createTargetAutomation({
         onRuntime(runtime) {
           onTargetRuntime(entry, runtime);
+        },
+        onBeforeClick(detail) {
+          return onBeforeTargetClick?.({ ...detail, ruleId: entry.rule.id, ruleName: entry.rule.name });
         }
       });
       entry.monitor = MonitorEngine.createMonitor({
@@ -314,7 +317,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 2,
+      VERSION: 3,
       ruleConfig,
       createRuleAutomation
     })

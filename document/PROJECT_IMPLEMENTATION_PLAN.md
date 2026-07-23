@@ -510,7 +510,6 @@ Tiêu chí hoàn tất:
 - Profile cũ không mất monitor selector, condition hoặc target config.
 - Sidebar chỉ lưu thay đổi rule sau thao tác lưu rõ ràng.
 
-
 ## Phase 17 — Rule-triggered command presets
 
 - Add an optional command action to each automation rule.
@@ -526,3 +525,11 @@ Tiêu chí hoàn tất:
 - Include sanitized settings, independent per-tab session/runtime summaries, bounded user/debug logs, Native Host status and diagnostic metadata.
 - Exclude shell command text, working directories, shell output/history, session tokens, tab titles and URL query/fragment data.
 - Keep the archive generation local and add the regression test to the existing combined test workflow.
+
+
+## Phase 19 — Settings snapshots and rollback
+
+- Keep up to 20 unique local settings snapshots.
+- Automatically snapshot before destructive or overwrite operations.
+- Restore snapshots while re-applying the restored store to active sessions.
+- Expose compact create/restore/delete controls without adding VS Code tasks.

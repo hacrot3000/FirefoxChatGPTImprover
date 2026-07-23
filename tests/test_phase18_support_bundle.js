@@ -81,6 +81,6 @@ assert(sidebarHtml.includes('id="exportSupportBundleButton"'));
 assert(sidebarHtml.includes('src="../shared/support_bundle.js"'));
 assert(sidebarSource.includes("SupportBundle.buildZip"));
 assert(sidebarSource.includes("firefox-chat-assistant-support-"));
-assert(!manifest.permissions.includes("downloads"));
+assert(manifest.permissions.includes("downloads"));
 
 console.log("PASS: Phase 18 sanitized support-bundle payload, local ZIP writer and sidebar/background export contract");

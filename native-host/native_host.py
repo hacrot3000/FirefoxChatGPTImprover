@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Callable
 
 HOST_NAME = "com.duongtc.firefox_chat_assistant"
-HOST_VERSION = "0.7.0"
+HOST_VERSION = "0.8.0"
 MAX_MESSAGE_BYTES = 1024 * 1024
 MAX_COMMAND_CHARS = 32768
 MAX_OUTPUT_CHUNK_CHARS = 65536
@@ -103,6 +103,99 @@ def validate_run_request(message: dict[str, Any]) -> tuple[str, int, Path, str, 
         raise ValueError("The command mode is invalid.")
     _require_non_root()
     return run_id, tab_id, cwd.resolve(), command, mode
+
+
+def _xdg_download_directory() -> Path:
+    explicit = os.environ.get("XDG_DOWNLOAD_DIR", "").strip()
+    if explicit:
+        candidate = Path(explicit.replace("$HOME", str(Path.home()))).expanduser()
+        if candidate.is_absolute():
+            return candidate.resolve()
+    config = Path.home() / ".config" / "user-dirs.dirs"
+    if config.exists():
+        try:
+            for line in config.read_text(encoding="utf-8").splitlines():
+                if not line.startswith("XDG_DOWNLOAD_DIR="):
+                    continue
+                raw = line.split("=", 1)[1].strip().strip('"')
+                raw = raw.replace("$HOME", str(Path.home()))
+                candidate = Path(raw).expanduser()
+                if candidate.is_absolute():
+                    return candidate.resolve()
+        except OSError:
+            pass
+    return (Path.home() / "Downloads").resolve()
+
+
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _unique_destination(path: Path) -> Path:
+    if not path.exists():
+        return path
+    stem = path.stem
+    suffix = path.suffix
+    for index in range(1, 100000):
+        candidate = path.with_name(f"{stem} ({index}){suffix}")
+        if not candidate.exists():
+            return candidate
+    raise ValueError("Could not create a unique destination filename.")
+
+
+def validate_move_download_request(message: dict[str, Any]) -> tuple[str, int, Path, Path, str]:
+    move_id = str(message.get("moveId") or "").strip()
+    if not move_id or len(move_id) > 160:
+        raise ValueError("The download move ID is invalid.")
+    tab_id = message.get("tabId")
+    if not isinstance(tab_id, int) or tab_id < 0:
+        raise ValueError("The download tab ID is invalid.")
+    source = Path(str(message.get("sourcePath") or "")).expanduser()
+    destination_directory = Path(str(message.get("destinationDirectory") or "")).expanduser()
+    if not source.is_absolute() or not destination_directory.is_absolute():
+        raise ValueError("Download source and destination must be absolute paths.")
+    source = source.resolve()
+    download_root = _xdg_download_directory()
+    if not _is_relative_to(source, download_root):
+        raise ValueError(f"The source file is outside the Firefox download directory: {download_root}")
+    if not source.exists() or not source.is_file():
+        raise ValueError("The downloaded source file does not exist.")
+    destination_directory.mkdir(parents=True, exist_ok=True)
+    if not destination_directory.is_dir():
+        raise ValueError("The download destination is not a directory.")
+    conflict_action = str(message.get("conflictAction") or "uniquify")
+    if conflict_action not in {"uniquify", "overwrite", "fail"}:
+        raise ValueError("The download conflict action is invalid.")
+    return move_id, tab_id, source, destination_directory.resolve(), conflict_action
+
+
+def move_download(message: dict[str, Any]) -> dict[str, Any]:
+    _require_non_root()
+    move_id, tab_id, source, destination_directory, conflict_action = validate_move_download_request(message)
+    destination = destination_directory / source.name
+    if destination.exists():
+        if conflict_action == "fail":
+            raise ValueError(f"The destination file already exists: {destination}")
+        if conflict_action == "overwrite":
+            if destination.is_dir():
+                raise ValueError("The destination path is a directory.")
+            destination.unlink()
+        else:
+            destination = _unique_destination(destination)
+    shutil.move(str(source), str(destination))
+    return {
+        "event": "download_moved",
+        "moveId": move_id,
+        "tabId": tab_id,
+        "sourcePath": str(source),
+        "destinationPath": str(destination),
+        "filename": destination.name,
+        "size": destination.stat().st_size,
+    }
 
 
 def find_terminal_launcher() -> tuple[str, list[str]] | None:
@@ -367,6 +460,8 @@ def run_host(reader: BinaryIO = sys.stdin.buffer, writer: MessageWriter | None =
                     raw_tab_id = message.get("tabId")
                     tab_id = raw_tab_id if isinstance(raw_tab_id, int) else None
                     manager.stop(str(message.get("runId") or ""), tab_id)
+                elif action == "move_download":
+                    output.send(move_download(message))
                 else:
                     raise ValueError("The Native Host action is not supported.")
             except Exception as error:

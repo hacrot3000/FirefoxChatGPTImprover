@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatImproverRuntimeV6";
-  const RUNTIME_VERSION = 14;
+  const RUNTIME_VERSION = 15;
   const previousRuntime = globalThis[INSTANCE_KEY];
   if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
@@ -162,7 +162,27 @@
     publishRuntimeEvent({ ...state.runtime, ...alertRuntime, lastEventAt: runtime.lastEventAt });
   }
 
-  const ruleAutomation = RuleEngine.createRuleAutomation({ onRuntime: sendRuntimeEvent });
+  async function armDownloadCapture(detail = {}) {
+    if (!Number.isInteger(state.tabId) || !state.sessionToken) return { armed: false, reason: "no-session" };
+    const response = await browser.runtime.sendMessage({
+      type: MESSAGE.ARM_DOWNLOAD_CAPTURE,
+      payload: {
+        tabId: state.tabId,
+        sessionToken: state.sessionToken,
+        ruleId: detail.ruleId || null,
+        ruleName: detail.ruleName || null,
+        cycle: Number(detail.cycle || state.runtime.cycle || 0),
+        targetCount: Number(detail.targetCount || 0)
+      }
+    });
+    if (!response?.ok) throw new Error(response?.error || "Could not arm managed download capture.");
+    return response.capture || { armed: false };
+  }
+
+  const ruleAutomation = RuleEngine.createRuleAutomation({
+    onRuntime: sendRuntimeEvent,
+    onBeforeTargetClick: armDownloadCapture
+  });
 
   function applySession(session, mode = null) {
     const now = new Date().toISOString();
@@ -268,23 +288,25 @@
           });
         }
       case MESSAGE.CONTENT_TEST_TARGET_ACTION:
-        try {
-          return Promise.resolve({
-            ok: true,
-            result: TargetEngine.testTargetAction(
-              message.payload?.config || state.config,
-              {
-                click: Boolean(message.payload?.click),
-                durationMs: message.payload?.durationMs || 8000
-              }
-            )
-          });
-        } catch (error) {
-          return Promise.resolve({
-            ok: false,
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
+        return (async () => {
+          try {
+            if (message.payload?.click) {
+              await armDownloadCapture({ ruleId: state.config?.activeRuleId || null, cycle: state.runtime.cycle || 0, targetCount: 1 });
+            }
+            return {
+              ok: true,
+              result: TargetEngine.testTargetAction(
+                message.payload?.config || state.config,
+                {
+                  click: Boolean(message.payload?.click),
+                  durationMs: message.payload?.durationMs || 8000
+                }
+              )
+            };
+          } catch (error) {
+            return { ok: false, error: error instanceof Error ? error.message : String(error) };
+          }
+        })();
       case MESSAGE.CONTENT_CLEAR_HIGHLIGHTS:
         return Promise.resolve({ ok: true, result: clearHighlights() });
       default:

@@ -358,3 +358,67 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 .rule-command-panel:has(#ruleCommandEnabled:not(:checked)) > :not(:first-child) { opacity: .55; }
 #ruleCommandStatus[data-state="error"] { color: var(--error); }
 #ruleCommandStatus[data-state="ok"] { color: var(--active); }
+
+.settings-snapshot-row {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-snapshot-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-snapshot-row .inline-result {
+  min-height: 0;
+  margin: 0;
+}
+
+
+/* Phase 20: working-session save/import dialog and reliable save feedback. */
+.working-session-dialog {
+  width: min(720px, calc(100vw - 24px));
+  max-height: min(720px, calc(100vh - 24px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: Canvas;
+  color: CanvasText;
+}
+.working-session-dialog::backdrop { background: rgb(0 0 0 / .36); }
+.working-session-panel { display: grid; gap: 10px; padding: 12px; }
+.working-session-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.working-session-header h2 { margin: 0 0 3px; }
+.working-session-header p { margin: 0; color: var(--muted); font-size: 11px; }
+.working-session-tab-list {
+  display: grid;
+  gap: 6px;
+  max-height: min(480px, 60vh);
+  overflow: auto;
+  padding: 2px;
+}
+.working-session-tab-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, Canvas 97%, LinkText 3%);
+}
+.working-session-tab-row[data-addon-active="true"] { border-color: color-mix(in srgb, var(--active) 55%, var(--border)); }
+.working-session-tab-row input { margin-top: 3px; }
+.working-session-tab-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.working-session-tab-url { display: block; overflow-wrap: anywhere; color: var(--muted); font-size: 10px; }
+.working-session-tab-meta { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+.working-session-actions { grid-template-columns: 1fr 1fr; margin-bottom: 0; }
+
+/* Phase 21: separate local-action profiles and managed download relocation. */
+.sub-card { display: grid; gap: 8px; margin: 6px 0 0; padding: 8px; border: 1px solid var(--border); border-radius: 7px; }
+.sub-card legend { padding: 0 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
+#downloadStateSummary[data-state="completed"] { border-color: var(--active); color: var(--active); }
+#downloadStateSummary[data-state="error"] { border-color: var(--error); color: var(--error); }
+#downloadCompletionPath { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }

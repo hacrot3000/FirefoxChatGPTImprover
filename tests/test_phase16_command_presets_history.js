@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
 const settingsSource = fs.readFileSync(path.join(root, "extension/shared/settings.js"), "utf8");
+const localActionsSource = fs.readFileSync(path.join(root, "extension/shared/local_actions.js"), "utf8");
 const protocolSource = fs.readFileSync(path.join(root, "extension/shared/protocol.js"), "utf8");
 const backgroundSource = fs.readFileSync(path.join(root, "extension/background/background.js"), "utf8");
 const sidebarHtml = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.html"), "utf8");
@@ -16,7 +17,9 @@ context.globalThis = context;
 vm.runInNewContext(settingsSource, context, { filename: "settings.js" });
 const Settings = context.FCI_SETTINGS;
 assert(Settings.SCHEMA_VERSION >= 12, `Phase 16 requires settings schema >= 12, got ${Settings.SCHEMA_VERSION}`);
-const config = Settings.normalizeConfig({ shell: {
+vm.runInNewContext(localActionsSource, context, { filename: "local_actions.js" });
+const LocalActions = context.FCI_LOCAL_ACTIONS;
+const config = LocalActions.normalizeConfig({ shell: {
   workingDirectory: "/tmp",
   command: "echo custom",
   mode: "background",
@@ -32,9 +35,9 @@ const config = Settings.normalizeConfig({ shell: {
 assert.equal(config.shell.presets.length, 2);
 assert.notEqual(config.shell.presets[0].id, config.shell.presets[1].id);
 assert.equal(config.shell.historyLimit, 12);
-assert.equal(Settings.matchingShellPreset(config, { cwd: "/tmp", command: "echo safe", mode: "background" }).name, "Safe");
-assert.equal(Settings.matchingShellPreset(config, { cwd: "/tmp", command: "echo custom", mode: "background" }), null);
-assert(Settings.validateConfig(config).ok);
+assert.equal(LocalActions.matchingPreset(config, { cwd: "/tmp", command: "echo safe", mode: "background" }).name, "Safe");
+assert.equal(LocalActions.matchingPreset(config, { cwd: "/tmp", command: "echo custom", mode: "background" }), null);
+assert(LocalActions.validateConfig(config).ok);
 
 const protocolContext = { globalThis: {} };
 vm.runInNewContext(protocolSource, protocolContext, { filename: "protocol.js" });
@@ -42,7 +45,7 @@ assert(protocolContext.globalThis.FCI_PROTOCOL.VERSION >= 8);
 assert.equal(protocolContext.globalThis.FCI_PROTOCOL.MESSAGE.CLEAR_SHELL_HISTORY, "FCI_CLEAR_SHELL_HISTORY");
 
 for (const token of [
-  "requirePresetMatch", "matchingShellPreset(config", "normalizeShellHistory", "syncShellHistory",
+  "requirePresetMatch", "LocalActions.matchingPreset(config", "normalizeShellHistory", "syncShellHistory",
   "shellHistory", "CLEAR_SHELL_HISTORY", "does not match an enabled command preset"
 ]) assert(backgroundSource.includes(token), `background missing ${token}`);
 for (const id of [

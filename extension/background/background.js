@@ -3,18 +3,27 @@
 
   const { MESSAGE, MODE, CONFIG_MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
+  const Snapshots = globalThis.FCI_SETTINGS_SNAPSHOTS;
   const Recovery = globalThis.FCI_RECOVERY;
   const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
+  const WorkingSession = globalThis.FCI_WORKING_SESSION;
+  const LocalActions = globalThis.FCI_LOCAL_ACTIONS;
   const TAB_SESSION_KEY = "firefoxChatImprover.tabSession.v2";
   const sessions = new Map();
   const pickerStates = new Map();
   let storePromise = null;
+  let localActionStorePromise = null;
+  let snapshotPromise = null;
   let recoveryPromise = null;
 
   const NATIVE_HOST_NAME = "com.duongtc.firefox_chat_assistant";
   const SHELL_OUTPUT_LIMIT = 500;
   const SHELL_OUTPUT_CHAR_LIMIT = 200000;
   const shellRuns = new Map();
+  const downloadCaptures = new Map();
+  const downloadJobs = new Map();
+  const managedDownloadIds = new Set();
+  const downloadMoveToTab = new Map();
   const runToTab = new Map();
   const shellBroadcastTimers = new Map();
   const runtimeBroadcastTimers = new Map();
@@ -71,10 +80,332 @@
     }
   }
 
+  function emptyDownloadState(tabId) {
+    return {
+      tabId,
+      captureId: null,
+      status: "idle",
+      armedAt: null,
+      expiresAt: null,
+      downloadId: null,
+      sourceUrl: null,
+      sourcePath: null,
+      destinationDirectory: null,
+      destinationPath: null,
+      filename: null,
+      size: null,
+      error: null,
+      completedAt: null,
+      showCompletionDialog: false,
+      executeShellAfterMove: false
+    };
+  }
+
+  function publicDownloadState(tabId) {
+    return clone(downloadJobs.get(tabId) || emptyDownloadState(tabId));
+  }
+
+  function cleanDownloadFilename(value, fallback = "download.bin") {
+    const raw = String(value || "").split(/[\\/]/).pop() || fallback;
+    const cleaned = raw.replace(/[\u0000-\u001f<>:"|?*]/g, "_").trim();
+    return cleaned && cleaned !== "." && cleaned !== ".." ? cleaned.slice(0, 220) : fallback;
+  }
+
+  function contentDispositionFilename(headers = []) {
+    const header = headers.find((item) => String(item?.name || "").toLowerCase() === "content-disposition");
+    const value = String(header?.value || "");
+    const encoded = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(value);
+    if (encoded) {
+      try { return cleanDownloadFilename(decodeURIComponent(encoded[1].replace(/^"|"$/g, ""))); } catch (_error) { /* fall through */ }
+    }
+    const plain = /filename\s*=\s*(?:"([^"]+)"|([^;]+))/i.exec(value);
+    return cleanDownloadFilename(plain?.[1] || plain?.[2] || "");
+  }
+
+  function responseLooksDownload(details) {
+    const headers = Array.isArray(details?.responseHeaders) ? details.responseHeaders : [];
+    const disposition = headers.find((item) => String(item?.name || "").toLowerCase() === "content-disposition");
+    if (/\battachment\b/i.test(String(disposition?.value || ""))) return true;
+    const contentType = String(headers.find((item) => String(item?.name || "").toLowerCase() === "content-type")?.value || "").toLowerCase();
+    return /application\/(octet-stream|zip|x-zip|x-gzip|gzip|pdf|vnd\.|force-download)/.test(contentType);
+  }
+
+  function activeDownloadCapture(tabId) {
+    const capture = downloadCaptures.get(Number(tabId));
+    if (!capture) return null;
+    if (Date.now() > capture.expiresAtMs) {
+      downloadCaptures.delete(Number(tabId));
+      const job = downloadJobs.get(Number(tabId));
+      if (job?.status === "armed") {
+        job.status = "expired";
+        job.error = "No download was detected before the capture window expired.";
+        job.completedAt = Settings.nowIso();
+        void broadcast("download-capture-expired", Number(tabId));
+      }
+      return null;
+    }
+    return capture;
+  }
+
+  async function armDownloadCapture(tabId, metadata = {}) {
+    const session = sessions.get(Number(tabId));
+    if (!session) throw new Error("This tab is not activated.");
+    const localStore = await loadLocalActionStore();
+    const config = sessionLocalActionConfig(session, localStore);
+    if (!config.download.enabled) {
+      return { armed: false, reason: "disabled" };
+    }
+    const captureId = `download-${tabId}-${crypto.randomUUID()}`;
+    const seconds = config.download.captureWindowSeconds;
+    const capture = {
+      captureId,
+      tabId: Number(tabId),
+      sessionToken: session.sessionToken,
+      ruleId: metadata.ruleId || null,
+      cycle: Number(metadata.cycle || 0),
+      url: session.url,
+      origin: (() => { try { return new URL(session.url).origin; } catch (_error) { return ""; } })(),
+      config,
+      armedAtMs: Date.now(),
+      expiresAtMs: Date.now() + seconds * 1000,
+      claimed: false
+    };
+    downloadCaptures.set(Number(tabId), capture);
+    downloadJobs.set(Number(tabId), {
+      ...emptyDownloadState(Number(tabId)),
+      captureId,
+      status: "armed",
+      armedAt: Settings.nowIso(),
+      expiresAt: new Date(capture.expiresAtMs).toISOString(),
+      destinationDirectory: config.download.destinationDirectory,
+      showCompletionDialog: config.download.showCompletionDialog,
+      executeShellAfterMove: config.download.executeShellAfterMove
+    });
+    appendLog(session, "debug", "download-capture-armed", "Managed download capture armed before target click.", {
+      captureId, ruleId: capture.ruleId, cycle: capture.cycle, expiresAt: capture.expiresAtMs
+    });
+    await persistSession(session);
+    await broadcast("download-capture-armed", Number(tabId));
+    return { armed: true, captureId, expiresAt: capture.expiresAtMs };
+  }
+
+  function captureForDownloadItem(item) {
+    const captures = [...downloadCaptures.values()].filter((capture) => activeDownloadCapture(capture.tabId) && !capture.claimed);
+    if (!captures.length) return null;
+    const referrer = String(item?.referrer || "");
+    const url = String(item?.url || "");
+    const matching = captures.filter((capture) =>
+      (capture.origin && (referrer.startsWith(capture.origin) || url.startsWith(capture.origin)))
+    );
+    return (matching.length ? matching : captures).sort((left, right) => right.armedAtMs - left.armedAtMs)[0] || null;
+  }
+
+  async function claimDownload(capture, item, source = "browser-download") {
+    if (!capture || capture.claimed) return;
+    capture.claimed = true;
+    downloadCaptures.delete(capture.tabId);
+    const job = downloadJobs.get(capture.tabId) || emptyDownloadState(capture.tabId);
+    Object.assign(job, {
+      captureId: capture.captureId,
+      status: "downloading",
+      downloadId: item.id,
+      sourceUrl: item.url || null,
+      sourcePath: item.filename || null,
+      filename: item.filename ? cleanDownloadFilename(item.filename) : null,
+      destinationDirectory: capture.config.download.destinationDirectory,
+      showCompletionDialog: capture.config.download.showCompletionDialog,
+      executeShellAfterMove: capture.config.download.executeShellAfterMove,
+      error: null
+    });
+    downloadJobs.set(capture.tabId, job);
+    if (Number.isInteger(item.id)) downloadMoveToTab.set(item.id, capture.tabId);
+    const session = sessions.get(capture.tabId);
+    appendLog(session, "user", "download-captured", `Download captured (${source}).`, {
+      captureId: capture.captureId, downloadId: item.id, url: item.url || null
+    });
+    if (session) await persistSession(session);
+    await broadcast("download-captured", capture.tabId);
+  }
+
+  async function startManagedDownload(capture, url, filename) {
+    if (!capture || capture.claimed) return;
+    const safeName = cleanDownloadFilename(filename || (() => {
+      try { return new URL(url).pathname.split("/").pop(); } catch (_error) { return "download.bin"; }
+    })());
+    const relative = `FirefoxChatImprover/${capture.captureId}/${safeName}`;
+    const downloadId = await browser.downloads.download({
+      url,
+      filename: relative,
+      saveAs: false,
+      conflictAction: "uniquify"
+    });
+    managedDownloadIds.add(downloadId);
+    const results = await browser.downloads.search({ id: downloadId });
+    await claimDownload(capture, results[0] || { id: downloadId, url, filename: "" }, "managed-http-download");
+  }
+
+  async function moveCompletedDownload(tabId, downloadItem) {
+    const job = downloadJobs.get(Number(tabId));
+    if (!job || ["moving", "completed"].includes(job.status)) return;
+    const session = sessions.get(Number(tabId));
+    const localStore = await loadLocalActionStore();
+    const config = session ? sessionLocalActionConfig(session, localStore) : null;
+    if (!config?.download?.enabled) {
+      job.status = "error";
+      job.error = "Managed download was disabled before the file completed.";
+      await broadcast("download-move-error", Number(tabId));
+      return;
+    }
+    const sourcePath = String(downloadItem?.filename || job.sourcePath || "");
+    if (!sourcePath) {
+      job.status = "error";
+      job.error = "Firefox did not report the downloaded file path.";
+      await broadcast("download-move-error", Number(tabId));
+      return;
+    }
+    const moveId = `move-${tabId}-${crypto.randomUUID()}`;
+    job.status = "moving";
+    job.sourcePath = sourcePath;
+    job.filename = cleanDownloadFilename(sourcePath);
+    job.destinationDirectory = config.download.destinationDirectory;
+    job.moveId = moveId;
+    downloadMoveToTab.set(moveId, Number(tabId));
+    const port = ensureNativePort();
+    port.postMessage({
+      action: "move_download",
+      moveId,
+      tabId: Number(tabId),
+      sourcePath,
+      destinationDirectory: config.download.destinationDirectory,
+      conflictAction: config.download.conflictAction
+    });
+    appendLog(session, "debug", "download-move-request", "Native Host download relocation requested.", {
+      moveId, sourcePath, destinationDirectory: config.download.destinationDirectory
+    });
+    if (session) await persistSession(session);
+    await broadcast("download-moving", Number(tabId));
+  }
+
+  async function handleNativeDownloadMessage(message) {
+    const moveId = String(message?.moveId || "");
+    const tabId = Number(message?.tabId ?? downloadMoveToTab.get(moveId));
+    if (!Number.isInteger(tabId)) return;
+    const job = downloadJobs.get(tabId) || emptyDownloadState(tabId);
+    const session = sessions.get(tabId);
+    if (message.event === "download_moved") {
+      Object.assign(job, {
+        status: "completed",
+        destinationPath: String(message.destinationPath || ""),
+        filename: String(message.filename || job.filename || ""),
+        size: Number(message.size || 0),
+        completedAt: Settings.nowIso(),
+        error: null
+      });
+      appendLog(session, "user", "download-completed", `Downloaded file moved to ${job.destinationPath}.`, {
+        destinationPath: job.destinationPath, size: job.size
+      });
+      downloadMoveToTab.delete(moveId);
+      if (Number.isInteger(job.downloadId)) {
+        void browser.downloads.erase({ id: job.downloadId }).catch(() => []);
+      }
+      if (session) await persistSession(session);
+      if (session) {
+        const localStore = await loadLocalActionStore();
+        const localConfig = sessionLocalActionConfig(session, localStore);
+        if (localConfig.download.executeShellAfterMove) {
+          try {
+            if (localConfig.shell.confirmBeforeRun) {
+              appendLog(session, "user", "download-command-skipped", "Automatic shell execution was skipped because confirmation is enabled.");
+            } else {
+              const shell = validateShellPayload({
+                tabId,
+                cwd: localConfig.shell.workingDirectory,
+                command: localConfig.shell.command,
+                mode: localConfig.shell.mode
+              }, localConfig);
+              await startShellRunForSession(session, localConfig, shell, {
+                source: "download",
+                trigger: "download-moved"
+              });
+            }
+          } catch (error) {
+            appendLog(session, "user", "download-command-error", error instanceof Error ? error.message : String(error));
+            await persistSession(session);
+          }
+        }
+      }
+      await broadcast("download-completed", tabId);
+      return;
+    }
+    Object.assign(job, {
+      status: "error",
+      error: String(message?.error || "The Native Host could not move the downloaded file."),
+      completedAt: Settings.nowIso()
+    });
+    appendLog(session, "user", "download-error", job.error, { moveId });
+    downloadMoveToTab.delete(moveId);
+    if (session) await persistSession(session);
+    await broadcast("download-move-error", tabId);
+  }
+
+  function interceptDownloadResponse(details) {
+    const capture = activeDownloadCapture(Number(details?.tabId));
+    if (!capture || capture.claimed || capture.intercepting || !responseLooksDownload(details)) {
+      return {};
+    }
+    if (String(details.method || "GET").toUpperCase() !== "GET") {
+      return {};
+    }
+    capture.intercepting = true;
+    downloadCaptures.delete(capture.tabId);
+    const filename = contentDispositionFilename(details.responseHeaders) || "download.bin";
+    void startManagedDownload(capture, details.url, filename).catch(async (error) => {
+      const job = downloadJobs.get(capture.tabId) || emptyDownloadState(capture.tabId);
+      Object.assign(job, {
+        captureId: capture.captureId,
+        status: "error",
+        error: error instanceof Error ? error.message : String(error),
+        completedAt: Settings.nowIso()
+      });
+      downloadJobs.set(capture.tabId, job);
+      await broadcast("download-capture-error", capture.tabId);
+    });
+    return { cancel: true };
+  }
+
+  async function onBrowserDownloadCreated(item) {
+    if (managedDownloadIds.has(item.id)) return;
+    const capture = captureForDownloadItem(item);
+    if (!capture) return;
+    await claimDownload(capture, item, "browser-download-fallback");
+  }
+
+  async function onBrowserDownloadChanged(delta) {
+    const tabId = downloadMoveToTab.get(delta.id);
+    if (!Number.isInteger(tabId)) return;
+    const job = downloadJobs.get(tabId);
+    if (!job) return;
+    if (delta.filename?.current) {
+      job.sourcePath = delta.filename.current;
+      job.filename = cleanDownloadFilename(delta.filename.current);
+    }
+    if (delta.error?.current) {
+      job.status = "error";
+      job.error = String(delta.error.current);
+      job.completedAt = Settings.nowIso();
+      await broadcast("download-error", tabId);
+      return;
+    }
+    if (delta.state?.current !== "complete") return;
+    const results = await browser.downloads.search({ id: delta.id });
+    await moveCompletedDownload(tabId, results[0] || { id: delta.id, filename: job.sourcePath });
+  }
+
   function nativeDashboardState() {
     return {
       ...clone(nativeState),
-      runs: [...shellRuns.values()].map((run) => clone(run))
+      runs: [...shellRuns.values()].map((run) => clone(run)),
+      downloads: [...downloadJobs.values()].map((job) => clone(job))
     };
   }
 
@@ -116,6 +447,11 @@
     const event = String(message?.event || "");
     if (event === "hello" || event === "status") {
       await broadcast("native-status");
+      return;
+    }
+
+    if (event === "download_moved" || (event === "error" && message?.moveId)) {
+      await handleNativeDownloadMessage(message);
       return;
     }
 
@@ -177,8 +513,8 @@
         event === "error" ? run.error : `Shell ${event}: ${run.command}`,
         { runId: run.runId, pid: run.pid, returnCode: run.returnCode }
       );
-      const store = await loadStore();
-      syncShellHistory(session, run, sessionConfig(session, store));
+      const localStore = await loadLocalActionStore();
+      syncShellHistory(session, run, sessionLocalActionConfig(session, localStore));
       if (run.source === "automation") {
         const failed = event === "error" || (event === "exited" && Number(run.returnCode || 0) !== 0);
         session.runtime = {
@@ -286,7 +622,7 @@
       returnCode: Number.isInteger(entry.returnCode) ? entry.returnCode : null,
       error: entry.error ? String(entry.error) : null,
       confirmBeforeRun: entry.confirmBeforeRun !== false,
-      source: entry.source === "automation" ? "automation" : "sidebar",
+      source: ["automation", "download"].includes(entry.source) ? entry.source : "sidebar",
       ruleId: entry.ruleId ? String(entry.ruleId) : null,
       ruleName: entry.ruleName ? String(entry.ruleName) : null,
       trigger: entry.trigger ? String(entry.trigger) : null,
@@ -325,7 +661,7 @@
       throw new Error("The command contains an invalid NUL character.");
     }
     const mode = message.mode === "terminal" ? "terminal" : "background";
-    const preset = Settings.matchingShellPreset(config, { workingDirectory: cwd, command, mode });
+    const preset = LocalActions.matchingPreset(config, { workingDirectory: cwd, command, mode });
     if (config.shell.requirePresetMatch && !preset) {
       throw new Error("This command is not allowed because it does not match an enabled command preset.");
     }
@@ -349,7 +685,7 @@
     if (["starting", "running", "terminal", "stopping"].includes(current.status)) {
       throw new Error("This tab already has a command that has not finished.");
     }
-    const source = metadata.source === "automation" ? "automation" : "sidebar";
+    const source = ["automation", "download"].includes(metadata.source) ? metadata.source : "sidebar";
     const runId = `tab-${tabId}-${crypto.randomUUID()}`;
     const historyId = config.shell.rememberHistory ? Settings.makeId("shell-history") : null;
     const run = {
@@ -399,8 +735,11 @@
     }
     const sourceText = source === "automation"
       ? `Automation rule “${metadata.ruleName || metadata.ruleId || "unknown"}” requested preset “${preset?.name || "unknown"}” after ${metadata.trigger || "rule event"}.`
-      : `Command requested in ${mode} mode${preset ? ` using preset “${preset.name}”` : ""}.`;
-    appendLog(session, "user", source === "automation" ? "automation-command-request" : "shell-run-request", sourceText, {
+      : (source === "download"
+        ? `The completed managed download requested the configured command in ${mode} mode${preset ? ` using preset “${preset.name}”` : ""}.`
+        : `Command requested in ${mode} mode${preset ? ` using preset “${preset.name}”` : ""}.`);
+    const logEvent = source === "automation" ? "automation-command-request" : (source === "download" ? "download-command-request" : "shell-run-request");
+    appendLog(session, "user", logEvent, sourceText, {
       runId, cwd, command, presetId: preset?.id || null, ruleId: metadata.ruleId || null,
       trigger: metadata.trigger || null, cycle: metadata.cycle ?? null
     });
@@ -418,8 +757,8 @@
     if (!session) {
       throw new Error("This tab is not activated, so there is no session for the command.");
     }
-    const store = await loadStore();
-    const config = sessionConfig(session, store);
+    const localStore = await loadLocalActionStore();
+    const config = sessionLocalActionConfig(session, localStore);
     const shell = validateShellPayload(message, config);
     return startShellRunForSession(session, config, shell, { source: "sidebar" });
   }
@@ -438,6 +777,8 @@
     session.automationCommandRequestIds.push(requestId);
 
     const config = sessionConfig(session, store);
+    const localStore = await loadLocalActionStore();
+    const localConfig = sessionLocalActionConfig(session, localStore);
     const ruleId = String(request.ruleId || "");
     const rule = config.rules.find((item) => item.id === ruleId);
     const fail = async (message, state = "rejected") => {
@@ -463,7 +804,7 @@
     if (Number(request.cycle || 0) !== ruleCycle || ruleCycle <= 0) {
       return fail("The automation command request belongs to a stale monitor cycle.", "stale");
     }
-    const preset = config.shell.presets.find((item) => item.id === action.presetId && item.enabled);
+    const preset = localConfig.shell.presets.find((item) => item.id === action.presetId && item.enabled);
     if (!preset) {
       return fail("The command preset selected by the rule is missing or disabled.");
     }
@@ -480,7 +821,7 @@
       lastAutomationCommandError: null,
       lastAutomationCommandRequest: { ...clone(request), requestId }
     };
-    return startShellRunForSession(session, config, {
+    return startShellRunForSession(session, localConfig, {
       tabId: session.tabId,
       cwd: preset.workingDirectory,
       command: preset.command,
@@ -585,6 +926,74 @@
     return clone(normalized);
   }
 
+  async function loadLocalActionStore() {
+    if (!localActionStorePromise) {
+      localActionStorePromise = Promise.all([
+        browser.storage.local.get(LocalActions.STORAGE_KEY),
+        loadStore()
+      ]).then(async ([result, settingsStore]) => {
+        const legacyProfile = Settings.profileById(settingsStore, settingsStore.defaultProfileId) || settingsStore.profiles[0];
+        const localStore = LocalActions.normalizeStore(
+          result[LocalActions.STORAGE_KEY],
+          legacyProfile?.config?.shell || null
+        );
+        await browser.storage.local.set({ [LocalActions.STORAGE_KEY]: localStore });
+        return localStore;
+      });
+    }
+    return LocalActions.clone(await localActionStorePromise);
+  }
+
+  async function saveLocalActionStore(nextStore) {
+    const normalized = LocalActions.normalizeStore(nextStore);
+    normalized.revision += 1;
+    await browser.storage.local.set({ [LocalActions.STORAGE_KEY]: normalized });
+    localActionStorePromise = Promise.resolve(normalized);
+    return LocalActions.clone(normalized);
+  }
+
+  async function loadSnapshotCollection() {
+    if (!snapshotPromise) {
+      snapshotPromise = browser.storage.local.get(Snapshots.STORAGE_KEY).then(async (result) => {
+        const collection = Snapshots.normalizeCollection(result[Snapshots.STORAGE_KEY]);
+        await browser.storage.local.set({ [Snapshots.STORAGE_KEY]: collection });
+        return collection;
+      });
+    }
+    return Snapshots.clone(await snapshotPromise);
+  }
+
+  async function saveSnapshotCollection(nextCollection) {
+    const normalized = Snapshots.normalizeCollection(nextCollection);
+    await browser.storage.local.set({ [Snapshots.STORAGE_KEY]: normalized });
+    snapshotPromise = Promise.resolve(normalized);
+    return Snapshots.clone(normalized);
+  }
+
+  async function createSettingsSnapshot(reason = "manual", label = "Manual snapshot", rawStore = null) {
+    const store = rawStore ? Settings.normalizeStore(rawStore) : await loadStore();
+    const collection = await loadSnapshotCollection();
+    const result = Snapshots.addSnapshot(collection, Snapshots.makeSnapshot(store, reason, label));
+    if (result.added) {
+      await saveSnapshotCollection(result.collection);
+      await broadcast("settings-snapshot-created");
+    }
+    return {
+      added: result.added,
+      snapshot: Snapshots.summary(result.snapshot)
+    };
+  }
+
+  async function deleteSettingsSnapshot(snapshotId) {
+    const collection = await loadSnapshotCollection();
+    if (!Snapshots.findSnapshot(collection, snapshotId)) {
+      throw new Error("Settings snapshot not found.");
+    }
+    const saved = await saveSnapshotCollection(Snapshots.removeSnapshot(collection, snapshotId));
+    await broadcast("settings-snapshot-deleted");
+    return saved.snapshots.map(Snapshots.summary);
+  }
+
   function sessionConfig(session, store) {
     if (session.configMode === CONFIG_MODE.TAB && session.tabConfig) {
       return Settings.normalizeConfig(session.tabConfig);
@@ -598,12 +1007,30 @@
     return Settings.profileById(store, session.profileId)?.name || "Profile not found";
   }
 
-  function publicSession(session, store) {
-    return {
+  function sessionLocalActionConfig(session, localStore) {
+    if (session.localActionConfigMode === CONFIG_MODE.TAB && session.localActionTabConfig) {
+      return LocalActions.normalizeConfig(session.localActionTabConfig);
+    }
+    const profile = LocalActions.profileById(localStore, session.localActionProfileId) ||
+      LocalActions.profileById(localStore, localStore.defaultProfileId) || localStore.profiles[0];
+    return LocalActions.normalizeConfig(profile.config);
+  }
+
+  function localActionProfileName(session, localStore) {
+    return LocalActions.profileById(localStore, session.localActionProfileId)?.name || "Local-action profile not found";
+  }
+
+  function publicSession(session, store, localStore = null) {
+    const publicValue = {
       ...clone(session),
       profileName: profileName(session, store),
       effectiveConfig: sessionConfig(session, store)
     };
+    if (localStore) {
+      publicValue.localActionProfileName = localActionProfileName(session, localStore);
+      publicValue.effectiveLocalActions = sessionLocalActionConfig(session, localStore);
+    }
+    return publicValue;
   }
 
   function newRuntime() {
@@ -678,7 +1105,7 @@
     };
   }
 
-  function makeSession(tab, profileId, source) {
+  function makeSession(tab, profileId, source, localActionProfileId = null) {
     const now = Settings.nowIso();
     return {
       ...tabMeta(tab),
@@ -692,6 +1119,10 @@
       configMode: CONFIG_MODE.PROFILE,
       tabConfig: null,
       configRevision: 1,
+      localActionProfileId: localActionProfileId || LocalActions.DEFAULT_PROFILE_ID,
+      localActionConfigMode: CONFIG_MODE.PROFILE,
+      localActionTabConfig: null,
+      localActionRevision: 1,
       runtime: newRuntime(),
       logs: { user: [], debug: [] },
       shellHistory: [],
@@ -946,7 +1377,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return true;
   }
 
-  async function recoverOne(tab, store) {
+  async function recoverOne(tab, store, localStore) {
     if (!Number.isInteger(tab?.id) || sessions.has(tab.id)) {
       return sessions.get(tab?.id) || null;
     }
@@ -974,6 +1405,17 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       recovered.configMode = CONFIG_MODE.PROFILE;
       recovered.tabConfig = null;
     }
+    if (!LocalActions.profileById(localStore, recovered.localActionProfileId)) {
+      const routed = LocalActions.routeProfile(localStore, recovered.url || tab.url || "");
+      recovered.localActionProfileId = routed.profileId || localStore.defaultProfileId;
+      recovered.localActionConfigMode = CONFIG_MODE.PROFILE;
+      recovered.localActionTabConfig = null;
+    }
+    recovered.localActionConfigMode = recovered.localActionConfigMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE;
+    recovered.localActionTabConfig = recovered.localActionConfigMode === CONFIG_MODE.TAB
+      ? LocalActions.normalizeConfig(recovered.localActionTabConfig)
+      : null;
+    recovered.localActionRevision = Math.max(1, Number(recovered.localActionRevision || 1));
     sessions.set(tab.id, recovered);
     try {
       await reattachSession(recovered, store, "background-startup");
@@ -993,9 +1435,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
   async function recoverAll() {
     if (!recoveryPromise) {
       recoveryPromise = (async () => {
-        const store = await loadStore();
+        const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
         const tabs = await browser.tabs.query({});
-        await Promise.all(tabs.map((tab) => recoverOne(tab, store)));
+        await Promise.all(tabs.map((tab) => recoverOne(tab, store, localStore)));
       })().finally(() => {
         recoveryPromise = null;
       });
@@ -1228,6 +1670,25 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     await broadcast("logs-cleared", tabId);
   }
 
+  async function armDownloadCaptureFromContent(message, sender) {
+    const tabId = sender?.tab?.id;
+    if (!Number.isInteger(tabId)) {
+      throw new Error("The download capture request has no valid tab ID.");
+    }
+    const session = sessions.get(tabId);
+    if (!session) {
+      throw new Error("This tab is not activated.");
+    }
+    const payloadTabId = Number(message.payload?.tabId);
+    if (Number.isInteger(payloadTabId) && payloadTabId !== tabId) {
+      throw new Error("The download capture tab ID does not match the sender.");
+    }
+    if (session.sessionToken && message.payload?.sessionToken !== session.sessionToken) {
+      throw new Error("The download capture request belongs to a stale tab session.");
+    }
+    return armDownloadCapture(tabId, message.payload || {});
+  }
+
   async function updateRuntimeFromContent(message, sender) {
     const tabId = sender?.tab?.id;
     if (!Number.isInteger(tabId)) {
@@ -1327,7 +1788,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       throw new Error("Only normal HTTP or HTTPS pages can be activated.");
     }
 
-    const store = await loadStore();
+    const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
     const existing = sessions.get(tab.id);
     if (existing) {
       const recoveryState = existing.runtime?.recoveryState;
@@ -1369,14 +1830,18 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
     await ensureContentScripts(tab.id);
 
-    const session = makeSession(tab, profile.id, source);
+    const localRouting = LocalActions.routeProfile(localStore, tab.url);
+    const session = makeSession(tab, profile.id, source, localRouting.profileId || localStore.defaultProfileId);
     try {
       await applySessionToContent(session, store, MESSAGE.CONTENT_ACTIVATE);
       appendLog(session, "user", "activated", `Tab activated by ${source}.`, {
         url: tab.url,
         profileId: profile.id,
         profileRouting: requestedProfileId ? "manual" : (routing?.matched ? "url-match" : "default-fallback"),
-        matchedPattern: routing?.candidates?.[0]?.bestPattern || null
+        matchedPattern: routing?.candidates?.[0]?.bestPattern || null,
+        localActionProfileId: session.localActionProfileId,
+        localActionRouting: localRouting.matched ? "url-match" : "default-fallback",
+        localActionMatchedPattern: localRouting.candidates?.[0]?.bestPattern || null
       });
       sessions.set(tab.id, session);
       await persistSession(session);
@@ -1516,6 +1981,90 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     await broadcast("tab-config-reset", tabId);
   }
 
+  async function assignLocalActionProfile(tabId, profileId) {
+    const localStore = await loadLocalActionStore();
+    const session = sessions.get(tabId);
+    const profile = LocalActions.profileById(localStore, profileId);
+    if (!session) throw new Error("This tab is not activated.");
+    if (!profile) throw new Error("Local-action profile not found.");
+    session.localActionProfileId = profile.id;
+    session.localActionConfigMode = CONFIG_MODE.PROFILE;
+    session.localActionTabConfig = null;
+    session.localActionRevision = Number(session.localActionRevision || 0) + 1;
+    appendLog(session, "user", "local-action-profile-assigned", `Local-action profile “${profile.name}” applied to this tab.`);
+    await persistSession(session);
+    await broadcast("local-action-profile-assigned", tabId);
+  }
+
+  async function saveTabLocalActions(tabId, rawConfig) {
+    const session = sessions.get(tabId);
+    if (!session) throw new Error("This tab is not activated.");
+    const validation = LocalActions.validateConfig(rawConfig);
+    if (!validation.ok) throw new Error(validation.errors.join("\n"));
+    session.localActionConfigMode = CONFIG_MODE.TAB;
+    session.localActionTabConfig = validation.config;
+    session.localActionRevision = Number(session.localActionRevision || 0) + 1;
+    appendLog(session, "user", "tab-local-actions-saved", "Tab-specific local actions saved.");
+    await persistSession(session);
+    await broadcast("tab-local-actions-saved", tabId);
+  }
+
+  async function resetTabLocalActions(tabId) {
+    const session = sessions.get(tabId);
+    if (!session) throw new Error("This tab is not activated.");
+    session.localActionConfigMode = CONFIG_MODE.PROFILE;
+    session.localActionTabConfig = null;
+    session.localActionRevision = Number(session.localActionRevision || 0) + 1;
+    appendLog(session, "user", "tab-local-actions-reset", "This tab now uses its local-action profile.");
+    await persistSession(session);
+    await broadcast("tab-local-actions-reset", tabId);
+  }
+
+  async function createLocalActionProfile(name, baseProfileId = null) {
+    const store = await loadLocalActionStore();
+    const base = LocalActions.profileById(store, baseProfileId) || LocalActions.profileById(store, store.defaultProfileId);
+    const profile = LocalActions.createProfile(name || "New local actions", base?.config || LocalActions.defaultConfig());
+    store.profiles.push(profile);
+    await saveLocalActionStore(store);
+    await broadcast("local-action-profile-created");
+    return profile.id;
+  }
+
+  async function saveLocalActionProfile(rawProfile) {
+    const store = await loadLocalActionStore();
+    const profile = LocalActions.normalizeProfile(rawProfile);
+    const validation = LocalActions.validateConfig(profile.config);
+    if (!validation.ok) throw new Error(validation.errors.join("\n"));
+    const index = store.profiles.findIndex((item) => item.id === profile.id);
+    if (index < 0) throw new Error("Local-action profile not found.");
+    profile.config = validation.config;
+    profile.createdAt = store.profiles[index].createdAt;
+    profile.updatedAt = LocalActions.nowIso();
+    store.profiles[index] = profile;
+    const saved = await saveLocalActionStore(store);
+    await broadcast("local-action-profile-saved");
+    return saved;
+  }
+
+  async function deleteLocalActionProfile(profileId) {
+    const store = await loadLocalActionStore();
+    if (store.profiles.length <= 1) throw new Error("At least one local-action profile must remain.");
+    if (!LocalActions.profileById(store, profileId)) throw new Error("Local-action profile not found.");
+    store.profiles = store.profiles.filter((item) => item.id !== profileId);
+    if (store.defaultProfileId === profileId) store.defaultProfileId = store.profiles[0].id;
+    const saved = await saveLocalActionStore(store);
+    for (const session of sessions.values()) {
+      if (session.localActionProfileId !== profileId) continue;
+      const routed = LocalActions.routeProfile(saved, session.url || "");
+      session.localActionProfileId = routed.profileId || saved.defaultProfileId;
+      session.localActionConfigMode = CONFIG_MODE.PROFILE;
+      session.localActionTabConfig = null;
+      session.localActionRevision = Number(session.localActionRevision || 0) + 1;
+      await persistSession(session);
+    }
+    await broadcast("local-action-profile-deleted");
+  }
+
   async function updateProfileSessions(profileId, store) {
     for (const session of sessions.values()) {
       if (session.profileId !== profileId || session.configMode !== CONFIG_MODE.PROFILE) {
@@ -1558,6 +2107,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       throw new Error("Could not find the profile to save.");
     }
     incoming.createdAt = store.profiles[index].createdAt;
+    await createSettingsSnapshot("before_profile_save", `Before saving profile: ${store.profiles[index].name}`, store);
     store.profiles[index] = incoming;
     const saved = await saveStore(store);
     const persistedProfile = Settings.profileById(saved, incoming.id);
@@ -1578,9 +2128,11 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     if (profileId === store.defaultProfileId) {
       throw new Error("The default profile cannot be deleted.");
     }
-    if (!Settings.profileById(store, profileId)) {
+    const profileToDelete = Settings.profileById(store, profileId);
+    if (!profileToDelete) {
       throw new Error("Profile not found.");
     }
+    await createSettingsSnapshot("before_profile_delete", `Before deleting profile: ${profileToDelete.name}`, store);
     store.profiles = store.profiles.filter((profile) => profile.id !== profileId);
     const saved = await saveStore(store);
     for (const session of sessions.values()) {
@@ -1598,16 +2150,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return saved;
   }
 
-  async function importSettings(text) {
-    const imported = Settings.importStore(text);
-    const saved = await saveStore(imported);
-    for (const importedProfile of imported.profiles) {
-      const persistedProfile = Settings.profileById(saved, importedProfile.id);
-      if (!persistedProfile) {
-        throw new Error(`Import settings: profile ${importedProfile.id} was not found after saving.`);
-      }
-      assertPersistedConfig(importedProfile.config, persistedProfile.config, `Import profile ${importedProfile.name}`);
-    }
+  async function refreshSessionsForStore(saved) {
     for (const session of sessions.values()) {
       if (!Settings.profileById(saved, session.profileId)) {
         session.profileId = saved.defaultProfileId;
@@ -1619,7 +2162,36 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       await persistSession(session);
       await updateBadge(session, saved);
     }
+  }
+
+  async function importSettings(text) {
+    const current = await loadStore();
+    await createSettingsSnapshot("before_settings_import", "Before settings import", current);
+    const imported = Settings.importStore(text);
+    const saved = await saveStore(imported);
+    for (const importedProfile of imported.profiles) {
+      const persistedProfile = Settings.profileById(saved, importedProfile.id);
+      if (!persistedProfile) {
+        throw new Error(`Import settings: profile ${importedProfile.id} was not found after saving.`);
+      }
+      assertPersistedConfig(importedProfile.config, persistedProfile.config, `Import profile ${importedProfile.name}`);
+    }
+    await refreshSessionsForStore(saved);
     await broadcast("settings-imported");
+    return saved;
+  }
+
+  async function restoreSettingsSnapshot(snapshotId) {
+    const collection = await loadSnapshotCollection();
+    const snapshot = Snapshots.findSnapshot(collection, snapshotId);
+    if (!snapshot) {
+      throw new Error("Settings snapshot not found.");
+    }
+    const current = await loadStore();
+    await createSettingsSnapshot("before_snapshot_restore", "Before snapshot restore", current);
+    const saved = await saveStore(snapshot.store);
+    await refreshSessionsForStore(saved);
+    await broadcast("settings-snapshot-restored");
     return saved;
   }
 
@@ -1725,19 +2297,202 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     };
   }
 
+  async function listWorkingSessionTabs() {
+    const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
+    const tabs = await browser.tabs.query({});
+    return tabs
+      .filter((tab) => Number.isInteger(tab.id) && WorkingSession.isSupportedUrl(tab.url))
+      .map((tab) => {
+        const session = sessions.get(tab.id);
+        return {
+          tabId: tab.id,
+          windowId: tab.windowId,
+          title: WorkingSession.cleanTitle(session?.runtime?.originalTitle || tab.title || ""),
+          url: tab.url,
+          addOnActive: Boolean(session),
+          mode: session?.mode || MODE.INACTIVE,
+          profileId: session?.profileId || null,
+          profileName: session ? profileName(session, store) : null,
+          localActionProfileId: session?.localActionProfileId || null,
+          localActionProfileName: session ? localActionProfileName(session, localStore) : null
+        };
+      })
+      .sort((left, right) => left.windowId - right.windowId || left.tabId - right.tabId);
+  }
+
+  async function exportWorkingSession(rawTabIds) {
+    const selectedIds = new Set((Array.isArray(rawTabIds) ? rawTabIds : []).map(Number).filter(Number.isInteger));
+    if (!selectedIds.size) {
+      throw new Error("Select at least one tab to save in the working session.");
+    }
+    const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
+    const tabs = await browser.tabs.query({});
+    const records = [];
+    for (const tab of tabs) {
+      if (!selectedIds.has(tab.id) || !WorkingSession.isSupportedUrl(tab.url)) continue;
+      const session = sessions.get(tab.id);
+      const routedProfile = Settings.routeProfile(store, tab.url).profile || Settings.profileById(store, store.defaultProfileId) || store.profiles[0];
+      const profile = session
+        ? (Settings.profileById(store, session.profileId) || routedProfile)
+        : routedProfile;
+      const effectiveConfig = session ? sessionConfig(session, store) : Settings.normalizeConfig(profile.config);
+      const routedLocalProfile = LocalActions.routeProfile(localStore, tab.url).profile || LocalActions.profileById(localStore, localStore.defaultProfileId) || localStore.profiles[0];
+      const localProfile = session
+        ? (LocalActions.profileById(localStore, session.localActionProfileId) || routedLocalProfile)
+        : routedLocalProfile;
+      const effectiveLocalActions = session ? sessionLocalActionConfig(session, localStore) : LocalActions.normalizeConfig(localProfile.config);
+      records.push({
+        sourceTabId: tab.id,
+        url: tab.url,
+        title: WorkingSession.cleanTitle(session?.runtime?.originalTitle || tab.title || ""),
+        addOnActive: Boolean(session),
+        mode: session?.mode || MODE.INACTIVE,
+        profileId: profile.id,
+        profile,
+        configMode: session?.configMode || CONFIG_MODE.PROFILE,
+        tabConfig: session?.configMode === CONFIG_MODE.TAB ? session.tabConfig : null,
+        effectiveConfig,
+        localActionProfileId: localProfile.id,
+        localActionProfile: localProfile,
+        localActionConfigMode: session?.localActionConfigMode || CONFIG_MODE.PROFILE,
+        localActionTabConfig: session?.localActionConfigMode === CONFIG_MODE.TAB ? session.localActionTabConfig : null,
+        effectiveLocalActions
+      });
+    }
+    const manifest = browser.runtime.getManifest();
+    return WorkingSession.build(records, { extensionVersion: manifest.version, exportedAt: Settings.nowIso() });
+  }
+
+  function mergeWorkingSessionProfiles(store, bundle) {
+    const saved = Settings.normalizeStore(store);
+    const profileMap = new Map();
+    for (const tab of bundle.tabs) {
+      const incoming = Settings.normalizeProfile(tab.profile, tab.profileId || null);
+      const existingById = Settings.profileById(saved, incoming.id);
+      if (existingById && WorkingSession.configFingerprint(existingById.config) === WorkingSession.configFingerprint(incoming.config)) {
+        profileMap.set(tab.profileId, existingById.id);
+        continue;
+      }
+      const equivalent = saved.profiles.find((profile) =>
+        profile.name === incoming.name &&
+        WorkingSession.configFingerprint(profile.config) === WorkingSession.configFingerprint(incoming.config)
+      );
+      if (equivalent) {
+        profileMap.set(tab.profileId, equivalent.id);
+        continue;
+      }
+      const id = existingById ? Settings.makeId("profile") : incoming.id;
+      const imported = Settings.createProfile(existingById ? `${incoming.name} (session import)` : incoming.name, incoming.config, id);
+      saved.profiles.push(imported);
+      profileMap.set(tab.profileId, imported.id);
+    }
+    return { store: saved, profileMap };
+  }
+
+  function mergeWorkingSessionLocalActionProfiles(store, bundle) {
+    const saved = LocalActions.normalizeStore(store);
+    const profileMap = new Map();
+    for (const tab of bundle.tabs) {
+      const incoming = LocalActions.normalizeProfile(tab.localActionProfile, tab.localActionProfileId || null);
+      const existingById = LocalActions.profileById(saved, incoming.id);
+      if (existingById && WorkingSession.localActionConfigFingerprint(existingById.config) === WorkingSession.localActionConfigFingerprint(incoming.config)) {
+        profileMap.set(tab.localActionProfileId, existingById.id);
+        continue;
+      }
+      const equivalent = saved.profiles.find((profile) =>
+        profile.name === incoming.name &&
+        WorkingSession.localActionConfigFingerprint(profile.config) === WorkingSession.localActionConfigFingerprint(incoming.config)
+      );
+      if (equivalent) {
+        profileMap.set(tab.localActionProfileId, equivalent.id);
+        continue;
+      }
+      const id = existingById ? LocalActions.makeId("local-profile") : incoming.id;
+      const imported = LocalActions.createProfile(existingById ? `${incoming.name} (session import)` : incoming.name, incoming.config, id);
+      saved.profiles.push(imported);
+      profileMap.set(tab.localActionProfileId, imported.id);
+    }
+    return { store: saved, profileMap };
+  }
+
+  async function importWorkingSession(text) {
+    const bundle = WorkingSession.parse(text);
+    const [currentStore, currentLocalStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
+    await createSettingsSnapshot("before_working_session_import", "Before working session import", currentStore);
+    const merged = mergeWorkingSessionProfiles(currentStore, bundle);
+    const mergedLocal = mergeWorkingSessionLocalActionProfiles(currentLocalStore, bundle);
+    const [store, localStore] = await Promise.all([saveStore(merged.store), saveLocalActionStore(mergedLocal.store)]);
+    const report = { restored: 0, openedTabIds: [], failed: [] };
+
+    for (const [index, savedTab] of bundle.tabs.entries()) {
+      let tab = null;
+      try {
+        tab = await browser.tabs.create({ url: savedTab.url, active: false });
+        report.openedTabIds.push(tab.id);
+        if (!savedTab.addOnActive) {
+          continue;
+        }
+        const profileId = merged.profileMap.get(savedTab.profileId) || store.defaultProfileId;
+        const localActionProfileId = mergedLocal.profileMap.get(savedTab.localActionProfileId) || localStore.defaultProfileId;
+        const session = makeSession(tab, profileId, "working-session-import", localActionProfileId);
+        session.configMode = savedTab.configMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE;
+        session.tabConfig = session.configMode === CONFIG_MODE.TAB
+          ? Settings.normalizeConfig(savedTab.tabConfig || savedTab.effectiveConfig)
+          : null;
+        session.configRevision += 1;
+        session.localActionConfigMode = savedTab.localActionConfigMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE;
+        session.localActionTabConfig = session.localActionConfigMode === CONFIG_MODE.TAB
+          ? LocalActions.normalizeConfig(savedTab.localActionTabConfig || savedTab.effectiveLocalActions)
+          : null;
+        session.localActionRevision += 1;
+        if (!(await hasHostPermission(savedTab.url))) {
+          throw new Error("Firefox site permission is missing for this URL.");
+        }
+        await ensureContentScripts(tab.id);
+        await applySessionToContent(session, store, MESSAGE.CONTENT_ACTIVATE);
+        sessions.set(tab.id, session);
+        if (savedTab.mode === MODE.PAUSED) {
+          await pauseTab(tab.id);
+        } else {
+          await persistSession(session);
+          await updateBadge(session, store);
+        }
+        report.restored += 1;
+      } catch (error) {
+        report.failed.push({
+          index,
+          tabId: tab?.id || null,
+          url: savedTab.url,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+    await broadcast("working-session-imported");
+    return report;
+  }
+
   async function dashboard() {
     await recoverAll();
-    const store = await loadStore();
+    const [store, localActionStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
+    const snapshotCollection = await loadSnapshotCollection();
     const tab = await currentTab();
     const publicSessions = [...sessions.values()]
-      .map((session) => publicSession(session, store))
+      .map((session) => publicSession(session, store, localActionStore))
       .sort((left, right) => left.tabId - right.tabId);
     const routingPreview = Settings.routeProfile(store, tab?.url || "");
+    const localActionRoutingPreview = LocalActions.routeProfile(localActionStore, tab?.url || "");
     return {
       protocolVersion: globalThis.FCI_PROTOCOL.VERSION,
       currentTab: tabMeta(tab),
       sessions: publicSessions,
       store,
+      localActionStore,
+      localActionRoutingPreview: {
+        matched: localActionRoutingPreview.matched,
+        profileId: localActionRoutingPreview.profileId,
+        profileName: localActionRoutingPreview.profileName,
+        candidates: localActionRoutingPreview.candidates
+      },
       routingPreview: {
         url: routingPreview.url,
         matched: routingPreview.matched,
@@ -1747,6 +2502,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         candidates: routingPreview.candidates
       },
       nativeHost: nativeDashboardState(),
+      settingsSnapshots: snapshotCollection.snapshots.map(Snapshots.summary),
       pickers: [...pickerStates.values()].map((state) => clone(state))
     };
   }
@@ -1791,7 +2547,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
         case MESSAGE.SAVE_TAB_CONFIG:
           await saveTabConfig(Number(message.tabId), message.config);
-          return { ok: true, dashboard: await dashboard() };
+          return { ok: true, savedSession: publicSession(sessions.get(Number(message.tabId)), await loadStore()), dashboard: await dashboard() };
 
         case MESSAGE.RESET_TAB_CONFIG:
           await resetTabConfig(Number(message.tabId));
@@ -1812,9 +2568,10 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
           return { ok: true, profileId: result.profileId, dashboard: await dashboard() };
         }
 
-        case MESSAGE.SAVE_PROFILE:
-          await saveProfile(message.profile);
-          return { ok: true, dashboard: await dashboard() };
+        case MESSAGE.SAVE_PROFILE: {
+          const saved = await saveProfile(message.profile);
+          return { ok: true, savedProfile: Settings.profileById(saved, message.profile.id), dashboard: await dashboard() };
+        }
 
         case MESSAGE.DELETE_PROFILE:
           await deleteProfile(message.profileId);
@@ -1830,6 +2587,58 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
         case MESSAGE.IMPORT_SETTINGS:
           await importSettings(message.text);
+          return { ok: true, dashboard: await dashboard() };
+
+        case MESSAGE.CREATE_SETTINGS_SNAPSHOT: {
+          const result = await createSettingsSnapshot("manual", message.label || "Manual snapshot");
+          return { ok: true, snapshot: result.snapshot, added: result.added, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.RESTORE_SETTINGS_SNAPSHOT:
+          await restoreSettingsSnapshot(message.snapshotId);
+          return { ok: true, dashboard: await dashboard() };
+
+        case MESSAGE.DELETE_SETTINGS_SNAPSHOT:
+          await deleteSettingsSnapshot(message.snapshotId);
+          return { ok: true, dashboard: await dashboard() };
+
+        case MESSAGE.LIST_WORKING_SESSION_TABS:
+          return { ok: true, tabs: await listWorkingSessionTabs() };
+
+        case MESSAGE.EXPORT_WORKING_SESSION: {
+          const bundle = await exportWorkingSession(message.tabIds);
+          return { ok: true, text: WorkingSession.stringify(bundle), tabCount: bundle.tabs.length };
+        }
+
+        case MESSAGE.IMPORT_WORKING_SESSION: {
+          const report = await importWorkingSession(message.text);
+          return { ok: true, report, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.CREATE_LOCAL_ACTION_PROFILE: {
+          const profileId = await createLocalActionProfile(message.name, message.baseProfileId);
+          return { ok: true, localActionProfileId: profileId, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.SAVE_LOCAL_ACTION_PROFILE: {
+          const saved = await saveLocalActionProfile(message.profile);
+          return { ok: true, savedProfile: LocalActions.profileById(saved, message.profile?.id), dashboard: await dashboard() };
+        }
+
+        case MESSAGE.DELETE_LOCAL_ACTION_PROFILE:
+          await deleteLocalActionProfile(message.profileId);
+          return { ok: true, dashboard: await dashboard() };
+
+        case MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE:
+          await assignLocalActionProfile(Number(message.tabId), message.profileId);
+          return { ok: true, dashboard: await dashboard() };
+
+        case MESSAGE.SAVE_TAB_LOCAL_ACTIONS:
+          await saveTabLocalActions(Number(message.tabId), message.config);
+          return { ok: true, dashboard: await dashboard() };
+
+        case MESSAGE.RESET_TAB_LOCAL_ACTIONS:
+          await resetTabLocalActions(Number(message.tabId));
           return { ok: true, dashboard: await dashboard() };
 
         case MESSAGE.START_ELEMENT_PICKER:
@@ -1894,6 +2703,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         case MESSAGE.CLEAR_SHELL_HISTORY:
           return { ok: true, shellHistory: await clearShellHistory(message, sender), dashboard: await dashboard() };
 
+        case MESSAGE.ARM_DOWNLOAD_CAPTURE:
+          return { ok: true, capture: await armDownloadCaptureFromContent(message, sender), dashboard: await dashboard() };
+
+        case MESSAGE.GET_DOWNLOAD_STATE:
+          return { ok: true, download: publicDownloadState(Number(message.tabId)), dashboard: await dashboard() };
+
         case MESSAGE.CONTENT_RUNTIME_EVENT:
           return { ok: true, runtime: await updateRuntimeFromContent(message, sender) };
 
@@ -1937,6 +2752,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.EXPORT_SETTINGS,
     MESSAGE.EXPORT_SUPPORT_BUNDLE,
     MESSAGE.IMPORT_SETTINGS,
+    MESSAGE.CREATE_SETTINGS_SNAPSHOT,
+    MESSAGE.RESTORE_SETTINGS_SNAPSHOT,
+    MESSAGE.DELETE_SETTINGS_SNAPSHOT,
+    MESSAGE.LIST_WORKING_SESSION_TABS,
+    MESSAGE.EXPORT_WORKING_SESSION,
+    MESSAGE.IMPORT_WORKING_SESSION,
     MESSAGE.TEST_SELECTOR,
     MESSAGE.START_ELEMENT_PICKER,
     MESSAGE.CANCEL_ELEMENT_PICKER,
@@ -1947,6 +2768,15 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.RUN_SHELL,
     MESSAGE.STOP_SHELL,
     MESSAGE.CLEAR_SHELL_OUTPUT,
+    MESSAGE.CLEAR_SHELL_HISTORY,
+    MESSAGE.CREATE_LOCAL_ACTION_PROFILE,
+    MESSAGE.SAVE_LOCAL_ACTION_PROFILE,
+    MESSAGE.DELETE_LOCAL_ACTION_PROFILE,
+    MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE,
+    MESSAGE.SAVE_TAB_LOCAL_ACTIONS,
+    MESSAGE.RESET_TAB_LOCAL_ACTIONS,
+    MESSAGE.ARM_DOWNLOAD_CAPTURE,
+    MESSAGE.GET_DOWNLOAD_STATE,
     MESSAGE.CONTENT_RUNTIME_EVENT,
     MESSAGE.CONTENT_PICKER_RESULT
   ]);
@@ -1968,6 +2798,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.EXPORT_SETTINGS,
     MESSAGE.EXPORT_SUPPORT_BUNDLE,
     MESSAGE.IMPORT_SETTINGS,
+    MESSAGE.CREATE_SETTINGS_SNAPSHOT,
+    MESSAGE.RESTORE_SETTINGS_SNAPSHOT,
+    MESSAGE.DELETE_SETTINGS_SNAPSHOT,
+    MESSAGE.LIST_WORKING_SESSION_TABS,
+    MESSAGE.EXPORT_WORKING_SESSION,
+    MESSAGE.IMPORT_WORKING_SESSION,
     MESSAGE.TEST_SELECTOR,
     MESSAGE.START_ELEMENT_PICKER,
     MESSAGE.CANCEL_ELEMENT_PICKER,
@@ -1977,11 +2813,19 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.GET_NATIVE_STATUS,
     MESSAGE.RUN_SHELL,
     MESSAGE.STOP_SHELL,
-    MESSAGE.CLEAR_SHELL_OUTPUT
+    MESSAGE.CLEAR_SHELL_OUTPUT,
+    MESSAGE.CLEAR_SHELL_HISTORY,
+    MESSAGE.CREATE_LOCAL_ACTION_PROFILE,
+    MESSAGE.SAVE_LOCAL_ACTION_PROFILE,
+    MESSAGE.DELETE_LOCAL_ACTION_PROFILE,
+    MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE,
+    MESSAGE.SAVE_TAB_LOCAL_ACTIONS,
+    MESSAGE.RESET_TAB_LOCAL_ACTIONS,
+    MESSAGE.GET_DOWNLOAD_STATE
   ]);
 
   function validateRequestSender(message, sender) {
-    if ([MESSAGE.CONTENT_RUNTIME_EVENT, MESSAGE.CONTENT_PICKER_RESULT].includes(message.type)) {
+    if ([MESSAGE.CONTENT_RUNTIME_EVENT, MESSAGE.CONTENT_PICKER_RESULT, MESSAGE.ARM_DOWNLOAD_CAPTURE].includes(message.type)) {
       if (!Number.isInteger(sender?.tab?.id)) {
         throw new Error("Content events are accepted only from a content script in a tab.");
       }
@@ -2009,6 +2853,32 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     }
     return handleRequest(message, sender);
   });
+
+  if (browser.webRequest?.onHeadersReceived) {
+    try {
+      browser.webRequest.onHeadersReceived.addListener(
+        interceptDownloadResponse,
+        { urls: ["<all_urls>"], types: ["main_frame", "sub_frame", "xmlhttprequest", "other"] },
+        ["blocking", "responseHeaders"]
+      );
+    } catch (error) {
+      console.error("FirefoxChatImprover: managed HTTP download interception is unavailable", error);
+    }
+  }
+
+  if (browser.downloads?.onCreated && browser.downloads?.onChanged) {
+    browser.downloads.onCreated.addListener((item) => {
+      void onBrowserDownloadCreated(item).catch((error) => {
+        console.error("FirefoxChatImprover: download create handler failed", error);
+      });
+    });
+
+    browser.downloads.onChanged.addListener((delta) => {
+      void onBrowserDownloadChanged(delta).catch((error) => {
+        console.error("FirefoxChatImprover: download change handler failed", error);
+      });
+    });
+  }
 
   browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     const session = sessions.get(tabId);
@@ -2075,6 +2945,11 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     }
     shellRuns.delete(tabId);
     pickerStates.delete(tabId);
+    downloadCaptures.delete(tabId);
+    downloadJobs.delete(tabId);
+    for (const [key, value] of downloadMoveToTab.entries()) {
+      if (Number(value) === Number(tabId)) downloadMoveToTab.delete(key);
+    }
     const timer = shellBroadcastTimers.get(tabId);
     if (timer) {
       clearTimeout(timer);

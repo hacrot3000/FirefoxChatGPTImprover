@@ -403,6 +403,50 @@
       </div>
     </section>
 
+    <section class="card" data-group-id="local-actions" aria-labelledby="localActionsHeading">
+      <div class="section-title-row">
+        <h2 id="localActionsHeading">Local action profile</h2>
+        <span id="localActionModeStatus" class="native-status" data-state="offline">Profile-based</span>
+      </div>
+      <div class="selector-grid compact-fields">
+        <label>Profile<select id="localActionProfileSelect"></select></label>
+        <label>Profile name<input id="localActionProfileName" type="text" autocomplete="off"></label>
+      </div>
+      <div class="button-grid">
+        <button id="assignLocalActionProfileButton" type="button">Apply to tab</button>
+        <button id="newLocalActionProfileButton" type="button">New profile</button>
+        <button id="saveLocalActionProfileButton" type="button" class="primary">Save profile</button>
+        <button id="deleteLocalActionProfileButton" type="button" class="danger">Delete profile</button>
+      </div>
+      <div class="two-column compact-fields">
+        <label class="check-row"><input id="localActionRoutingEnabled" type="checkbox">Use for URL routing</label>
+        <label>Routing priority<input id="localActionRoutingPriority" type="number" min="-1000" max="1000" step="1"></label>
+      </div>
+      <label>URL patterns, one per line<textarea id="localActionUrlPatterns" rows="2" placeholder="https://ai.company.local/*"></textarea></label>
+      <fieldset class="sub-card">
+        <legend>Managed download relocation</legend>
+        <label class="check-row"><input id="managedDownloadEnabled" type="checkbox">Capture the next target-triggered download</label>
+        <label>Absolute destination directory<input id="downloadDestinationDirectory" type="text" placeholder="/home/duongtc/Downloads/AI-results"></label>
+        <div class="selector-grid compact-fields">
+          <label>Capture window (seconds)<input id="downloadCaptureWindowSeconds" type="number" min="3" max="300" step="1"></label>
+          <label>Existing filename<select id="downloadConflictAction"><option value="uniquify">Create a unique filename</option><option value="overwrite">Overwrite</option><option value="fail">Fail</option></select></label>
+        </div>
+        <label class="check-row"><input id="showDownloadCompletionDialog" type="checkbox">Show completion dialog</label>
+        <label class="check-row"><input id="executeShellAfterMove" type="checkbox">Run the configured shell command automatically after relocation</label>
+        <output id="downloadStateSummary" class="selector-test-result">No managed download for this tab.</output>
+      </fieldset>
+      <div class="button-grid">
+        <button id="saveTabLocalActionsButton" type="button">Save for this tab</button>
+        <button id="resetTabLocalActionsButton" type="button">Use profile for tab</button>
+      </div>
+      <details class="help-menu">
+        <summary aria-label="Local action profile help" title="Help">?</summary>
+        <div class="help-popover" role="tooltip">
+          Local-action profiles are separate from automation profiles. They contain download destinations and shell settings, may be routed by URL, shared globally, or overridden for one tab. HTTP attachment downloads are intercepted and restarted with <code>saveAs: false</code>; other downloads use Firefox download-manager capture as a fallback before the Native Host moves the completed file.
+        </div>
+      </details>
+    </section>
+
     <section class="card" data-group-id="shell" aria-labelledby="shellHeading">
       <div class="section-title-row">
         <h2 id="shellHeading">Shell command</h2>
@@ -457,7 +501,7 @@
         <div class="help-popover" role="tooltip">
           <p><strong>Background mode</strong> streams stdout and stderr into the output panel. <strong>Terminal mode</strong> is intended for interactive scripts.</p>
           <p>Each tab has its own command session and bounded history. Stop only signals the process group started by that tab.</p>
-          <p>Presets are stored in the current profile or tab configuration. When allowlist mode is enabled, the background rejects any command that does not exactly match an enabled preset.</p>
+          <p>Presets are stored in the selected local-action profile or tab-specific local-action override. When allowlist mode is enabled, the background rejects any command that does not exactly match an enabled preset.</p>
           <p>Install or update the Native Host with <code>./native-host/install_host.sh</code>. The shared Patch + Test task continues to run the full test suite.</p>
         </div>
       </details>
@@ -471,12 +515,63 @@
         <button id="resetTabButton" type="button">Use profile for tab</button>
         <button id="exportButton" type="button">Export JSON</button>
         <button id="importButton" type="button">Import JSON</button>
+        <button id="saveWorkingSessionButton" type="button">Save working session</button>
+        <button id="importWorkingSessionButton" type="button">Import working session</button>
         <button id="clearHighlightsButton" type="button">Clear highlights</button>
         <input id="importFile" type="file" accept="application/json,.json" hidden>
+        <input id="importWorkingSessionFile" type="file" accept="application/json,.json" hidden>
+      </div>
+      <div class="settings-snapshot-row">
+        <label>Recovery snapshot
+          <select id="settingsSnapshotSelect">
+            <option value="">No snapshots yet</option>
+          </select>
+        </label>
+        <div class="button-grid settings-snapshot-actions">
+          <button id="createSettingsSnapshotButton" type="button">Create snapshot</button>
+          <button id="restoreSettingsSnapshotButton" type="button">Restore</button>
+          <button id="deleteSettingsSnapshotButton" type="button" class="danger">Delete</button>
+        </div>
+        <small id="settingsSnapshotInfo" class="inline-result">Automatic snapshots are created before profile save/delete and settings import.</small>
       </div>
     </section>
 
     <output id="messageBox" class="message-box" aria-live="polite"></output>
+
+    <dialog id="workingSessionDialog" class="working-session-dialog">
+      <form method="dialog" class="working-session-panel">
+        <header class="working-session-header">
+          <div>
+            <h2 id="workingSessionDialogTitle">Save working session</h2>
+            <p id="workingSessionDialogDescription">Select the tabs to include.</p>
+          </div>
+          <button id="closeWorkingSessionDialogButton" type="submit" class="compact icon-button" aria-label="Close">×</button>
+        </header>
+        <div id="workingSessionTabList" class="working-session-tab-list"></div>
+        <output id="workingSessionResult" class="selector-test-result" aria-live="polite"></output>
+        <div class="button-grid working-session-actions">
+          <button id="cancelWorkingSessionButton" type="submit">Cancel</button>
+          <button id="confirmWorkingSessionButton" type="button" class="primary">Save selected tabs</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="downloadCompletionDialog" class="working-session-dialog">
+      <form method="dialog" class="working-session-panel">
+        <header class="working-session-header">
+          <div>
+            <h2>Download completed</h2>
+            <p id="downloadCompletionMessage">The file was moved successfully.</p>
+          </div>
+          <button type="submit" class="compact icon-button" aria-label="Close">×</button>
+        </header>
+        <label>Destination<input id="downloadCompletionPath" type="text" readonly></label>
+        <div class="button-grid">
+          <button id="executeShellAfterDownloadButton" type="button">Execute shell command</button>
+          <button id="acknowledgeDownloadButton" type="submit" class="primary">OK</button>
+        </div>
+      </form>
+    </dialog>
   </main>
 
   <template id="conditionTemplate">
@@ -501,6 +596,9 @@
 
   <script src="../shared/protocol.js"></script>
   <script src="../shared/settings.js"></script>
+  <script src="../shared/local_actions.js"></script>
+  <script src="../shared/settings_snapshots.js"></script>
+  <script src="../shared/working_session.js"></script>
   <script src="../shared/support_bundle.js"></script>
   <script src="sidebar.js"></script>
 </body>

@@ -303,15 +303,9 @@ Historical feature tests now validate the minimum version that introduced their 
 
 Shell commands can now be saved as profile/tab presets. Optional allowlist mode is enforced in the background before Native Messaging is used. Each activated tab keeps its own bounded command history, which can be loaded or cleared from the sidebar.
 
-
 ## Phase 17 — Rule-triggered command presets
 
 An automation rule can optionally run an enabled command preset when its monitor matches, after a target click, or after verification passes. The page never supplies shell text: the background resolves and validates the saved preset, rule, session token, and cycle before contacting the Native Host.
-
-
-## Phase 17 v0.17.1 — Collision-free compact header actions
-
-Tabs/session quick controls and the target test-click control now share a flex header action group with Help fixed as the rightmost item, preventing overlap.
 
 
 ## Phase 18 — Sanitized support bundle export
@@ -319,3 +313,21 @@ Tabs/session quick controls and the target test-click control now share a flex h
 Use **Export support bundle** in the Tab activity log section to create a local ZIP with sanitized settings, per-tab runtime summaries, bounded user/debug logs, native-host status and diagnostics. Shell command text, working directories, output, session tokens, tab titles and URL query strings/fragments are excluded.
 
 Details: `document/PHASE_18_SUPPORT_BUNDLE_EXPORT.md`.
+
+
+## Phase 19 — Settings snapshots and rollback
+
+The **Save configuration** section now provides a bounded local recovery history. The add-on automatically snapshots settings before profile save/delete and JSON import, and creates a safety snapshot before every restore.
+
+Details: `document/PHASE_19_SETTINGS_SNAPSHOT_ROLLBACK.md`.
+
+
+## Phase 20 — Verified save and working sessions
+
+Configuration saves are verified after storage persistence. Working sessions can be exported/imported with selected tabs, URLs, profiles and complete per-tab configuration. See `document/PHASE_20_WORKING_SESSION_SAVE_RESTORE.md`.
+
+## Phase 21 — Local-action profiles and managed downloads
+
+Download relocation and shell settings now use a separate local-action profile store. Profiles may be shared, selected by URL, or overridden per tab without changing automation profiles. Target-triggered downloads can be captured into Firefox's staging directory and moved by the Native Host to an absolute destination. Working-session files preserve local-action assignments and overrides.
+
+After applying this phase, update the Native Host with `./native-host/install_host.sh`. See `document/PHASE_21_LOCAL_ACTION_PROFILES_MANAGED_DOWNLOADS.md`.

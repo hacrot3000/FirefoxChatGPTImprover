@@ -29,11 +29,17 @@ const browser = {
     sendMessage: async () => ({}), update: async () => {}
   },
   windows: { update: async () => {} },
-  notifications: { onClicked: event(), clear: async () => {}, create: async () => {} }
+  notifications: { onClicked: event(), clear: async () => {}, create: async () => {} },
+  webRequest: { onHeadersReceived: event() },
+  downloads: { onCreated: event(), onChanged: event(), erase: async () => [], search: async () => [] }
 };
 const context = vm.createContext({ console, crypto: webcrypto, URL, browser, setTimeout, clearTimeout });
 context.globalThis = context;
-for (const relative of ["extension/shared/protocol.js", "extension/shared/settings.js", "extension/background/background.js"]) {
+for (const relative of [
+  "extension/shared/protocol.js", "extension/shared/settings.js", "extension/shared/local_actions.js",
+  "extension/shared/settings_snapshots.js", "extension/shared/working_session.js", "extension/shared/recovery.js",
+  "extension/background/background.js"
+]) {
   vm.runInContext(fs.readFileSync(path.join(root, relative), "utf8"), context, { filename: relative });
 }
 assert.equal(typeof requestListener, "function");

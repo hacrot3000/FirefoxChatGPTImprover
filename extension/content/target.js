@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_TARGET_ENGINE?.VERSION >= 4) {
+  if (globalThis.FCI_TARGET_ENGINE?.VERSION >= 5) {
     return;
   }
 
@@ -292,7 +292,7 @@
     return { ...snapshot, cancelled: false, elapsedMs: Date.now() - startedAt };
   }
 
-  function createTargetAutomation({ onRuntime }) {
+  function createTargetAutomation({ onRuntime, onBeforeClick = null }) {
     let config = Settings.defaultConfig();
     let observer = null;
     let debounceTimer = null;
@@ -523,7 +523,7 @@
       return selected.slice(0, remainingLimit);
     }
 
-    function performAction(selected) {
+    async function performAction(selected) {
       let lastError = null;
       const actedElements = [];
       for (const item of selected) {
@@ -539,6 +539,19 @@
           continue;
         }
         actedElements.push(element);
+      }
+      if (actedElements.length && !config.target.dryRun && typeof onBeforeClick === "function") {
+        try {
+          await onBeforeClick({
+            ruleId: config.activeRuleId || null,
+            cycle: monitorCycle,
+            targetCount: actedElements.length
+          });
+        } catch (error) {
+          lastError = `Download capture could not be armed: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+      for (const element of actedElements) {
         recordAction(config.target.dryRun);
         if (!config.target.dryRun) {
           try {
@@ -576,7 +589,7 @@
         }
         pipelineState = "acting";
         emit({ lastTargetAction: reason }, true);
-        const action = performAction(selected);
+        const action = await performAction(selected);
         if (action.lastError) {
           emit({ lastTargetError: action.lastError }, true);
         }
@@ -639,9 +652,9 @@
       }
     }
 
-    function runImmediate(selected, reason) {
+    async function runImmediate(selected, reason) {
       selected.forEach(reserveHandled);
-      const action = performAction(selected);
+      const action = await performAction(selected);
       if (!action.actedElements.length) {
         targetState = TARGET_STATE.ARMED;
       }
@@ -691,7 +704,7 @@
         if (config.target.pipeline?.enabled) {
           void runPipeline(selected, reason);
         } else {
-          runImmediate(selected, reason);
+          void runImmediate(selected, reason);
         }
       } catch (error) {
         targetState = TARGET_STATE.ERROR;

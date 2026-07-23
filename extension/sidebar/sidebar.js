@@ -3,7 +3,9 @@
 
   const { MESSAGE, MODE, CONFIG_MODE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
+  const LocalActions = globalThis.FCI_LOCAL_ACTIONS;
   const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
+  const WorkingSession = globalThis.FCI_WORKING_SESSION;
   const SIDEBAR_UI_STORAGE_KEY = "firefoxChatImprover.sidebarUi.v1";
   const $ = (selector) => document.querySelector(selector);
   const elements = {
@@ -19,10 +21,11 @@
     targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), exportSupportBundleButton: $("#exportSupportBundleButton"), clearLogsButton: $("#clearLogsButton"),
+    localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), executeShellAfterMove: $("#executeShellAfterMove"), downloadStateSummary: $("#downloadStateSummary"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
     shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"),
-    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), messageBox: $("#messageBox")
+    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), saveWorkingSessionButton: $("#saveWorkingSessionButton"), importWorkingSessionButton: $("#importWorkingSessionButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), importWorkingSessionFile: $("#importWorkingSessionFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), messageBox: $("#messageBox")
   };
 
   const modeLabels = {
@@ -31,9 +34,10 @@
     [MODE.PAUSED]: "Paused",
     [MODE.ERROR]: "Error"
   };
-  let dashboard = { currentTab: {}, sessions: [], store: Settings.defaultStore(), nativeHost: { connected: false, runs: [] } };
+  let dashboard = { currentTab: {}, sessions: [], store: Settings.defaultStore(), localActionStore: LocalActions.defaultStore(), nativeHost: { connected: false, runs: [], downloads: [] } };
   let selectedTabId = null;
   let selectedProfileId = null;
+  let selectedLocalActionProfileId = null;
   let selectedRuleId = null;
   let formConfigDraft = Settings.defaultConfig();
   let shellPresetsDraft = [];
@@ -44,14 +48,21 @@
   let autoProfileByUrl = true;
   const manualProfileSelectionByTab = new Map();
   const pendingPickerResults = new Map();
+  const lastShownDownloadCaptureByTab = new Map();
   const FORM_RELOAD_MESSAGE_TYPES = new Set([
     MESSAGE.GET_DASHBOARD, MESSAGE.ACTIVATE_CURRENT, MESSAGE.STOP_TAB,
     MESSAGE.ASSIGN_PROFILE, MESSAGE.SAVE_TAB_CONFIG, MESSAGE.RESET_TAB_CONFIG,
     MESSAGE.CREATE_PROFILE, MESSAGE.DUPLICATE_PROFILE, MESSAGE.SAVE_PROFILE,
-    MESSAGE.DELETE_PROFILE, MESSAGE.IMPORT_SETTINGS
+    MESSAGE.DELETE_PROFILE, MESSAGE.IMPORT_SETTINGS, MESSAGE.CREATE_SETTINGS_SNAPSHOT,
+    MESSAGE.CREATE_LOCAL_ACTION_PROFILE, MESSAGE.SAVE_LOCAL_ACTION_PROFILE,
+    MESSAGE.DELETE_LOCAL_ACTION_PROFILE, MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE,
+    MESSAGE.SAVE_TAB_LOCAL_ACTIONS, MESSAGE.RESET_TAB_LOCAL_ACTIONS,
+    MESSAGE.RESTORE_SETTINGS_SNAPSHOT, MESSAGE.DELETE_SETTINGS_SNAPSHOT
   ]);
   let passiveRefreshTimer = null;
   let passiveRefreshSerial = 0;
+  let workingSessionMode = null;
+  let pendingWorkingSessionBundle = null;
 
   function showMessage(text = "", level = "info") {
     elements.messageBox.textContent = text;
@@ -136,6 +147,17 @@
 
   function profileById(profileId) {
     return Settings.profileById(dashboard.store, profileId) || dashboard.store.profiles[0];
+  }
+
+  function localActionProfileById(profileId) {
+    return LocalActions.profileById(dashboard.localActionStore, profileId) || dashboard.localActionStore.profiles[0];
+  }
+
+  function selectedDownloadState() {
+    const downloads = Array.isArray(dashboard.nativeHost?.downloads) ? dashboard.nativeHost.downloads : [];
+    return downloads.find((item) => Number(item.tabId) === Number(selectedTabId)) || {
+      tabId: selectedTabId, status: "idle", destinationPath: "", error: null, captureId: null
+    };
   }
 
   function selectedSession() {
@@ -422,8 +444,6 @@
     elements.routingPriority.value = String(value.activation.routingPriority);
     elements.requireUrlMatch.checked = value.activation.requireUrlMatch;
     elements.urlPatterns.value = value.activation.urlPatterns.join("\n");
-    shellPresetsDraft = Settings.clone(value.shell.presets || []);
-    selectedShellPresetId = value.shell.selectedPresetId || "";
     renderRuleOptions();
     writeRuleFields(ruleById(value, selectedRuleId));
     elements.titleBlink.checked = value.alerts.titleBlink;
@@ -434,14 +454,6 @@
     elements.notificationAlert.checked = value.alerts.notification;
     elements.dismissOnUserActivity.checked = value.alerts.dismissOnUserActivity;
     elements.activeTabTimeoutSeconds.value = String(value.alerts.activeTabTimeoutSeconds);
-    elements.requireShellPresetMatch.checked = value.shell.requirePresetMatch;
-    elements.rememberShellHistory.checked = value.shell.rememberHistory;
-    elements.shellHistoryLimit.value = String(value.shell.historyLimit);
-    elements.workingDirectory.value = value.shell.workingDirectory;
-    elements.shellCommand.value = value.shell.command;
-    elements.shellMode.value = value.shell.mode;
-    elements.confirmBeforeRun.checked = value.shell.confirmBeforeRun;
-    renderShellPresetOptions();
     renderShellHistory();
     renderRuleRuntimeSummary();
   }
@@ -521,6 +533,15 @@
     }));
   }
 
+  function commitSelectedShellPresetDraft() {
+    const preset = selectedShellPreset();
+    if (!preset) {
+      return;
+    }
+    const updated = createShellPresetFromForm(elements.shellPresetName.value.trim() || preset.name, preset.id);
+    shellPresetsDraft = shellPresetsDraft.map((item) => item.id === preset.id ? updated : item);
+  }
+
   function readConfig() {
     const draft = commitCurrentRuleDraft();
     return Settings.normalizeConfig({
@@ -541,6 +562,50 @@
         notification: elements.notificationAlert.checked,
         dismissOnUserActivity: elements.dismissOnUserActivity.checked,
         activeTabTimeoutSeconds: Number(elements.activeTabTimeoutSeconds.value)
+      }
+    });
+  }
+
+  function writeLocalActionConfig(rawConfig) {
+    const value = LocalActions.normalizeConfig(rawConfig);
+    elements.localActionRoutingEnabled.checked = value.routing.enabled;
+    elements.localActionRoutingPriority.value = String(value.routing.priority);
+    elements.localActionUrlPatterns.value = value.routing.urlPatterns.join("\n");
+    elements.managedDownloadEnabled.checked = value.download.enabled;
+    elements.downloadDestinationDirectory.value = value.download.destinationDirectory;
+    elements.downloadCaptureWindowSeconds.value = String(value.download.captureWindowSeconds);
+    elements.downloadConflictAction.value = value.download.conflictAction;
+    elements.showDownloadCompletionDialog.checked = value.download.showCompletionDialog;
+    elements.executeShellAfterMove.checked = value.download.executeShellAfterMove;
+    shellPresetsDraft = LocalActions.clone(value.shell.presets || []);
+    selectedShellPresetId = value.shell.selectedPresetId || "";
+    elements.requireShellPresetMatch.checked = value.shell.requirePresetMatch;
+    elements.rememberShellHistory.checked = value.shell.rememberHistory;
+    elements.shellHistoryLimit.value = String(value.shell.historyLimit);
+    elements.workingDirectory.value = value.shell.workingDirectory;
+    elements.shellCommand.value = value.shell.command;
+    elements.shellMode.value = value.shell.mode;
+    elements.confirmBeforeRun.checked = value.shell.confirmBeforeRun;
+    renderShellPresetOptions();
+    renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
+    renderShellHistory();
+  }
+
+  function readLocalActionConfig() {
+    commitSelectedShellPresetDraft();
+    return LocalActions.normalizeConfig({
+      routing: {
+        enabled: elements.localActionRoutingEnabled.checked,
+        priority: Number(elements.localActionRoutingPriority.value),
+        urlPatterns: elements.localActionUrlPatterns.value.split(/\r?\n/)
+      },
+      download: {
+        enabled: elements.managedDownloadEnabled.checked,
+        destinationDirectory: elements.downloadDestinationDirectory.value,
+        captureWindowSeconds: Number(elements.downloadCaptureWindowSeconds.value),
+        conflictAction: elements.downloadConflictAction.value,
+        showCompletionDialog: elements.showDownloadCompletionDialog.checked,
+        executeShellAfterMove: elements.executeShellAfterMove.checked
       },
       shell: {
         workingDirectory: elements.workingDirectory.value,
@@ -554,6 +619,45 @@
         presets: shellPresetsDraft
       }
     });
+  }
+
+  function renderLocalActionProfileOptions() {
+    const store = dashboard.localActionStore || LocalActions.defaultStore();
+    const session = selectedSession();
+    const routed = LocalActions.routeProfile(store, session?.url || dashboard.currentTab?.url || "");
+    if (!store.profiles.some((profile) => profile.id === selectedLocalActionProfileId)) {
+      selectedLocalActionProfileId = session?.localActionProfileId || routed.profileId || store.defaultProfileId;
+    }
+    elements.localActionProfileSelect.replaceChildren(...store.profiles.map((profile) => {
+      const suffix = profile.id === store.defaultProfileId ? " (default)" : "";
+      return new Option(`${profile.name}${suffix}`, profile.id);
+    }));
+    elements.localActionProfileSelect.value = selectedLocalActionProfileId || "";
+    const profile = localActionProfileById(selectedLocalActionProfileId);
+    elements.localActionProfileName.value = profile?.name || "";
+    elements.localActionModeStatus.textContent = session
+      ? `${session.localActionConfigMode === CONFIG_MODE.TAB ? "Tab-specific" : "Profile-based"} · ${session.localActionProfileName || profile?.name || "—"}`
+      : `URL route: ${routed.profileName || "—"}`;
+    elements.assignLocalActionProfileButton.disabled = busy || !session;
+    elements.saveTabLocalActionsButton.disabled = busy || !session;
+    elements.resetTabLocalActionsButton.disabled = busy || !session || session.localActionConfigMode !== CONFIG_MODE.TAB;
+    elements.deleteLocalActionProfileButton.disabled = busy || store.profiles.length <= 1;
+  }
+
+  function renderDownloadState() {
+    const state = selectedDownloadState();
+    const text = state.error
+      ? `${state.status}: ${state.error}`
+      : (state.destinationPath ? `${state.status}: ${state.destinationPath}` : state.status || "idle");
+    elements.downloadStateSummary.dataset.state = state.error ? "error" : (state.status === "completed" ? "ok" : "idle");
+    elements.downloadStateSummary.textContent = text;
+    const config = selectedSession()?.effectiveLocalActions || localActionProfileById(selectedLocalActionProfileId)?.config || LocalActions.defaultConfig();
+    if (state.status === "completed" && state.destinationPath && config.download.showCompletionDialog && lastShownDownloadCaptureByTab.get(Number(selectedTabId)) !== state.captureId) {
+      lastShownDownloadCaptureByTab.set(Number(selectedTabId), state.captureId);
+      elements.downloadCompletionMessage.textContent = "The managed download was moved successfully.";
+      elements.downloadCompletionPath.textContent = state.destinationPath;
+      if (!elements.downloadCompletionDialog.open) elements.downloadCompletionDialog.showModal();
+    }
   }
 
   function routingForSelectedUrl(includeDraft = false) {
@@ -635,6 +739,11 @@
       (dashboard.store.profiles.some((profile) => profile.id === routedProfileId) ? routedProfileId : null) ||
       (dashboard.store.profiles.some((profile) => profile.id === oldProfile) ? oldProfile : dashboard.store.defaultProfileId);
     elements.profileSelect.value = selectedProfileId;
+    const localStore = dashboard.localActionStore || LocalActions.defaultStore();
+    const routedLocal = LocalActions.routeProfile(localStore, session?.url || dashboard.currentTab?.url || "");
+    selectedLocalActionProfileId = session?.localActionProfileId ||
+      (localStore.profiles.some((profile) => profile.id === selectedLocalActionProfileId) ? selectedLocalActionProfileId : null) ||
+      routedLocal.profileId || localStore.defaultProfileId;
   }
 
   function selectedLogs() {
@@ -715,6 +824,30 @@
     elements.ruleCommandStatus.textContent = rule.commandAction?.enabled
       ? `Command action: ${commandState}.`
       : "Automatic command is disabled for this rule.";
+  }
+
+  function renderSettingsSnapshots() {
+    const snapshots = Array.isArray(dashboard.settingsSnapshots) ? dashboard.settingsSnapshots : [];
+    const previous = elements.settingsSnapshotSelect.value;
+    elements.settingsSnapshotSelect.replaceChildren();
+    if (!snapshots.length) {
+      elements.settingsSnapshotSelect.add(new Option("No snapshots yet", ""));
+      elements.settingsSnapshotInfo.textContent = "Automatic snapshots are created before profile save/delete and settings import.";
+    } else {
+      for (const snapshot of snapshots) {
+        const stamp = new Date(snapshot.createdAt).toLocaleString();
+        elements.settingsSnapshotSelect.add(new Option(`${stamp} · ${snapshot.label}`, snapshot.id));
+      }
+      elements.settingsSnapshotSelect.value = snapshots.some((snapshot) => snapshot.id === previous)
+        ? previous
+        : snapshots[0].id;
+      const selected = snapshots.find((snapshot) => snapshot.id === elements.settingsSnapshotSelect.value) || snapshots[0];
+      elements.settingsSnapshotInfo.textContent = `${selected.profileCount} profile(s), revision ${selected.revision}, reason: ${selected.reason}.`;
+    }
+    const hasSelection = Boolean(elements.settingsSnapshotSelect.value);
+    elements.restoreSettingsSnapshotButton.disabled = busy || !hasSelection;
+    elements.deleteSettingsSnapshotButton.disabled = busy || !hasSelection;
+    elements.createSettingsSnapshotButton.disabled = busy;
   }
 
   function renderDetails(loadForm = true) {
@@ -810,15 +943,20 @@
     elements.clearHighlightsButton.disabled = busy || !currentIsSelected;
     elements.copyLogsButton.disabled = busy || !session;
     elements.clearLogsButton.disabled = busy || !session;
+    renderLocalActionProfileOptions();
     renderActivityLog();
     renderShellState();
+    renderDownloadState();
     renderUrlRoutingPreview();
     renderRuleRuntimeSummary();
+    renderSettingsSnapshots();
 
     const profile = profileById(selectedProfileId);
     if (loadForm) {
       elements.profileName.value = profile?.name || "";
       writeConfig(session?.effectiveConfig || profile?.config || Settings.defaultConfig());
+      const localProfile = localActionProfileById(selectedLocalActionProfileId);
+      writeLocalActionConfig(session?.effectiveLocalActions || localProfile?.config || LocalActions.defaultConfig());
     }
   }
 
@@ -832,7 +970,13 @@
       profiles: (Array.isArray(data.store?.profiles) ? data.store.profiles : []).map((profile) => [
         profile.id, profile.name
       ]),
-      defaultProfileId: data.store?.defaultProfileId || null
+      defaultProfileId: data.store?.defaultProfileId || null,
+      localSessions: (Array.isArray(data.sessions) ? data.sessions : []).map((session) => [
+        session.tabId, session.localActionProfileId, session.localActionConfigMode
+      ]),
+      localProfiles: (Array.isArray(data.localActionStore?.profiles) ? data.localActionStore.profiles : []).map((profile) => [profile.id, profile.name]),
+      localDefaultProfileId: data.localActionStore?.defaultProfileId || null,
+      snapshotIds: (Array.isArray(data.settingsSnapshots) ? data.settingsSnapshots : []).map((snapshot) => snapshot.id)
     });
   }
 
@@ -1147,7 +1291,7 @@
   }
 
   function createShellPresetFromForm(name, id = null) {
-    return Settings.normalizeShellPreset({
+    return LocalActions.normalizeCommandPreset({
       id: id || Settings.makeId("command-preset"),
       name,
       enabled: elements.shellPresetEnabled.checked,
@@ -1165,7 +1309,7 @@
       return;
     }
     loadShellValues(preset);
-    showMessage(`Loaded preset “${preset.name}”. Save the profile or tab configuration to persist changes.`, "success");
+    showMessage(`Loaded preset “${preset.name}”. Save the local-action profile or tab override to persist changes.`, "success");
   }
 
   function newShellPreset() {
@@ -1176,7 +1320,7 @@
     selectedShellPresetId = preset.id;
     renderShellPresetOptions();
     renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
-    showMessage("Command preset added to the draft. Save the profile or tab configuration to persist it.", "success");
+    showMessage("Command preset added to the draft. Save the local-action profile or tab override to persist it.", "success");
   }
 
   function updateShellPreset() {
@@ -1189,7 +1333,7 @@
     shellPresetsDraft = shellPresetsDraft.map((item) => item.id === preset.id ? updated : item);
     renderShellPresetOptions();
     renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
-    showMessage("Command preset updated in the draft. Save the profile or tab configuration to persist it.", "success");
+    showMessage("Command preset updated in the draft. Save the local-action profile or tab override to persist it.", "success");
   }
 
   function deleteShellPreset() {
@@ -1199,7 +1343,7 @@
     selectedShellPresetId = "";
     renderShellPresetOptions();
     renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
-    showMessage("Command preset deleted from the draft. Save the profile or tab configuration to persist it.", "success");
+    showMessage("Command preset deleted from the draft. Save the local-action profile or tab override to persist it.", "success");
   }
 
   function loadSelectedShellHistory() {
@@ -1228,13 +1372,50 @@ Command:
 ${shell.command}`;
   }
 
+  function saveLocalActionProfile() {
+    const profile = localActionProfileById(selectedLocalActionProfileId);
+    if (!profile) {
+      showMessage("Select a local-action profile first.", "error");
+      return;
+    }
+    const config = readLocalActionConfig();
+    void request(MESSAGE.SAVE_LOCAL_ACTION_PROFILE, {
+      profile: { ...profile, name: elements.localActionProfileName.value.trim() || profile.name, config }
+    }, "Local-action profile saved.");
+  }
+
+  function saveTabLocalActions() {
+    if (!selectedSession()) {
+      showMessage("Activate the tab before saving a local-action override.", "error");
+      return;
+    }
+    void request(MESSAGE.SAVE_TAB_LOCAL_ACTIONS, {
+      tabId: selectedTabId,
+      config: readLocalActionConfig()
+    }, "Tab-specific local actions saved.");
+  }
+
+  function createLocalActionProfile() {
+    const name = prompt("New local-action profile name:", "New local actions");
+    if (!name) return;
+    void request(MESSAGE.CREATE_LOCAL_ACTION_PROFILE, {
+      name,
+      baseProfileId: selectedLocalActionProfileId
+    }, "Local-action profile created.");
+  }
+
+  function runShellAfterDownload() {
+    if (elements.downloadCompletionDialog.open) elements.downloadCompletionDialog.close();
+    runShellCommand();
+  }
+
   function runShellCommand() {
     const session = selectedSession();
     if (!session) {
       showMessage("Activate the tab before running a command.", "error");
       return;
     }
-    const shell = readConfig().shell;
+    const shell = readLocalActionConfig().shell;
     if (!shell.workingDirectory.trim() || !shell.command.trim()) {
       showMessage("Working directory and command must not be empty.", "error");
       return;
@@ -1329,6 +1510,9 @@ ${run.command || ""}`)) {
       }
       if (response.profileId) {
         selectedProfileId = response.profileId;
+      }
+      if (response.localActionProfileId) {
+        selectedLocalActionProfileId = response.localActionProfileId;
       }
       if (response.dashboard) {
         const reloadForm = options.reloadForm ?? FORM_RELOAD_MESSAGE_TYPES.has(type);
@@ -1520,6 +1704,206 @@ ${run.command || ""}`)) {
   elements.targetDryRunTestButton.addEventListener("click", () => testTargetAction(false));
   elements.targetClickTestButton.addEventListener("click", () => testTargetAction(true));
   elements.targetClickQuickButton.addEventListener("click", () => testTargetAction(true));
+  function assertSavedConfig(expected, actual, label) {
+    const expectedFingerprint = WorkingSession.configFingerprint(expected);
+    const actualFingerprint = WorkingSession.configFingerprint(actual);
+    if (expectedFingerprint !== actualFingerprint) {
+      throw new Error(`${label}: Firefox storage returned different configuration data.`);
+    }
+  }
+
+  async function saveProfileConfiguration() {
+    const profile = profileById(selectedProfileId);
+    if (!profile) {
+      showMessage("Select a profile before saving.", "error");
+      return;
+    }
+    const config = readConfig();
+    const validation = Settings.validateConfig(config);
+    if (!validation.ok) {
+      showMessage(validation.errors.join("\n"), "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.SAVE_PROFILE,
+        profile: { ...profile, name: elements.profileName.value.trim() || profile.name, config: validation.config }
+      });
+      if (!response?.ok) throw new Error(response?.error || "Could not save the profile.");
+      assertSavedConfig(validation.config, response.savedProfile?.config, "Save profile");
+      dashboard = response.dashboard || dashboard;
+      selectedProfileId = response.savedProfile.id;
+      formConfigDraft = Settings.normalizeConfig(response.savedProfile.config);
+      writeConfig(formConfigDraft);
+      renderSelectors(selectedTabId);
+      renderDetails(false);
+      showMessage(`Profile “${response.savedProfile.name}” saved and verified.`, "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveTabConfiguration() {
+    const session = selectedSession();
+    if (!session) {
+      showMessage("Activate the tab before saving a tab-specific configuration.", "error");
+      return;
+    }
+    const config = readConfig();
+    const validation = Settings.validateConfig(config);
+    if (!validation.ok) {
+      showMessage(validation.errors.join("\n"), "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.SAVE_TAB_CONFIG,
+        tabId: selectedTabId,
+        config: validation.config
+      });
+      if (!response?.ok) throw new Error(response?.error || "Could not save the tab configuration.");
+      assertSavedConfig(validation.config, response.savedSession?.effectiveConfig, "Save tab configuration");
+      dashboard = response.dashboard || dashboard;
+      formConfigDraft = Settings.normalizeConfig(response.savedSession.effectiveConfig);
+      writeConfig(formConfigDraft);
+      renderSelectors(selectedTabId);
+      renderDetails(false);
+      showMessage(`Configuration for tab ${selectedTabId} saved and verified.`, "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function workingSessionRows() {
+    return [...elements.workingSessionTabList.querySelectorAll('input[type="checkbox"][data-tab-id]')];
+  }
+
+  function renderWorkingSessionDialog(tabs, mode) {
+    workingSessionMode = mode;
+    elements.workingSessionDialogTitle.textContent = mode === "import" ? "Import working session" : "Save working session";
+    elements.workingSessionDialogDescription.textContent = mode === "import"
+      ? "The selected tabs will be opened and their saved add-on configuration will be restored."
+      : "Active add-on tabs are selected by default. Select any additional tabs to include.";
+    elements.confirmWorkingSessionButton.textContent = mode === "import" ? "Open and restore tabs" : "Save selected tabs";
+    elements.workingSessionResult.textContent = "";
+    elements.workingSessionTabList.replaceChildren(...tabs.map((tab, index) => {
+      const label = document.createElement("label");
+      label.className = "working-session-tab-row";
+      label.dataset.addonActive = tab.addOnActive ? "true" : "false";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.dataset.tabId = String(tab.tabId ?? tab.sourceTabId ?? index);
+      checkbox.checked = mode === "import" ? true : Boolean(tab.addOnActive);
+      const content = document.createElement("span");
+      const title = document.createElement("span");
+      title.className = "working-session-tab-title";
+      title.textContent = tab.title || "Untitled tab";
+      const url = document.createElement("span");
+      url.className = "working-session-tab-url";
+      url.textContent = tab.url;
+      const meta = document.createElement("span");
+      meta.className = "working-session-tab-meta";
+      meta.textContent = tab.addOnActive
+        ? `Add-on ${tab.mode || "active"}; profile ${tab.profileName || tab.profile?.name || "unknown"}`
+        : "Add-on inactive";
+      content.append(title, url, meta);
+      label.append(checkbox, content);
+      return label;
+    }));
+    if (!elements.workingSessionDialog.open) {
+      elements.workingSessionDialog.showModal();
+    }
+  }
+
+  async function openSaveWorkingSessionDialog() {
+    setBusy(true);
+    try {
+      const response = await browser.runtime.sendMessage({ type: MESSAGE.LIST_WORKING_SESSION_TABS });
+      if (!response?.ok) throw new Error(response?.error || "Could not list open tabs.");
+      pendingWorkingSessionBundle = null;
+      renderWorkingSessionDialog(response.tabs || [], "export");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmWorkingSession() {
+    const selected = workingSessionRows().filter((item) => item.checked).map((item) => Number(item.dataset.tabId));
+    if (!selected.length) {
+      elements.workingSessionResult.textContent = "Select at least one tab.";
+      return;
+    }
+    if (workingSessionMode === "export") {
+      setBusy(true);
+      try {
+        const response = await browser.runtime.sendMessage({ type: MESSAGE.EXPORT_WORKING_SESSION, tabIds: selected });
+        if (!response?.ok) throw new Error(response?.error || "Could not save the working session.");
+        downloadBlob(new Blob([response.text], { type: "application/json" }), `firefox-chat-assistant-working-session-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
+        elements.workingSessionDialog.close();
+        showMessage(`Working session saved with ${response.tabCount} tab(s).`, "success");
+      } catch (error) {
+        elements.workingSessionResult.textContent = error instanceof Error ? error.message : String(error);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    const selectedTabs = pendingWorkingSessionBundle.tabs.filter((_tab, index) => selected.includes(index));
+    const bundle = WorkingSession.build(selectedTabs, pendingWorkingSessionBundle);
+    const origins = WorkingSession.requiredOrigins(bundle);
+    const permissionRequest = origins.length ? browser.permissions.request({ origins }) : Promise.resolve(true);
+    setBusy(true);
+    try {
+      const granted = await permissionRequest;
+      if (!granted) throw new Error("Site access was not granted for every restored tab.");
+      const response = await browser.runtime.sendMessage({ type: MESSAGE.IMPORT_WORKING_SESSION, text: WorkingSession.stringify(bundle) });
+      if (!response?.ok) throw new Error(response?.error || "Could not restore the working session.");
+      if (response.dashboard) render(response.dashboard, true, response.report?.openedTabIds?.[0] || null);
+      elements.workingSessionDialog.close();
+      showMessage(`Working session restored: ${response.report.restored} restored, ${response.report.failed.length} failed.`, response.report.failed.length ? "error" : "success");
+    } catch (error) {
+      elements.workingSessionResult.textContent = error instanceof Error ? error.message : String(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  elements.localActionProfileSelect.addEventListener("change", () => {
+    selectedLocalActionProfileId = elements.localActionProfileSelect.value;
+    const profile = localActionProfileById(selectedLocalActionProfileId);
+    elements.localActionProfileName.value = profile?.name || "";
+    writeLocalActionConfig(profile?.config || LocalActions.defaultConfig());
+    renderLocalActionProfileOptions();
+  });
+  elements.assignLocalActionProfileButton.addEventListener("click", () => void request(MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE, {
+    tabId: selectedTabId, profileId: selectedLocalActionProfileId
+  }, "Local-action profile applied to tab."));
+  elements.newLocalActionProfileButton.addEventListener("click", createLocalActionProfile);
+  elements.saveLocalActionProfileButton.addEventListener("click", saveLocalActionProfile);
+  elements.deleteLocalActionProfileButton.addEventListener("click", () => {
+    const profile = localActionProfileById(selectedLocalActionProfileId);
+    if (profile && confirm(`Delete local-action profile “${profile.name}”?`)) {
+      void request(MESSAGE.DELETE_LOCAL_ACTION_PROFILE, { profileId: profile.id }, "Local-action profile deleted.");
+    }
+  });
+  elements.saveTabLocalActionsButton.addEventListener("click", saveTabLocalActions);
+  elements.resetTabLocalActionsButton.addEventListener("click", () => void request(MESSAGE.RESET_TAB_LOCAL_ACTIONS, {
+    tabId: selectedTabId
+  }, "This tab now uses its local-action profile."));
+  elements.executeShellAfterDownloadButton.addEventListener("click", runShellAfterDownload);
+  elements.acknowledgeDownloadButton.addEventListener("click", () => {
+    if (elements.downloadCompletionDialog.open) elements.downloadCompletionDialog.close();
+  });
+
   elements.logChannel.addEventListener("change", renderActivityLog);
   elements.copyLogsButton.addEventListener("click", () => void copySelectedLogs());
   elements.clearLogsButton.addEventListener("click", () => {
@@ -1554,7 +1938,7 @@ ${run.command || ""}`)) {
   elements.resumeButton.addEventListener("click", () => void request(MESSAGE.RESUME_TAB, { tabId: selectedTabId }, "Tab resumed."));
   elements.stopButton.addEventListener("click", () => void request(MESSAGE.STOP_TAB, { tabId: selectedTabId }, "Tab stopped."));
   elements.assignProfileButton.addEventListener("click", () => void request(MESSAGE.ASSIGN_PROFILE, { tabId: selectedTabId, profileId: selectedProfileId }, "Profile applied to tab."));
-  elements.saveTabButton.addEventListener("click", () => void request(MESSAGE.SAVE_TAB_CONFIG, { tabId: selectedTabId, config: readConfig() }, "Tab-specific configuration saved."));
+  elements.saveTabButton.addEventListener("click", () => void saveTabConfiguration());
   elements.resetTabButton.addEventListener("click", () => void request(MESSAGE.RESET_TAB_CONFIG, { tabId: selectedTabId }, "The tab now uses its profile configuration."));
   elements.newProfileButton.addEventListener("click", () => {
     const name = prompt("New profile name:", "New profile");
@@ -1571,13 +1955,7 @@ ${run.command || ""}`)) {
       void request(MESSAGE.DELETE_PROFILE, { profileId: profile.id }, "Profile deleted.");
     }
   });
-  elements.saveProfileButton.addEventListener("click", () => {
-    const profile = profileById(selectedProfileId);
-    if (!profile) return;
-    void request(MESSAGE.SAVE_PROFILE, {
-      profile: { ...profile, name: elements.profileName.value, config: readConfig() }
-    }, "Profile saved and active tabs using it were updated.");
-  });
+  elements.saveProfileButton.addEventListener("click", () => void saveProfileConfiguration());
   function downloadBlob(blob, filename) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -1607,13 +1985,50 @@ ${run.command || ""}`)) {
       `firefox-chat-improver-settings-${new Date().toISOString().slice(0, 10)}.json`
     );
   });
+  elements.saveWorkingSessionButton.addEventListener("click", () => void openSaveWorkingSessionDialog());
+  elements.importWorkingSessionButton.addEventListener("click", () => elements.importWorkingSessionFile.click());
+  elements.confirmWorkingSessionButton.addEventListener("click", () => void confirmWorkingSession());
+  elements.importWorkingSessionFile.addEventListener("change", async () => {
+    const file = elements.importWorkingSessionFile.files?.[0];
+    if (!file) return;
+    try {
+      pendingWorkingSessionBundle = WorkingSession.parse(await file.text());
+      const tabs = pendingWorkingSessionBundle.tabs.map((tab, index) => ({ ...tab, tabId: index, addOnActive: tab.addOnActive }));
+      renderWorkingSessionDialog(tabs, "import");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      elements.importWorkingSessionFile.value = "";
+    }
+  });
   elements.importButton.addEventListener("click", () => elements.importFile.click());
   elements.importFile.addEventListener("change", async () => {
     const file = elements.importFile.files?.[0];
     if (!file) return;
     const text = await file.text();
-    await request(MESSAGE.IMPORT_SETTINGS, { text }, "Settings imported.");
+    await request(MESSAGE.IMPORT_SETTINGS, { text }, "Settings imported. The previous settings were saved as a recovery snapshot.");
     elements.importFile.value = "";
+  });
+  elements.settingsSnapshotSelect.addEventListener("change", renderSettingsSnapshots);
+  elements.createSettingsSnapshotButton.addEventListener("click", () => {
+    const label = prompt("Snapshot label:", "Manual snapshot");
+    if (label !== null) {
+      void request(MESSAGE.CREATE_SETTINGS_SNAPSHOT, { label }, "Settings snapshot created.");
+    }
+  });
+  elements.restoreSettingsSnapshotButton.addEventListener("click", () => {
+    const snapshotId = elements.settingsSnapshotSelect.value;
+    const label = elements.settingsSnapshotSelect.selectedOptions[0]?.textContent || "selected snapshot";
+    if (snapshotId && confirm(`Restore ${label}? Current settings will be snapshotted first.`)) {
+      void request(MESSAGE.RESTORE_SETTINGS_SNAPSHOT, { snapshotId }, "Settings snapshot restored.");
+    }
+  });
+  elements.deleteSettingsSnapshotButton.addEventListener("click", () => {
+    const snapshotId = elements.settingsSnapshotSelect.value;
+    const label = elements.settingsSnapshotSelect.selectedOptions[0]?.textContent || "selected snapshot";
+    if (snapshotId && confirm(`Delete ${label}?`)) {
+      void request(MESSAGE.DELETE_SETTINGS_SNAPSHOT, { snapshotId }, "Settings snapshot deleted.");
+    }
   });
 
   browser.runtime.onMessage.addListener((message) => {

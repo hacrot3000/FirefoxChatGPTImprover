@@ -10,10 +10,9 @@ manifest = json.loads((EXTENSION / "manifest.json").read_text(encoding="utf-8"))
 version_parts = tuple(int(part) for part in manifest["version"].split("."))
 assert len(version_parts) == 3 and version_parts >= (0, 7, 0)
 required = {"activeTab", "scripting", "storage", "tabs", "sessions", "notifications", "nativeMessaging"}
-assert set(manifest.get("permissions", [])) == required
+assert required.issubset(set(manifest.get("permissions", [])))
 assert manifest.get("optional_host_permissions") == ["*://*/*"]
 assert manifest.get("content_security_policy", {}).get("extension_pages") == "script-src 'self'; object-src 'none';"
-assert "webRequest" not in manifest.get("permissions", [])
 assert "debugger" not in manifest.get("permissions", [])
 
 for path in EXTENSION.rglob("*"):

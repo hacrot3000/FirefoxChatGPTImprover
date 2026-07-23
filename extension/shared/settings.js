@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 13) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 14) {
     return;
   }
 
-  const SCHEMA_VERSION = 13;
+  const SCHEMA_VERSION = 14;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
@@ -633,21 +633,6 @@
     const config = normalizeConfig(raw);
     const errors = [];
 
-    for (const preset of config.shell.presets) {
-      if (!preset.enabled) {
-        continue;
-      }
-      if (!preset.name) {
-        errors.push("Command preset: name is missing.");
-      }
-      if (!preset.workingDirectory.startsWith("/")) {
-        errors.push(`Command preset “${preset.name}”: working directory must be an absolute path.`);
-      }
-      if (!preset.command.trim()) {
-        errors.push(`Command preset “${preset.name}”: command is empty.`);
-      }
-    }
-
     for (const rule of config.rules) {
       const labelPrefix = `Rule “${rule.name}”`;
       for (const [label, selector] of [
@@ -677,15 +662,6 @@
       if (rule.commandAction.enabled) {
         if (!rule.commandAction.presetId) {
           errors.push(`${labelPrefix}, command action: select an enabled command preset.`);
-        } else {
-          const preset = config.shell.presets.find((item) => item.id === rule.commandAction.presetId);
-          if (!preset) {
-            errors.push(`${labelPrefix}, command action: the selected preset does not exist.`);
-          } else if (!preset.enabled) {
-            errors.push(`${labelPrefix}, command action: the selected preset is disabled.`);
-          } else if (preset.confirmBeforeRun) {
-            errors.push(`${labelPrefix}, command action: automatic presets must not require confirmation.`);
-          }
         }
       }
 
