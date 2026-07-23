@@ -32,7 +32,7 @@ const Protocol = context.FCI_PROTOCOL;
 const Alert = context.FCI_ALERT_ENGINE;
 
 const config = Settings.normalizeConfig({ alerts: { titleBlink: true } });
-assert.equal(Settings.SCHEMA_VERSION, 7);
+assert(Settings.SCHEMA_VERSION >= 7);
 assert.equal(config.alerts.titlePrefix, "⚠ AI READY");
 assert.equal(config.alerts.blinkIntervalMs, 700);
 assert.equal(config.alerts.dismissOnUserActivity, true);

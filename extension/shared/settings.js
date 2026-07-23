@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 7) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 8) {
     return;
   }
 
-  const SCHEMA_VERSION = 7;
+  const SCHEMA_VERSION = 8;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
@@ -74,7 +74,9 @@
     return {
       activation: {
         requireUrlMatch: false,
-        urlPatterns: []
+        urlPatterns: [],
+        routingEnabled: true,
+        routingPriority: 0
       },
       monitor: {
         selector: defaultSelector("#composer-submit-button"),
@@ -166,7 +168,9 @@
     return {
       activation: {
         requireUrlMatch: safeBoolean(activation.requireUrlMatch, false),
-        urlPatterns: [...new Set(patterns.map((item) => safeString(item).trim()).filter(Boolean))]
+        urlPatterns: [...new Set(patterns.map((item) => safeString(item).trim()).filter(Boolean))],
+        routingEnabled: safeBoolean(activation.routingEnabled, true),
+        routingPriority: safeInteger(activation.routingPriority, 0, -1000, 1000)
       },
       monitor: {
         selector: normalizeSelector(monitor.selector, defaults.monitor.selector),
@@ -332,21 +336,86 @@
     return new RegExp(`^${escaped}$`, "i");
   }
 
-  function urlAllowed(config, url) {
+  function matchingUrlPatterns(config, url) {
     const activation = normalizeConfig(config).activation;
-    if (!activation.requireUrlMatch) {
-      return true;
-    }
     if (!activation.urlPatterns.length || typeof url !== "string") {
-      return false;
+      return [];
     }
-    return activation.urlPatterns.some((pattern) => {
+    return activation.urlPatterns.filter((pattern) => {
       try {
         return wildcardToRegExp(pattern).test(url);
       } catch (_error) {
         return false;
       }
     });
+  }
+
+  function urlAllowed(config, url) {
+    const activation = normalizeConfig(config).activation;
+    if (!activation.requireUrlMatch) {
+      return true;
+    }
+    return matchingUrlPatterns(config, url).length > 0;
+  }
+
+  function patternSpecificity(pattern) {
+    const text = safeString(pattern);
+    const literalLength = text.replaceAll("*", "").length;
+    const wildcardPenalty = (text.match(/\*/g) || []).length * 8;
+    const exactBonus = text.includes("*") ? 0 : 10000;
+    return exactBonus + literalLength - wildcardPenalty;
+  }
+
+  function profileRouteCandidates(rawStore, url) {
+    const store = normalizeStore(rawStore);
+    const candidates = [];
+    store.profiles.forEach((profile, profileIndex) => {
+      const activation = normalizeConfig(profile.config).activation;
+      if (!activation.routingEnabled) {
+        return;
+      }
+      const patterns = matchingUrlPatterns(profile.config, url);
+      if (!patterns.length) {
+        return;
+      }
+      const rankedPatterns = patterns
+        .map((pattern) => ({ pattern, specificity: patternSpecificity(pattern) }))
+        .sort((left, right) => right.specificity - left.specificity || left.pattern.localeCompare(right.pattern));
+      candidates.push({
+        profileId: profile.id,
+        profileName: profile.name,
+        priority: activation.routingPriority,
+        bestPattern: rankedPatterns[0].pattern,
+        specificity: rankedPatterns[0].specificity,
+        matchedPatterns: rankedPatterns.map((item) => item.pattern),
+        profileIndex
+      });
+    });
+    candidates.sort((left, right) =>
+      right.priority - left.priority ||
+      right.specificity - left.specificity ||
+      left.profileIndex - right.profileIndex
+    );
+    return candidates;
+  }
+
+  function routeProfile(rawStore, url, options = {}) {
+    const store = normalizeStore(rawStore);
+    const candidates = profileRouteCandidates(store, url);
+    const matched = candidates.length > 0;
+    const selectedId = matched
+      ? candidates[0].profileId
+      : (options.fallbackToDefault === false ? null : store.defaultProfileId);
+    const profile = selectedId ? profileById(store, selectedId) : null;
+    return {
+      url: safeString(url),
+      matched,
+      usedFallback: Boolean(profile && !matched),
+      profileId: profile?.id || null,
+      profileName: profile?.name || null,
+      profile,
+      candidates
+    };
   }
 
   function validateConfig(raw) {
@@ -414,6 +483,9 @@
       createProfile,
       profileById,
       selectorToCss,
+      matchingUrlPatterns,
+      profileRouteCandidates,
+      routeProfile,
       urlAllowed,
       validateConfig,
       exportStore,

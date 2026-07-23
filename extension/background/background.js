@@ -969,7 +969,9 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
       return publicSession(existing, store);
     }
 
+    const routing = requestedProfileId ? null : Settings.routeProfile(store, tab.url);
     const profile = Settings.profileById(store, requestedProfileId) ||
+      routing?.profile ||
       Settings.profileById(store, store.defaultProfileId) || store.profiles[0];
     if (!Settings.urlAllowed(profile.config, tab.url)) {
       throw new Error("URL hiện tại không khớp allowlist của profile đã chọn.");
@@ -989,7 +991,12 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
 
     const session = makeSession(tab, profile.id, source);
     await applySessionToContent(session, store, MESSAGE.CONTENT_ACTIVATE);
-    appendLog(session, "user", "activated", `Đã kích hoạt tab bằng ${source}.`, { url: tab.url, profileId: profile.id });
+    appendLog(session, "user", "activated", `Đã kích hoạt tab bằng ${source}.`, {
+      url: tab.url,
+      profileId: profile.id,
+      profileRouting: requestedProfileId ? "manual" : (routing?.matched ? "url-match" : "default-fallback"),
+      matchedPattern: routing?.candidates?.[0]?.bestPattern || null
+    });
     sessions.set(tab.id, session);
     await persistSession(session);
     await updateBadge(session, store);
@@ -1217,11 +1224,20 @@ Tab ${session.tabId}, chu kỳ ${session.runtime.cycle || 0}`
     const publicSessions = [...sessions.values()]
       .map((session) => publicSession(session, store))
       .sort((left, right) => left.tabId - right.tabId);
+    const routingPreview = Settings.routeProfile(store, tab?.url || "");
     return {
       protocolVersion: globalThis.FCI_PROTOCOL.VERSION,
       currentTab: tabMeta(tab),
       sessions: publicSessions,
       store,
+      routingPreview: {
+        url: routingPreview.url,
+        matched: routingPreview.matched,
+        usedFallback: routingPreview.usedFallback,
+        profileId: routingPreview.profileId,
+        profileName: routingPreview.profileName,
+        candidates: routingPreview.candidates
+      },
       nativeHost: nativeDashboardState(),
       pickers: [...pickerStates.values()].map((state) => clone(state))
     };

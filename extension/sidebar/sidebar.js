@@ -12,7 +12,7 @@
     monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"),
     profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
-    requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"),
+    autoProfileByUrl: $("#autoProfileByUrl"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), urlRoutingResult: $("#urlRoutingResult"),
     monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
     targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
@@ -34,11 +34,22 @@
   let busy = false;
   let activeTabRefreshSerial = 0;
   let collapsedGroups = {};
+  let autoProfileByUrl = true;
+  const manualProfileSelectionByTab = new Map();
   const pendingPickerResults = new Map();
 
   function showMessage(text = "", level = "info") {
     elements.messageBox.textContent = text;
     elements.messageBox.dataset.level = level;
+  }
+
+  function persistSidebarUi() {
+    return browser.storage.local.set({
+      [SIDEBAR_UI_STORAGE_KEY]: {
+        collapsedGroups: { ...collapsedGroups },
+        autoProfileByUrl
+      }
+    });
   }
 
   function setGroupCollapsed(section, collapsed, persist = false) {
@@ -57,16 +68,17 @@
     }
     collapsedGroups[groupId] = value;
     if (persist) {
-      void browser.storage.local.set({
-        [SIDEBAR_UI_STORAGE_KEY]: { collapsedGroups: { ...collapsedGroups } }
-      });
+      void persistSidebarUi();
     }
   }
 
   async function initializeCollapsibleGroups() {
     const result = await browser.storage.local.get(SIDEBAR_UI_STORAGE_KEY);
-    const stored = result?.[SIDEBAR_UI_STORAGE_KEY]?.collapsedGroups;
+    const storedUi = result?.[SIDEBAR_UI_STORAGE_KEY] || {};
+    const stored = storedUi.collapsedGroups;
     collapsedGroups = stored && typeof stored === "object" ? { ...stored } : {};
+    autoProfileByUrl = storedUi.autoProfileByUrl !== false;
+    elements.autoProfileByUrl.checked = autoProfileByUrl;
 
     for (const section of document.querySelectorAll("section.card[data-group-id]")) {
       const directChildren = [...section.children];
@@ -175,6 +187,8 @@
 
   function writeConfig(config) {
     const value = Settings.normalizeConfig(config);
+    elements.routingEnabled.checked = value.activation.routingEnabled;
+    elements.routingPriority.value = String(value.activation.routingPriority);
     elements.requireUrlMatch.checked = value.activation.requireUrlMatch;
     elements.urlPatterns.value = value.activation.urlPatterns.join("\n");
     elements.monitorTag.value = value.monitor.selector.tag;
@@ -285,6 +299,8 @@
   function readConfig() {
     return Settings.normalizeConfig({
       activation: {
+        routingEnabled: elements.routingEnabled.checked,
+        routingPriority: Number(elements.routingPriority.value),
         requireUrlMatch: elements.requireUrlMatch.checked,
         urlPatterns: elements.urlPatterns.value.split(/\r?\n/)
       },
@@ -323,6 +339,42 @@
     });
   }
 
+  function routingForSelectedUrl(includeDraft = false) {
+    const currentIsSelected = Number(dashboard.currentTab?.tabId) === Number(selectedTabId);
+    const session = selectedSession();
+    const url = session?.url || (currentIsSelected ? dashboard.currentTab?.url : "") || "";
+    if (!includeDraft || !selectedProfileId) {
+      return Settings.routeProfile(dashboard.store, url);
+    }
+    const draftStore = Settings.clone(dashboard.store);
+    const draftProfile = Settings.profileById(draftStore, selectedProfileId);
+    if (draftProfile) {
+      draftProfile.config = readConfig();
+    }
+    return Settings.routeProfile(draftStore, url);
+  }
+
+  function renderUrlRoutingPreview(includeDraft = false) {
+    const routing = routingForSelectedUrl(includeDraft);
+    const candidates = routing.candidates || [];
+    if (!routing.url) {
+      elements.urlRoutingResult.dataset.state = "none";
+      elements.urlRoutingResult.textContent = "Không có URL để kiểm tra.";
+      return routing;
+    }
+    if (routing.matched) {
+      const first = candidates[0];
+      elements.urlRoutingResult.dataset.state = "match";
+      elements.urlRoutingResult.textContent = `Khớp ${candidates.length} profile; chọn “${routing.profileName}” (ưu tiên ${first.priority}, pattern ${first.bestPattern}).`;
+    } else {
+      elements.urlRoutingResult.dataset.state = routing.profileId ? "fallback" : "none";
+      elements.urlRoutingResult.textContent = routing.profileId
+        ? `Không có profile khớp URL; fallback về “${routing.profileName}”.`
+        : "Không có profile khớp URL.";
+    }
+    return routing;
+  }
+
   function renderSelectors(preferredTabId = null) {
     const oldTab = selectedTabId;
     elements.tabSelect.replaceChildren();
@@ -357,7 +409,13 @@
       elements.profileSelect.add(new Option(`${profile.name}${suffix}`, profile.id));
     }
     const session = selectedSession();
+    const manualProfileId = manualProfileSelectionByTab.get(Number(selectedTabId));
+    const routedProfileId = autoProfileByUrl && !session
+      ? Settings.routeProfile(dashboard.store, dashboard.currentTab?.url || "").profileId
+      : null;
     selectedProfileId = session?.profileId ||
+      (dashboard.store.profiles.some((profile) => profile.id === manualProfileId) ? manualProfileId : null) ||
+      (dashboard.store.profiles.some((profile) => profile.id === routedProfileId) ? routedProfileId : null) ||
       (dashboard.store.profiles.some((profile) => profile.id === oldProfile) ? oldProfile : dashboard.store.defaultProfileId);
     elements.profileSelect.value = selectedProfileId;
   }
@@ -436,6 +494,9 @@
     elements.resumeButton.disabled = busy || mode !== MODE.PAUSED;
     elements.stopButton.disabled = busy || !session;
     elements.assignProfileButton.disabled = busy || !session;
+    elements.testUrlRoutingButton.disabled = busy || !currentIsSelected;
+    elements.useRoutedProfileButton.disabled = busy || !currentIsSelected;
+    elements.autoProfileByUrl.checked = autoProfileByUrl;
     elements.saveTabButton.disabled = busy || !session;
     elements.resetTabButton.disabled = busy || !session || session.configMode !== CONFIG_MODE.TAB;
     renderPickerButtons(currentIsSelected);
@@ -448,6 +509,7 @@
     elements.clearLogsButton.disabled = busy || !session;
     renderActivityLog();
     renderShellState();
+    renderUrlRoutingPreview();
 
     const profile = profileById(selectedProfileId);
     elements.profileName.value = profile?.name || "";
@@ -504,7 +566,9 @@
       const response = await browser.runtime.sendMessage({
         type: MESSAGE.ACTIVATE_CURRENT,
         tabId: activationTabId,
-        profileId: selectedProfileId
+        profileId: (autoProfileByUrl && !manualProfileSelectionByTab.has(Number(activationTabId)))
+          ? null
+          : selectedProfileId
       });
       if (!response) {
         throw new Error("Background script không trả về phản hồi.");
@@ -828,9 +892,48 @@ ${run.command || ""}`)) {
   });
   elements.profileSelect.addEventListener("change", () => {
     selectedProfileId = elements.profileSelect.value;
+    if (Number.isInteger(Number(selectedTabId)) && !selectedSession()) {
+      manualProfileSelectionByTab.set(Number(selectedTabId), selectedProfileId);
+    }
     const profile = profileById(selectedProfileId);
     elements.profileName.value = profile?.name || "";
     writeConfig(profile?.config || Settings.defaultConfig());
+  });
+  elements.autoProfileByUrl.addEventListener("change", () => {
+    autoProfileByUrl = elements.autoProfileByUrl.checked;
+    if (autoProfileByUrl) {
+      manualProfileSelectionByTab.delete(Number(selectedTabId));
+      const routing = renderUrlRoutingPreview();
+      if (!selectedSession() && routing.profileId) {
+        selectedProfileId = routing.profileId;
+        elements.profileSelect.value = selectedProfileId;
+        const profile = profileById(selectedProfileId);
+        elements.profileName.value = profile?.name || "";
+        writeConfig(profile?.config || Settings.defaultConfig());
+      }
+    }
+    void persistSidebarUi();
+  });
+  elements.testUrlRoutingButton.addEventListener("click", () => {
+    const routing = renderUrlRoutingPreview(true);
+    showMessage(routing.matched
+      ? `URL khớp ${routing.candidates.length} profile; profile ưu tiên là ${routing.profileName}.`
+      : `URL không khớp profile routing; ${routing.profileName ? `fallback ${routing.profileName}` : "không có fallback"}.`,
+    routing.matched ? "success" : "info");
+  });
+  elements.useRoutedProfileButton.addEventListener("click", () => {
+    const routing = renderUrlRoutingPreview(true);
+    if (!routing.profileId) {
+      showMessage("Không có profile phù hợp để chọn.", "error");
+      return;
+    }
+    manualProfileSelectionByTab.delete(Number(selectedTabId));
+    selectedProfileId = routing.profileId;
+    elements.profileSelect.value = selectedProfileId;
+    const profile = profileById(selectedProfileId);
+    elements.profileName.value = profile?.name || "";
+    writeConfig(profile?.config || Settings.defaultConfig());
+    showMessage(`Đã chọn profile “${routing.profileName}” theo URL.`, "success");
   });
   elements.addConditionButton.addEventListener("click", () => addConditionRow());
   elements.monitorPickerButton.addEventListener("click", () => toggleElementPicker("monitor"));

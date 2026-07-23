@@ -128,6 +128,19 @@
     <section class="card" data-group-id="activation" aria-labelledby="activationHeading">
       <h2 id="activationHeading">URL activation</h2>
       <label class="check-row">
+        <input id="autoProfileByUrl" type="checkbox">
+        Tự chọn profile khớp URL khi kích hoạt tab chưa active
+      </label>
+      <div class="two-column compact-fields">
+        <label class="check-row">
+          <input id="routingEnabled" type="checkbox">
+          Profile tham gia chọn theo URL
+        </label>
+        <label>Độ ưu tiên
+          <input id="routingPriority" type="number" min="-1000" max="1000" step="1">
+        </label>
+      </div>
+      <label class="check-row">
         <input id="requireUrlMatch" type="checkbox">
         Chỉ cho phép URL khớp allowlist
       </label>
@@ -135,6 +148,15 @@
         URL pattern, mỗi dòng một giá trị; hỗ trợ dấu <code>*</code>
         <textarea id="urlPatterns" rows="3" placeholder="https://ai.company.local/*"></textarea>
       </label>
+      <div class="button-grid routing-actions">
+        <button id="testUrlRoutingButton" type="button">Kiểm tra URL hiện tại</button>
+        <button id="useRoutedProfileButton" type="button">Chọn profile phù hợp</button>
+      </div>
+      <output id="urlRoutingResult" class="selector-test-result routing-result"></output>
+      <details class="compact-help">
+        <summary aria-label="Trợ giúp chọn profile theo URL" title="Trợ giúp">?</summary>
+        <div class="help-popover">Profile có độ ưu tiên lớn hơn được chọn trước. Nếu bằng nhau, pattern cụ thể hơn được ưu tiên. Tab đã active không tự đổi profile.</div>
+      </details>
     </section>
 
     <section class="card" data-group-id="monitor" aria-labelledby="monitorHeading">

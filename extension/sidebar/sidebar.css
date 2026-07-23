@@ -204,3 +204,11 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 /* Phase 10: compact visual element-picker controls. */
 .selector-picker-actions { margin: 8px 0; }
 .selector-picker-actions button[data-picker-active="true"] { border-color: #a855f7; color: #9333ea; box-shadow: inset 0 0 0 1px #a855f7; }
+
+/* Phase 11: compact URL profile routing preview. */
+.compact-fields { align-items: end; }
+.routing-actions { margin-top: 4px; }
+.routing-result[data-state="match"] { color: var(--active); }
+.routing-result[data-state="fallback"] { color: var(--paused); }
+.routing-result[data-state="none"] { color: var(--muted); }
+.routing-result code { color: inherit; font-size: 10px; }
