@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatImproverRuntimeV6";
-  const RUNTIME_VERSION = 20;
+  const RUNTIME_VERSION = 21;
   const previousRuntime = globalThis[INSTANCE_KEY];
   if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
@@ -83,7 +83,10 @@
       lastUserActivityAt: null,
       activeVisibleSince: null,
       lastAlertReason: null,
-      lastEventAt: null
+      lastEventAt: null,
+      shellCommandState: "idle",
+      shellCommandRunId: null,
+      shellCommandLogId: null
     }
   };
 
@@ -338,6 +341,23 @@
     onBeforeTargetClick: armDownloadCapture
   });
 
+  function shellNoticeRuntime(shellNotice = null) {
+    const notice = shellNotice && typeof shellNotice === "object" ? shellNotice : {};
+    return {
+      shellCommandState: ["running", "unread"].includes(notice.status) ? notice.status : "idle",
+      shellCommandRunId: notice.runId ? String(notice.runId) : null,
+      shellCommandLogId: notice.logId ? String(notice.logId) : null,
+      shellCommandReturnCode: Number.isInteger(notice.returnCode) ? notice.returnCode : null
+    };
+  }
+
+  function applyShellNotice(shellNotice, reason = "shell-notice") {
+    state.runtime = { ...state.runtime, ...shellNoticeRuntime(shellNotice) };
+    state.runtime = { ...state.runtime, ...alertController.apply(state.config, state.runtime, state.mode, reason) };
+    applyDocumentMarker();
+    return snapshot();
+  }
+
   function applySession(session, mode = null) {
     const now = new Date().toISOString();
     state = {
@@ -356,7 +376,8 @@
       config: session?.effectiveConfig || state.config,
       runtime: {
         ...state.runtime,
-        ...(session?.runtime || {})
+        ...(session?.runtime || {}),
+        ...shellNoticeRuntime(session?.shellNotice)
       }
     };
 
@@ -393,6 +414,12 @@
       TargetEngine.clearActionHighlights();
       state.runtime.monitorState = MONITOR_STATE.IDLE;
       state.runtime = { ...state.runtime, ...alertController.stop("stop") };
+      if (["running", "unread"].includes(state.runtime.shellCommandState)) {
+        state.runtime = {
+          ...state.runtime,
+          ...alertController.apply(state.config, state.runtime, MODE.INACTIVE, "stop-shell-notice")
+        };
+      }
     }
 
     applyDocumentMarker();
@@ -465,6 +492,8 @@
         return Promise.resolve({ ok: true, result: clearHighlights() });
       case MESSAGE.CONTENT_SHOW_DOWNLOAD_COMPLETION:
         return Promise.resolve(showDownloadCompletionOverlay(message.payload || {}));
+      case MESSAGE.CONTENT_SHELL_NOTICE:
+        return Promise.resolve(applyShellNotice(message.payload?.shellNotice, "shell-notice"));
       default:
         return undefined;
     }

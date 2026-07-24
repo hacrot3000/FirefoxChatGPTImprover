@@ -29,7 +29,7 @@ for (const relative of [
 
 const Alert = context.FCI_ALERT_ENGINE;
 const Settings = context.FCI_SETTINGS;
-assert.equal(Alert.VERSION, 6);
+assert(Alert.VERSION >= 6);
 assert.equal(
   Alert.stripManagedTitleDecorations("[READY] [RUNNING] ⠋ Internal AI", ["READY", "RUNNING"]),
   "Internal AI"

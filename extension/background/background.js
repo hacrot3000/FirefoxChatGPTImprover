@@ -5,6 +5,8 @@
 
   // Phase 28 v0.28.8: same-tab download jobs survive session-token rollover.
 
+  // Phase 28 v0.28.14: tab-bound shell log viewer and persistent command notices.
+
   const { MESSAGE, MODE, CONFIG_MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
   const Snapshots = globalThis.FCI_SETTINGS_SNAPSHOTS;
@@ -72,6 +74,99 @@
 
   function publicShellRun(tabId) {
     return clone(shellRuns.get(tabId) || emptyShellRun(tabId));
+  }
+
+  function emptyShellNotice(tabId) {
+    return {
+      tabId: Number(tabId),
+      runId: null,
+      status: "idle",
+      command: "",
+      source: null,
+      logId: null,
+      logBytes: 0,
+      startedAt: null,
+      completedAt: null,
+      viewedAt: null,
+      returnCode: null,
+      error: null
+    };
+  }
+
+  function normalizeShellNotice(raw, tabId) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const status = ["idle", "running", "unread", "viewed"].includes(source.status) ? source.status : "idle";
+    return {
+      ...emptyShellNotice(tabId),
+      ...clone(source),
+      tabId: Number(tabId),
+      runId: source.runId ? String(source.runId) : null,
+      status,
+      command: String(source.command || ""),
+      source: ["sidebar", "automation", "download"].includes(source.source) ? source.source : null,
+      logId: source.logId ? String(source.logId) : null,
+      logBytes: Math.max(0, Number(source.logBytes) || 0),
+      returnCode: Number.isInteger(source.returnCode) ? source.returnCode : null,
+      error: source.error ? String(source.error) : null
+    };
+  }
+
+  function syncShellNoticeFromRun(session, run, event) {
+    if (!session || !run?.runId) return null;
+    const current = normalizeShellNotice(session.shellNotice, session.tabId);
+    if (current.runId && current.runId !== run.runId && event !== "starting") return current;
+    const completed = ["exited", "error"].includes(event);
+    session.shellNotice = normalizeShellNotice({
+      ...current,
+      tabId: session.tabId,
+      runId: run.runId,
+      status: completed ? "unread" : "running",
+      command: run.command || current.command,
+      source: run.source || current.source || "sidebar",
+      logId: run.logId || current.logId || null,
+      logBytes: Math.max(Number(run.logBytes) || 0, Number(current.logBytes) || 0),
+      startedAt: run.startedAt || current.startedAt || Settings.nowIso(),
+      completedAt: completed ? (run.endedAt || Settings.nowIso()) : null,
+      viewedAt: completed ? null : current.viewedAt,
+      returnCode: Number.isInteger(run.returnCode) ? run.returnCode : null,
+      error: event === "error" ? (run.error || "The command failed.") : null
+    }, session.tabId);
+    return session.shellNotice;
+  }
+
+  async function syncShellNoticeToContent(session) {
+    if (!Number.isInteger(session?.tabId)) return;
+    try {
+      await browser.tabs.sendMessage(session.tabId, {
+        type: MESSAGE.CONTENT_SHELL_NOTICE,
+        payload: { shellNotice: normalizeShellNotice(session.shellNotice, session.tabId) }
+      });
+    } catch (_error) {
+      // The content runtime may be unavailable while the tab navigates or reloads.
+    }
+  }
+
+  async function publishShellNotice(session, { persist = true, reason = "shell-notice-updated" } = {}) {
+    if (!session) return null;
+    session.shellNotice = normalizeShellNotice(session.shellNotice, session.tabId);
+    if (persist) await persistSession(session);
+    const store = await loadStore();
+    await updateBadge(session, store);
+    await syncShellNoticeToContent(session);
+    await broadcast(reason, session.tabId);
+    return clone(session.shellNotice);
+  }
+
+  async function acknowledgeShellNotice(session, { runId = null, logId = null } = {}) {
+    if (!session) throw new Error("This tab is not activated.");
+    const notice = normalizeShellNotice(session.shellNotice, session.tabId);
+    const runMatches = !runId || !notice.runId || String(runId) === notice.runId;
+    const logMatches = !logId || !notice.logId || String(logId) === notice.logId;
+    if (notice.status === "unread" && runMatches && logMatches) {
+      session.shellNotice = normalizeShellNotice({ ...notice, status: "viewed", viewedAt: Settings.nowIso() }, session.tabId);
+      await publishShellNotice(session, { reason: "shell-log-viewed" });
+    }
+    return clone(normalizeShellNotice(session.shellNotice, session.tabId));
   }
 
   function appendShellOutput(run, stream, text) {
@@ -1059,6 +1154,7 @@
       );
       const localStore = await loadLocalActionStore();
       syncShellHistory(session, run, sessionLocalActionConfig(session, localStore));
+      syncShellNoticeFromRun(session, run, event);
       if (run.source === "download") {
         const job = downloadJobs.get(tabId);
         if (job && job.shellRunId === run.runId) {
@@ -1092,6 +1188,8 @@
         };
       }
       await persistSession(session);
+      await publishShellNotice(session, { persist: false, reason: "native-shell-event" });
+      return;
     }
     await broadcast("native-shell-event", tabId);
   }
@@ -1114,6 +1212,11 @@
         run.error = lastError;
         run.endedAt = Settings.nowIso();
         appendShellOutput(run, "stderr", `[native disconnected] ${lastError}\n`);
+        const session = sessions.get(Number(run.tabId));
+        if (session) {
+          syncShellNoticeFromRun(session, run, "error");
+          void publishShellNotice(session, { reason: "native-disconnected" });
+        }
       }
     }
     runToTab.clear();
@@ -1275,6 +1378,14 @@
     };
     shellRuns.set(tabId, run);
     runToTab.set(runId, tabId);
+    session.shellNotice = normalizeShellNotice({
+      ...emptyShellNotice(tabId),
+      runId,
+      status: "running",
+      command,
+      source,
+      startedAt: run.startedAt
+    }, tabId);
     appendShellOutput(run, "system", `[request:${source}] cwd=${cwd}\n[command] ${command}\n`);
     if (config.shell.rememberHistory) {
       session.shellHistory = normalizeShellHistory(session.shellHistory, config.shell.historyLimit);
@@ -1316,7 +1427,7 @@
     await persistSession(session);
     const port = ensureNativePort();
     port.postMessage({ action: "run", runId, tabId, cwd, command, mode, environment: run.environment });
-    await broadcast("native-shell-starting", tabId);
+    await publishShellNotice(session, { persist: false, reason: "native-shell-starting" });
     return publicShellRun(tabId);
   }
 
@@ -1444,12 +1555,21 @@
     if (!session || !ownedShellLog(session, run, logId)) {
       throw new Error("The requested shell log does not belong to this tab session.");
     }
-    return nativeRequest("read_log", {
+    const chunk = await nativeRequest("read_log", {
       logId,
       offset: Math.max(0, Number(message.offset) || 0),
       maxBytes: Math.min(SHELL_LOG_READ_MAX_BYTES, Math.max(1, Number(message.maxBytes) || SHELL_LOG_READ_MAX_BYTES)),
       fromEnd: Boolean(message.fromEnd)
     });
+    await acknowledgeShellNotice(session, { runId: message.runId || null, logId });
+    return chunk;
+  }
+
+  async function acknowledgeShellLog(message, sender) {
+    assertSidebarSender(sender);
+    const tabId = Number(message.tabId);
+    const session = sessions.get(tabId);
+    return acknowledgeShellNotice(session, { runId: message.runId || null, logId: message.logId || null });
   }
 
   async function deleteShellLog(message, sender) {
@@ -1469,8 +1589,12 @@
     session.shellHistory = normalizeShellHistory(session.shellHistory, 100).map((entry) =>
       entry.logId === logId ? { ...entry, logId: null, logBytes: 0 } : entry
     );
+    const notice = normalizeShellNotice(session.shellNotice, tabId);
+    if (notice.logId === logId) {
+      session.shellNotice = normalizeShellNotice({ ...notice, status: "viewed", logId: null, logBytes: 0, viewedAt: Settings.nowIso() }, tabId);
+    }
     await persistSession(session);
-    await broadcast("shell-log-deleted", tabId);
+    await publishShellNotice(session, { persist: false, reason: "shell-log-deleted" });
     return { logId };
   }
 
@@ -1735,6 +1859,7 @@
       logs: { user: [], debug: [] },
       downloadJob: emptyDownloadState(tab.id),
       shellHistory: [],
+      shellNotice: emptyShellNotice(tab.id),
       automationCommandRequestIds: []
     };
   }
@@ -1821,6 +1946,15 @@
     }
     if (session.mode === MODE.ACTIVE && session.runtime?.alertActive && config.alerts.badge) {
       await applyBadge(session.tabId, "!", "#cf222e");
+      return;
+    }
+    const shellNotice = normalizeShellNotice(session.shellNotice, session.tabId);
+    if (shellNotice.status === "running") {
+      await applyBadge(session.tabId, "CMD", "#0969da");
+      return;
+    }
+    if (shellNotice.status === "unread") {
+      await applyBadge(session.tabId, "LOG", "#9a6700");
       return;
     }
     if (session.mode === MODE.ACTIVE) {
@@ -2008,8 +2142,18 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       runtime: { ...newRuntime(), ...(stored.runtime || {}) },
       logs: normalizeLogs(stored.logs),
       downloadJob: normalizeDownloadState(stored.downloadJob, tab.id),
-      shellHistory: normalizeShellHistory(stored.shellHistory, 100)
+      shellHistory: normalizeShellHistory(stored.shellHistory, 100),
+      shellNotice: normalizeShellNotice(stored.shellNotice, tab.id)
     };
+    if (recovered.shellNotice.status === "running") {
+      recovered.shellNotice = normalizeShellNotice({
+        ...recovered.shellNotice,
+        status: "unread",
+        completedAt: recovered.shellNotice.completedAt || Settings.nowIso(),
+        viewedAt: null,
+        error: recovered.shellNotice.error || "Firefox restarted before the final command state was received; inspect the command log."
+      }, tab.id);
+    }
     if (!Settings.profileById(store, recovered.profileId)) {
       recovered.profileId = store.defaultProfileId;
       recovered.configMode = CONFIG_MODE.PROFILE;
@@ -2030,6 +2174,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     try {
       await recoverDownloadJob(recovered);
       await reattachSession(recovered, store, "background-startup");
+      await syncShellNoticeToContent(recovered);
+      await updateBadge(recovered, store);
     } catch (error) {
       recovered.runtime = {
         ...recoveryRuntime(recovered, "background-startup"),
@@ -3334,6 +3480,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
         case MESSAGE.DELETE_SHELL_LOG:
           return { ok: true, deletedLog: await deleteShellLog(message, sender), dashboard: await dashboard() };
+
+        case MESSAGE.ACKNOWLEDGE_SHELL_LOG:
+          return { ok: true, shellNotice: await acknowledgeShellLog(message, sender), dashboard: await dashboard() };
 
         case MESSAGE.ARM_DOWNLOAD_CAPTURE:
           return { ok: true, capture: await armDownloadCaptureFromContent(message, sender), dashboard: await dashboard() };

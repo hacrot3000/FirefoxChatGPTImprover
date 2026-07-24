@@ -64,7 +64,7 @@ assert.match(recoverBlock, /activeInMemory/);
 assert.match(recoverBlock, /sameCapture/);
 
 assert.match(activation, /Phase 28 v0\.28\.8: popup shell readiness follows run state, not editor mode/);
-assert.match(activation, /const RUNTIME_VERSION = 20/);
+assert.match(activation, /const RUNTIME_VERSION = (?:2[0-9]|[3-9][0-9])/);
 assert.match(overlayBlock, /const shellRunId = String\(payload\.shellRunId \|\| ""\)/);
 assert.match(overlayBlock, /const shellReady = Boolean\(declaredReady && !shellBusy && !shellAlreadyStarted\)/);
 assert.match(overlayBlock, /shellButton\.disabled = !shellReady/);

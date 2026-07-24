@@ -33,7 +33,7 @@ assert(/const RUNTIME_VERSION = (?:19|[2-9][0-9]);/.test(content), "Content runt
 assert(content.includes("Shell command started in background mode"));
 assert(content.includes("Automatic start did not create a run. A manual fallback is available."));
 const protocol = fs.readFileSync(path.join(root, "extension/shared/protocol.js"), "utf8");
-assert(protocol.includes("VERSION: 16"));
+assert(/VERSION: (?:1[6-9]|[2-9][0-9]),/.test(protocol));
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
 {
   const parts = String(manifest.version || "").split(".").map(Number);

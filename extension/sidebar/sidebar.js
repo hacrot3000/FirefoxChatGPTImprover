@@ -19,7 +19,7 @@
   const elements = {
     body: document.body,
     statusPill: $("#statusPill"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
-    modeText: $("#modeText"), configModeText: $("#configModeText"), profileText: $("#profileText"), tabUrl: $("#tabUrl"),
+    modeText: $("#modeText"), configModeText: $("#configModeText"), profileText: $("#profileText"), tabUrl: $("#tabUrl"), commandNoticeText: $("#commandNoticeText"),
     monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), ruleCountText: $("#ruleCountText"), matchedRuleCountText: $("#matchedRuleCountText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"),
     profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
@@ -72,6 +72,7 @@
   const lastShellStatusByTab = new Map();
   const SHELL_LOG_PAGE_BYTES = 256 * 1024;
   let shellLogState = { tabId: null, logId: null, runId: null, offset: 0, nextOffset: 0, totalBytes: 0, eof: true, pageOffsets: [], pageIndex: -1, text: "", inlineText: "" };
+  let shellLogLoadEpoch = 0;
   const FORM_RELOAD_MESSAGE_TYPES = new Set([
     MESSAGE.GET_DASHBOARD, MESSAGE.ACTIVATE_CURRENT, MESSAGE.STOP_TAB,
     MESSAGE.ASSIGN_PROFILE, MESSAGE.SAVE_TAB_CONFIG, MESSAGE.RESET_TAB_CONFIG,
@@ -340,6 +341,25 @@
     return sessionById(selectedTabId);
   }
 
+  function selectedShellNotice() {
+    const source = selectedSession()?.shellNotice || {};
+    return {
+      tabId: Number(selectedTabId),
+      runId: source.runId ? String(source.runId) : null,
+      status: ["running", "unread", "viewed"].includes(source.status) ? source.status : "idle",
+      command: String(source.command || ""),
+      logId: source.logId ? String(source.logId) : null,
+      logBytes: Math.max(0, Number(source.logBytes) || 0),
+      returnCode: Number.isInteger(source.returnCode) ? source.returnCode : null,
+      error: source.error ? String(source.error) : null
+    };
+  }
+
+  function shellNoticeMarker(session) {
+    const status = session?.shellNotice?.status;
+    return status === "running" ? "⌘ " : (status === "unread" ? "✓· " : "");
+  }
+
   function selectedShellRun() {
     const runs = Array.isArray(dashboard.nativeHost?.runs) ? dashboard.nativeHost.runs : [];
     return runs.find((run) => Number(run.tabId) === Number(selectedTabId)) || {
@@ -459,10 +479,12 @@
   }
 
   async function loadShellLogPage(descriptor, options = {}) {
+    const requestEpoch = Number(options.requestEpoch || ++shellLogLoadEpoch);
     if (!descriptor?.logId) {
       const currentInline = descriptor?.runId === selectedShellRun()?.runId
         ? inlineShellOutputText(selectedShellRun())
         : String(descriptor?.inlineText || shellLogState.inlineText || "");
+      if (requestEpoch !== shellLogLoadEpoch || Number(descriptor?.tabId) !== Number(shellLogState.tabId)) return null;
       shellLogState = {
         ...shellLogState,
         tabId: descriptor?.tabId ?? shellLogState.tabId,
@@ -497,6 +519,7 @@
       fromEnd: Boolean(options.fromEnd)
     });
     if (!response?.ok) throw new Error(response?.error || "Could not read the stored shell log.");
+    if (requestEpoch !== shellLogLoadEpoch || Number(descriptor.tabId) !== Number(shellLogState.tabId)) return null;
     const chunk = response.logChunk;
     shellLogState = {
       ...shellLogState,
@@ -527,8 +550,28 @@
     return shellLogState;
   }
 
+  async function acknowledgeDisplayedShellLog(descriptor) {
+    if (!descriptor || Number(descriptor.tabId) !== Number(selectedTabId)) return;
+    const response = await browser.runtime.sendMessage({
+      type: MESSAGE.ACKNOWLEDGE_SHELL_LOG,
+      tabId: descriptor.tabId,
+      runId: descriptor.runId || null,
+      logId: descriptor.logId || null
+    });
+    if (response?.ok && response.dashboard) renderRuntimeDashboard(response.dashboard);
+  }
+
+  function reportShellLogFailure(error) {
+    const message = error instanceof Error ? error.message : String(error);
+    elements.shellLogPageInfo.textContent = message;
+    RuntimeGuard?.report("shell-log", error, { fatal: false });
+    showMessage(`Command log unavailable: ${message}`, "error");
+  }
+
   async function openShellLogDialog(descriptor = selectedShellLogDescriptor(), fromEnd = true) {
+    const requestEpoch = ++shellLogLoadEpoch;
     if (!descriptor) {
+      if (elements.shellLogDialog.open) elements.shellLogDialog.close();
       showMessage("No stored shell log is available for this tab.", "error");
       return;
     }
@@ -537,18 +580,47 @@
     elements.shellLogMetadata.textContent = `Tab ${descriptor.tabId}${descriptor.runId ? ` · Run ${descriptor.runId}` : ""}`;
     elements.shellLogViewer.value = descriptor.logId ? "Loading stored log…" : "Loading received output…";
     if (!elements.shellLogDialog.open) elements.shellLogDialog.showModal();
+    let displayed = false;
     try {
-      await loadShellLogPage(descriptor, { fromEnd });
+      const loaded = await loadShellLogPage(descriptor, { fromEnd, requestEpoch });
+      displayed = Boolean(loaded && (elements.shellLogViewer.value || descriptor.logId));
     } catch (error) {
-      const fallback = String(descriptor.inlineText || inlineShellOutputText(selectedShellRun()) || "");
+      if (requestEpoch !== shellLogLoadEpoch || Number(descriptor.tabId) !== Number(selectedTabId)) return;
+      const fallback = String(descriptor.inlineText || (Number(descriptor.tabId) === Number(selectedTabId) ? inlineShellOutputText(selectedShellRun()) : "") || "");
       if (fallback) {
-        await loadShellLogPage({ ...descriptor, logId: null, inlineText: fallback }, { fromEnd: true });
+        const loaded = await loadShellLogPage({ ...descriptor, logId: null, inlineText: fallback }, { fromEnd: true, requestEpoch });
+        displayed = Boolean(loaded);
         elements.shellLogPageInfo.textContent = `Stored log unavailable; showing all output received by the add-on. ${error instanceof Error ? error.message : String(error)}`;
       } else {
         elements.shellLogViewer.value = "";
-        elements.shellLogPageInfo.textContent = error instanceof Error ? error.message : String(error);
+        reportShellLogFailure(error);
       }
     }
+    if (displayed && requestEpoch === shellLogLoadEpoch && Number(descriptor.tabId) === Number(selectedTabId)) {
+      try { await acknowledgeDisplayedShellLog(descriptor); } catch (error) { reportShellLogFailure(error); }
+    }
+  }
+
+  async function reloadOpenShellLogPage(options = {}) {
+    const descriptor = { ...shellLogState };
+    try {
+      await loadShellLogPage(descriptor, options);
+    } catch (error) {
+      reportShellLogFailure(error);
+    }
+  }
+
+  function syncOpenShellLogToSelectedTab() {
+    shellLogLoadEpoch += 1;
+    if (!elements.shellLogDialog.open) return;
+    const descriptor = selectedShellLogDescriptor();
+    if (!descriptor) {
+      elements.shellLogDialog.close();
+      shellLogState = { tabId: selectedTabId, logId: null, runId: null, offset: 0, nextOffset: 0, totalBytes: 0, eof: true, pageOffsets: [], pageIndex: -1, text: "", inlineText: "" };
+      showMessage(`Tab ${selectedTabId} has no command log to display.`, "info");
+      return;
+    }
+    void openShellLogDialog(descriptor, true);
   }
 
   async function copyTextValue(text, successText) {
@@ -1097,7 +1169,7 @@
       elements.tabSelect.add(option);
     }
     for (const session of dashboard.sessions) {
-      const marker = session.tabId === current.tabId ? "★ " : "";
+      const marker = `${session.tabId === current.tabId ? "★ " : ""}${shellNoticeMarker(session)}`;
       elements.tabSelect.add(new Option(`${marker}[${session.mode}] ${session.title || session.url || session.tabId}`, String(session.tabId)));
     }
     const validIds = [...elements.tabSelect.options].map((option) => Number(option.value));
@@ -1249,7 +1321,11 @@
     const sidebarAlertEnabled = Boolean(session?.effectiveConfig?.alerts?.sidebar);
     const alertActive = Boolean(runtime.alertActive);
     elements.body.dataset.alert = sidebarAlertEnabled && alertActive ? "active" : "inactive";
-    elements.statusPill.textContent = sidebarAlertEnabled && alertActive ? "Condition matched" : (modeLabels[mode] || mode);
+    const shellNotice = selectedShellNotice();
+    elements.body.dataset.command = shellNotice.status;
+    elements.statusPill.textContent = sidebarAlertEnabled && alertActive
+      ? "Condition matched"
+      : (shellNotice.status === "running" ? "Command running" : (shellNotice.status === "unread" ? "Command log unread" : (modeLabels[mode] || mode)));
     elements.tabId.textContent = Number.isInteger(selectedTabId) ? String(selectedTabId) : "—";
     const recoveryState = runtime.recoveryState || "none";
     const recoverySuffix = recoveryState !== "none" && recoveryState !== "attached"
@@ -1275,6 +1351,13 @@
         ? `ACTIVE cycle ${runtime.alertCycle || runtime.cycle || 0}${runtime.titleBlinking ? " / title blink" : ""}`
         : (runtime.alertDismissReason ? `dismissed (${runtime.alertDismissReason})` : "inactive"))
       : "—";
+    elements.commandNoticeText.textContent = !session
+      ? "—"
+      : (shellNotice.status === "running"
+        ? `RUNNING${shellNotice.command ? ` · ${shellNotice.command}` : ""}`
+        : (shellNotice.status === "unread"
+          ? `FINISHED · log not viewed${shellNotice.returnCode === null ? "" : ` · rc=${shellNotice.returnCode}`}`
+          : (shellNotice.status === "viewed" ? "Log viewed" : "Idle")));
     elements.targetStateText.textContent = session ? (runtime.targetState || "disabled") : "—";
     elements.baselineCountText.textContent = session ? String(runtime.baselineCount || 0) : "—";
     elements.candidateCountText.textContent = session ? `${runtime.candidateCount || 0} / total ${runtime.targetTotalCount || 0}` : "—";
@@ -1355,7 +1438,7 @@
     return JSON.stringify({
       currentTabId: Number.isInteger(data.currentTab?.tabId) ? data.currentTab.tabId : null,
       sessions: (Array.isArray(data.sessions) ? data.sessions : []).map((session) => [
-        session.tabId, session.profileId, session.configMode
+        session.tabId, session.profileId, session.configMode, session.shellNotice?.status || "idle", session.shellNotice?.runId || null
       ]),
       profiles: (Array.isArray(data.store?.profiles) ? data.store.profiles : []).map((profile) => [
         profile.id, profile.name
@@ -1386,6 +1469,7 @@
     }
     const contextChanged = Number(oldTabId) !== Number(selectedTabId) || oldProfileId !== selectedProfileId;
     renderDetails(contextChanged);
+    if (Number(oldTabId) !== Number(selectedTabId)) syncOpenShellLogToSelectedTab();
   }
 
   function render(nextDashboard, loadForm = true, preferredTabId = null) {
@@ -2314,6 +2398,7 @@ ${run.command || ""}`)) {
       return;
     }
     selectedTabId = nextTabId;
+    syncOpenShellLogToSelectedTab();
     const session = selectedSession();
     selectedProfileId = session?.profileId || dashboard.store.defaultProfileId;
     elements.profileSelect.value = selectedProfileId;
@@ -2680,14 +2765,14 @@ ${run.command || ""}`)) {
   elements.clearShellOutputButton.addEventListener("click", () => void request(MESSAGE.CLEAR_SHELL_OUTPUT, { tabId: selectedTabId }, "Live output tail cleared. The full stored log is unchanged."));
   elements.openShellLogButton.addEventListener("click", () => void openShellLogDialog());
   elements.openShellLogQuickButton.addEventListener("click", () => void openShellLogDialog());
-  elements.shellLogFirstButton.addEventListener("click", () => void loadShellLogPage(shellLogState, { offset: 0 }));
+  elements.shellLogFirstButton.addEventListener("click", () => void reloadOpenShellLogPage({ offset: 0 }));
   elements.shellLogPreviousButton.addEventListener("click", () => {
     const offset = shellLogState.pageOffsets[Math.max(0, shellLogState.pageIndex - 1)] || 0;
-    void loadShellLogPage(shellLogState, { offset });
+    void reloadOpenShellLogPage({ offset });
   });
-  elements.shellLogNextButton.addEventListener("click", () => void loadShellLogPage(shellLogState, { offset: shellLogState.nextOffset }));
-  elements.shellLogLastButton.addEventListener("click", () => void loadShellLogPage(shellLogState, { fromEnd: true }));
-  elements.refreshShellLogButton.addEventListener("click", () => void loadShellLogPage(shellLogState, { fromEnd: true }));
+  elements.shellLogNextButton.addEventListener("click", () => void reloadOpenShellLogPage({ offset: shellLogState.nextOffset }));
+  elements.shellLogLastButton.addEventListener("click", () => void reloadOpenShellLogPage({ fromEnd: true }));
+  elements.refreshShellLogButton.addEventListener("click", () => void reloadOpenShellLogPage({ fromEnd: true }));
   elements.copyShellLogSelectionButton.addEventListener("click", () => {
     const text = elements.shellLogViewer.value.slice(elements.shellLogViewer.selectionStart, elements.shellLogViewer.selectionEnd);
     void copyTextValue(text, "Selected log text copied.").catch((error) => showMessage(error.message, "error"));

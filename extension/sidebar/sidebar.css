@@ -596,3 +596,11 @@ body[data-sidebar-startup="failed"] .sticky-actions { position: static; }
 }
 #localActionDraftStatus[hidden] { display: none; }
 
+
+
+/* Phase 28 v0.28.14 — selected-tab shell command notice. */
+body[data-command="running"] .status-pill { border-color: #0969da; color: #0969da; }
+body[data-command="running"] .status-pill::before { background: #0969da; animation: fci-command-pulse .8s ease-in-out infinite alternate; }
+body[data-command="unread"] .status-pill { border-color: var(--paused); color: var(--paused); }
+body[data-command="unread"] .status-pill::before { background: var(--paused); }
+@keyframes fci-command-pulse { from { transform: scale(.75); opacity: .55; } to { transform: scale(1.25); opacity: 1; } }

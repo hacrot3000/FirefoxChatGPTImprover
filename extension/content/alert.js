@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 6) {
+  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 7) {
     return;
   }
 
@@ -24,7 +24,11 @@
       "READY",
       "RUNNING",
       "MATCHED",
-      "MONITORING"
+      "MONITORING",
+      "⌘ COMMAND RUNNING",
+      "✓ COMMAND LOG",
+      "COMMAND RUNNING",
+      "COMMAND LOG"
     ].map((item) => String(item || "").trim()).filter(Boolean))];
 
     for (let pass = 0; pass < 20 && title; pass += 1) {
@@ -35,8 +39,8 @@
         title = title.replace(new RegExp(`^\\[${escaped}\\]\\s*`, "iu"), "").trimStart();
         title = title.replace(new RegExp(`^${escaped}(?:\\s*[-:|·]\\s*|\\s+)`, "iu"), "").trimStart();
       }
-      title = title.replace(/^\[[^\]]*(?:READY|RUNNING|MATCHED|MONITORING|ALERT)[^\]]*\]\s*/iu, "").trimStart();
-      title = title.replace(/^(?:AI\s*)?(?:READY|RUNNING|MATCHED|MONITORING)\s*(?:[-:|·]\s*)/iu, "").trimStart();
+      title = title.replace(/^\[[^\]]*(?:READY|RUNNING|MATCHED|MONITORING|ALERT|COMMAND|CMD|LOG)[^\]]*\]\s*/iu, "").trimStart();
+      title = title.replace(/^(?:AI\s*)?(?:READY|RUNNING|MATCHED|MONITORING|COMMAND\s+RUNNING|COMMAND\s+LOG)\s*(?:[-:|·]\s*)/iu, "").trimStart();
       if (title === before) break;
     }
     return title;
@@ -108,6 +112,20 @@
     const cleanPrefix = String(prefix || "⚠ AI READY").trim() || "⚠ AI READY";
     const cleanBase = String(baseTitle || "").trim();
     return cleanBase ? `[${cleanPrefix}] ${cleanBase}` : `[${cleanPrefix}]`;
+  }
+
+  function commandTitlePrefix(runtime) {
+    if (runtime?.shellCommandState === "running") return "⌘ COMMAND RUNNING";
+    if (runtime?.shellCommandState === "unread") return "✓ COMMAND LOG";
+    return "";
+  }
+
+  function combinedTitlePrefix(alertPrefix, runtime, includeAlert = true) {
+    const parts = [];
+    if (includeAlert) parts.push(String(alertPrefix || "⚠ AI READY").trim() || "⚠ AI READY");
+    const command = commandTitlePrefix(runtime);
+    if (command) parts.push(command);
+    return parts.join(" · ");
   }
 
   function createAlertController({ onRuntime, clock } = {}) {
@@ -278,12 +296,19 @@
     }
 
     function monitorSpinWanted() {
-      return shouldSpinMonitorTitle(runtime, mode) && !(active && config.alerts.titleBlink);
+      return shouldSpinMonitorTitle(runtime, mode) && !commandTitlePrefix(runtime) && !(active && config.alerts.titleBlink);
     }
 
     function applyCurrentTitleFrame() {
+      const commandPrefix = commandTitlePrefix(runtime);
       if (active && config.alerts.titleBlink) {
-        writeTitle(blinkOn ? alertTitle(config.alerts.titlePrefix, baseTitle) : baseTitle);
+        writeTitle(blinkOn
+          ? alertTitle(combinedTitlePrefix(config.alerts.titlePrefix, runtime, true), baseTitle)
+          : (commandPrefix ? alertTitle(commandPrefix, baseTitle) : baseTitle));
+        return;
+      }
+      if (commandPrefix) {
+        writeTitle(alertTitle(commandPrefix, baseTitle));
         return;
       }
       if (monitorSpinWanted()) {
@@ -302,6 +327,13 @@
             applyCurrentTitleFrame();
           }, config.alerts.blinkIntervalMs);
         }
+        applyCurrentTitleFrame();
+        return;
+      }
+      if (commandTitlePrefix(runtime)) {
+        clearBlinkTimer();
+        clearMonitorSpinTimer();
+        ensureTitleObserver();
         applyCurrentTitleFrame();
         return;
       }
@@ -474,7 +506,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 6,
+      VERSION: 7,
       TITLE_BASE_ATTRIBUTE,
       TITLE_PREFIX_ATTRIBUTE,
       stripManagedTitleDecorations,
@@ -484,6 +516,8 @@
       shouldSpinMonitorTitle,
       deriveAlertDecision,
       alertTitle,
+      commandTitlePrefix,
+      combinedTitlePrefix,
       monitorTitle,
       createAlertController
     })

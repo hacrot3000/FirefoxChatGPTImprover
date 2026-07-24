@@ -555,3 +555,11 @@ A complete 127-line terminal/build transcript accidentally inserted into `extens
 Updates stale Phase 23/25 contracts, restores repeatable `--overwrite` builds, verifies a fresh background dashboard after restart, retains full source-syntax validation, and reports incomplete `web-ext` installations clearly.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02813_END -->
 
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02814_BEGIN -->
+## Phase 28 v0.28.14 — tab-bound command log and command status
+
+- The full command-log dialog is rebound whenever the selected tab changes; stale asynchronous pages from the previous tab are ignored.
+- A command-running indicator and a finished-but-unread indicator are persisted per tab, shown in the tab selector, sidebar status pill, browser-action badge and managed page title.
+- The unread indicator is cleared only after the matching log is successfully displayed (stored page or inline fallback).
+- Stored-log read failures are non-fatal and no longer become unhandled sidebar rejections.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02814_END -->
