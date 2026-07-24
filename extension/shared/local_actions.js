@@ -49,11 +49,6 @@
   }
 
   function defaultConfig() {
-    const legacyAutomatic = bool(download.executeShellAfterMove, false);
-    const requestedShellExecutionMode = text(download.shellExecutionMode).trim();
-    const shellExecutionMode = ["disabled", "manual", "automatic"].includes(requestedShellExecutionMode)
-      ? requestedShellExecutionMode
-      : (legacyAutomatic ? "automatic" : (text(shell.workingDirectory).trim() && text(shell.command).trim() ? "manual" : "disabled"));
     return {
       routing: {
         enabled: true,

@@ -7,6 +7,10 @@
   const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
   const WorkingSession = globalThis.FCI_WORKING_SESSION;
   const SIDEBAR_UI_STORAGE_KEY = "firefoxChatImprover.sidebarUi.v1";
+  const DEFAULT_COLLAPSED_GROUPS = Object.freeze({
+    "installation-guide": true,
+    save: true
+  });
   const $ = (selector) => document.querySelector(selector);
   const elements = {
     body: document.body,
@@ -208,7 +212,12 @@
       toggle.addEventListener("click", () => {
         setGroupCollapsed(section, section.dataset.collapsed !== "true", true);
       });
-      setGroupCollapsed(section, Boolean(collapsedGroups[section.dataset.groupId]));
+      const groupId = section.dataset.groupId;
+      const hasStoredState = Object.prototype.hasOwnProperty.call(collapsedGroups, groupId);
+      const initialCollapsed = hasStoredState
+        ? Boolean(collapsedGroups[groupId])
+        : Boolean(DEFAULT_COLLAPSED_GROUPS[groupId]);
+      setGroupCollapsed(section, initialCollapsed);
     }
   }
 
@@ -2392,7 +2401,17 @@ ${run.command || ""}`)) {
     return undefined;
   });
 
-  void initializeCollapsibleGroups().finally(() => {
-    void request(MESSAGE.GET_DASHBOARD);
-  });
+  async function bootstrapSidebar() {
+    try {
+      await initializeCollapsibleGroups();
+    } catch (error) {
+      console.error("Sidebar group initialization failed.", error);
+      showMessage(`Sidebar layout initialization failed: ${error instanceof Error ? error.message : String(error)}`, "error");
+    } finally {
+      document.body.dataset.sidebarReady = "true";
+    }
+    await request(MESSAGE.GET_DASHBOARD);
+  }
+
+  void bootstrapSidebar();
 })();

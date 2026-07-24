@@ -542,6 +542,58 @@
       <small class="inline-result">The inline panel is a bounded live tail. The complete background-command transcript is stored by the Native Host and available through Open full log.</small>
     </section>
 
+    <section class="card installation-guide" data-group-id="installation-guide" aria-labelledby="installationGuideHeading">
+      <h2 id="installationGuideHeading">Installation guide</h2>
+      <p class="guide-intro">Install the patch runner once, then install or update the Native Messaging Host whenever its source changes.</p>
+
+      <details class="installation-guide-item">
+        <summary>Patch Tool v3</summary>
+        <div class="installation-guide-content">
+          <a class="guide-link-button" href="https://github.com/hacrot3000/FirefoxChatGPTImprover/raw/refs/heads/main/tools/python_patch_tool_v3_package.zip" target="_blank" rel="noopener noreferrer">
+            Download Patch Tool v3 package
+          </a>
+          <p>For this repository the runner is already initialized. Put a patch file in <code>patchs/</code>, then run:</p>
+          <pre class="guide-command"><code>cd /home/duongtc/FirefoxChatImprover
+./tools/run_python_patches.sh</code></pre>
+          <p>To bootstrap another project that does not have the runner yet, extract the package outside the project and copy the two runtime files:</p>
+          <pre class="guide-command"><code>cd /absolute/path/to/project
+mkdir -p tools patchs
+cp /path/to/extracted/python_patch_utils.py tools/
+cp /path/to/extracted/run_python_patches.sh tools/
+chmod +x tools/run_python_patches.sh</code></pre>
+          <p>For an existing older runner, copy <code>patch_upgrade_python_patch_tool_v3_archive_support_20260720.py</code> into <code>patchs/</code> and run the current runner once.</p>
+        </div>
+      </details>
+
+      <details class="installation-guide-item">
+        <summary>Native Messaging Host</summary>
+        <div class="installation-guide-content">
+          <a class="guide-link-button" href="https://github.com/hacrot3000/FirefoxChatGPTImprover/tree/main/native-host" target="_blank" rel="noopener noreferrer">
+            Open Native Host source and installer
+          </a>
+          <p>The current installer targets desktop Firefox on Linux. Keep the complete <code>native-host/</code> directory inside the repository and run it as the same user that runs Firefox. Do not use <code>sudo</code>.</p>
+          <p><strong>Initial setup or update:</strong></p>
+          <pre class="guide-command"><code>cd /home/duongtc/FirefoxChatImprover
+python3 ./native-host/native_host.py --self-test
+chmod +x ./native-host/install_native_host.sh \
+  ./native-host/uninstall_native_host.sh
+./native-host/install_native_host.sh</code></pre>
+          <ol class="guide-steps">
+            <li>Reload the add-on or restart the <code>web-ext</code> development session.</li>
+            <li>Reload tabs that use managed downloads or shell commands.</li>
+            <li>Open <strong>Shell command</strong> and click <strong>Check Native Host</strong>.</li>
+            <li>Re-run the installer after every update to <code>native_host.py</code> or its manifest.</li>
+          </ol>
+          <p>The installer creates the per-user host and manifest under:</p>
+          <pre class="guide-command"><code>~/.local/share/firefox-chat-ai-assistant/native_host.py
+~/.mozilla/native-messaging-hosts/com.duongtc.firefox_chat_assistant.json</code></pre>
+          <p><strong>Uninstall:</strong></p>
+          <pre class="guide-command"><code>cd /home/duongtc/FirefoxChatImprover
+./native-host/uninstall_native_host.sh</code></pre>
+        </div>
+      </details>
+    </section>
+
     <section class="card sticky-actions" data-group-id="save" aria-labelledby="saveHeading">
       <h2 id="saveHeading">Save configuration</h2>
       <div class="button-grid">

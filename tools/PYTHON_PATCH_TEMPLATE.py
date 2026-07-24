@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Template for compact adaptive Python patches (mini-AI v3).
+"""Template for compact adaptive Python patches (mini-AI v4).
 
 Copy this file to patchs/patch_<name>.py, set PATCH_NAME, then fill OPS.
 Keep shared helpers in tools/python_patch_utils.py, not in patchs/.

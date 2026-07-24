@@ -399,3 +399,21 @@ Managed downloads can now run their frozen shell command manually from the compl
 
 Details: `document/PHASE_25_DOWNLOAD_SHELL_EXECUTION.md`.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE25_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE25_V0251_BEGIN -->
+## Phase 25 v0.25.1 — Embedded installation guide
+
+The sidebar now includes a collapsible **Installation guide** group after **Shell command**. It links directly to the Patch Tool v3 package and the repository Native Host directory, and documents runner bootstrap, patch execution, Native Host self-test, per-user install/update, Firefox reload, connection check, installed paths and uninstall.
+
+Details: `document/PHASE_25_V0_25_1_INSTALLATION_GUIDE.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE25_V0251_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE25_V0252_BEGIN -->
+## Phase 25 v0.25.2 — Critical sidebar bootstrap recovery
+
+Fixes a fatal `ReferenceError` in the local-action default configuration that prevented the sidebar script from loading after a real reload. Tabs/dashboard/event handlers now initialize normally, the Save group defaults to collapsed, and the sticky Save card remains in normal document flow until sidebar initialization completes. A runtime VM smoke test now executes `defaultConfig()` and `defaultStore()` so this class of error cannot pass static-only validation again.
+
+Details: `document/PHASE_25_V0_25_2_SIDEBAR_BOOTSTRAP_RECOVERY.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE25_V0252_END -->

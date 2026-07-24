@@ -1,6 +1,6 @@
 {
     "version": "2.0.0",
-    "_comment": "FirefoxChatImprover build tasks. Phase-specific tests are consolidated into tools/test_firefox_addon.sh instead of adding one menu item per phase.",
+    "_comment": "FirefoxChatImprover build tasks. Phase-specific tests are consolidated into tools/test_firefox_addon.sh instead of adding one menu item per phase. Release workflow: Build Release (step 1) → Publish Release (step 2: tag + push to remote).",
     "tasks": [
         {
             "label": "Patchs: Run Python Patch",
@@ -157,6 +157,49 @@
                 "reveal": "always",
                 "focus": true,
                 "panel": "shared"
+            }
+        },
+        {
+            "label": "Firefox Add-on: Build Release",
+            "detail": "Chạy tests, lint rồi build unsigned .zip artifact vào dist/releases/<version>/",
+            "type": "shell",
+            "command": "./tools/build_firefox_addon.sh",
+            "args": ["--overwrite"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "clear": true
+            }
+        },
+        {
+            "label": "Firefox Add-on: Publish Release (Tag + Push)",
+            "detail": "Build release → tạo git annotated tag v<version> → commit → push lên remote để tải về cài Firefox",
+            "type": "shell",
+            "command": "./tools/release_publish.sh",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "clear": true
             }
         }
     ]

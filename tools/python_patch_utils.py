@@ -2,7 +2,7 @@
 """
 Shared helper functions for one-shot Python patch scripts.
 
-Version 3 goals:
+Version 4 goals:
 - Keep compatibility with older patches that use replace_exact_once(), insert_after_once(),
   write_file_if_changed(), finish_success(), finish_failure().
 - Let ChatGPT generate much smaller patch files through run_patch(PATCH_NAME, OPS).
@@ -11,12 +11,16 @@ Version 3 goals:
 - Support operation-level error policy: stop, skip, or ignore.
 - Support simple if/then/else and first-success alternatives.
 - Track failed files and optionally zip them for sending back to ChatGPT.
-- Work with runner v3, which accepts standalone .py patches and .zip/.tar.gz packages.
+- Work with runner v4, which accepts standalone .py patches and .zip/.tar.gz packages.
 
 No external dependencies. Do not put this file in patchs/; keep it in tools/.
 """
 
 from __future__ import annotations
+
+PYTHON_PATCH_TOOL_VERSION = "4.0.0"
+
+PYTHON_PATCH_UTILS_RESULT_POLICY = "failed-first/no-change-only-on-0-0-v2"
 
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
@@ -896,8 +900,21 @@ def apply_ops(
 
 def print_summary(state: PatchRunState) -> None:
     RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BOLD = "\033[1m"
     RESET = "\033[0m"
     s = state.stats
+
+    # A failure always retains the complete summary. The no-change banner is
+    # valid only when the run succeeded and both patched and created are zero.
+    if s.failed == 0 and s.patched == 0 and s.created == 0:
+        print()
+        print(f"{YELLOW}{BOLD}============================================================{RESET}")
+        print(f"{YELLOW}{BOLD}PATCH KHÔNG THAY ĐỔI CODE{RESET}")
+        print(f"{YELLOW}{BOLD}============================================================{RESET}")
+        print()
+        return
+
     print("Patch summary:")
     print(f"  patched : {s.patched}")
     print(f"  created : {s.created}")
@@ -965,7 +982,12 @@ def zip_failed_files(state: PatchRunState) -> Optional[Path]:
     return zip_path
 
 
-def maybe_prompt_zip_failed_files(state: PatchRunState, *, force: Optional[bool] = None) -> Optional[Path]:
+def maybe_prompt_zip_failed_files(
+    state: PatchRunState,
+    *,
+    force: Optional[bool] = None,
+    delete_generated_zip: Optional[bool] = None,
+) -> Optional[Path]:
     if not state.failed_files:
         return None
     if force is False:
@@ -978,33 +1000,83 @@ def maybe_prompt_zip_failed_files(state: PatchRunState, *, force: Optional[bool]
     else:
         if not sys.stdin.isatty():
             print("Zip failed files: skipped because stdin is not interactive.")
-            print("Run again in a terminal or call zip_failed_files(state) in the patch if needed.")
+            print("Use --zip-failed to create it without a prompt.")
             return None
-        # Default option to Y (capitalize Y, lowercase n)
         answer = input("Có zip toàn bộ file patch lỗi để gửi lên ChatGPT không? [Y/n]: ").strip().lower()
         if answer in {"", "y", "yes", "c", "co", "có"}:
             zip_path = zip_failed_files(state)
         else:
             print("Zip failed files: no")
 
-    if zip_path and zip_path.exists() and sys.stdin.isatty():
-        try:
-            rel_zip = zip_path.relative_to(state.project_root)
-        except Exception:
-            rel_zip = zip_path
-        try:
-            answer = input(f"Delete this generated zip file: {rel_zip}? [Y/n]: ").strip().lower()
-            if answer in {"", "y", "yes", "c", "co", "có"}:
-                zip_path.unlink()
-                print(f"Deleted: {rel_zip}")
-            else:
-                print(f"Kept: {rel_zip}")
-        except KeyboardInterrupt:
-            print(f"\nKept: {rel_zip}")
-        except Exception as e:
-            print(f"Error deleting zip file: {e}")
+    if not zip_path or not zip_path.exists():
+        return zip_path
+
+    try:
+        rel_zip = zip_path.relative_to(state.project_root)
+    except Exception:
+        rel_zip = zip_path
+
+    if delete_generated_zip is True:
+        zip_path.unlink()
+        print(f"Deleted: {rel_zip}")
+        return zip_path
+    if delete_generated_zip is False:
+        print(f"Kept: {rel_zip}")
+        return zip_path
+    if not sys.stdin.isatty():
+        print(f"Kept: {rel_zip}")
+        return zip_path
+
+    try:
+        answer = input(f"Delete this generated zip file: {rel_zip}? [Y/n]: ").strip().lower()
+        if answer in {"", "y", "yes", "c", "co", "có"}:
+            zip_path.unlink()
+            print(f"Deleted: {rel_zip}")
+        else:
+            print(f"Kept: {rel_zip}")
+    except KeyboardInterrupt:
+        print(f"\nKept: {rel_zip}")
+    except Exception as exc:
+        print(f"Error deleting zip file: {exc}")
 
     return zip_path
+
+
+def _print_patch_cli_help(patch_name: str) -> None:
+    print(f"Usage: {Path(sys.argv[0]).name} [PATCH OPTIONS]")
+    print()
+    print(f"Patch: {patch_name}")
+    print()
+    print("Options handled by tools/python_patch_utils.py:")
+    print("  -h, --help                 Show this help and do not apply the patch")
+    print("      --zip-failed           Create failed-files ZIP without asking")
+    print("      --no-zip-failed        Never create failed-files ZIP")
+    print("      --delete-failed-zip    Delete generated failed-files ZIP")
+    print("      --keep-failed-zip      Keep generated failed-files ZIP")
+    print()
+    print("Unknown options are left available for patch-specific code.")
+
+
+def _read_patch_cli_options(patch_name: str) -> tuple[bool, Optional[bool], Optional[bool]]:
+    help_requested = False
+    zip_failed: Optional[bool] = None
+    delete_failed_zip: Optional[bool] = None
+
+    for arg in sys.argv[1:]:
+        if arg in {"-h", "--help"}:
+            help_requested = True
+        elif arg == "--zip-failed":
+            zip_failed = True
+        elif arg == "--no-zip-failed":
+            zip_failed = False
+        elif arg == "--delete-failed-zip":
+            delete_failed_zip = True
+        elif arg == "--keep-failed-zip":
+            delete_failed_zip = False
+
+    if help_requested:
+        _print_patch_cli_help(patch_name)
+    return help_requested, zip_failed, delete_failed_zip
 
 
 def run_patch(
@@ -1013,11 +1085,25 @@ def run_patch(
     *,
     default_on_error: str = "stop",
     prompt_zip_on_error: Optional[bool] = None,
+    delete_failed_zip: Optional[bool] = None,
 ) -> int:
+    help_requested, cli_zip_failed, cli_delete_failed_zip = _read_patch_cli_options(patch_name)
+    if help_requested:
+        return 0
+
+    if cli_zip_failed is not None:
+        prompt_zip_on_error = cli_zip_failed
+    if cli_delete_failed_zip is not None:
+        delete_failed_zip = cli_delete_failed_zip
+
     root = find_project_root()
     state = apply_ops(root, patch_name, ops, default_on_error=default_on_error)
     print_summary(state)
-    maybe_prompt_zip_failed_files(state, force=prompt_zip_on_error)
+    maybe_prompt_zip_failed_files(
+        state,
+        force=prompt_zip_on_error,
+        delete_generated_zip=delete_failed_zip,
+    )
     if state.failures:
         RED = "\033[91m"
         BOLD = "\033[1m"

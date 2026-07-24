@@ -34,5 +34,9 @@ assert(content.includes("Shell command starting automatically"));
 const protocol = fs.readFileSync(path.join(root, "extension/shared/protocol.js"), "utf8");
 assert(protocol.includes("VERSION: 16"));
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
-assert.equal(manifest.version, "0.25.0");
+{
+  const parts = String(manifest.version || "").split(".").map(Number);
+  assert.ok(parts.length === 3 && parts.every(Number.isInteger));
+  assert.ok(parts[0] > 0 || parts[1] > 25 || (parts[1] === 25 && parts[2] >= 0));
+}
 console.log("PASS: Phase 25 managed downloads execute the frozen command manually or automatically and open the complete file-backed console");

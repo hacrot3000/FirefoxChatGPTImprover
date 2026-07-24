@@ -104,7 +104,8 @@ button.compact { min-height: 27px; padding: 4px 7px; font-size: 11px; }
 .help-menu[open] .help-popover,
 .help-menu:hover .help-popover,
 .help-menu:focus-within .help-popover { display: block; }
-.sticky-actions { position: sticky; bottom: 8px; box-shadow: 0 3px 16px color-mix(in srgb, CanvasText 18%, transparent); }
+.sticky-actions { position: static; box-shadow: 0 3px 16px color-mix(in srgb, CanvasText 18%, transparent); }
+body[data-sidebar-ready="true"] .sticky-actions { position: sticky; bottom: 8px; }
 .message-box { display: none; padding: 9px 10px; border: 1px solid var(--border); border-radius: 7px; white-space: pre-wrap; }
 .message-box:not(:empty) { display: block; }
 .message-box[data-level="error"] { border-color: var(--error); color: var(--error); }
@@ -199,7 +200,7 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 .card[data-collapsed="true"] { padding-top: 8px; padding-bottom: 8px; }
 .card[data-collapsed="true"] > :not(.group-heading):not(.help-menu) { display: none !important; }
 .card[data-collapsed="true"] .group-heading h2 { margin-bottom: 0; }
-.card[data-collapsed="true"].sticky-actions { bottom: 8px; }
+body[data-sidebar-ready="true"] .card[data-collapsed="true"].sticky-actions { bottom: 8px; }
 
 /* Phase 10: compact visual element-picker controls. */
 .selector-picker-actions { margin: 8px 0; }
@@ -449,3 +450,67 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 #localActionSourceSummary[data-state="route"] { border-color: var(--active); }
 .card[data-group-id="local-actions"][data-dirty="true"] { box-shadow: inset 3px 0 0 var(--paused); }
 .card[data-group-id="local-actions"][data-collapsed="true"] .group-heading-actions { margin-left: auto; }
+
+
+/* Phase 25 v0.25.1: compact in-sidebar installation guide and external resources. */
+.installation-guide .guide-intro {
+  margin-bottom: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.installation-guide-item {
+  margin-top: 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: Canvas;
+}
+.installation-guide-item > summary {
+  padding: 8px 9px;
+  cursor: pointer;
+  color: CanvasText;
+  font-size: 11px;
+  font-weight: 750;
+}
+.installation-guide-item[open] > summary { border-bottom: 1px solid var(--border); }
+.installation-guide-content { display: grid; gap: 8px; padding: 9px; }
+.installation-guide-content p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.guide-link-button {
+  display: block;
+  padding: 8px 9px;
+  overflow-wrap: anywhere;
+  border: 1px solid LinkText;
+  border-radius: 6px;
+  background: color-mix(in srgb, LinkText 8%, Canvas);
+  color: LinkText;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-decoration: none;
+}
+.guide-link-button:hover,
+.guide-link-button:focus-visible {
+  background: color-mix(in srgb, LinkText 15%, Canvas);
+  outline: 2px solid color-mix(in srgb, LinkText 45%, transparent);
+  outline-offset: 1px;
+}
+.guide-command {
+  max-width: 100%;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, Canvas 92%, #000 8%);
+  font: 10px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.guide-command code { font: inherit; }
+.guide-steps { margin: 0; padding-left: 20px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.guide-steps li + li { margin-top: 4px; }
+
+
+/* Phase 25 v0.25.2: fail-safe sidebar bootstrap. Save stays in normal flow until JS initialization completes. */
+body:not([data-sidebar-ready="true"]) .sticky-actions { position: static; }

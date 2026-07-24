@@ -1,4 +1,4 @@
-# Tiêu chuẩn Python patch mini-AI v3 cho project
+# Tiêu chuẩn Python patch mini-AI v4 cho project
 
 Tài liệu này dùng khi yêu cầu ChatGPT tạo patch sửa code ở local. Mục tiêu là giảm token patch, tăng khả năng thích ứng khi code local lệch nhẹ, vẫn an toàn vì có backup, thống kê lỗi, và có thể zip các file lỗi để gửi lại ChatGPT.
 
@@ -9,6 +9,15 @@ mkdir -p patchs
 cp patch_<ten_thay_doi>.py patchs/
 # Hoặc chép gói patch .zip / .tar.gz vào patchs/
 ./tools/run_python_patches.sh
+
+# Chạy không tương tác toàn bộ patch và tự chuyển patch thành công:
+./tools/run_python_patches.sh --all --move
+
+# Chạy trực tiếp patch số 2, giữ file patch gốc:
+./tools/run_python_patches.sh --patch 2 --keep
+
+# Xem toàn bộ tham số:
+./tools/run_python_patches.sh --help
 ```
 
 Quy ước:
@@ -18,6 +27,8 @@ Quy ước:
 - Với gói nén, runner giải nén an toàn vào thư mục tạm và chạy đệ quy các file `patch_*.py` theo thứ tự tên; nếu không có file theo mẫu đó thì chạy toàn bộ `.py`.
 - Sau khi chạy, runner xóa nội dung giải nén tạm. Chỉ file `.py` độc lập hoặc file nén gốc được chuyển vào `patchs/patched/`.
 - Nếu tên đích đã tồn tại, runner tạo tên có timestamp thay vì ghi đè.
+- Runner hỗ trợ `-h`/`--help`, `-a`/`--all`, `-p`/`--patch`, `-y`/`--yes`, `--move`, `--keep`, `--list` và các tùy chọn ZIP lỗi.
+- Khi một patch hoặc package trả về lỗi, runner dừng ngay; không hỏi có tiếp tục patch sau hay không.
 - Patch không tự build/flash/monitor/đọc log/phần cứng.
 - Patch chỉ sửa đúng file nằm trong yêu cầu.
 
@@ -33,7 +44,7 @@ patch_feature_bundle.zip
 └── resources/config.json
 ```
 
-Quy tắc runner v3:
+Quy tắc runner v4:
 
 1. Không giải nén trực tiếp vào `patchs/` hay project root.
 2. Chặn đường dẫn thoát thư mục (`../`), symlink, hardlink và special file.
@@ -218,6 +229,8 @@ Khuyến nghị:
 - Các patch độc lập theo file/tính năng phụ: dùng `skip`.
 - Không dùng `ignore` cho thay đổi code chính.
 
+Khi patch chạy thành công nhưng `patched = 0` và `created = 0`, helper không in bảng `Patch summary`; thay vào đó hiển thị thông báo nổi bật `PATCH KHÔNG THAY ĐỔI CODE`, có dòng trống trước và sau. Nếu có `failed`, bảng summary lỗi vẫn được in đầy đủ và runner dừng ngay.
+
 Khi có lỗi, helper sẽ in:
 
 - `ERROR`
@@ -229,7 +242,15 @@ Khi có lỗi, helper sẽ in:
 - nearby context/candidate context nếu có
 - summary cuối cùng và danh sách failed files
 
-Nếu chạy trong terminal tương tác, khi có lỗi helper sẽ hỏi có zip các file lỗi không. Zip được lưu tại:
+Nếu chạy trong terminal tương tác, khi có lỗi helper sẽ hỏi có zip các file lỗi không. Có thể bỏ xác nhận bằng CLI:
+
+```bash
+python3 patchs/patch_example.py --zip-failed --keep-failed-zip
+python3 patchs/patch_example.py --no-zip-failed
+python3 patchs/patch_example.py --help
+```
+
+ZIP được lưu tại:
 
 ```text
 patchs/failed_patch_files/<patch_name>_failed_<timestamp>.zip
@@ -242,7 +263,7 @@ Zip giữ nguyên đường dẫn tương đối để gửi lại ChatGPT.
 ```text
 Hãy cung cấp file Python patch, không cung cấp prompt sửa code.
 
-Dùng helper tools/python_patch_utils.py phiên bản mini-AI v3 nếu có. Patch nên dùng dạng khai báo run_patch(PATCH_NAME, OPS) để giảm token.
+Dùng helper tools/python_patch_utils.py phiên bản mini-AI v4 nếu có. Patch nên dùng dạng khai báo run_patch(PATCH_NAME, OPS) để giảm token.
 
 Yêu cầu bắt buộc:
 1. File patch đặt tên duy nhất dạng patch_<ten_ngan_gon>.py; nếu đóng gói nhiều file thì dùng tên duy nhất dạng patch_<ten_ngan_gon>.zip hoặc .tar.gz.
@@ -254,7 +275,7 @@ Yêu cầu bắt buộc:
 7. Với block dễ lệch nhẹ ở local, dùng mode="auto" hoặc old_variants; chỉ dùng fuzzy khi block đủ dài và anchor đủ rõ.
 8. Nếu operation phụ thuộc operation trước, để on_error="stop". Nếu độc lập, có thể đặt on_error="skip".
 9. Nếu cần nếu-thì, dùng kind="if" hoặc replace_any thay vì viết logic Python dài.
-10. Nếu lỗi, helper phải tự báo file lỗi và cuối cùng hỏi zip failed files.
+10. Nếu lỗi, helper phải tự báo file lỗi; hỗ trợ `--zip-failed`, `--no-zip-failed`, `--keep-failed-zip`, `--delete-failed-zip` và `-h`/`--help`.
 11. Không dùng replace mơ hồ trên chuỗi ngắn xuất hiện nhiều nơi; dùng anchor_radius, regex count=1, hoặc exact block lớn hơn.
 ```
 
