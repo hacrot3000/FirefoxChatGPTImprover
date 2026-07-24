@@ -13,7 +13,7 @@ for (const file of ["extension/shared/settings.js", "extension/shared/local_acti
 }
 const Local = context.FCI_LOCAL_ACTIONS;
 const Working = context.FCI_WORKING_SESSION;
-assert.equal(Local.SCHEMA_VERSION, 1);
+assert(Local.SCHEMA_VERSION >= 1);
 const shared = Local.createProfile("Shared", {
   routing: { enabled: true, priority: 5, urlPatterns: ["https://ai.example.test/*"] },
   download: { enabled: true, destinationDirectory: "/tmp/result", captureWindowSeconds: 30, conflictAction: "uniquify", showCompletionDialog: true },

@@ -21,7 +21,7 @@
     targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), exportSupportBundleButton: $("#exportSupportBundleButton"), clearLogsButton: $("#clearLogsButton"),
-    localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), executeShellAfterMove: $("#executeShellAfterMove"), downloadStateSummary: $("#downloadStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
+    localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), downloadShellExecutionMode: $("#downloadShellExecutionMode"), openShellLogAfterExecution: $("#openShellLogAfterExecution"), downloadStateSummary: $("#downloadStateSummary"), downloadShellStateSummary: $("#downloadShellStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
     shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"),
@@ -447,9 +447,13 @@
     elements.stopShellQuickButton.disabled = busy || !shellIsActive(run);
     const previousStatus = lastShellStatusByTab.get(Number(selectedTabId));
     lastShellStatusByTab.set(Number(selectedTabId), run.status);
-    if (["starting", "running", "stopping"].includes(previousStatus) && ["exited", "error"].includes(run.status) && run.logId && !autoOpenedShellRunIds.has(run.runId)) {
+    const downloadState = selectedDownloadState();
+    const shouldAutoOpenFullLog = run.source !== "download" || downloadState.openShellLogAfterExecution !== false;
+    const completedDownloadLogPending = run.source === "download" && ["exited", "error"].includes(run.status);
+    const justFinished = ["starting", "running", "stopping"].includes(previousStatus) && ["exited", "error"].includes(run.status);
+    if (shouldAutoOpenFullLog && (justFinished || completedDownloadLogPending) && run.logId && !autoOpenedShellRunIds.has(run.runId)) {
       autoOpenedShellRunIds.add(run.runId);
-      queueMicrotask(() => void openShellLogDialog({ tabId: selectedTabId, logId: run.logId, runId: run.runId, logBytes: run.logBytes, label: run.presetName || run.command || "Completed command" }, true));
+      queueMicrotask(() => void openShellLogDialog({ tabId: selectedTabId, logId: run.logId, runId: run.runId, logBytes: run.logBytes, label: run.source === "download" ? `Download console · ${run.command}` : (run.presetName || run.command || "Completed command") }, true));
     }
     const preset = selectedShellPreset();
     elements.loadShellPresetButton.disabled = busy || !preset;
@@ -767,7 +771,8 @@
     elements.downloadCaptureWindowSeconds.value = String(value.download.captureWindowSeconds);
     elements.downloadConflictAction.value = value.download.conflictAction;
     elements.showDownloadCompletionDialog.checked = value.download.showCompletionDialog;
-    elements.executeShellAfterMove.checked = value.download.executeShellAfterMove;
+    elements.downloadShellExecutionMode.value = value.download.shellExecutionMode;
+    elements.openShellLogAfterExecution.checked = value.download.openShellLogAfterExecution;
     shellPresetsDraft = LocalActions.clone(value.shell.presets || []);
     selectedShellPresetId = value.shell.selectedPresetId || "";
     elements.requireShellPresetMatch.checked = value.shell.requirePresetMatch;
@@ -797,7 +802,8 @@
         captureWindowSeconds: Number(elements.downloadCaptureWindowSeconds.value),
         conflictAction: elements.downloadConflictAction.value,
         showCompletionDialog: elements.showDownloadCompletionDialog.checked,
-        executeShellAfterMove: elements.executeShellAfterMove.checked
+        shellExecutionMode: elements.downloadShellExecutionMode.value,
+        openShellLogAfterExecution: elements.openShellLogAfterExecution.checked
       },
       shell: {
         workingDirectory: elements.workingDirectory.value,
@@ -860,6 +866,13 @@
       : (state.destinationPath ? `${state.status}: ${state.destinationPath}` : state.status || "idle");
     elements.downloadStateSummary.dataset.state = state.error ? "error" : (state.status === "completed" ? "ok" : "idle");
     elements.downloadStateSummary.textContent = state.moveAttempt > 1 ? `${text} · attempt ${state.moveAttempt}` : text;
+    const shellText = state.shellError
+      ? `${state.shellStatus || "error"}: ${state.shellError}`
+      : (state.shellRunId
+        ? `${state.shellStatus || "started"}: ${state.shellRunId}${Number.isInteger(state.shellReturnCode) ? ` · rc=${state.shellReturnCode}` : ""}`
+        : (state.shellExecutionMode === "manual" ? "manual: ready after a successful relocation" : (state.shellExecutionMode === "automatic" ? "automatic: waiting for relocation" : "disabled")));
+    elements.downloadShellStateSummary.dataset.state = state.shellError ? "error" : (["completed", "running", "starting"].includes(state.shellStatus) ? "ok" : "idle");
+    elements.downloadShellStateSummary.textContent = shellText;
     elements.retryDownloadMoveButton.disabled = busy || !state.retryable || state.status !== "error";
     const config = selectedSession()?.effectiveLocalActions || localActionProfileById(selectedLocalActionProfileId)?.config || LocalActions.defaultConfig();
     if (state.status === "completed" && state.destinationPath && state.completionSurface !== "page" && config.download.showCompletionDialog && lastShownDownloadCaptureByTab.get(Number(selectedTabId)) !== (state.completionId || state.moveId || state.captureId)) {
@@ -1660,9 +1673,21 @@ ${shell.command}`;
     }, "Local-action profile created.");
   }
 
-  function runShellAfterDownload() {
+  async function runShellAfterDownload() {
+    const state = selectedDownloadState();
+    if (!state.captureId || state.status !== "completed") {
+      showMessage("No completed managed download is available for shell execution.", "error");
+      return;
+    }
+    const confirmBeforeRun = state.configSnapshot?.shell?.confirmBeforeRun !== false;
+    if (confirmBeforeRun && !confirm("Execute the frozen shell command for this completed download?")) return;
     if (elements.downloadCompletionDialog.open) elements.downloadCompletionDialog.close();
-    runShellCommand();
+    const response = await request(MESSAGE.RUN_COMPLETED_DOWNLOAD_SHELL, {
+      tabId: selectedTabId,
+      captureId: state.captureId,
+      confirmed: true
+    });
+    if (response?.ok) showMessage("Download shell command started. The complete console will open when it finishes.", "success");
   }
 
   function runShellCommand() {
@@ -2189,7 +2214,7 @@ ${run.command || ""}`)) {
     elements.localActionProfileName, elements.localActionRoutingEnabled, elements.localActionRoutingPriority,
     elements.localActionUrlPatterns, elements.managedDownloadEnabled, elements.downloadDestinationDirectory,
     elements.downloadCaptureWindowSeconds, elements.downloadConflictAction, elements.showDownloadCompletionDialog,
-    elements.executeShellAfterMove, elements.shellPresetName, elements.shellPresetEnabled,
+    elements.downloadShellExecutionMode, elements.openShellLogAfterExecution, elements.shellPresetName, elements.shellPresetEnabled,
     elements.requireShellPresetMatch, elements.workingDirectory, elements.shellCommand, elements.shellMode,
     elements.confirmBeforeRun, elements.rememberShellHistory, elements.shellHistoryLimit
   ]) {

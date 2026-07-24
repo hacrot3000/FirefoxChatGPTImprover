@@ -372,6 +372,7 @@
             <div class="help-popover" role="tooltip">
               <p>These settings belong to the selected local-action profile or the current tab override, not to the automation configuration profile.</p>
               <p>Each target-triggered download freezes its destination and shell settings at click time. Later URL, profile, or tab edits cannot redirect an in-flight file. Interrupted relocations can be retried explicitly.</p>
+              <p>Manual and automatic execution use the same frozen command snapshot. Download commands always run in background mode, receive the verified path through FCI_DOWNLOAD_PATH, and write the complete console to the Native Host log store.</p>
             </div>
           </details>
         </div>
@@ -383,8 +384,15 @@
         <label>Existing filename<select id="downloadConflictAction"><option value="uniquify">Create a unique filename</option><option value="overwrite">Overwrite</option><option value="fail">Fail</option></select></label>
       </div>
       <label class="check-row"><input id="showDownloadCompletionDialog" type="checkbox">Show completion dialog</label>
-      <label class="check-row"><input id="executeShellAfterMove" type="checkbox">Run the configured shell command automatically after relocation</label>
+      <label>Shell command after relocation<select id="downloadShellExecutionMode">
+          <option value="manual">Run manually from the completion dialog</option>
+          <option value="automatic">Run automatically after relocation</option>
+          <option value="disabled">Do not offer or run a shell command</option>
+        </select></label>
+      <label class="check-row"><input id="openShellLogAfterExecution" type="checkbox">Open the complete console automatically when the command finishes</label>
+      <small class="inline-result">Download-triggered commands always run in background mode. The verified destination is supplied through <code>FCI_DOWNLOAD_PATH</code>; the complete stdout/stderr transcript is stored on disk and remains reopenable.</small>
       <output id="downloadStateSummary" class="selector-test-result">No managed download for this tab.</output>
+      <output id="downloadShellStateSummary" class="selector-test-result">No download shell command for this tab.</output>
       <div class="button-grid managed-download-actions">
         <button id="retryDownloadMoveButton" type="button" disabled>Retry move to saved destination</button>
       </div>

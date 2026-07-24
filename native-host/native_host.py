@@ -25,9 +25,11 @@ from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Callable
 
 HOST_NAME = "com.duongtc.firefox_chat_assistant"
-HOST_VERSION = "0.9.1"
+HOST_VERSION = "0.10.0"
 MAX_MESSAGE_BYTES = 1024 * 1024
 MAX_COMMAND_CHARS = 32768
+MAX_ENVIRONMENT_ITEMS = 32
+MAX_ENVIRONMENT_VALUE_CHARS = 8192
 MAX_OUTPUT_CHUNK_CHARS = 65536
 MAX_LOG_READ_BYTES = 256 * 1024
 STOP_GRACE_SECONDS = 3.0
@@ -313,6 +315,23 @@ def make_terminal_script(cwd: Path, command: str) -> Path:
     return path
 
 
+def validate_run_environment(raw: Any) -> dict[str, str]:
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict) or len(raw) > MAX_ENVIRONMENT_ITEMS:
+        raise ValueError("The shell environment is invalid or too large.")
+    result: dict[str, str] = {}
+    for raw_key, raw_value in raw.items():
+        key = str(raw_key or "")
+        value = str(raw_value or "")
+        if not key.startswith("FCI_") or not key.replace("_", "").isalnum():
+            raise ValueError("Only FCI_* environment variables are allowed.")
+        if "\x00" in value or len(value) > MAX_ENVIRONMENT_VALUE_CHARS:
+            raise ValueError(f"The shell environment value is invalid: {key}")
+        result[key] = value
+    return result
+
+
 @dataclass
 class RunContext:
     run_id: str
@@ -323,6 +342,7 @@ class RunContext:
     log_id: str = ""
     log_path: str = ""
     log_bytes: int = 0
+    environment: dict[str, str] = field(default_factory=dict)
     process: subprocess.Popen[str] | None = None
     started_at: float = field(default_factory=time.time)
     stopping: bool = False
@@ -353,6 +373,7 @@ class ProcessManager:
 
     def start(self, message: dict[str, Any]) -> None:
         run_id, tab_id, cwd, command, mode = validate_run_request(message)
+        environment = validate_run_environment(message.get("environment"))
         with self.lock:
             if run_id in self.runs:
                 raise ValueError("The run ID already exists.")
@@ -362,9 +383,10 @@ class ProcessManager:
             log_id = _log_id_for_run(run_id)
             log_path = _log_path(log_id)
             log_path.write_bytes(b"")
-            context = RunContext(run_id, tab_id, str(cwd), command, mode, log_id, str(log_path))
+            context = RunContext(run_id, tab_id, str(cwd), command, mode, log_id, str(log_path), 0, environment)
             self.runs[run_id] = context
-        self._append_log(context, "system", f"cwd={cwd}\ncommand={command}\nmode={mode}\n")
+        environment_names = ",".join(sorted(environment)) or "none"
+        self._append_log(context, "system", f"cwd={cwd}\ncommand={command}\nmode={mode}\nenvironment={environment_names}\n")
 
         if mode == "terminal":
             self._start_terminal(context, cwd, command)
@@ -450,6 +472,7 @@ class ProcessManager:
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
+                env={**os.environ, **context.environment},
                 start_new_session=True,
             )
         except Exception:

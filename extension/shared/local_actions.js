@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_LOCAL_ACTIONS?.SCHEMA_VERSION >= 1) {
+  if (globalThis.FCI_LOCAL_ACTIONS?.SCHEMA_VERSION >= 2) {
     return;
   }
 
-  const SCHEMA_VERSION = 1;
+  const SCHEMA_VERSION = 2;
   const STORAGE_KEY = "firefoxChatImprover.localActions.v1";
   const DEFAULT_PROFILE_ID = "local-default";
 
@@ -49,6 +49,11 @@
   }
 
   function defaultConfig() {
+    const legacyAutomatic = bool(download.executeShellAfterMove, false);
+    const requestedShellExecutionMode = text(download.shellExecutionMode).trim();
+    const shellExecutionMode = ["disabled", "manual", "automatic"].includes(requestedShellExecutionMode)
+      ? requestedShellExecutionMode
+      : (legacyAutomatic ? "automatic" : (text(shell.workingDirectory).trim() && text(shell.command).trim() ? "manual" : "disabled"));
     return {
       routing: {
         enabled: true,
@@ -61,6 +66,8 @@
         captureWindowSeconds: 20,
         conflictAction: "uniquify",
         showCompletionDialog: true,
+        shellExecutionMode: "manual",
+        openShellLogAfterExecution: true,
         executeShellAfterMove: false
       },
       shell: {
@@ -110,6 +117,11 @@
       presets.push({ ...preset, id });
     });
     const requestedPresetId = text(shell.selectedPresetId).trim();
+    const legacyAutomatic = bool(download.executeShellAfterMove, false);
+    const requestedShellExecutionMode = text(download.shellExecutionMode).trim();
+    const shellExecutionMode = ["disabled", "manual", "automatic"].includes(requestedShellExecutionMode)
+      ? requestedShellExecutionMode
+      : (legacyAutomatic ? "automatic" : (text(shell.workingDirectory).trim() && text(shell.command).trim() ? "manual" : "disabled"));
     return {
       routing: {
         enabled: bool(routing.enabled, true),
@@ -124,7 +136,9 @@
           ? download.conflictAction
           : "uniquify",
         showCompletionDialog: bool(download.showCompletionDialog, true),
-        executeShellAfterMove: bool(download.executeShellAfterMove, false)
+        shellExecutionMode,
+        openShellLogAfterExecution: bool(download.openShellLogAfterExecution, true),
+        executeShellAfterMove: shellExecutionMode === "automatic"
       },
       shell: {
         workingDirectory: text(shell.workingDirectory).trim(),
@@ -312,6 +326,24 @@
     }
     if (config.shell.workingDirectory && !config.shell.workingDirectory.startsWith("/")) {
       errors.push("Shell working directory must be an absolute path.");
+    }
+    if (config.download.enabled && config.download.shellExecutionMode !== "disabled") {
+      if (!config.shell.workingDirectory.startsWith("/")) {
+        errors.push("Download shell execution requires an absolute shell working directory.");
+      }
+      if (!config.shell.command.trim()) {
+        errors.push("Download shell execution requires a shell command.");
+      }
+      if (config.shell.mode === "terminal") {
+        errors.push("Download shell execution must use background mode so the complete console can be captured.");
+      }
+      if (config.shell.requirePresetMatch && !matchingPreset(config, {
+        workingDirectory: config.shell.workingDirectory,
+        command: config.shell.command,
+        mode: "background"
+      })) {
+        errors.push("The download shell command must match an enabled background command preset.");
+      }
     }
     return { ok: errors.length === 0, errors, config };
   }

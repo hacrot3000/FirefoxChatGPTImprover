@@ -390,3 +390,12 @@ An armed managed-download capture now converts that one target action from dry-r
 
 Managed-download move requests now have an end-to-end correlation ID and a bounded timeout. Native Host validation/unsupported-action errors are shown in the download group instead of leaving the job stuck in `moving`. Reinstall Native Host 0.9.1 after applying this patch.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE24_V0243_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE25_BEGIN -->
+## Phase 25 — Download shell execution and complete console integration
+
+Managed downloads can now run their frozen shell command manually from the completion dialog or automatically after verified relocation. Download-triggered commands always use background mode, receive the verified file through `FCI_DOWNLOAD_PATH` and related `FCI_DOWNLOAD_*` variables, and use the Phase 22 file-backed full-console viewer. Automatic/manual execution is isolated per tab and cannot switch to later profile edits.
+
+Details: `document/PHASE_25_DOWNLOAD_SHELL_EXECUTION.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE25_END -->

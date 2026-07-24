@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatImproverRuntimeV6";
-  const RUNTIME_VERSION = 18;
+  const RUNTIME_VERSION = 19;
   const previousRuntime = globalThis[INSTANCE_KEY];
   if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
@@ -286,9 +286,15 @@
 
     const shellButton = document.createElement("button");
     shellButton.type = "button";
-    shellButton.textContent = "Execute shell command";
-    shellButton.disabled = !payload.shellAvailable;
-    shellButton.title = payload.shellAvailable ? "Run the shell command captured with this download." : "No shell command is configured for this download.";
+    const shellMode = ["disabled", "manual", "automatic"].includes(payload.shellExecutionMode) ? payload.shellExecutionMode : "manual";
+    shellButton.textContent = shellMode === "automatic" ? "Shell command starting automatically" : "Execute shell command";
+    shellButton.disabled = !payload.shellAvailable || shellMode !== "manual";
+    shellButton.title = !payload.shellAvailable
+      ? "No shell command is configured for this download."
+      : (shellMode === "automatic" ? "The frozen download command is started automatically in background mode." : "Run the shell command captured with this download.");
+    if (shellMode === "automatic" && payload.shellAvailable) {
+      status.textContent = "The shell command is starting automatically. The complete console will open in the add-on when it finishes and remains available afterward.";
+    }
     shellButton.addEventListener("click", async () => {
       if (payload.confirmBeforeRun && !window.confirm("Execute the configured shell command for this completed download?")) {
         return;
@@ -304,7 +310,7 @@
           }
         });
         if (!response?.ok) throw new Error(response?.error || "Could not start the shell command.");
-        status.textContent = "Shell command started. Open the add-on Shell command group to view its log.";
+        status.textContent = "Shell command started in background mode. The complete console will open in the add-on when it finishes and remains available afterward.";
       } catch (error) {
         shellButton.disabled = false;
         status.textContent = error instanceof Error ? error.message : String(error);

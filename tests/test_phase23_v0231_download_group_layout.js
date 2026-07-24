@@ -23,7 +23,7 @@ const between = html.slice(target.start + target.text.length, alerts.start);
 assert.equal((between.match(/data-group-id=/g) || []).length, 1, "no other group may appear between target and alerts");
 for (const id of [
   "managedDownloadEnabled", "downloadDestinationDirectory", "downloadCaptureWindowSeconds",
-  "downloadConflictAction", "showDownloadCompletionDialog", "executeShellAfterMove",
+  "downloadConflictAction", "showDownloadCompletionDialog", "downloadShellExecutionMode", "openShellLogAfterExecution",
   "downloadStateSummary", "retryDownloadMoveButton"
 ]) {
   assert(download.text.includes(`id="${id}"`), `${id} must be in Managed download group`);

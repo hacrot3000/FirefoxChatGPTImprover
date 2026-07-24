@@ -113,7 +113,17 @@
       error: null,
       completedAt: null,
       showCompletionDialog: false,
-      executeShellAfterMove: false
+      executeShellAfterMove: false,
+      shellExecutionMode: "disabled",
+      openShellLogAfterExecution: true,
+      shellStatus: "idle",
+      shellRunId: null,
+      shellReturnCode: null,
+      shellLogId: null,
+      shellLogBytes: 0,
+      shellStartedAt: null,
+      shellCompletedAt: null,
+      shellError: null
     };
   }
 
@@ -136,7 +146,15 @@
       moveAttempt: Math.max(0, Number(source.moveAttempt) || 0),
       retryable: Boolean(source.retryable),
       showCompletionDialog: Boolean(source.showCompletionDialog),
-      executeShellAfterMove: Boolean(source.executeShellAfterMove)
+      executeShellAfterMove: Boolean(source.executeShellAfterMove),
+      shellExecutionMode: ["disabled", "manual", "automatic"].includes(source.shellExecutionMode) ? source.shellExecutionMode : (source.executeShellAfterMove ? "automatic" : "manual"),
+      openShellLogAfterExecution: source.openShellLogAfterExecution !== false,
+      shellStatus: String(source.shellStatus || "idle"),
+      shellRunId: source.shellRunId ? String(source.shellRunId) : null,
+      shellReturnCode: Number.isInteger(source.shellReturnCode) ? source.shellReturnCode : null,
+      shellLogId: source.shellLogId ? String(source.shellLogId) : null,
+      shellLogBytes: Math.max(0, Number(source.shellLogBytes) || 0),
+      shellError: source.shellError ? String(source.shellError) : null
     };
   }
 
@@ -242,7 +260,9 @@
       expiresAt: new Date(capture.expiresAtMs).toISOString(),
       destinationDirectory: config.download.destinationDirectory,
       showCompletionDialog: config.download.showCompletionDialog,
-      executeShellAfterMove: config.download.executeShellAfterMove
+      executeShellAfterMove: config.download.executeShellAfterMove,
+      shellExecutionMode: config.download.shellExecutionMode,
+      openShellLogAfterExecution: config.download.openShellLogAfterExecution
     });
     session.downloadJob = publicDownloadState(Number(tabId));
     appendLog(session, "debug", "download-capture-armed", "Managed download capture armed before target click.", {
@@ -290,6 +310,8 @@
       destinationDirectory: capture.config.download.destinationDirectory,
       showCompletionDialog: capture.config.download.showCompletionDialog,
       executeShellAfterMove: capture.config.download.executeShellAfterMove,
+      shellExecutionMode: capture.config.download.shellExecutionMode,
+      openShellLogAfterExecution: capture.config.download.openShellLogAfterExecution,
       retryable: false,
       recoveryNote: null,
       error: null
@@ -506,7 +528,10 @@
           filename: job.filename,
           size: job.size,
           retry: job.completionReason === "retry",
-          shellAvailable,
+          shellAvailable: shellAvailable && job.shellExecutionMode !== "disabled",
+          shellExecutionMode: job.shellExecutionMode,
+          shellStatus: job.shellStatus,
+          shellRunId: job.shellRunId,
           confirmBeforeRun: Boolean(config.shell.confirmBeforeRun)
         }
       });
@@ -523,34 +548,89 @@
     return false;
   }
 
-  async function runCompletedDownloadShell(message, sender) {
-    const tabId = Number(sender?.tab?.id);
-    if (!Number.isInteger(tabId)) {
-      throw new Error("The completed-download shell action must come from the original tab.");
-    }
-    const session = sessions.get(tabId);
-    const job = downloadJobs.get(tabId);
-    const captureId = String(message?.payload?.captureId || "");
-    if (!session || !job || job.status !== "completed" || !captureId || job.captureId !== captureId) {
-      throw new Error("This completed download is no longer available for shell execution.");
+  function downloadShellEnvironment(job) {
+    return {
+      FCI_DOWNLOAD_PATH: String(job.destinationPath || ""),
+      FCI_DOWNLOAD_DIRECTORY: String(job.destinationDirectory || ""),
+      FCI_DOWNLOAD_FILENAME: String(job.filename || ""),
+      FCI_DOWNLOAD_SOURCE_URL: String(job.sourceUrl || ""),
+      FCI_DOWNLOAD_CAPTURE_ID: String(job.captureId || ""),
+      FCI_DOWNLOAD_TAB_ID: String(job.tabId),
+      FCI_LOCAL_ACTION_PROFILE_ID: String(job.localActionProfileId || "")
+    };
+  }
+
+  async function startDownloadShellForJob(job, session, trigger) {
+    if (!job || !session || job.status !== "completed") {
+      throw new Error("The managed download has not completed successfully.");
     }
     if (job.sessionToken !== session.sessionToken) {
       throw new Error("The tab session changed after the download completed.");
     }
-    const config = jobExecutionConfig(job);
-    if (config.shell.confirmBeforeRun && message?.payload?.confirmed !== true) {
-      throw new Error("Shell execution confirmation is required.");
+    if (job.shellExecutionMode === "disabled") {
+      throw new Error("Shell execution is disabled for this managed download.");
     }
+    if (["starting", "running", "stopping"].includes(job.shellStatus)) {
+      throw new Error("The download shell command is already running.");
+    }
+    if (job.shellRunId && ["completed", "error"].includes(job.shellStatus)) {
+      throw new Error("The download shell command has already been executed. Use the Shell command group to run it again explicitly.");
+    }
+    const config = jobExecutionConfig(job);
     const shell = validateShellPayload({
-      tabId,
+      tabId: job.tabId,
       cwd: config.shell.workingDirectory,
       command: config.shell.command,
-      mode: config.shell.mode
-    }, config);
-    return startShellRunForSession(session, config, shell, {
+      mode: "background"
+    }, { ...config, shell: { ...config.shell, mode: "background" } });
+    job.shellStatus = "starting";
+    job.shellError = null;
+    job.shellReturnCode = null;
+    job.shellStartedAt = Settings.nowIso();
+    job.shellCompletedAt = null;
+    const run = await startShellRunForSession(session, config, { ...shell, mode: "background" }, {
       source: "download",
-      trigger: "download-completion-page"
+      trigger,
+      captureId: job.captureId,
+      downloadPath: job.destinationPath,
+      environment: downloadShellEnvironment(job)
     });
+    job.shellRunId = run.runId;
+    job.shellStatus = run.status === "exited"
+      ? (Number(run.returnCode || 0) === 0 ? "completed" : "error")
+      : (run.status === "error" ? "error" : run.status);
+    job.shellReturnCode = Number.isInteger(run.returnCode) ? run.returnCode : null;
+    job.shellLogId = run.logId || null;
+    job.shellLogBytes = Math.max(0, Number(run.logBytes) || 0);
+    job.shellError = run.error || (job.shellStatus === "error" && Number.isInteger(run.returnCode) ? `Command exited with code ${run.returnCode}.` : null);
+    if (["completed", "error"].includes(job.shellStatus)) job.shellCompletedAt = run.endedAt || Settings.nowIso();
+    await persistDownloadState(job.tabId);
+    await broadcast("download-shell-starting", job.tabId);
+    return run;
+  }
+
+  async function runCompletedDownloadShell(message, sender) {
+    let tabId;
+    if (Number.isInteger(sender?.tab?.id)) {
+      tabId = Number(sender.tab.id);
+    } else {
+      assertSidebarSender(sender);
+      tabId = Number(message?.tabId);
+    }
+    if (!Number.isInteger(tabId)) {
+      throw new Error("The completed-download shell action must identify the original tab.");
+    }
+    const session = sessions.get(tabId);
+    const job = downloadJobs.get(tabId);
+    const captureId = String(message?.payload?.captureId || message?.captureId || "");
+    if (!session || !job || job.status !== "completed" || !captureId || job.captureId !== captureId) {
+      throw new Error("This completed download is no longer available for shell execution.");
+    }
+    const config = jobExecutionConfig(job);
+    if (job.shellExecutionMode === "manual" && config.shell.confirmBeforeRun && message?.payload?.confirmed !== true && message?.confirmed !== true) {
+      throw new Error("Shell execution confirmation is required.");
+    }
+    return startDownloadShellForJob(job, session, "download-completion-manual");
   }
 
   async function handleNativeDownloadMessage(message) {
@@ -588,28 +668,23 @@
       }
       if (session && job.sessionToken === session.sessionToken) {
         const localConfig = jobExecutionConfig(job);
-        if (localConfig.download.executeShellAfterMove) {
+        job.shellExecutionMode = localConfig.download.shellExecutionMode;
+        job.openShellLogAfterExecution = localConfig.download.openShellLogAfterExecution;
+        job.shellStatus = job.shellExecutionMode === "manual" ? "available" : (job.shellExecutionMode === "automatic" ? "starting" : "disabled");
+        if (job.shellExecutionMode === "automatic") {
           try {
-            if (localConfig.shell.confirmBeforeRun) {
-              appendLog(session, "user", "download-command-skipped", "Automatic shell execution was skipped because confirmation is enabled.");
-            } else {
-              const shell = validateShellPayload({
-                tabId,
-                cwd: localConfig.shell.workingDirectory,
-                command: localConfig.shell.command,
-                mode: localConfig.shell.mode
-              }, localConfig);
-              await startShellRunForSession(session, localConfig, shell, {
-                source: "download",
-                trigger: "download-moved"
-              });
-            }
+            await startDownloadShellForJob(job, session, "download-moved-automatic");
           } catch (error) {
-            appendLog(session, "user", "download-command-error", error instanceof Error ? error.message : String(error));
+            job.shellStatus = "error";
+            job.shellError = error instanceof Error ? error.message : String(error);
+            job.shellCompletedAt = Settings.nowIso();
+            appendLog(session, "user", "download-command-error", job.shellError);
             await persistSession(session);
           }
         }
-      } else if (session && job.executeShellAfterMove) {
+      } else if (session && job.shellExecutionMode === "automatic") {
+        job.shellStatus = "error";
+        job.shellError = "Automatic shell execution was skipped because the original download session is no longer current.";
         appendLog(session, "user", "download-command-skipped", "Automatic shell execution was skipped because the original download session is no longer current.", {
           captureId: job.captureId,
           originalSessionToken: job.sessionToken,
@@ -926,6 +1001,18 @@
       );
       const localStore = await loadLocalActionStore();
       syncShellHistory(session, run, sessionLocalActionConfig(session, localStore));
+      if (run.source === "download") {
+        const job = downloadJobs.get(tabId);
+        if (job && job.shellRunId === run.runId) {
+          job.shellStatus = event === "started" ? "running" : (event === "exited" ? (Number(run.returnCode || 0) === 0 ? "completed" : "error") : (event === "error" ? "error" : event));
+          job.shellReturnCode = Number.isInteger(run.returnCode) ? run.returnCode : null;
+          job.shellLogId = run.logId || job.shellLogId || null;
+          job.shellLogBytes = Math.max(Number(job.shellLogBytes) || 0, Number(run.logBytes) || 0);
+          job.shellError = event === "error" ? run.error : (event === "exited" && Number(run.returnCode || 0) !== 0 ? `Command exited with code ${run.returnCode}.` : null);
+          if (["exited", "error"].includes(event)) job.shellCompletedAt = Settings.nowIso();
+          await persistDownloadState(tabId);
+        }
+      }
       if (run.source === "automation") {
         const failed = event === "error" || (event === "exited" && Number(run.returnCode || 0) !== 0);
         session.runtime = {
@@ -1123,6 +1210,9 @@
       ruleName: metadata.ruleName || null,
       trigger: metadata.trigger || null,
       cycle: Number.isInteger(Number(metadata.cycle)) ? Number(metadata.cycle) : null,
+      captureId: metadata.captureId || null,
+      downloadPath: metadata.downloadPath || null,
+      environment: metadata.environment ? clone(metadata.environment) : {},
       startedAt: Settings.nowIso()
     };
     shellRuns.set(tabId, run);
@@ -1167,7 +1257,7 @@
     });
     await persistSession(session);
     const port = ensureNativePort();
-    port.postMessage({ action: "run", runId, tabId, cwd, command, mode });
+    port.postMessage({ action: "run", runId, tabId, cwd, command, mode, environment: run.environment });
     await broadcast("native-shell-starting", tabId);
     return publicShellRun(tabId);
   }
