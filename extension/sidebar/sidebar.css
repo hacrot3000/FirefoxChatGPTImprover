@@ -424,15 +424,13 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 #downloadCompletionPath { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 
 /* Phase 22 — file-backed full command log viewer. */
-.shell-heading-title { display: flex; min-width: 0; align-items: center; gap: 8px; }
-.shell-heading-title h2 { white-space: nowrap; }
 .shell-log-dialog { width: min(96vw, 1000px); max-width: 1000px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: Canvas; color: CanvasText; }
 .shell-log-dialog::backdrop { background: rgba(0, 0, 0, .45); }
 .shell-log-panel { display: grid; gap: 10px; min-width: min(88vw, 860px); padding: 14px; }
 .shell-log-viewer { width: 100%; min-height: 52vh; max-height: 68vh; resize: vertical; padding: 10px; border: 1px solid var(--border); border-radius: 7px; background: color-mix(in srgb, Canvas 94%, #000 6%); color: CanvasText; font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre; overflow: auto; }
 .shell-log-navigation { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .shell-log-copy-actions { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.card[data-group-id="shell"][data-collapsed="true"] .shell-heading-title .native-status { display: none; }
+.card[data-group-id="shell"][data-collapsed="true"] .group-heading-actions .native-status { display: none; }
 @media (max-width: 560px) {
   .shell-log-panel { min-width: 92vw; }
   .shell-log-copy-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }

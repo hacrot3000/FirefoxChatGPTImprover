@@ -274,6 +274,23 @@
     ) || null;
   }
 
+  function createExecutionSnapshot(rawConfig) {
+    const config = normalizeConfig(rawConfig);
+    return {
+      snapshotVersion: 1,
+      download: clone(config.download),
+      shell: clone(config.shell)
+    };
+  }
+
+  function normalizeExecutionSnapshot(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    return createExecutionSnapshot({
+      download: source.download,
+      shell: source.shell
+    });
+  }
+
   function validateConfig(raw) {
     const config = normalizeConfig(raw);
     const errors = [];
@@ -317,6 +334,8 @@
       profileById,
       routeProfile,
       matchingPreset,
+      createExecutionSnapshot,
+      normalizeExecutionSnapshot,
       validateConfig
     })
   });

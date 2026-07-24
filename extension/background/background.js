@@ -88,6 +88,10 @@
     return {
       tabId,
       captureId: null,
+      sessionToken: null,
+      localActionProfileId: null,
+      localActionRevision: 0,
+      configSnapshot: null,
       status: "idle",
       armedAt: null,
       expiresAt: null,
@@ -98,6 +102,10 @@
       destinationPath: null,
       filename: null,
       size: null,
+      moveId: null,
+      moveAttempt: 0,
+      retryable: false,
+      recoveryNote: null,
       error: null,
       completedAt: null,
       showCompletionDialog: false,
@@ -105,8 +113,46 @@
     };
   }
 
+  function normalizeDownloadState(raw, tabId) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const allowedStatuses = new Set(["idle", "armed", "downloading", "moving", "completed", "expired", "error"]);
+    const configSnapshot = source.configSnapshot
+      ? LocalActions.normalizeExecutionSnapshot(source.configSnapshot)
+      : null;
+    return {
+      ...emptyDownloadState(Number(tabId)),
+      ...clone(source),
+      tabId: Number(tabId),
+      status: allowedStatuses.has(source.status) ? source.status : "idle",
+      sessionToken: source.sessionToken ? String(source.sessionToken) : null,
+      localActionProfileId: source.localActionProfileId ? String(source.localActionProfileId) : null,
+      localActionRevision: Math.max(0, Number(source.localActionRevision) || 0),
+      configSnapshot,
+      downloadId: Number.isInteger(source.downloadId) ? source.downloadId : null,
+      moveAttempt: Math.max(0, Number(source.moveAttempt) || 0),
+      retryable: Boolean(source.retryable),
+      showCompletionDialog: Boolean(source.showCompletionDialog),
+      executeShellAfterMove: Boolean(source.executeShellAfterMove)
+    };
+  }
+
   function publicDownloadState(tabId) {
-    return clone(downloadJobs.get(tabId) || emptyDownloadState(tabId));
+    return normalizeDownloadState(downloadJobs.get(Number(tabId)), Number(tabId));
+  }
+
+  async function persistDownloadState(tabId) {
+    const numericTabId = Number(tabId);
+    const session = sessions.get(numericTabId);
+    if (!session) return;
+    session.downloadJob = publicDownloadState(numericTabId);
+    await persistSession(session);
+  }
+
+  function jobExecutionConfig(job, fallbackConfig = null) {
+    if (job?.configSnapshot) {
+      return LocalActions.normalizeConfig(job.configSnapshot);
+    }
+    return LocalActions.normalizeConfig(fallbackConfig || LocalActions.defaultConfig());
   }
 
   function cleanDownloadFilename(value, fallback = "download.bin") {
@@ -142,8 +188,10 @@
       const job = downloadJobs.get(Number(tabId));
       if (job?.status === "armed") {
         job.status = "expired";
+        job.retryable = false;
         job.error = "No download was detected before the capture window expired.";
         job.completedAt = Settings.nowIso();
+        void persistDownloadState(Number(tabId));
         void broadcast("download-capture-expired", Number(tabId));
       }
       return null;
@@ -161,6 +209,7 @@
     }
     const captureId = `download-${tabId}-${crypto.randomUUID()}`;
     const seconds = config.download.captureWindowSeconds;
+    const configSnapshot = LocalActions.createExecutionSnapshot(config);
     const capture = {
       captureId,
       tabId: Number(tabId),
@@ -169,7 +218,9 @@
       cycle: Number(metadata.cycle || 0),
       url: session.url,
       origin: (() => { try { return new URL(session.url).origin; } catch (_error) { return ""; } })(),
-      config,
+      localActionProfileId: session.localActionProfileId,
+      localActionRevision: Number(session.localActionRevision || 0),
+      config: configSnapshot,
       armedAtMs: Date.now(),
       expiresAtMs: Date.now() + seconds * 1000,
       claimed: false
@@ -178,6 +229,10 @@
     downloadJobs.set(Number(tabId), {
       ...emptyDownloadState(Number(tabId)),
       captureId,
+      sessionToken: session.sessionToken,
+      localActionProfileId: session.localActionProfileId,
+      localActionRevision: Number(session.localActionRevision || 0),
+      configSnapshot,
       status: "armed",
       armedAt: Settings.nowIso(),
       expiresAt: new Date(capture.expiresAtMs).toISOString(),
@@ -185,6 +240,7 @@
       showCompletionDialog: config.download.showCompletionDialog,
       executeShellAfterMove: config.download.executeShellAfterMove
     });
+    session.downloadJob = publicDownloadState(Number(tabId));
     appendLog(session, "debug", "download-capture-armed", "Managed download capture armed before target click.", {
       captureId, ruleId: capture.ruleId, cycle: capture.cycle, expiresAt: capture.expiresAtMs
     });
@@ -201,7 +257,14 @@
     const matching = captures.filter((capture) =>
       (capture.origin && (referrer.startsWith(capture.origin) || url.startsWith(capture.origin)))
     );
-    return (matching.length ? matching : captures).sort((left, right) => right.armedAtMs - left.armedAtMs)[0] || null;
+    if (matching.length) {
+      return matching.sort((left, right) => right.armedAtMs - left.armedAtMs)[0] || null;
+    }
+    // Firefox download-manager fallback events do not expose a tabId. Falling
+    // back is safe only when exactly one capture is armed globally; otherwise
+    // attributing the file to the most recent tab could move it with another
+    // tab's destination or shell settings.
+    return captures.length === 1 ? captures[0] : null;
   }
 
   async function claimDownload(capture, item, source = "browser-download") {
@@ -216,9 +279,15 @@
       sourceUrl: item.url || null,
       sourcePath: item.filename || null,
       filename: item.filename ? cleanDownloadFilename(item.filename) : null,
+      sessionToken: capture.sessionToken,
+      localActionProfileId: capture.localActionProfileId,
+      localActionRevision: capture.localActionRevision,
+      configSnapshot: LocalActions.normalizeExecutionSnapshot(capture.config),
       destinationDirectory: capture.config.download.destinationDirectory,
       showCompletionDialog: capture.config.download.showCompletionDialog,
       executeShellAfterMove: capture.config.download.executeShellAfterMove,
+      retryable: false,
+      recoveryNote: null,
       error: null
     });
     downloadJobs.set(capture.tabId, job);
@@ -227,7 +296,10 @@
     appendLog(session, "user", "download-captured", `Download captured (${source}).`, {
       captureId: capture.captureId, downloadId: item.id, url: item.url || null
     });
-    if (session) await persistSession(session);
+    if (session) {
+      session.downloadJob = publicDownloadState(capture.tabId);
+      await persistSession(session);
+    }
     await broadcast("download-captured", capture.tabId);
   }
 
@@ -248,46 +320,77 @@
     await claimDownload(capture, results[0] || { id: downloadId, url, filename: "" }, "managed-http-download");
   }
 
-  async function moveCompletedDownload(tabId, downloadItem) {
-    const job = downloadJobs.get(Number(tabId));
-    if (!job || ["moving", "completed"].includes(job.status)) return;
-    const session = sessions.get(Number(tabId));
-    const localStore = await loadLocalActionStore();
-    const config = session ? sessionLocalActionConfig(session, localStore) : null;
-    if (!config?.download?.enabled) {
+  async function moveCompletedDownload(tabId, downloadItem, options = {}) {
+    const numericTabId = Number(tabId);
+    const job = downloadJobs.get(numericTabId);
+    if (!job || job.status === "moving" || (job.status === "completed" && !options.force)) return;
+    const session = sessions.get(numericTabId);
+    let fallbackConfig = null;
+    if (!job.configSnapshot && session) {
+      const localStore = await loadLocalActionStore();
+      fallbackConfig = sessionLocalActionConfig(session, localStore);
+    }
+    const config = jobExecutionConfig(job, fallbackConfig);
+    if (!config.download.enabled || !config.download.destinationDirectory.startsWith("/")) {
       job.status = "error";
-      job.error = "Managed download was disabled before the file completed.";
-      await broadcast("download-move-error", Number(tabId));
+      job.retryable = false;
+      job.error = "The captured download job does not contain a valid absolute destination.";
+      job.completedAt = Settings.nowIso();
+      await persistDownloadState(numericTabId);
+      await broadcast("download-move-error", numericTabId);
       return;
     }
     const sourcePath = String(downloadItem?.filename || job.sourcePath || "");
     if (!sourcePath) {
       job.status = "error";
+      job.retryable = false;
       job.error = "Firefox did not report the downloaded file path.";
-      await broadcast("download-move-error", Number(tabId));
+      job.completedAt = Settings.nowIso();
+      await persistDownloadState(numericTabId);
+      await broadcast("download-move-error", numericTabId);
       return;
     }
-    const moveId = `move-${tabId}-${crypto.randomUUID()}`;
+    const moveId = `move-${numericTabId}-${crypto.randomUUID()}`;
     job.status = "moving";
     job.sourcePath = sourcePath;
     job.filename = cleanDownloadFilename(sourcePath);
     job.destinationDirectory = config.download.destinationDirectory;
     job.moveId = moveId;
-    downloadMoveToTab.set(moveId, Number(tabId));
-    const port = ensureNativePort();
-    port.postMessage({
-      action: "move_download",
+    job.moveAttempt = Math.max(0, Number(job.moveAttempt) || 0) + 1;
+    job.retryable = false;
+    job.recoveryNote = options.recovery ? "Resumed after background recovery." : (options.retry ? "Manual relocation retry." : null);
+    job.error = null;
+    downloadMoveToTab.set(moveId, numericTabId);
+    try {
+      const port = ensureNativePort();
+      port.postMessage({
+        action: "move_download",
+        moveId,
+        tabId: numericTabId,
+        sourcePath,
+        destinationDirectory: config.download.destinationDirectory,
+        conflictAction: config.download.conflictAction
+      });
+    } catch (error) {
+      downloadMoveToTab.delete(moveId);
+      job.status = "error";
+      job.retryable = true;
+      job.error = error instanceof Error ? error.message : String(error);
+      job.completedAt = Settings.nowIso();
+      await persistDownloadState(numericTabId);
+      await broadcast("download-move-error", numericTabId);
+      return;
+    }
+    appendLog(session, "debug", "download-move-request", "Native Host download relocation requested from the captured immutable local-action snapshot.", {
       moveId,
-      tabId: Number(tabId),
       sourcePath,
       destinationDirectory: config.download.destinationDirectory,
-      conflictAction: config.download.conflictAction
+      localActionProfileId: job.localActionProfileId,
+      localActionRevision: job.localActionRevision,
+      moveAttempt: job.moveAttempt
     });
-    appendLog(session, "debug", "download-move-request", "Native Host download relocation requested.", {
-      moveId, sourcePath, destinationDirectory: config.download.destinationDirectory
-    });
-    if (session) await persistSession(session);
-    await broadcast("download-moving", Number(tabId));
+    await persistDownloadState(numericTabId);
+    await broadcast("download-moving", numericTabId);
   }
 
   async function handleNativeDownloadMessage(message) {
@@ -303,6 +406,8 @@
         filename: String(message.filename || job.filename || ""),
         size: Number(message.size || 0),
         completedAt: Settings.nowIso(),
+        retryable: false,
+        recoveryNote: null,
         error: null
       });
       appendLog(session, "user", "download-completed", `Downloaded file moved to ${job.destinationPath}.`, {
@@ -312,10 +417,12 @@
       if (Number.isInteger(job.downloadId)) {
         void browser.downloads.erase({ id: job.downloadId }).catch(() => []);
       }
-      if (session) await persistSession(session);
       if (session) {
-        const localStore = await loadLocalActionStore();
-        const localConfig = sessionLocalActionConfig(session, localStore);
+        session.downloadJob = publicDownloadState(tabId);
+        await persistSession(session);
+      }
+      if (session && job.sessionToken === session.sessionToken) {
+        const localConfig = jobExecutionConfig(job);
         if (localConfig.download.executeShellAfterMove) {
           try {
             if (localConfig.shell.confirmBeforeRun) {
@@ -337,18 +444,29 @@
             await persistSession(session);
           }
         }
+      } else if (session && job.executeShellAfterMove) {
+        appendLog(session, "user", "download-command-skipped", "Automatic shell execution was skipped because the original download session is no longer current.", {
+          captureId: job.captureId,
+          originalSessionToken: job.sessionToken,
+          currentSessionToken: session.sessionToken
+        });
+        await persistSession(session);
       }
       await broadcast("download-completed", tabId);
       return;
     }
     Object.assign(job, {
       status: "error",
+      retryable: Boolean(job.sourcePath),
       error: String(message?.error || "The Native Host could not move the downloaded file."),
       completedAt: Settings.nowIso()
     });
     appendLog(session, "user", "download-error", job.error, { moveId });
     downloadMoveToTab.delete(moveId);
-    if (session) await persistSession(session);
+    if (session) {
+      session.downloadJob = publicDownloadState(tabId);
+      await persistSession(session);
+    }
     await broadcast("download-move-error", tabId);
   }
 
@@ -368,10 +486,12 @@
       Object.assign(job, {
         captureId: capture.captureId,
         status: "error",
+        retryable: false,
         error: error instanceof Error ? error.message : String(error),
         completedAt: Settings.nowIso()
       });
       downloadJobs.set(capture.tabId, job);
+      await persistDownloadState(capture.tabId);
       await broadcast("download-capture-error", capture.tabId);
     });
     return { cancel: true };
@@ -395,14 +515,70 @@
     }
     if (delta.error?.current) {
       job.status = "error";
+      job.retryable = false;
       job.error = String(delta.error.current);
       job.completedAt = Settings.nowIso();
+      await persistDownloadState(tabId);
       await broadcast("download-error", tabId);
       return;
     }
     if (delta.state?.current !== "complete") return;
     const results = await browser.downloads.search({ id: delta.id });
     await moveCompletedDownload(tabId, results[0] || { id: delta.id, filename: job.sourcePath });
+  }
+
+  async function retryDownloadMove(message, sender) {
+    assertSidebarSender(sender);
+    const tabId = Number(message.tabId);
+    const session = sessions.get(tabId);
+    const job = downloadJobs.get(tabId);
+    if (!session || !job) {
+      throw new Error("This tab has no managed download job to retry.");
+    }
+    if (job.status !== "error" || !job.retryable || !job.sourcePath) {
+      throw new Error("The managed download relocation is not retryable.");
+    }
+    await moveCompletedDownload(tabId, { id: job.downloadId, filename: job.sourcePath }, { retry: true, force: true });
+    return publicDownloadState(tabId);
+  }
+
+  async function recoverDownloadJob(session) {
+    const tabId = Number(session?.tabId);
+    if (!Number.isInteger(tabId) || !session?.downloadJob) return;
+    const job = normalizeDownloadState(session.downloadJob, tabId);
+    downloadJobs.set(tabId, job);
+    if (Number.isInteger(job.downloadId)) {
+      downloadMoveToTab.set(job.downloadId, tabId);
+    }
+    if (job.status === "armed") {
+      job.status = "error";
+      job.retryable = false;
+      job.error = "The download capture window was interrupted by a background restart; trigger the target again.";
+      job.completedAt = Settings.nowIso();
+    } else if (job.status === "moving") {
+      // A move may already have completed while the background was unavailable.
+      // Never issue a duplicate move automatically; expose a deliberate retry.
+      job.status = "error";
+      job.retryable = Boolean(job.sourcePath);
+      job.error = "Download relocation was interrupted. Use Retry relocation after checking the destination.";
+      job.recoveryNote = "Recovered an interrupted relocation without replaying it automatically.";
+      job.completedAt = Settings.nowIso();
+    } else if (job.status === "downloading" && Number.isInteger(job.downloadId)) {
+      const results = await browser.downloads.search({ id: job.downloadId }).catch(() => []);
+      const item = results[0];
+      if (item?.state === "complete") {
+        await moveCompletedDownload(tabId, item, { recovery: true, force: true });
+        return;
+      }
+      if (item?.state === "interrupted") {
+        job.status = "error";
+        job.retryable = false;
+        job.error = item.error || "The browser download was interrupted.";
+        job.completedAt = Settings.nowIso();
+      }
+    }
+    session.downloadJob = publicDownloadState(tabId);
+    await persistSession(session);
   }
 
   function nativeDashboardState() {
@@ -1212,6 +1388,7 @@
       localActionRevision: 1,
       runtime: newRuntime(),
       logs: { user: [], debug: [] },
+      downloadJob: emptyDownloadState(tab.id),
       shellHistory: [],
       automationCommandRequestIds: []
     };
@@ -1485,6 +1662,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       sessionToken: stored.sessionToken || Settings.makeId("session"),
       runtime: { ...newRuntime(), ...(stored.runtime || {}) },
       logs: normalizeLogs(stored.logs),
+      downloadJob: normalizeDownloadState(stored.downloadJob, tab.id),
       shellHistory: normalizeShellHistory(stored.shellHistory, 100)
     };
     if (!Settings.profileById(store, recovered.profileId)) {
@@ -1505,6 +1683,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     recovered.localActionRevision = Math.max(1, Number(recovered.localActionRevision || 1));
     sessions.set(tab.id, recovered);
     try {
+      await recoverDownloadJob(recovered);
       await reattachSession(recovered, store, "background-startup");
     } catch (error) {
       recovered.runtime = {
@@ -2804,6 +2983,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         case MESSAGE.GET_DOWNLOAD_STATE:
           return { ok: true, download: publicDownloadState(Number(message.tabId)), dashboard: await dashboard() };
 
+        case MESSAGE.RETRY_DOWNLOAD_MOVE:
+          return { ok: true, download: await retryDownloadMove(message, sender), dashboard: await dashboard() };
+
         case MESSAGE.CONTENT_RUNTIME_EVENT:
           return { ok: true, runtime: await updateRuntimeFromContent(message, sender) };
 
@@ -2872,6 +3054,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.RESET_TAB_LOCAL_ACTIONS,
     MESSAGE.ARM_DOWNLOAD_CAPTURE,
     MESSAGE.GET_DOWNLOAD_STATE,
+    MESSAGE.RETRY_DOWNLOAD_MOVE,
     MESSAGE.CONTENT_RUNTIME_EVENT,
     MESSAGE.CONTENT_PICKER_RESULT
   ]);
@@ -2916,7 +3099,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE,
     MESSAGE.SAVE_TAB_LOCAL_ACTIONS,
     MESSAGE.RESET_TAB_LOCAL_ACTIONS,
-    MESSAGE.GET_DOWNLOAD_STATE
+    MESSAGE.GET_DOWNLOAD_STATE,
+    MESSAGE.RETRY_DOWNLOAD_MOVE
   ]);
 
   function validateRequestSender(message, sender) {

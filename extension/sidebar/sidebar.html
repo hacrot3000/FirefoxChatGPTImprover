@@ -363,6 +363,33 @@
       </div>
     </section>
 
+    <section class="card" data-group-id="download" aria-labelledby="downloadHeading">
+      <div class="section-title-row">
+        <h2 id="downloadHeading">Managed download</h2>
+        <div class="group-heading-actions" role="group" aria-label="Managed download actions">
+          <details class="help-menu heading-help-menu">
+            <summary aria-label="Managed download help" title="Help">?</summary>
+            <div class="help-popover" role="tooltip">
+              <p>These settings belong to the selected local-action profile or the current tab override, not to the automation configuration profile.</p>
+              <p>Each target-triggered download freezes its destination and shell settings at click time. Later URL, profile, or tab edits cannot redirect an in-flight file. Interrupted relocations can be retried explicitly.</p>
+            </div>
+          </details>
+        </div>
+      </div>
+      <label class="check-row"><input id="managedDownloadEnabled" type="checkbox">Capture the next target-triggered download</label>
+      <label>Absolute destination directory<input id="downloadDestinationDirectory" type="text" placeholder="/home/duongtc/Downloads/AI-results"></label>
+      <div class="selector-grid compact-fields">
+        <label>Capture window (seconds)<input id="downloadCaptureWindowSeconds" type="number" min="3" max="300" step="1"></label>
+        <label>Existing filename<select id="downloadConflictAction"><option value="uniquify">Create a unique filename</option><option value="overwrite">Overwrite</option><option value="fail">Fail</option></select></label>
+      </div>
+      <label class="check-row"><input id="showDownloadCompletionDialog" type="checkbox">Show completion dialog</label>
+      <label class="check-row"><input id="executeShellAfterMove" type="checkbox">Run the configured shell command automatically after relocation</label>
+      <output id="downloadStateSummary" class="selector-test-result">No managed download for this tab.</output>
+      <div class="button-grid managed-download-actions">
+        <button id="retryDownloadMoveButton" type="button" disabled>Retry relocation</button>
+      </div>
+    </section>
+
     <section class="card" data-group-id="alerts" aria-labelledby="alertsHeading">
       <h2 id="alertsHeading">Alerts</h2>
       <div class="checks-grid">
@@ -423,18 +450,6 @@
         <label>Routing priority<input id="localActionRoutingPriority" type="number" min="-1000" max="1000" step="1"></label>
       </div>
       <label>URL patterns, one per line<textarea id="localActionUrlPatterns" rows="2" placeholder="https://ai.company.local/*"></textarea></label>
-      <fieldset class="sub-card">
-        <legend>Managed download relocation</legend>
-        <label class="check-row"><input id="managedDownloadEnabled" type="checkbox">Capture the next target-triggered download</label>
-        <label>Absolute destination directory<input id="downloadDestinationDirectory" type="text" placeholder="/home/duongtc/Downloads/AI-results"></label>
-        <div class="selector-grid compact-fields">
-          <label>Capture window (seconds)<input id="downloadCaptureWindowSeconds" type="number" min="3" max="300" step="1"></label>
-          <label>Existing filename<select id="downloadConflictAction"><option value="uniquify">Create a unique filename</option><option value="overwrite">Overwrite</option><option value="fail">Fail</option></select></label>
-        </div>
-        <label class="check-row"><input id="showDownloadCompletionDialog" type="checkbox">Show completion dialog</label>
-        <label class="check-row"><input id="executeShellAfterMove" type="checkbox">Run the configured shell command automatically after relocation</label>
-        <output id="downloadStateSummary" class="selector-test-result">No managed download for this tab.</output>
-      </fieldset>
       <div class="button-grid">
         <button id="saveTabLocalActionsButton" type="button">Save for this tab</button>
         <button id="resetTabLocalActionsButton" type="button">Use profile for tab</button>
@@ -442,18 +457,16 @@
       <details class="help-menu">
         <summary aria-label="Local action profile help" title="Help">?</summary>
         <div class="help-popover" role="tooltip">
-          Local-action profiles are separate from automation profiles. They contain download destinations and shell settings, may be routed by URL, shared globally, or overridden for one tab. HTTP attachment downloads are intercepted and restarted with <code>saveAs: false</code>; other downloads use Firefox download-manager capture as a fallback before the Native Host moves the completed file.
+          Local-action profiles are separate from automation profiles and contain both managed-download and shell settings. Use the dedicated Managed download group above and Shell command group below to edit those settings, then save the selected profile or tab override here. URL routing and per-tab assignment remain independent from automation profiles.
         </div>
       </details>
     </section>
 
     <section class="card" data-group-id="shell" aria-labelledby="shellHeading">
       <div class="section-title-row">
-        <div class="shell-heading-title">
-          <h2 id="shellHeading">Shell command</h2>
-          <span id="nativeHostStatus" class="native-status" data-state="offline">Native: not checked</span>
-        </div>
+        <h2 id="shellHeading">Shell command</h2>
         <div class="group-heading-actions" role="group" aria-label="Shell command actions">
+          <span id="nativeHostStatus" class="native-status" data-state="offline">Native: not checked</span>
           <button id="runShellQuickButton" type="button" class="compact icon-button collapsed-only" aria-label="Run command" title="Run command">▶</button>
           <button id="stopShellQuickButton" type="button" class="compact icon-button danger collapsed-only" aria-label="Stop command" title="Stop command">■</button>
           <button id="openShellLogQuickButton" type="button" class="compact icon-button collapsed-only" aria-label="Open full command log" title="Open full command log">▤</button>

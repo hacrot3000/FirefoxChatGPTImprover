@@ -41,6 +41,8 @@ node tests/test_phase21_local_actions_download.js
 python3 tests/test_phase21_download_relocator.py
 node tests/test_phase22_file_backed_shell_logs.js
 python3 tests/test_phase22_native_log_store.py
+node tests/test_phase23_immutable_download_jobs.js
+node tests/test_phase23_v0231_download_group_layout.js
 
 WEB_EXT_BIN="${ROOT}/.firefox-dev-tools/node_modules/.bin/web-ext"
 if [ -x "$WEB_EXT_BIN" ]; then
@@ -48,4 +50,4 @@ if [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-22 v0.22.0 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker, URL profile-routing, action-pipeline, deterministic monitor-stability, early-timer-rearm, session-recovery, compact-controls, monitor-title-spinner, multi-rule automation, runtime-isolation, forward-compatible version contracts, English-UI, title-de-duplication, help-popovers, command-presets, background-enforced allowlist, per-tab command-history, rule-command-actions, collision-free compact-header-controls, sanitized support-bundle export and bounded settings-snapshot rollback, verified configuration persistence, working-session save/import, separate local-action profiles, managed-download relocation, external-watcher, file-backed full shell-log, paged viewer and long-output preservation tests.\n'
+printf 'PASS: FirefoxChatImprover Phase 04-23 v0.23.1 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker, URL profile-routing, action-pipeline, deterministic monitor-stability, early-timer-rearm, session-recovery, compact-controls, monitor-title-spinner, multi-rule automation, runtime-isolation, forward-compatible version contracts, English-UI, title-de-duplication, help-popovers, command-presets, background-enforced allowlist, per-tab command-history, rule-command-actions, collision-free compact-header-controls, sanitized support-bundle export and bounded settings-snapshot rollback, verified configuration persistence, working-session save/import, separate local-action profiles, managed-download relocation, external-watcher, file-backed full shell-log, paged viewer, long-output preservation, right-aligned shell-header actions, immutable download-job snapshots, safe multi-tab attribution, persisted recovery, explicit relocation-retry and dedicated managed-download-group layout tests.\n'

@@ -342,3 +342,21 @@ After applying this phase, reinstall/update the Native Host and reload the add-o
 
 Details: `document/PHASE_22_FILE_BACKED_SHELL_LOG_VIEWER.md`.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE22_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE23_BEGIN -->
+## Phase 23 — Immutable managed-download jobs and recovery
+
+Each target-triggered download now freezes its destination and shell settings at click time. In-flight files cannot be redirected by later local-action profile, URL, or tab changes. Persisted jobs recover after background restart, ambiguous multi-tab fallback attribution is rejected, and interrupted relocation exposes an explicit retry.
+
+Details: `document/PHASE_23_IMMUTABLE_DOWNLOAD_JOBS_RECOVERY.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE23_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE23_V0231_BEGIN -->
+## Phase 23 v0.23.1 — Dedicated Managed download group
+
+Managed-download destination, capture, conflict, completion, auto-shell, status, and retry controls now live in a separate collapsible group directly below **New target element**. Local-action profile, per-tab, URL routing, immutable job, and recovery semantics are unchanged.
+
+Details: `document/PHASE_23_V0_23_1_DOWNLOAD_GROUP_LAYOUT.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE23_V0231_END -->
