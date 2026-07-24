@@ -4,6 +4,10 @@
   const { MESSAGE, MODE, CONFIG_MODE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
   const LocalActions = globalThis.FCI_LOCAL_ACTIONS;
+  const CommandPresets = globalThis.FCI_COMMAND_PRESETS;
+  // Phase 28 v0.28.3: volatile editor drafts are highest-priority runtime state.
+  // Phase 28 v0.28.1: prompt-created presets and unrestricted direct execution.
+  const RuntimeGuard = globalThis.FCI_SIDEBAR_RUNTIME_GUARD;
   const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
   const WorkingSession = globalThis.FCI_WORKING_SESSION;
   const SIDEBAR_UI_STORAGE_KEY = "firefoxChatImprover.sidebarUi.v1";
@@ -45,8 +49,16 @@
   let selectedLocalActionProfileId = null;
   let selectedRuleId = null;
   let formConfigDraft = Settings.defaultConfig();
+  let commandPresetStore = CommandPresets.defaultStore();
   let shellPresetsDraft = [];
   let selectedShellPresetId = "";
+  let commandPresetEditorMode = "tab";
+  let suppressTabCommandAutosave = false;
+  let tabCommandSaveTimer = null;
+  let tabCommandSaveSerial = 0;
+  let volatileLocalActionSyncTimer = null;
+  let volatileLocalActionSyncSerial = 0;
+  let volatileTabCommandDirty = false;
   let localActionBaseline = { profileId: null, tabId: null, profileName: "", config: LocalActions.defaultConfig(), fingerprint: "" };
   let localActionDraftDirty = false;
   let busy = false;
@@ -59,7 +71,7 @@
   const autoOpenedShellRunIds = new Set();
   const lastShellStatusByTab = new Map();
   const SHELL_LOG_PAGE_BYTES = 256 * 1024;
-  let shellLogState = { tabId: null, logId: null, runId: null, offset: 0, nextOffset: 0, totalBytes: 0, eof: true, pageOffsets: [], pageIndex: -1, text: "" };
+  let shellLogState = { tabId: null, logId: null, runId: null, offset: 0, nextOffset: 0, totalBytes: 0, eof: true, pageOffsets: [], pageIndex: -1, text: "", inlineText: "" };
   const FORM_RELOAD_MESSAGE_TYPES = new Set([
     MESSAGE.GET_DASHBOARD, MESSAGE.ACTIVATE_CURRENT, MESSAGE.STOP_TAB,
     MESSAGE.ASSIGN_PROFILE, MESSAGE.SAVE_TAB_CONFIG, MESSAGE.RESET_TAB_CONFIG,
@@ -80,32 +92,43 @@
     elements.messageBox.dataset.level = level;
   }
 
+  function localActionProfileScope(rawConfig) {
+    const config = LocalActions.normalizeConfig(rawConfig);
+    return { routing: config.routing, download: config.download };
+  }
+
   function currentLocalActionFingerprint(config = null, profileName = null) {
     const normalized = config ? LocalActions.normalizeConfig(config) : readLocalActionConfig();
     return JSON.stringify({
       profileId: selectedLocalActionProfileId || null,
       tabId: Number.isInteger(Number(selectedTabId)) ? Number(selectedTabId) : null,
       profileName: String(profileName ?? elements.localActionProfileName?.value ?? "").trim(),
-      config: LocalActions.configFingerprint(normalized)
+      config: localActionProfileScope(normalized)
     });
   }
 
-  function renderLocalActionDraftStatus() {
+  function hasVolatileLocalActionEdits() {
+    return localActionDraftDirty || volatileTabCommandDirty;
+  }
+
+  function renderLocalActionDraftStatus(detail = "") {
+    const dirty = hasVolatileLocalActionEdits();
     const card = document.querySelector('section.card[data-group-id="local-actions"]');
-    if (card) card.dataset.dirty = localActionDraftDirty ? "true" : "false";
+    if (card) card.dataset.dirty = dirty ? "true" : "false";
     if (elements.localActionDraftStatus) {
-      elements.localActionDraftStatus.dataset.state = localActionDraftDirty ? "warning" : "online";
-      elements.localActionDraftStatus.textContent = localActionDraftDirty ? "Unsaved" : "Saved";
-      elements.localActionDraftStatus.title = localActionDraftDirty
-        ? "The displayed download or shell settings differ from persisted storage."
-        : "The displayed local-action settings match persisted storage.";
+      elements.localActionDraftStatus.hidden = !dirty;
+      elements.localActionDraftStatus.dataset.state = "warning";
+      elements.localActionDraftStatus.textContent = "";
+      const statusDetail = detail || "Unsaved tab-only edits; lost after reload.";
+      elements.localActionDraftStatus.title = statusDetail;
+      elements.localActionDraftStatus.setAttribute("aria-label", statusDetail);
     }
     if (elements.revertLocalActionDraftButton) {
-      elements.revertLocalActionDraftButton.disabled = busy || !localActionDraftDirty;
+      elements.revertLocalActionDraftButton.disabled = busy || !dirty;
     }
   }
 
-  function captureLocalActionBaseline(rawConfig) {
+  function captureLocalActionBaseline(rawConfig, options = {}) {
     const config = LocalActions.normalizeConfig(rawConfig);
     const profileName = elements.localActionProfileName?.value?.trim() || "";
     localActionBaseline = {
@@ -116,26 +139,91 @@
       fingerprint: currentLocalActionFingerprint(config, profileName)
     };
     localActionDraftDirty = false;
+    if (!options.preserveCommandDirty) volatileTabCommandDirty = false;
     renderLocalActionDraftStatus();
+  }
+
+  function currentVolatileExecutionConfig() {
+    const session = selectedSession();
+    const base = LocalActions.normalizeConfig(session?.effectiveLocalActions || LocalActions.defaultConfig());
+    const draft = readLocalActionConfig();
+    return LocalActions.normalizeConfig({
+      routing: draft.routing,
+      download: draft.download,
+      shell: commandPresetEditorMode === "tab" ? draft.shell : base.shell
+    });
+  }
+
+  async function syncVolatileLocalActionDraft(options = {}) {
+    const session = selectedSession();
+    if (!session || !Number.isInteger(Number(selectedTabId))) return false;
+    const clear = Boolean(options.clear) || !hasVolatileLocalActionEdits();
+    let config = currentVolatileExecutionConfig();
+    if (!clear) {
+      const validation = LocalActions.validateConfig(config);
+      if (!validation.ok) {
+        await browser.runtime.sendMessage({
+          type: MESSAGE.SAVE_TAB_LOCAL_ACTIONS,
+          tabId: selectedTabId,
+          config: LocalActions.defaultConfig(),
+          volatile: true,
+          clear: true
+        });
+        const message = `Current edits are not active yet: ${validation.errors.join(" ")}`;
+        renderLocalActionDraftStatus(message);
+        if (options.reportErrors) throw new Error(message);
+        return false;
+      }
+      config = validation.config;
+    }
+    const serial = ++volatileLocalActionSyncSerial;
+    const response = await browser.runtime.sendMessage({
+      type: MESSAGE.SAVE_TAB_LOCAL_ACTIONS,
+      tabId: selectedTabId,
+      config,
+      volatile: true,
+      clear
+    });
+    if (!response?.ok) {
+      const message = response?.error || "Could not apply the current volatile local-action edits.";
+      renderLocalActionDraftStatus(message);
+      if (options.reportErrors) throw new Error(message);
+      return false;
+    }
+    if (serial !== volatileLocalActionSyncSerial) return false;
+    dashboard = response.dashboard || dashboard;
+    renderLocalActionDraftStatus();
+    return true;
+  }
+
+  function scheduleVolatileLocalActionSync() {
+    if (volatileLocalActionSyncTimer) clearTimeout(volatileLocalActionSyncTimer);
+    volatileLocalActionSyncTimer = setTimeout(() => {
+      volatileLocalActionSyncTimer = null;
+      void syncVolatileLocalActionDraft();
+    }, 140);
   }
 
   function updateLocalActionDraftState() {
     if (!localActionBaseline.fingerprint) return;
     localActionDraftDirty = currentLocalActionFingerprint() !== localActionBaseline.fingerprint;
     renderLocalActionDraftStatus();
+    scheduleVolatileLocalActionSync();
   }
 
   function confirmDiscardLocalActionDraft(action) {
-    if (!localActionDraftDirty) return true;
-    return confirm(`Discard unsaved local-action edits before ${action}?`);
+    if (!hasVolatileLocalActionEdits()) return true;
+    return confirm(`Discard current volatile local-action edits before ${action}?`);
   }
 
   function revertLocalActionDraft() {
     selectedLocalActionProfileId = localActionBaseline.profileId || selectedLocalActionProfileId;
     elements.localActionProfileSelect.value = selectedLocalActionProfileId || "";
     elements.localActionProfileName.value = localActionBaseline.profileName;
+    volatileTabCommandDirty = false;
     writeLocalActionConfig(localActionBaseline.config);
-    showMessage("Unsaved local-action edits reverted.", "success");
+    void syncVolatileLocalActionDraft({ clear: true });
+    showMessage("Current volatile local-action edits reverted.", "success");
   }
 
   function assertSavedLocalActionConfig(expected, actual, label) {
@@ -170,6 +258,14 @@
     collapsedGroups[groupId] = value;
     if (persist) {
       void persistSidebarUi();
+    }
+  }
+
+  function placeLocalActionProfileAfterConfigurationProfiles() {
+    const localCard = document.querySelector('section.card[data-group-id="local-actions"]');
+    const profileCard = elements.profileSelect?.closest("section.card");
+    if (localCard && profileCard && localCard !== profileCard && profileCard.nextElementSibling !== localCard) {
+      profileCard.after(localCard);
     }
   }
 
@@ -265,26 +361,33 @@
     return shellPresetsDraft.find((preset) => preset.id === selectedShellPresetId) || null;
   }
 
+  function commandPresetIsRunnable(preset) {
+    return Boolean(preset && preset.workingDirectory.startsWith("/") && preset.command.trim());
+  }
+
   function renderShellPresetOptions() {
-    const custom = document.createElement("option");
-    custom.value = "";
-    custom.textContent = "Custom command";
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = shellPresetsDraft.length ? "Select a command preset" : "No command presets yet";
     const options = shellPresetsDraft.map((preset) => {
       const option = document.createElement("option");
       option.value = preset.id;
-      option.textContent = `${preset.enabled ? "●" : "○"} ${preset.name}`;
+      option.textContent = preset.name;
       return option;
     });
-    elements.shellPresetSelect.replaceChildren(custom, ...options);
-    if (!shellPresetsDraft.some((preset) => preset.id === selectedShellPresetId)) {
-      selectedShellPresetId = "";
-    }
+    elements.shellPresetSelect.replaceChildren(empty, ...options);
+    if (!shellPresetsDraft.some((preset) => preset.id === selectedShellPresetId)) selectedShellPresetId = "";
     elements.shellPresetSelect.value = selectedShellPresetId;
     const preset = selectedShellPreset();
-    elements.shellPresetName.value = preset?.name || "";
-    elements.shellPresetEnabled.checked = preset?.enabled !== false;
-    elements.loadShellPresetButton.disabled = busy || !preset;
+    elements.loadShellPresetButton.textContent = "Apply to this tab";
+    elements.newShellPresetButton.textContent = "New preset";
+    elements.updateShellPresetButton.textContent = "Save preset";
+    elements.loadShellPresetButton.disabled = busy || !commandPresetIsRunnable(preset);
+    elements.loadShellPresetButton.title = !preset
+      ? "Select a command preset first."
+      : (commandPresetIsRunnable(preset) ? "Apply the saved preset to this tab." : "Save a valid Working directory and Command before applying this preset.");
     elements.updateShellPresetButton.disabled = busy || !preset;
+    elements.updateShellPresetButton.title = preset ? `Save the editor values into “${preset.name}”.` : "Create or select a preset first.";
     elements.deleteShellPresetButton.disabled = busy || !preset;
   }
 
@@ -317,15 +420,28 @@
     elements.confirmBeforeRun.checked = source.confirmBeforeRun !== false;
   }
 
+  function inlineShellOutputText(run = selectedShellRun()) {
+    const output = Array.isArray(run?.output) ? run.output : [];
+    return output.map((item) => `${item.stream === "stderr" ? "[stderr] " : (item.stream === "system" ? "[system] " : "")}${item.text || ""}`).join("");
+  }
+
   function selectedShellLogDescriptor() {
     const run = selectedShellRun();
-    if (run?.logId) {
-      return { tabId: selectedTabId, logId: run.logId, runId: run.runId, logBytes: Number(run.logBytes) || 0, label: run.presetName || run.command || "Current command" };
+    const inlineText = inlineShellOutputText(run);
+    if (run?.logId || inlineText) {
+      return {
+        tabId: selectedTabId,
+        logId: run.logId || null,
+        runId: run.runId,
+        logBytes: Number(run.logBytes) || 0,
+        inlineText,
+        label: run.presetName || run.command || "Current command"
+      };
     }
     const history = Array.isArray(selectedSession()?.shellHistory) ? selectedSession().shellHistory : [];
     const selectedId = elements.shellHistorySelect.value;
     const entry = history.find((item) => item.id === selectedId && item.logId) || history.find((item) => item.logId);
-    return entry ? { tabId: selectedTabId, logId: entry.logId, runId: entry.runId, logBytes: Number(entry.logBytes) || 0, label: entry.presetName || entry.command || "Command history" } : null;
+    return entry ? { tabId: selectedTabId, logId: entry.logId, runId: entry.runId, logBytes: Number(entry.logBytes) || 0, inlineText: "", label: entry.presetName || entry.command || "Command history" } : null;
   }
 
   function decodeLogChunk(base64Value) {
@@ -343,7 +459,35 @@
   }
 
   async function loadShellLogPage(descriptor, options = {}) {
-    if (!descriptor?.logId) throw new Error("No stored shell log is available for this tab.");
+    if (!descriptor?.logId) {
+      const currentInline = descriptor?.runId === selectedShellRun()?.runId
+        ? inlineShellOutputText(selectedShellRun())
+        : String(descriptor?.inlineText || shellLogState.inlineText || "");
+      shellLogState = {
+        ...shellLogState,
+        tabId: descriptor?.tabId ?? shellLogState.tabId,
+        runId: descriptor?.runId || shellLogState.runId || null,
+        logId: null,
+        offset: 0,
+        nextOffset: currentInline.length,
+        totalBytes: new TextEncoder().encode(currentInline).length,
+        eof: true,
+        pageOffsets: [0],
+        pageIndex: 0,
+        text: currentInline,
+        inlineText: currentInline
+      };
+      elements.shellLogViewer.value = currentInline || "No stdout or stderr has been received yet.";
+      elements.shellLogViewer.scrollTop = elements.shellLogViewer.scrollHeight;
+      elements.shellLogPageInfo.textContent = "Showing all output received by the add-on. Reinstall Native Host 0.10.0 or newer for the complete file-backed log.";
+      elements.shellLogFirstButton.disabled = true;
+      elements.shellLogPreviousButton.disabled = true;
+      elements.shellLogNextButton.disabled = true;
+      elements.shellLogLastButton.disabled = true;
+      elements.deleteShellLogButton.disabled = true;
+      return shellLogState;
+    }
+    elements.deleteShellLogButton.disabled = false;
     const response = await browser.runtime.sendMessage({
       type: MESSAGE.READ_SHELL_LOG,
       tabId: descriptor.tabId,
@@ -388,16 +532,22 @@
       showMessage("No stored shell log is available for this tab.", "error");
       return;
     }
-    shellLogState = { tabId: descriptor.tabId, logId: descriptor.logId, runId: descriptor.runId || null, offset: 0, nextOffset: 0, totalBytes: descriptor.logBytes || 0, eof: false, pageOffsets: [], pageIndex: -1, text: "" };
+    shellLogState = { tabId: descriptor.tabId, logId: descriptor.logId || null, runId: descriptor.runId || null, offset: 0, nextOffset: 0, totalBytes: descriptor.logBytes || 0, eof: false, pageOffsets: [], pageIndex: -1, text: "", inlineText: String(descriptor.inlineText || "") };
     elements.shellLogDialogTitle.textContent = descriptor.label || "Full command log";
     elements.shellLogMetadata.textContent = `Tab ${descriptor.tabId}${descriptor.runId ? ` · Run ${descriptor.runId}` : ""}`;
-    elements.shellLogViewer.value = "Loading stored log…";
+    elements.shellLogViewer.value = descriptor.logId ? "Loading stored log…" : "Loading received output…";
     if (!elements.shellLogDialog.open) elements.shellLogDialog.showModal();
     try {
       await loadShellLogPage(descriptor, { fromEnd });
     } catch (error) {
-      elements.shellLogViewer.value = "";
-      elements.shellLogPageInfo.textContent = error instanceof Error ? error.message : String(error);
+      const fallback = String(descriptor.inlineText || inlineShellOutputText(selectedShellRun()) || "");
+      if (fallback) {
+        await loadShellLogPage({ ...descriptor, logId: null, inlineText: fallback }, { fromEnd: true });
+        elements.shellLogPageInfo.textContent = `Stored log unavailable; showing all output received by the add-on. ${error instanceof Error ? error.message : String(error)}`;
+      } else {
+        elements.shellLogViewer.value = "";
+        elements.shellLogPageInfo.textContent = error instanceof Error ? error.message : String(error);
+      }
     }
   }
 
@@ -408,7 +558,11 @@
   }
 
   async function copyAllShellLog() {
-    if (!shellLogState.logId) throw new Error("No stored shell log is open.");
+    if (!shellLogState.logId) {
+      await copyTextValue(shellLogState.text || shellLogState.inlineText, "All received command output copied.");
+      elements.shellLogPageInfo.textContent = "Copied all output received by the add-on.";
+      return;
+    }
     if (shellLogState.totalBytes > 64 * 1024 * 1024 && !confirm(`This log is ${formatByteCount(shellLogState.totalBytes)}. Copying all may use substantial memory. Continue?`)) return;
     const parts = [];
     let offset = 0;
@@ -429,11 +583,15 @@
   function renderShellState() {
     const native = dashboard.nativeHost || {};
     const run = selectedShellRun();
-    elements.nativeHostStatus.dataset.state = native.connected ? "online" : (native.lastError ? "error" : "offline");
+    const nativeVersionParts = String(native.hostVersion || "0.0.0").split(".").map((part) => Number(part) || 0);
+    const nativeNeedsUpdate = Boolean(native.connected) && (nativeVersionParts[0] < 0 || (nativeVersionParts[0] === 0 && nativeVersionParts[1] < 10));
+    elements.nativeHostStatus.dataset.state = nativeNeedsUpdate ? "error" : (native.connected ? "online" : (native.lastError ? "error" : "offline"));
     elements.nativeHostStatus.textContent = native.connected
-      ? `Native ${native.hostVersion || "online"}`
+      ? `Native ${native.hostVersion || "online"}${nativeNeedsUpdate ? " · update required" : ""}`
       : (native.lastError ? "Native error" : "Native not checked");
-    elements.nativeHostStatus.title = native.lastError || native.lastSeenAt || "";
+    elements.nativeHostStatus.title = nativeNeedsUpdate
+      ? "Reinstall Native Host 0.10.0 or newer from this repository to preserve and page the complete stdout/stderr log."
+      : (native.lastError || native.lastSeenAt || "");
     elements.shellRunStatus.textContent = run.error
       ? `${run.status}: ${run.error}`
       : (run.returnCode === null || run.returnCode === undefined
@@ -442,9 +600,8 @@
     elements.shellRunPid.textContent = Number.isInteger(run.pid) ? String(run.pid) : "—";
     elements.shellRunId.textContent = run.runId || "—";
     const output = Array.isArray(run.output) ? run.output : [];
-    elements.shellOutput.textContent = output.length
-      ? output.map((item) => `${item.stream === "stderr" ? "[stderr] " : (item.stream === "system" ? "[system] " : "")}${item.text}`).join("")
-      : "No output yet.";
+    const inlineOutput = inlineShellOutputText(run);
+    elements.shellOutput.textContent = inlineOutput || "No output yet.";
     elements.checkNativeButton.disabled = busy;
     elements.runShellButton.disabled = busy || !selectedSession() || shellIsActive(run);
     elements.stopShellButton.disabled = busy || !shellIsActive(run);
@@ -460,14 +617,11 @@
     const shouldAutoOpenFullLog = run.source !== "download" || downloadState.openShellLogAfterExecution !== false;
     const completedDownloadLogPending = run.source === "download" && ["exited", "error"].includes(run.status);
     const justFinished = ["starting", "running", "stopping"].includes(previousStatus) && ["exited", "error"].includes(run.status);
-    if (shouldAutoOpenFullLog && (justFinished || completedDownloadLogPending) && run.logId && !autoOpenedShellRunIds.has(run.runId)) {
+    if (shouldAutoOpenFullLog && (justFinished || completedDownloadLogPending) && (run.logId || inlineShellOutputText(run)) && !autoOpenedShellRunIds.has(run.runId)) {
       autoOpenedShellRunIds.add(run.runId);
-      queueMicrotask(() => void openShellLogDialog({ tabId: selectedTabId, logId: run.logId, runId: run.runId, logBytes: run.logBytes, label: run.source === "download" ? `Download console · ${run.command}` : (run.presetName || run.command || "Completed command") }, true));
+      queueMicrotask(() => void openShellLogDialog({ tabId: selectedTabId, logId: run.logId || null, runId: run.runId, logBytes: run.logBytes, inlineText: inlineShellOutputText(run), label: run.source === "download" ? `Download console · ${run.command}` : (run.presetName || run.command || "Completed command") }, true));
     }
-    const preset = selectedShellPreset();
-    elements.loadShellPresetButton.disabled = busy || !preset;
-    elements.updateShellPresetButton.disabled = busy || !preset;
-    elements.deleteShellPresetButton.disabled = busy || !preset;
+    renderShellPresetOptions();
     renderShellHistory();
   }
 
@@ -738,12 +892,7 @@
   }
 
   function commitSelectedShellPresetDraft() {
-    const preset = selectedShellPreset();
-    if (!preset) {
-      return;
-    }
-    const updated = createShellPresetFromForm(elements.shellPresetName.value.trim() || preset.name, preset.id);
-    shellPresetsDraft = shellPresetsDraft.map((item) => item.id === preset.id ? updated : item);
+    return selectedShellPreset();
   }
 
   function readConfig() {
@@ -770,35 +919,44 @@
     });
   }
 
-  function writeLocalActionConfig(rawConfig) {
+  function writeLocalActionConfig(rawConfig, options = {}) {
     const value = LocalActions.normalizeConfig(rawConfig);
-    elements.localActionRoutingEnabled.checked = value.routing.enabled;
-    elements.localActionRoutingPriority.value = String(value.routing.priority);
-    elements.localActionUrlPatterns.value = value.routing.urlPatterns.join("\n");
-    elements.managedDownloadEnabled.checked = value.download.enabled;
-    elements.downloadDestinationDirectory.value = value.download.destinationDirectory;
-    elements.downloadCaptureWindowSeconds.value = String(value.download.captureWindowSeconds);
-    elements.downloadConflictAction.value = value.download.conflictAction;
-    elements.showDownloadCompletionDialog.checked = value.download.showCompletionDialog;
-    elements.downloadShellExecutionMode.value = value.download.shellExecutionMode;
-    elements.openShellLogAfterExecution.checked = value.download.openShellLogAfterExecution;
-    shellPresetsDraft = LocalActions.clone(value.shell.presets || []);
-    selectedShellPresetId = value.shell.selectedPresetId || "";
-    elements.requireShellPresetMatch.checked = value.shell.requirePresetMatch;
-    elements.rememberShellHistory.checked = value.shell.rememberHistory;
-    elements.shellHistoryLimit.value = String(value.shell.historyLimit);
-    elements.workingDirectory.value = value.shell.workingDirectory;
-    elements.shellCommand.value = value.shell.command;
-    elements.shellMode.value = value.shell.mode;
-    elements.confirmBeforeRun.checked = value.shell.confirmBeforeRun;
+    const preserveShell = options.preserveShell === true;
+    suppressTabCommandAutosave = true;
+    try {
+      elements.localActionRoutingEnabled.checked = value.routing.enabled;
+      elements.localActionRoutingPriority.value = String(value.routing.priority);
+      elements.localActionUrlPatterns.value = value.routing.urlPatterns.join("\n");
+      elements.managedDownloadEnabled.checked = value.download.enabled;
+      elements.downloadDestinationDirectory.value = value.download.destinationDirectory;
+      elements.downloadCaptureWindowSeconds.value = String(value.download.captureWindowSeconds);
+      elements.downloadConflictAction.value = value.download.conflictAction;
+      elements.showDownloadCompletionDialog.checked = value.download.showCompletionDialog;
+      elements.downloadShellExecutionMode.value = value.download.shellExecutionMode;
+      elements.openShellLogAfterExecution.checked = value.download.openShellLogAfterExecution;
+      if (elements.requireShellPresetMatch) elements.requireShellPresetMatch.checked = false;
+      elements.rememberShellHistory.checked = value.shell.rememberHistory;
+      elements.shellHistoryLimit.value = String(value.shell.historyLimit);
+      if (!preserveShell) {
+        selectedShellPresetId = shellPresetsDraft.some((preset) => preset.id === value.shell.selectedPresetId)
+          ? value.shell.selectedPresetId
+          : "";
+        elements.workingDirectory.value = value.shell.workingDirectory;
+        elements.shellCommand.value = value.shell.command;
+        elements.shellMode.value = value.shell.mode;
+        elements.confirmBeforeRun.checked = value.shell.confirmBeforeRun;
+        commandPresetEditorMode = "tab";
+      }
+    } finally {
+      suppressTabCommandAutosave = false;
+    }
     renderShellPresetOptions();
     renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
     renderShellHistory();
-    captureLocalActionBaseline(value);
+    captureLocalActionBaseline(value, { preserveCommandDirty: preserveShell });
   }
 
   function readLocalActionConfig() {
-    commitSelectedShellPresetDraft();
     return LocalActions.normalizeConfig({
       routing: {
         enabled: elements.localActionRoutingEnabled.checked,
@@ -819,13 +977,20 @@
         command: elements.shellCommand.value,
         mode: elements.shellMode.value,
         confirmBeforeRun: elements.confirmBeforeRun.checked,
-        requirePresetMatch: elements.requireShellPresetMatch.checked,
+        requirePresetMatch: false,
         rememberHistory: elements.rememberShellHistory.checked,
         historyLimit: Number(elements.shellHistoryLimit.value),
         selectedPresetId: selectedShellPresetId,
         presets: shellPresetsDraft
       }
     });
+  }
+
+  function readLocalActionProfileConfig() {
+    const draft = readLocalActionConfig();
+    const profile = localActionProfileById(selectedLocalActionProfileId);
+    const persistedShell = LocalActions.normalizeConfig(profile?.config || LocalActions.defaultConfig()).shell;
+    return LocalActions.normalizeConfig({ routing: draft.routing, download: draft.download, shell: persistedShell });
   }
 
   function renderLocalActionProfileOptions() {
@@ -842,24 +1007,13 @@
     elements.localActionProfileSelect.value = selectedLocalActionProfileId || "";
     const profile = localActionProfileById(selectedLocalActionProfileId);
     elements.localActionProfileName.value = profile?.name || "";
-    const effectiveProfileName = session?.localActionProfileName || profile?.name || routed.profileName || "—";
-    elements.localActionModeStatus.textContent = session
-      ? `${session.localActionConfigMode === CONFIG_MODE.TAB ? "Tab-specific" : "Profile-based"} · ${effectiveProfileName}`
-      : `${routed.matched ? "URL-routed" : "Default"} · ${effectiveProfileName}`;
-    elements.localActionModeStatus.dataset.state = session?.localActionConfigMode === CONFIG_MODE.TAB ? "warning" : "online";
-    if (session?.localActionConfigMode === CONFIG_MODE.TAB) {
-      elements.localActionSourceSummary.dataset.state = "tab";
-      elements.localActionSourceSummary.textContent = `Effective source: tab override for tab ${session.tabId}. Assigned profile “${effectiveProfileName}” remains the fallback.`;
-    } else if (session) {
-      elements.localActionSourceSummary.dataset.state = "profile";
-      elements.localActionSourceSummary.textContent = `Effective source: assigned profile “${effectiveProfileName}” for tab ${session.tabId}.`;
-    } else if (routed.matched) {
-      const pattern = routed.candidates?.[0]?.bestPattern || "matching URL rule";
-      elements.localActionSourceSummary.dataset.state = "route";
-      elements.localActionSourceSummary.textContent = `Effective source: URL-routed profile “${effectiveProfileName}” via ${pattern}.`;
-    } else {
-      elements.localActionSourceSummary.dataset.state = "profile";
-      elements.localActionSourceSummary.textContent = `Effective source: default local-action profile “${effectiveProfileName}”.`;
+    if (elements.localActionModeStatus) {
+      elements.localActionModeStatus.hidden = true;
+      elements.localActionModeStatus.textContent = "";
+    }
+    if (elements.localActionSourceSummary) {
+      elements.localActionSourceSummary.hidden = true;
+      elements.localActionSourceSummary.textContent = "";
     }
     elements.assignLocalActionProfileButton.disabled = busy || !session;
     elements.saveTabLocalActionsButton.disabled = busy || !session;
@@ -870,19 +1024,21 @@
 
   function renderDownloadState() {
     const state = selectedDownloadState();
+    const shellAvailability = LocalActions.downloadShellReadiness(state);
+    const shellOutcome = LocalActions.downloadShellOutcome(state);
     const text = state.error
       ? `${state.status}: ${state.error}`
       : (state.destinationPath ? `${state.status}: ${state.destinationPath}` : state.status || "idle");
     elements.downloadStateSummary.dataset.state = state.error ? "error" : (state.status === "completed" ? "ok" : "idle");
     elements.downloadStateSummary.textContent = state.moveAttempt > 1 ? `${text} · attempt ${state.moveAttempt}` : text;
-    const shellText = state.shellError
-      ? `${state.shellStatus || "error"}: ${state.shellError}`
-      : (state.shellRunId
-        ? `${state.shellStatus || "started"}: ${state.shellRunId}${Number.isInteger(state.shellReturnCode) ? ` · rc=${state.shellReturnCode}` : ""}`
-        : (state.shellExecutionMode === "manual" ? "manual: ready after a successful relocation" : (state.shellExecutionMode === "automatic" ? "automatic: waiting for relocation" : "disabled")));
-    elements.downloadShellStateSummary.dataset.state = state.shellError ? "error" : (["completed", "running", "starting"].includes(state.shellStatus) ? "ok" : "idle");
-    elements.downloadShellStateSummary.textContent = shellText;
+    elements.downloadShellStateSummary.dataset.state = shellOutcome.severity;
+    elements.downloadShellStateSummary.dataset.outcome = shellOutcome.phase;
+    elements.downloadShellStateSummary.textContent = shellOutcome.message;
+    elements.downloadShellStateSummary.title = shellOutcome.details;
     elements.retryDownloadMoveButton.disabled = busy || !state.retryable || state.status !== "error";
+    elements.executeShellAfterDownloadButton.disabled = busy || !shellAvailability.ready;
+    elements.executeShellAfterDownloadButton.title = shellAvailability.reason;
+    elements.executeShellAfterDownloadButton.dataset.ready = shellAvailability.ready ? "true" : "false";
     const config = selectedSession()?.effectiveLocalActions || localActionProfileById(selectedLocalActionProfileId)?.config || LocalActions.defaultConfig();
     if (state.status === "completed" && state.destinationPath && state.completionSurface !== "page" && config.download.showCompletionDialog && lastShownDownloadCaptureByTab.get(Number(selectedTabId)) !== (state.completionId || state.moveId || state.captureId)) {
       lastShownDownloadCaptureByTab.set(Number(selectedTabId), state.completionId || state.moveId || state.captureId);
@@ -1524,11 +1680,140 @@
     });
   }
 
+  function commandPresetStatus(text, state = "idle") {
+    const output = document.querySelector("#tabCommandSaveStatus");
+    if (!output) return;
+    output.textContent = text;
+    output.dataset.state = state;
+  }
+
+  function ensureCommandPresetUi() {
+    const panel = elements.shellPresetSelect.closest(".shell-preset-panel") || elements.shellPresetSelect.parentElement;
+    elements.shellPresetName?.closest("label")?.remove();
+    elements.shellPresetEnabled?.closest("label")?.remove();
+    elements.requireShellPresetMatch?.closest("label")?.remove();
+    if (panel && !document.querySelector("#commandPresetScopeNote")) {
+      const note = document.createElement("p");
+      note.id = "commandPresetScopeNote";
+      note.className = "command-preset-scope-note";
+      note.innerHTML = "<strong>Command presets are global.</strong> New preset asks only for its name. Select a preset, edit the command below, then Save preset or Apply to this tab.";
+      panel.prepend(note);
+    }
+    if (panel && !document.querySelector("#useDirectTabCommandButton")) {
+      const button = document.createElement("button");
+      button.id = "useDirectTabCommandButton";
+      button.type = "button";
+      button.className = "secondary";
+      button.textContent = "Direct command for this tab";
+      button.addEventListener("click", useDirectTabCommand);
+      const actions = elements.newShellPresetButton.closest(".button-row") || elements.newShellPresetButton.parentElement;
+      actions?.append(button);
+    }
+    if (!document.querySelector("#tabCommandSaveStatus")) {
+      const output = document.createElement("output");
+      output.id = "tabCommandSaveStatus";
+      output.className = "tab-command-save-status";
+      output.setAttribute("aria-live", "polite");
+      elements.confirmBeforeRun.closest("label")?.after(output);
+    }
+    renderShellPresetOptions();
+  }
+
+  async function saveCommandPresetLibrary() {
+    commandPresetStore = CommandPresets.normalizeStore(commandPresetStore);
+    await browser.storage.local.set({ [CommandPresets.STORAGE_KEY]: commandPresetStore });
+    const verified = await browser.storage.local.get(CommandPresets.STORAGE_KEY);
+    const saved = CommandPresets.normalizeStore(verified[CommandPresets.STORAGE_KEY]);
+    if (JSON.stringify(saved) !== JSON.stringify(commandPresetStore)) {
+      throw new Error("Global command preset verification failed after Firefox storage write.");
+    }
+  }
+
+  async function loadCommandPresetLibrary() {
+    const stored = await browser.storage.local.get(CommandPresets.STORAGE_KEY);
+    commandPresetStore = CommandPresets.normalizeStore(stored[CommandPresets.STORAGE_KEY]);
+    shellPresetsDraft = CommandPresets.clone(commandPresetStore.presets);
+  }
+
+  async function migrateLegacyCommandPresets() {
+    const merged = CommandPresets.mergeLegacy(commandPresetStore, dashboard.localActionStore);
+    if (JSON.stringify(merged) !== JSON.stringify(commandPresetStore)) {
+      commandPresetStore = merged;
+      shellPresetsDraft = CommandPresets.clone(merged.presets);
+      await saveCommandPresetLibrary();
+    }
+    renderShellPresetOptions();
+    renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
+  }
+
+  async function persistCurrentTabCommand(reason = "direct command", rawShell = null) {
+    const session = selectedSession();
+    if (!session) {
+      commandPresetStatus("Activate this tab before saving its command.", "error");
+      return false;
+    }
+    const serial = ++tabCommandSaveSerial;
+    const draft = readLocalActionConfig();
+    if (rawShell) draft.shell = { ...draft.shell, ...rawShell };
+    const executionConfig = buildTabExecutionConfig(session, draft);
+    const validation = LocalActions.validateConfig(executionConfig);
+    if (!validation.ok) {
+      commandPresetStatus(validation.errors.join(" "), "error");
+      return false;
+    }
+    commandPresetStatus("Saving command for this tab…", "saving");
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.SAVE_TAB_LOCAL_ACTIONS,
+        tabId: selectedTabId,
+        config: validation.config
+      });
+      if (!response?.ok) throw new Error(response?.error || "Could not save the tab command.");
+      assertSavedLocalActionConfig(validation.config, response.savedSession?.effectiveLocalActions, "Save tab command");
+      if (serial !== tabCommandSaveSerial) return false;
+      dashboard = response.dashboard || dashboard;
+      volatileTabCommandDirty = false;
+      captureLocalActionBaseline(response.savedSession?.effectiveLocalActions || validation.config);
+      commandPresetStatus(`Applied to tab ${selectedTabId} · ${reason}.`, "saved");
+      renderSelectors(selectedTabId);
+      renderDetails(false);
+      return true;
+    } catch (error) {
+      if (serial === tabCommandSaveSerial) commandPresetStatus(error instanceof Error ? error.message : String(error), "error");
+      return false;
+    }
+  }
+
+  function scheduleTabCommandPersistence() {
+    if (suppressTabCommandAutosave || ["preset-edit", "preset-preview"].includes(commandPresetEditorMode)) return;
+    selectedShellPresetId = "";
+    elements.shellPresetSelect.value = "";
+    volatileTabCommandDirty = true;
+    renderLocalActionDraftStatus();
+    if (tabCommandSaveTimer) clearTimeout(tabCommandSaveTimer);
+    tabCommandSaveTimer = setTimeout(() => {
+      tabCommandSaveTimer = null;
+      void syncVolatileLocalActionDraft();
+    }, 140);
+  }
+
+  function useDirectTabCommand() {
+    const shell = LocalActions.normalizeConfig(selectedSession()?.effectiveLocalActions || LocalActions.defaultConfig()).shell;
+    selectedShellPresetId = "";
+    commandPresetEditorMode = "tab";
+    suppressTabCommandAutosave = true;
+    loadShellValues(shell);
+    suppressTabCommandAutosave = false;
+    renderShellPresetOptions();
+    elements.workingDirectory.focus();
+    commandPresetStatus("Direct command values are active immediately for this tab and are lost after reload unless applied or saved.", "idle");
+  }
+
   function createShellPresetFromForm(name, id = null) {
     return LocalActions.normalizeCommandPreset({
       id: id || Settings.makeId("command-preset"),
       name,
-      enabled: elements.shellPresetEnabled.checked,
+      enabled: true,
       workingDirectory: elements.workingDirectory.value,
       command: elements.shellCommand.value,
       mode: elements.shellMode.value,
@@ -1536,48 +1821,112 @@
     }, shellPresetsDraft.length);
   }
 
-  function loadSelectedShellPreset() {
+  async function loadSelectedShellPreset() {
     const preset = selectedShellPreset();
     if (!preset) {
       showMessage("Select a command preset first.", "error");
       return;
     }
+    suppressTabCommandAutosave = true;
     loadShellValues(preset);
-    showMessage(`Loaded preset “${preset.name}”. Save the local-action profile or tab override to persist changes.`, "success");
+    suppressTabCommandAutosave = false;
+    commandPresetEditorMode = "tab";
+    const saved = await persistCurrentTabCommand(`preset “${preset.name}”`, {
+      workingDirectory: preset.workingDirectory,
+      command: preset.command,
+      mode: preset.mode,
+      confirmBeforeRun: preset.confirmBeforeRun,
+      selectedPresetId: preset.id,
+      presets: shellPresetsDraft
+    });
+    if (saved) showMessage(`Preset “${preset.name}” applied and verified for tab ${selectedTabId}.`, "success");
   }
 
-  function newShellPreset() {
-    const name = elements.shellPresetName.value.trim() || prompt("New command preset name:", "Command preset");
-    if (!name) return;
-    const preset = createShellPresetFromForm(name);
-    shellPresetsDraft.push(preset);
-    selectedShellPresetId = preset.id;
-    renderShellPresetOptions();
-    renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
-    showMessage("Command preset added to the draft. Save the local-action profile or tab override to persist it.", "success");
-  }
-
-  function updateShellPreset() {
-    const preset = selectedShellPreset();
-    if (!preset) {
-      showMessage("Select a command preset first.", "error");
+  async function newShellPreset() {
+    const rawName = prompt("Preset name:", "");
+    if (rawName === null) return;
+    const name = rawName.trim();
+    if (!name) {
+      showMessage("Preset name must not be empty.", "error");
       return;
     }
-    const updated = createShellPresetFromForm(elements.shellPresetName.value.trim() || preset.name, preset.id);
-    shellPresetsDraft = shellPresetsDraft.map((item) => item.id === preset.id ? updated : item);
-    renderShellPresetOptions();
-    renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
-    showMessage("Command preset updated in the draft. Save the local-action profile or tab override to persist it.", "success");
+    if (shellPresetsDraft.some((preset) => preset.name.localeCompare(name, undefined, { sensitivity: "accent" }) === 0)) {
+      showMessage(`A command preset named “${name}” already exists.`, "error");
+      return;
+    }
+    const result = CommandPresets.upsert(commandPresetStore, {
+      id: CommandPresets.makeId("command-preset"),
+      name,
+      enabled: true,
+      workingDirectory: "",
+      command: "",
+      mode: "background",
+      confirmBeforeRun: true
+    });
+    commandPresetStore = result.store;
+    shellPresetsDraft = CommandPresets.clone(result.store.presets);
+    selectedShellPresetId = result.preset.id;
+    commandPresetEditorMode = "preset-edit";
+    suppressTabCommandAutosave = true;
+    loadShellValues(result.preset);
+    suppressTabCommandAutosave = false;
+    try {
+      await saveCommandPresetLibrary();
+      renderShellPresetOptions();
+      renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
+      elements.workingDirectory.focus();
+      commandPresetStatus(`Preset “${name}” created. Enter its command settings, then click Save preset.`, "saved");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    }
   }
 
-  function deleteShellPreset() {
+  async function updateShellPreset() {
+    const current = selectedShellPreset();
+    if (!current) {
+      showMessage("Create or select a command preset first.", "error");
+      return;
+    }
+    const candidate = createShellPresetFromForm(current.name, current.id);
+    if (!candidate.workingDirectory.startsWith("/")) {
+      showMessage("Preset working directory must be an absolute path.", "error");
+      return;
+    }
+    if (!candidate.command.trim()) {
+      showMessage("Preset command must not be empty.", "error");
+      return;
+    }
+    try {
+      const result = CommandPresets.upsert(commandPresetStore, candidate);
+      commandPresetStore = result.store;
+      shellPresetsDraft = CommandPresets.clone(result.store.presets);
+      selectedShellPresetId = result.preset.id;
+      commandPresetEditorMode = "preset-preview";
+      await saveCommandPresetLibrary();
+      renderShellPresetOptions();
+      renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
+      commandPresetStatus(`Preset “${result.preset.name}” saved globally. Click Apply to this tab when this tab should use it.`, "saved");
+      showMessage(`Global command preset “${result.preset.name}” saved and verified.`, "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    }
+  }
+
+  async function deleteShellPreset() {
     const preset = selectedShellPreset();
-    if (!preset || !confirm(`Delete command preset “${preset.name}”?`)) return;
-    shellPresetsDraft = shellPresetsDraft.filter((item) => item.id !== preset.id);
-    selectedShellPresetId = "";
-    renderShellPresetOptions();
-    renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
-    showMessage("Command preset deleted from the draft. Save the local-action profile or tab override to persist it.", "success");
+    if (!preset || !confirm(`Delete global command preset “${preset.name}”?`)) return;
+    try {
+      commandPresetStore = CommandPresets.remove(commandPresetStore, preset.id);
+      shellPresetsDraft = CommandPresets.clone(commandPresetStore.presets);
+      selectedShellPresetId = "";
+      commandPresetEditorMode = "tab";
+      await saveCommandPresetLibrary();
+      renderShellPresetOptions();
+      renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
+      commandPresetStatus(`Global preset “${preset.name}” deleted. Existing tab command copies are unchanged.`, "saved");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    }
   }
 
   function loadSelectedShellHistory() {
@@ -1592,6 +1941,19 @@
     selectedShellPresetId = entry.presetId || "";
     renderShellPresetOptions();
     showMessage("Command history entry loaded into the editor.", "success");
+  }
+
+  function buildTabExecutionConfig(session, draftConfig) {
+    const profile = localActionProfileById(session?.localActionProfileId || selectedLocalActionProfileId);
+    const base = LocalActions.normalizeConfig(
+      session?.effectiveLocalActions || profile?.config || LocalActions.defaultConfig()
+    );
+    const draft = LocalActions.normalizeConfig(draftConfig);
+    return LocalActions.normalizeConfig({
+      routing: base.routing,
+      download: draft.download,
+      shell: draft.shell
+    });
   }
 
   function commandConfirmation(shell) {
@@ -1612,7 +1974,7 @@ ${shell.command}`;
       showMessage("Select a local-action profile first.", "error");
       return;
     }
-    const validation = LocalActions.validateConfig(readLocalActionConfig());
+    const validation = LocalActions.validateConfig(readLocalActionProfileConfig());
     if (!validation.ok) {
       showMessage(validation.errors.join("\n"), "error");
       return;
@@ -1631,7 +1993,8 @@ ${shell.command}`;
       selectedLocalActionProfileId = response.savedProfile.id;
       renderSelectors(selectedTabId);
       elements.localActionProfileName.value = response.savedProfile.name;
-      writeLocalActionConfig(response.savedProfile.config);
+      writeLocalActionConfig(response.savedProfile.config, { preserveShell: true });
+      scheduleVolatileLocalActionSync();
       renderDetails(false);
       showMessage(`Local-action profile “${response.savedProfile.name}” saved and verified.`, "success");
     } catch (error) {
@@ -1684,12 +2047,23 @@ ${shell.command}`;
 
   async function runShellAfterDownload() {
     const state = selectedDownloadState();
-    if (!state.captureId || state.status !== "completed") {
-      showMessage("No completed managed download is available for shell execution.", "error");
+    const availability = LocalActions.downloadShellReadiness(state);
+    if (!availability.ready) {
+      showMessage(availability.reason, "error");
       return;
     }
-    const confirmBeforeRun = state.configSnapshot?.shell?.confirmBeforeRun !== false;
-    if (confirmBeforeRun && !confirm("Execute the frozen shell command for this completed download?")) return;
+    const shell = availability.snapshot.shell;
+    const confirmBeforeRun = shell.confirmBeforeRun !== false;
+    if (confirmBeforeRun && !confirm(`Execute the frozen shell command for this completed download?
+
+Working directory:
+${shell.workingDirectory}
+
+Command:
+${shell.command}
+
+Downloaded file:
+${state.destinationPath}`)) return;
     if (elements.downloadCompletionDialog.open) elements.downloadCompletionDialog.close();
     const response = await request(MESSAGE.RUN_COMPLETED_DOWNLOAD_SHELL, {
       tabId: selectedTabId,
@@ -1699,26 +2073,57 @@ ${shell.command}`;
     if (response?.ok) showMessage("Download shell command started. The complete console will open when it finishes.", "success");
   }
 
-  function runShellCommand() {
+  async function runShellCommand() {
     const session = selectedSession();
     if (!session) {
       showMessage("Activate the tab before running a command.", "error");
       return;
     }
-    const shell = readLocalActionConfig().shell;
+    const draftConfig = readLocalActionConfig();
+    const shell = draftConfig.shell;
     if (!shell.workingDirectory.trim() || !shell.command.trim()) {
       showMessage("Working directory and command must not be empty.", "error");
+      return;
+    }
+    const executionConfig = buildTabExecutionConfig(session, draftConfig);
+    const validation = LocalActions.validateConfig(executionConfig);
+    if (!validation.ok) {
+      showMessage(validation.errors.join("\n"), "error");
       return;
     }
     if (shell.confirmBeforeRun && !confirm(commandConfirmation(shell))) {
       return;
     }
-    void request(MESSAGE.RUN_SHELL, {
-      tabId: selectedTabId,
-      cwd: shell.workingDirectory,
-      command: shell.command,
-      mode: shell.mode
-    }, shell.mode === "terminal" ? "Terminal launch requested." : "Background command started.");
+
+    setBusy(true);
+    showMessage();
+    try {
+      volatileTabCommandDirty = true;
+      renderLocalActionDraftStatus();
+      await syncVolatileLocalActionDraft({ reportErrors: true });
+
+      const runResponse = await browser.runtime.sendMessage({
+        type: MESSAGE.RUN_SHELL,
+        tabId: selectedTabId,
+        cwd: shell.workingDirectory,
+        command: shell.command,
+        mode: shell.mode
+      });
+      if (!runResponse?.ok) {
+        throw new Error(runResponse?.error || "The shell command could not be started.");
+      }
+      if (runResponse.dashboard) renderRuntimeDashboard(runResponse.dashboard);
+      showMessage(
+        shell.mode === "terminal"
+          ? "Terminal launch requested from the current editor values."
+          : "Background command started from the current editor values.",
+        "success"
+      );
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function stopShellCommand() {
@@ -2183,7 +2588,8 @@ ${run.command || ""}`)) {
     selectedLocalActionProfileId = nextProfileId;
     const profile = localActionProfileById(selectedLocalActionProfileId);
     elements.localActionProfileName.value = profile?.name || "";
-    writeLocalActionConfig(profile?.config || LocalActions.defaultConfig());
+    writeLocalActionConfig(profile?.config || LocalActions.defaultConfig(), { preserveShell: true });
+    scheduleVolatileLocalActionSync();
     renderLocalActionProfileOptions();
   });
   elements.assignLocalActionProfileButton.addEventListener("click", () => {
@@ -2223,9 +2629,8 @@ ${run.command || ""}`)) {
     elements.localActionProfileName, elements.localActionRoutingEnabled, elements.localActionRoutingPriority,
     elements.localActionUrlPatterns, elements.managedDownloadEnabled, elements.downloadDestinationDirectory,
     elements.downloadCaptureWindowSeconds, elements.downloadConflictAction, elements.showDownloadCompletionDialog,
-    elements.downloadShellExecutionMode, elements.openShellLogAfterExecution, elements.shellPresetName, elements.shellPresetEnabled,
-    elements.requireShellPresetMatch, elements.workingDirectory, elements.shellCommand, elements.shellMode,
-    elements.confirmBeforeRun, elements.rememberShellHistory, elements.shellHistoryLimit
+    elements.downloadShellExecutionMode, elements.openShellLogAfterExecution,
+    elements.rememberShellHistory, elements.shellHistoryLimit
   ]) {
     element.addEventListener("input", updateLocalActionDraftState);
     element.addEventListener("change", updateLocalActionDraftState);
@@ -2241,8 +2646,22 @@ ${run.command || ""}`)) {
   elements.clearHighlightsButton.addEventListener("click", () => void request(MESSAGE.CLEAR_HIGHLIGHTS, { tabId: selectedTabId }, "Tab highlights cleared."));
   elements.shellPresetSelect.addEventListener("change", () => {
     selectedShellPresetId = elements.shellPresetSelect.value;
+    const preset = selectedShellPreset();
+    if (preset) {
+      commandPresetEditorMode = "preset-edit";
+      suppressTabCommandAutosave = true;
+      loadShellValues(preset);
+      suppressTabCommandAutosave = false;
+      commandPresetStatus(`Editing preset “${preset.name}”. Change the fields below, then click Save preset.`, "idle");
+    } else {
+      commandPresetStatus("Select an existing preset or click New preset.", "idle");
+    }
     renderShellPresetOptions();
   });
+  for (const element of [elements.workingDirectory, elements.shellCommand, elements.shellMode, elements.confirmBeforeRun]) {
+    element.addEventListener("input", scheduleTabCommandPersistence);
+    element.addEventListener("change", scheduleTabCommandPersistence);
+  }
   elements.loadShellPresetButton.addEventListener("click", loadSelectedShellPreset);
   elements.newShellPresetButton.addEventListener("click", newShellPreset);
   elements.updateShellPresetButton.addEventListener("click", updateShellPreset);
@@ -2402,16 +2821,43 @@ ${run.command || ""}`)) {
   });
 
   async function bootstrapSidebar() {
+    RuntimeGuard?.markStarting();
+    RuntimeGuard?.clearStage("dashboard");
+    RuntimeGuard?.clearStage("collapsible-groups");
+    placeLocalActionProfileAfterConfigurationProfiles();
+    ensureCommandPresetUi();
+    await loadCommandPresetLibrary();
+    let layoutFailure = null;
     try {
       await initializeCollapsibleGroups();
     } catch (error) {
+      layoutFailure = error;
       console.error("Sidebar group initialization failed.", error);
       showMessage(`Sidebar layout initialization failed: ${error instanceof Error ? error.message : String(error)}`, "error");
-    } finally {
-      document.body.dataset.sidebarReady = "true";
+      RuntimeGuard?.report("collapsible-groups", error, { fatal: false });
     }
-    await request(MESSAGE.GET_DASHBOARD);
+
+    const response = await request(MESSAGE.GET_DASHBOARD);
+    if (!response) {
+      const error = new Error("Dashboard initialization failed. Check the background script and reload the add-on.");
+      RuntimeGuard?.report("dashboard", error, { fatal: true });
+      document.body.dataset.sidebarReady = "false";
+      return false;
+    }
+
+    /* Phase 28 preset migration */
+    try {
+      await migrateLegacyCommandPresets();
+      renderDetails(true);
+    } catch (error) {
+      console.error("Command preset migration failed.", error);
+      commandPresetStatus(error instanceof Error ? error.message : String(error), "error");
+    }
+    document.body.dataset.sidebarReady = "true";
+    RuntimeGuard?.markReady({ degraded: Boolean(layoutFailure) });
+    return true;
   }
 
+  RuntimeGuard?.setRetryHandler(() => bootstrapSidebar());
   void bootstrapSidebar();
 })();

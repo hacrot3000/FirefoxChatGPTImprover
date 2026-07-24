@@ -442,7 +442,7 @@
       <div class="section-title-row">
         <h2 id="localActionsHeading">Local action profile</h2>
         <div class="group-heading-actions" role="group" aria-label="Local action profile status and help">
-          <span id="localActionDraftStatus" class="native-status" data-state="online" title="The displayed local-action settings match persisted storage.">Saved</span>
+          <span id="localActionDraftStatus" class="native-status local-action-status-dot" data-state="warning" hidden role="status" aria-label="Unsaved tab-only edits" title="Unsaved tab-only edits; lost after reload."></span>
           <span id="localActionModeStatus" class="native-status" data-state="offline">Profile-based</span>
           <details class="help-menu heading-help-menu">
             <summary aria-label="Local action profile help" title="Help">?</summary>
@@ -497,16 +497,13 @@
       <div class="shell-preset-panel">
         <div class="selector-grid compact-fields">
           <label>Command preset<select id="shellPresetSelect"><option value="">Custom command</option></select></label>
-          <label>Preset name<input id="shellPresetName" type="text" placeholder="Build and test"></label>
         </div>
-        <label class="check-row"><input id="shellPresetEnabled" type="checkbox">Preset is enabled</label>
         <div class="button-grid shell-preset-actions">
           <button id="loadShellPresetButton" type="button">Load preset</button>
           <button id="newShellPresetButton" type="button">New preset</button>
           <button id="updateShellPresetButton" type="button">Update preset</button>
           <button id="deleteShellPresetButton" type="button" class="danger">Delete preset</button>
         </div>
-        <label class="check-row"><input id="requireShellPresetMatch" type="checkbox">Only run commands matching an enabled preset</label>
       </div>
       <label>Working directory<input id="workingDirectory" type="text"
           placeholder="/home/duongtc/FirefoxChatImprover"></label>
@@ -708,9 +705,11 @@ chmod +x ./native-host/install_native_host.sh \
     </div>
   </template>
 
+  <script src="../shared/sidebar_runtime_guard.js"></script>
   <script src="../shared/protocol.js"></script>
   <script src="../shared/settings.js"></script>
-  <script src="../shared/local_actions.js"></script>
+  <script src="../shared/command_presets.js"></script>
+<script src="../shared/local_actions.js"></script>
   <script src="../shared/settings_snapshots.js"></script>
   <script src="../shared/working_session.js"></script>
   <script src="../shared/support_bundle.js"></script>

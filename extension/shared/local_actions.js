@@ -8,6 +8,7 @@
   const SCHEMA_VERSION = 2;
   const STORAGE_KEY = "firefoxChatImprover.localActions.v1";
   const DEFAULT_PROFILE_ID = "local-default";
+  // Phase 28 v0.28.1: preset matching is retired; direct commands are valid.
 
   function clone(value) {
     return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -140,7 +141,7 @@
         command: text(shell.command),
         mode: shell.mode === "terminal" ? "terminal" : "background",
         confirmBeforeRun: bool(shell.confirmBeforeRun, true),
-        requirePresetMatch: bool(shell.requirePresetMatch, false),
+        requirePresetMatch: false,
         rememberHistory: bool(shell.rememberHistory, true),
         historyLimit: integer(shell.historyLimit, 20, 1, 100),
         selectedPresetId: presets.some((item) => item.id === requestedPresetId) ? requestedPresetId : "",
@@ -300,6 +301,120 @@
     });
   }
 
+  function downloadShellReadiness(rawState) {
+    const state = rawState && typeof rawState === "object" ? rawState : {};
+    const snapshot = normalizeExecutionSnapshot(state.configSnapshot);
+    const stateMode = text(state.shellExecutionMode).trim();
+    const mode = ["disabled", "manual", "automatic"].includes(stateMode)
+      ? stateMode
+      : snapshot.download.shellExecutionMode;
+    const shell = snapshot.shell;
+    const result = (ready, reason, details = {}) => ({
+      ready,
+      reason,
+      mode,
+      executionMode: "background",
+      manualFallback: false,
+      snapshot,
+      workingDirectory: shell.workingDirectory,
+      command: shell.command,
+      ...details
+    });
+
+    if (state.status !== "completed") {
+      return result(false, "The managed download has not completed relocation.");
+    }
+    if (!text(state.captureId).trim()) {
+      return result(false, "The completed download has no capture ID.");
+    }
+    if (!text(state.destinationPath).trim()) {
+      return result(false, "The relocated destination path is unavailable.");
+    }
+    if (mode === "disabled") {
+      return result(false, "Shell execution is disabled in the frozen download snapshot.");
+    }
+    if (!shell.workingDirectory.startsWith("/")) {
+      return result(false, "The frozen shell working directory is missing or is not absolute.");
+    }
+    if (!shell.command.trim()) {
+      return result(false, "The frozen shell command is empty.");
+    }
+    if (["starting", "running", "stopping"].includes(text(state.shellStatus).trim())) {
+      return result(false, "The frozen shell command is already running.");
+    }
+    if (text(state.shellRunId).trim()) {
+      return result(false, "The frozen shell command has already been started for this download.");
+    }
+    if (mode === "automatic" || state.shellError) {
+      const detail = state.shellError ? ` Previous automatic launch error: ${text(state.shellError)}` : "";
+      return result(true, `Automatic execution has not created a run ID; manual execution is available.${detail}`, {
+        manualFallback: true
+      });
+    }
+    return result(true, "The frozen per-tab shell command is ready and will run in background mode.");
+  }
+
+  function downloadShellOutcome(rawState) {
+    const state = rawState && typeof rawState === "object" ? rawState : {};
+    const readiness = downloadShellReadiness(state);
+    const snapshot = readiness.snapshot;
+    const shellStatus = text(state.shellStatus).trim() || "idle";
+    const runId = text(state.shellRunId).trim();
+    const returnCode = Number.isInteger(state.shellReturnCode) ? state.shellReturnCode : null;
+    const launched = Boolean(runId) || ["starting", "running", "stopping", "exited", "completed"].includes(shellStatus);
+    const detailLines = [
+      `Execution mode: ${readiness.mode}`,
+      `Working directory: ${snapshot.shell.workingDirectory || "(missing)"}`,
+      `Command: ${snapshot.shell.command || "(missing)"}`,
+      `Downloaded file: ${text(state.destinationPath).trim() || "(unavailable)"}`,
+      `Run ID: ${runId || "(not started)"}`,
+      `Return code: ${returnCode === null ? "(not available)" : returnCode}`
+    ];
+    const result = (phase, severity, message) => ({
+      phase,
+      severity,
+      message,
+      details: detailLines.join("\n"),
+      launched,
+      runId,
+      returnCode,
+      shellStatus,
+      readiness,
+      snapshot
+    });
+
+    if (state.shellError && !launched && readiness.ready) {
+      return result("ready", "warning", `automatic launch failed before creating a run ID; manual execution is available: ${text(state.shellError)}`);
+    }
+    if (state.shellError && !launched) {
+      return result("blocked", "error", `blocked before launch: ${text(state.shellError)}`);
+    }
+    if (["starting", "running", "stopping"].includes(shellStatus)) {
+      return result("running", "ok", `running: the add-on launched the frozen command${runId ? ` (${runId})` : ""}`);
+    }
+    if (returnCode === 0) {
+      return result("succeeded", "ok", "succeeded: the add-on launched the frozen command and the process exited rc=0");
+    }
+    if (returnCode !== null) {
+      return result("failed", "error", `failed: the add-on launched the frozen command, but the process exited rc=${returnCode}; open the full log for the command error`);
+    }
+    if (launched) {
+      const severity = state.shellError ? "error" : "idle";
+      const suffix = state.shellError ? `: ${text(state.shellError)}` : "";
+      return result("exited-unknown", severity, `the frozen command was launched, but no return code is available${suffix}`);
+    }
+    if (readiness.ready) {
+      return result("ready", "ok", "manual: frozen command ready");
+    }
+    if (state.status === "completed" && readiness.mode === "automatic") {
+      return result("automatic", "idle", "automatic: waiting for or controlled by the frozen download job");
+    }
+    if (state.status === "completed" && readiness.mode === "disabled") {
+      return result("disabled", "idle", "disabled: shell execution is disabled in the frozen download snapshot");
+    }
+    return result("unavailable", "idle", readiness.reason);
+  }
+
   function configFingerprint(rawConfig) {
     return JSON.stringify(normalizeConfig(rawConfig));
   }
@@ -332,13 +447,6 @@
       if (config.shell.mode === "terminal") {
         errors.push("Download shell execution must use background mode so the complete console can be captured.");
       }
-      if (config.shell.requirePresetMatch && !matchingPreset(config, {
-        workingDirectory: config.shell.workingDirectory,
-        command: config.shell.command,
-        mode: "background"
-      })) {
-        errors.push("The download shell command must match an enabled background command preset.");
-      }
     }
     return { ok: errors.length === 0, errors, config };
   }
@@ -367,6 +475,8 @@
       matchingPreset,
       createExecutionSnapshot,
       normalizeExecutionSnapshot,
+      downloadShellReadiness,
+      downloadShellOutcome,
       configFingerprint,
       validateConfig
     })

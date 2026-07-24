@@ -1,6 +1,45 @@
 # FirefoxChatImprover
 
+## ⚡ Cài đặt nhanh (không cần build)
+
+> Tải bản đã build sẵn từ GitHub Releases — **không cần Node.js, Python hay bất kỳ công cụ nào**.
+
+### Bước 1 — Tải file `.zip`
+
+Vào trang **[Releases](../../releases)** của repository này, chọn phiên bản mới nhất rồi tải file:
+
+```
+firefox-chat-ai-assistant-<version>-unsigned.zip
+```
+
+> **Kiểm tra toàn vẹn (tùy chọn):** Mỗi release kèm file `SHA256SUMS`, bạn có thể xác minh bằng:
+> ```bash
+> sha256sum -c SHA256SUMS
+> ```
+
+### Bước 2 — Cài vào Firefox
+
+1. Mở Firefox, vào địa chỉ: **`about:addons`**
+2. Nhấn biểu tượng bánh răng ⚙️ → chọn **"Install Add-on From File..."**
+3. Chọn file `.zip` vừa tải về → nhấn **Add**
+
+> **Lưu ý:** Đây là bản chưa qua Mozilla ký (unsigned). Firefox sẽ cho phép cài trên **Firefox Developer Edition** hoặc **Firefox ESR** với `xpinstall.signatures.required = false` trong `about:config`.  
+> Để cài lâu dài trên Firefox Release thông thường, cần bản XPI đã được Mozilla ký qua AMO.
+
+### Bước 3 — Cài Native Host (nếu dùng tính năng Shell command)
+
+```bash
+git clone <repository-url>
+cd FirefoxChatImprover
+./native-host/install_native_host.sh
+```
+
+Sau đó reload add-on trong `about:addons`.
+
+---
+
 <!-- FIREFOX_CHAT_IMPROVER_PHASE00_BEGIN -->
+
 ## Kế hoạch và workflow phát triển add-on
 
 Tài liệu chính:
@@ -417,3 +456,72 @@ Fixes a fatal `ReferenceError` in the local-action default configuration that pr
 
 Details: `document/PHASE_25_V0_25_2_SIDEBAR_BOOTSTRAP_RECOVERY.md`.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE25_V0252_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE26_BEGIN -->
+## Phase 26 — Sidebar preload runtime guard
+
+A small guard now loads before all other sidebar scripts. Fatal dependency/runtime errors are shown in a recovery panel with diagnostics, dashboard retry, sidebar reload and copy actions instead of leaving the sidebar blank or frozen. Dashboard startup remains independent from collapsible-layout initialization.
+
+Details: `document/PHASE_26_SIDEBAR_RUNTIME_GUARD.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE26_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE26_V0261_BEGIN -->
+## Phase 26 v0.26.1 — Per-tab download shell persistence hotfix
+
+Manual shell execution now first persists and verifies the displayed Managed download + Shell command settings as the selected tab's override. The next download therefore freezes the same working directory and command that were tested manually. The completion-dialog Execute shell command button is enabled only when the immutable completed-download snapshot contains a valid manual background command and has not already started.
+
+Details: `document/PHASE_26_V0_26_1_PER_TAB_DOWNLOAD_SHELL_PERSISTENCE.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE26_V0261_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE27_BEGIN -->
+## Phase 27 — Post-download shell outcome audit
+
+Managed download shell status now distinguishes a command that could not be launched from a command that was launched successfully but exited non-zero. The status and tooltip expose the frozen working directory, command, relocated file, run ID, execution mode and return code without changing immutable snapshot or exactly-once semantics.
+
+Details: `document/PHASE_27_DOWNLOAD_SHELL_OUTCOME_AUDIT.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE27_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_BEGIN -->
+## Phase 28 — Global command presets and simple per-tab commands
+
+Command presets now use an independent global store. Create, edit and save a preset once, then select it and apply it to any tab. Tabs can instead use a direct Working directory and Command, which are auto-saved for that tab without saving a local-action profile.
+
+Details: `document/PHASE_28_GLOBAL_COMMAND_PRESETS.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0281_BEGIN -->
+### Phase 28 v0.28.1 — Simplified preset creation
+
+**New preset** now prompts for a name and immediately adds the selected name to the global Command preset list. The editor saves into the selected preset; **Apply to this tab** copies it to the tab. Preset-name, preset-enabled, and preset-matching controls are removed from the user workflow. Direct tab commands remain available through a separate button.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0281_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0283_BEGIN -->
+### Phase 28 v0.28.3 — Volatile editor priority
+
+Valid unsaved local-action edits are effective immediately for the selected tab and are intentionally lost after Firefox or the add-on reloads. The Local action profile card is placed after Configuration profiles, redundant saved/effective-source labels are hidden, and only one yellow volatile-edit note is shown. Repeated development builds overwrite the existing same-version artifact. The patch is tolerant of braced or colon-only background message cases.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0283_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0284_BEGIN -->
+### Phase 28 v0.28.4 — Historical command-preset test compatibility
+
+The Phase 16 regression now validates the current global command-preset selector, prompt-based preset creation and per-tab history while explicitly confirming that the removed `shellPresetName` and mandatory `requireShellPresetMatch` controls do not return.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0284_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0285_BEGIN -->
+### Phase 28 v0.28.5 — Status dot only
+
+The Local action profile heading now shows only one compact yellow dot when volatile tab-only edits exist. It no longer displays the full explanatory sentence in the heading.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0285_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0286_BEGIN -->
+### Phase 28 v0.28.6 — Download execute and console recovery
+
+The completed-download Execute shell command action now accepts valid frozen commands regardless of their editor terminal/background choice and provides a manual fallback when automatic launch failed before creating a run ID. Full command log falls back to all stdout/stderr/system chunks received by the add-on when a file-backed Native Host log is unavailable.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0286_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0287_BEGIN -->
+### Phase 28 v0.28.7 — Native move completion and automatic shell launch
+
+Correlated Native Host move replies are now consumed before their pending requests resolve, completed download responses are idempotent, and automatic post-download execution no longer marks itself `starting` before calling the start routine. Manual Execute shell readiness and automatic execution therefore share the same verified completed-download state, while compound shell commands remain unchanged and run in background mode for full stdout/stderr capture.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0287_END -->
+

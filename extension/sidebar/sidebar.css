@@ -514,3 +514,85 @@ body[data-sidebar-ready="true"] .card[data-collapsed="true"].sticky-actions { bo
 
 /* Phase 25 v0.25.2: fail-safe sidebar bootstrap. Save stays in normal flow until JS initialization completes. */
 body:not([data-sidebar-ready="true"]) .sticky-actions { position: static; }
+
+/* Phase 26: preload runtime guard and visible startup recovery. */
+.sidebar-runtime-recovery {
+  position: relative;
+  z-index: 1000;
+  display: grid;
+  gap: 8px;
+  margin: 8px;
+  padding: 10px;
+  border: 2px solid var(--error);
+  border-radius: 8px;
+  background: color-mix(in srgb, Canvas 92%, var(--error) 8%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / .22);
+}
+.sidebar-runtime-recovery[hidden] { display: none; }
+.sidebar-runtime-recovery[data-state="warning"] { border-color: var(--paused); }
+.sidebar-runtime-recovery-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sidebar-runtime-recovery-badge {
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: var(--error);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .05em;
+}
+.sidebar-runtime-recovery[data-state="warning"] .sidebar-runtime-recovery-badge { color: var(--paused); }
+.sidebar-runtime-recovery p { margin: 0; font-size: 11px; line-height: 1.4; }
+.sidebar-runtime-recovery-details {
+  max-height: 220px;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: Canvas;
+  font: 10px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.sidebar-runtime-recovery-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+body[data-sidebar-startup="failed"] .sticky-actions { position: static; }
+
+
+
+/* Phase 28: independent global command presets and per-tab auto-save. */
+.command-preset-scope-note {
+  margin: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.command-preset-scope-note strong { color: CanvasText; }
+.tab-command-save-status { min-height: 1.4em; margin: 2px 0 0; color: var(--muted); font-size: 10px; }
+.tab-command-save-status[data-state="saving"] { color: var(--paused); }
+.tab-command-save-status[data-state="saved"] { color: var(--active); }
+.tab-command-save-status[data-state="error"] { color: var(--error); }
+
+/* Phase 28 v0.28.5: one compact local-action draft status dot only. */
+#localActionDraftStatus.local-action-status-dot {
+  display: inline-flex;
+  width: 8px;
+  min-width: 8px;
+  height: 8px;
+  max-width: none;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  line-height: 0;
+}
+#localActionDraftStatus.local-action-status-dot::before {
+  width: 8px;
+  height: 8px;
+  margin: 0;
+}
+#localActionDraftStatus[hidden] { display: none; }
+

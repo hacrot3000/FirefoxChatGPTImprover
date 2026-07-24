@@ -55,6 +55,10 @@ assert.match(sidebarSource, /"installation-guide": true/);
 assert.match(sidebarSource, /save: true/);
 assert.match(css, /body\[data-sidebar-ready="true"\] \.sticky-actions \{ position: sticky/);
 assert.match(css, /body:not\(\[data-sidebar-ready="true"\]\) \.sticky-actions \{ position: static/);
-assert.equal(manifest.version, "0.25.2");
+{
+  const parts = String(manifest.version || "").split(".").map(Number);
+  assert.ok(parts.length === 3 && parts.every(Number.isInteger));
+  assert.ok(parts[0] > 0 || parts[1] > 25 || (parts[1] === 25 && parts[2] >= 2));
+}
 
 console.log("PASS: Phase 25 v0.25.2 local-action runtime bootstrap, dashboard startup and sticky Save fail-safe");

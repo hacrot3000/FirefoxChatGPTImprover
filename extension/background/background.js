@@ -1,6 +1,8 @@
 (() => {
   "use strict";
 
+  // Phase 28 v0.28.7: consume correlated move completion before resolving Native Host requests.
+
   const { MESSAGE, MODE, CONFIG_MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
   const Snapshots = globalThis.FCI_SETTINGS_SNAPSHOTS;
@@ -11,6 +13,7 @@
   const TAB_SESSION_KEY = "firefoxChatImprover.tabSession.v2";
   const sessions = new Map();
   const pickerStates = new Map();
+  const volatileLocalActionDrafts = new Map(); // Phase 28 v0.28.3 volatile local-action drafts
   let storePromise = null;
   let localActionStorePromise = null;
   let snapshotPromise = null;
@@ -481,7 +484,12 @@
         destinationDirectory: config.download.destinationDirectory,
         conflictAction: config.download.conflictAction
       }, 20000, moveId);
-      await handleNativeDownloadMessage(response);
+      // The Native Host listener normally consumes correlated move success
+      // before resolving this request. Retain a guarded continuation for old
+      // or unusual host response ordering without processing success twice.
+      if (job.status !== "completed") {
+        await handleNativeDownloadMessage(response);
+      }
     } catch (error) {
       downloadMoveToTab.delete(moveId);
       if (job.status === "completed") return;
@@ -627,23 +635,41 @@
       throw new Error("This completed download is no longer available for shell execution.");
     }
     const config = jobExecutionConfig(job);
-    if (job.shellExecutionMode === "manual" && config.shell.confirmBeforeRun && message?.payload?.confirmed !== true && message?.confirmed !== true) {
+    if (config.shell.confirmBeforeRun && message?.payload?.confirmed !== true && message?.confirmed !== true) {
       throw new Error("Shell execution confirmation is required.");
     }
     return startDownloadShellForJob(job, session, "download-completion-manual");
   }
 
   async function handleNativeDownloadMessage(message) {
-    const moveId = String(message?.moveId || "");
-    const tabId = Number(message?.tabId ?? downloadMoveToTab.get(moveId));
+    const moveId = String(message?.moveId || message?.requestId || "");
+    let tabId = Number(message?.tabId ?? downloadMoveToTab.get(moveId));
+    if (!Number.isInteger(tabId) && moveId) {
+      for (const [candidateTabId, candidateJob] of downloadJobs.entries()) {
+        if (String(candidateJob?.moveId || "") === moveId) {
+          tabId = Number(candidateTabId);
+          break;
+        }
+      }
+    }
     if (!Number.isInteger(tabId)) return;
     const job = downloadJobs.get(tabId) || emptyDownloadState(tabId);
     const session = sessions.get(tabId);
     if (message.event === "download_moved") {
-      const verifiedDestinationPath = String(message.destinationPath || "").trim();
+      const verifiedDestinationPath = String(message.destinationPath || message.path || message.targetPath || "").trim();
       if (!verifiedDestinationPath.startsWith("/")) {
         throw new Error("The Native Host reported success without a valid absolute destination path.");
       }
+      if (job.status === "completed" && job.moveId === moveId && job.destinationPath === verifiedDestinationPath) {
+        downloadMoveToTab.delete(moveId);
+        return;
+      }
+      appendLog(session, "debug", "download-move-response", "Correlated Native Host relocation success was consumed by the download state machine.", {
+        moveId,
+        requestId: message?.requestId || null,
+        destinationPath: verifiedDestinationPath,
+        nativeHostVersion: nativeState.hostVersion || null
+      });
       Object.assign(job, {
         status: "completed",
         destinationPath: verifiedDestinationPath,
@@ -670,7 +696,9 @@
         const localConfig = jobExecutionConfig(job);
         job.shellExecutionMode = localConfig.download.shellExecutionMode;
         job.openShellLogAfterExecution = localConfig.download.openShellLogAfterExecution;
-        job.shellStatus = job.shellExecutionMode === "manual" ? "available" : (job.shellExecutionMode === "automatic" ? "starting" : "disabled");
+        // startDownloadShellForJob owns the transition to `starting`.
+        // Pre-setting it here made automatic mode reject itself as already running.
+        job.shellStatus = job.shellExecutionMode === "disabled" ? "disabled" : "available";
         if (job.shellExecutionMode === "automatic") {
           try {
             await startDownloadShellForJob(job, session, "download-moved-automatic");
@@ -922,10 +950,23 @@
       const pending = pendingNativeRequests.get(requestId);
       pendingNativeRequests.delete(requestId);
       clearTimeout(pending.timer);
+      const destinationPath = String(message?.destinationPath || message?.path || message?.targetPath || "").trim();
+      const correlatedMessage = pending.action === "move_download" && event !== "error" && event !== "fatal"
+        ? {
+            ...message,
+            event: event || (destinationPath.startsWith("/") ? "download_moved" : event),
+            requestId: message?.requestId || requestId,
+            moveId: message?.moveId || requestId,
+            destinationPath
+          }
+        : message;
       if (event === "error" || event === "fatal") {
         pending.reject(new Error(String(message.error || "The Native Host request failed.")));
       } else {
-        pending.resolve(clone(message));
+        if (pending.action === "move_download") {
+          await handleNativeDownloadMessage(correlatedMessage);
+        }
+        pending.resolve(clone(correlatedMessage));
       }
       return;
     }
@@ -1564,14 +1605,7 @@
     return Settings.profileById(store, session.profileId)?.name || "Profile not found";
   }
 
-  function sessionLocalActionConfig(session, localStore) {
-    if (session.localActionConfigMode === CONFIG_MODE.TAB && session.localActionTabConfig) {
-      return LocalActions.normalizeConfig(session.localActionTabConfig);
-    }
-    const profile = LocalActions.profileById(localStore, session.localActionProfileId) ||
-      LocalActions.profileById(localStore, localStore.defaultProfileId) || localStore.profiles[0];
-    return LocalActions.normalizeConfig(profile.config);
-  }
+  function sessionLocalActionConfig(session, localStore) { const volatileConfig = volatileLocalActionDrafts.get(Number(session?.tabId)); if (volatileConfig) { return LocalActions.normalizeConfig(volatileConfig); } if (session.localActionConfigMode === CONFIG_MODE.TAB && session.localActionTabConfig) { return LocalActions.normalizeConfig(session.localActionTabConfig); } const profile = LocalActions.profileById(localStore, session.localActionProfileId) || LocalActions.profileById(localStore, localStore.defaultProfileId) || localStore.profiles[0]; return LocalActions.normalizeConfig(profile.config); }
 
   function localActionProfileName(session, localStore) {
     return LocalActions.profileById(localStore, session.localActionProfileId)?.name || "Local-action profile not found";
@@ -3076,6 +3110,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     };
   }
 
+  async function setVolatileLocalActionDraft(tabId, rawConfig, clear = false) { const numericTabId = Number(tabId); if (!Number.isInteger(numericTabId)) { throw new Error("The volatile local-action draft has no valid tab ID."); } const session = sessions.get(numericTabId); if (!session) { throw new Error("This tab is not activated."); } if (clear) { volatileLocalActionDrafts.delete(numericTabId); } else { const validation = LocalActions.validateConfig(rawConfig); if (!validation.ok) { throw new Error(validation.errors.join("\n")); } volatileLocalActionDrafts.set(numericTabId, validation.config); } const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]); await broadcast(clear ? "volatile-local-actions-cleared" : "volatile-local-actions-updated", numericTabId); return publicSession(session, store, localStore); }
+
   async function handleRequest(message, sender = null) {
     try {
       switch (message.type) {
@@ -3100,7 +3136,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
           return { ok: true, dashboard: await dashboard() };
 
         case MESSAGE.STOP_TAB:
-          await stopTab(Number(message.tabId));
+          
+        volatileLocalActionDrafts.delete(Number(message.tabId));await stopTab(Number(message.tabId));
           return { ok: true, dashboard: await dashboard() };
 
         case MESSAGE.ASSIGN_PROFILE:
@@ -3192,10 +3229,11 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
           return { ok: true, dashboard: await dashboard() };
 
         case MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE:
-          await assignLocalActionProfile(Number(message.tabId), message.profileId);
+          
+        volatileLocalActionDrafts.delete(Number(message.tabId));await assignLocalActionProfile(Number(message.tabId), message.profileId);
           return { ok: true, dashboard: await dashboard() };
 
-        case MESSAGE.SAVE_TAB_LOCAL_ACTIONS: {
+        case MESSAGE.SAVE_TAB_LOCAL_ACTIONS: { if (message.volatile === true) { assertSidebarSender(sender); const savedSession = await setVolatileLocalActionDraft(Number(message.tabId), message.config, Boolean(message.clear)); return { ok: true, savedSession, volatile: true, dashboard: await dashboard() }; } volatileLocalActionDrafts.delete(Number(message.tabId));
           const tabId = Number(message.tabId);
           await saveTabLocalActions(tabId, message.config);
           const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
@@ -3208,7 +3246,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         }
 
         case MESSAGE.RESET_TAB_LOCAL_ACTIONS:
-          await resetTabLocalActions(Number(message.tabId));
+          
+        volatileLocalActionDrafts.delete(Number(message.tabId));await resetTabLocalActions(Number(message.tabId));
           return { ok: true, dashboard: await dashboard() };
 
         case MESSAGE.START_ELEMENT_PICKER:
@@ -3288,8 +3327,10 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         case MESSAGE.RETRY_DOWNLOAD_MOVE:
           return { ok: true, download: await retryDownloadMove(message, sender), dashboard: await dashboard() };
 
-        case MESSAGE.RUN_COMPLETED_DOWNLOAD_SHELL:
-          return { ok: true, shellRun: await runCompletedDownloadShell(message, sender) };
+        case MESSAGE.RUN_COMPLETED_DOWNLOAD_SHELL: {
+          const shellRun = await runCompletedDownloadShell(message, sender);
+          return { ok: true, shellRun, dashboard: await dashboard() };
+        }
 
         case MESSAGE.CONTENT_RUNTIME_EVENT:
           return { ok: true, runtime: await updateRuntimeFromContent(message, sender) };
@@ -3519,7 +3560,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     void broadcast("active-tab-changed", activeInfo.tabId);
   });
 
-  browser.tabs.onRemoved.addListener((tabId) => {
+  browser.tabs.onRemoved.addListener((tabId) => { volatileLocalActionDrafts.delete(Number(tabId));
     const shellRun = shellRuns.get(tabId);
     if (shellRun?.runId && ["starting", "running", "terminal", "stopping"].includes(shellRun.status)) {
       try {
