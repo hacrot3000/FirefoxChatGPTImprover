@@ -3,6 +3,8 @@
 
   // Phase 28 v0.28.7: consume correlated move completion before resolving Native Host requests.
 
+  // Phase 28 v0.28.8: same-tab download jobs survive session-token rollover.
+
   const { MESSAGE, MODE, CONFIG_MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
   const Snapshots = globalThis.FCI_SETTINGS_SNAPSHOTS;
@@ -520,12 +522,12 @@
   }
 
   async function showDownloadCompletion(tabId, job, session) {
-    if (!job?.showCompletionDialog || !session || job.sessionToken !== session.sessionToken) {
+    if (!job?.showCompletionDialog || !session || Number(job.tabId) !== Number(session.tabId)) {
       job.completionSurface = null;
       return false;
     }
     const config = jobExecutionConfig(job);
-    const shellAvailable = Boolean(config.shell.workingDirectory.trim() && config.shell.command.trim());
+    const shellReadiness = LocalActions.downloadShellReadiness(job);
     try {
       const response = await browser.tabs.sendMessage(Number(tabId), {
         type: MESSAGE.CONTENT_SHOW_DOWNLOAD_COMPLETION,
@@ -536,7 +538,10 @@
           filename: job.filename,
           size: job.size,
           retry: job.completionReason === "retry",
-          shellAvailable: shellAvailable && job.shellExecutionMode !== "disabled",
+          shellAvailable: shellReadiness.ready,
+          shellReady: shellReadiness.ready,
+          shellReason: shellReadiness.reason,
+          manualFallback: Boolean(shellReadiness.manualFallback),
           shellExecutionMode: job.shellExecutionMode,
           shellStatus: job.shellStatus,
           shellRunId: job.shellRunId,
@@ -572,8 +577,8 @@
     if (!job || !session || job.status !== "completed") {
       throw new Error("The managed download has not completed successfully.");
     }
-    if (job.sessionToken !== session.sessionToken) {
-      throw new Error("The tab session changed after the download completed.");
+    if (Number(job.tabId) !== Number(session.tabId)) {
+      throw new Error("The completed download belongs to a different browser tab.");
     }
     if (job.shellExecutionMode === "disabled") {
       throw new Error("Shell execution is disabled for this managed download.");
@@ -692,13 +697,21 @@
         session.downloadJob = publicDownloadState(tabId);
         await persistSession(session);
       }
-      if (session && job.sessionToken === session.sessionToken) {
+      if (session) {
+        // Same-tab navigation may replace the content runtime token while the
+        // Native Host is moving the file. Rebind only runtime ownership; the
+        // captured local-action snapshot remains immutable.
+        job.sessionToken = session.sessionToken;
         const localConfig = jobExecutionConfig(job);
         job.shellExecutionMode = localConfig.download.shellExecutionMode;
         job.openShellLogAfterExecution = localConfig.download.openShellLogAfterExecution;
-        // startDownloadShellForJob owns the transition to `starting`.
-        // Pre-setting it here made automatic mode reject itself as already running.
         job.shellStatus = job.shellExecutionMode === "disabled" ? "disabled" : "available";
+        job.shellError = null;
+        session.downloadJob = publicDownloadState(tabId);
+        await persistSession(session);
+        await persistDownloadState(tabId);
+        await broadcast("download-shell-available", tabId);
+        await showDownloadCompletion(tabId, job, session);
         if (job.shellExecutionMode === "automatic") {
           try {
             await startDownloadShellForJob(job, session, "download-moved-automatic");
@@ -706,19 +719,16 @@
             job.shellStatus = "error";
             job.shellError = error instanceof Error ? error.message : String(error);
             job.shellCompletedAt = Settings.nowIso();
-            appendLog(session, "user", "download-command-error", job.shellError);
+            appendLog(session, "user", "download-command-error", job.shellError, {
+              captureId: job.captureId,
+              manualFallback: !job.shellRunId
+            });
+            session.downloadJob = publicDownloadState(tabId);
             await persistSession(session);
+            await persistDownloadState(tabId);
+            await broadcast("download-shell-fallback-available", tabId);
           }
         }
-      } else if (session && job.shellExecutionMode === "automatic") {
-        job.shellStatus = "error";
-        job.shellError = "Automatic shell execution was skipped because the original download session is no longer current.";
-        appendLog(session, "user", "download-command-skipped", "Automatic shell execution was skipped because the original download session is no longer current.", {
-          captureId: job.captureId,
-          originalSessionToken: job.sessionToken,
-          currentSessionToken: session.sessionToken
-        });
-        await persistSession(session);
       }
       await showDownloadCompletion(tabId, job, session);
       if (session) {
@@ -852,7 +862,14 @@
   async function recoverDownloadJob(session) {
     const tabId = Number(session?.tabId);
     if (!Number.isInteger(tabId) || !session?.downloadJob) return;
-    const job = normalizeDownloadState(session.downloadJob, tabId);
+    const storedJob = normalizeDownloadState(session.downloadJob, tabId);
+    const inMemoryJob = downloadJobs.get(tabId);
+    const sameCapture = Boolean(inMemoryJob?.captureId && inMemoryJob.captureId === storedJob.captureId);
+    const activeInMemory = Boolean(sameCapture && ["downloading", "moving", "completed"].includes(inMemoryJob.status));
+    // A navigation-triggered session restore must not replace a newer live job
+    // with an older persisted snapshot from the same tab.
+    const job = activeInMemory ? inMemoryJob : storedJob;
+    if (session.sessionToken) job.sessionToken = session.sessionToken;
     downloadJobs.set(tabId, job);
     if (Number.isInteger(job.downloadId)) {
       downloadMoveToTab.set(job.downloadId, tabId);

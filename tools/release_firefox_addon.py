@@ -13,6 +13,8 @@ import subprocess
 import sys
 from typing import Any
 
+GITHUB_REPO = "hacrot3000/FirefoxChatGPTImprover"
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_EXTENSION_DIR = PROJECT_ROOT / "extension"
 DEFAULT_RELEASES_DIR = PROJECT_ROOT / "dist" / "releases"
@@ -93,12 +95,73 @@ def resolve_web_ext(root: Path = PROJECT_ROOT) -> Path:
     path = Path(override).expanduser() if override else root / ".firefox-dev-tools" / "node_modules" / ".bin" / "web-ext"
     if not path.is_file() or not os.access(path, os.X_OK):
         raise ValueError("web-ext is not installed; run ./tools/setup_firefox_addon_dev.sh")
-    return path.resolve()
+    resolved = path.resolve()
+    probe = subprocess.run(
+        [str(resolved), "--version"],
+        cwd=root,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if probe.returncode != 0:
+        detail = ((probe.stdout or "") + (probe.stderr or "")).strip()
+        suffix = f"\n{detail}" if detail else ""
+        raise ValueError(
+            "web-ext installation is incomplete or broken; run "
+            "./tools/setup_firefox_addon_dev.sh, then retry." + suffix
+        )
+    return resolved
 
 
 def run_checked(command: list[str], *, cwd: Path = PROJECT_ROOT) -> None:
     print("+", " ".join(command))
     subprocess.run(command, cwd=cwd, check=True)
+
+
+def gh_release_exists(tag: str, repo: str = GITHUB_REPO) -> bool:
+    """Return True if the GitHub release tag already exists."""
+    result = subprocess.run(
+        ["gh", "release", "view", tag, "--repo", repo],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return result.returncode == 0
+
+
+def publish_github_release(
+    *,
+    tag: str,
+    title: str,
+    release_dir: Path,
+    artifact: Path,
+    repo: str = GITHUB_REPO,
+    overwrite: bool = False,
+) -> None:
+    """Create (or recreate) a GitHub release and upload release assets."""
+    if gh_release_exists(tag, repo):
+        if not overwrite:
+            raise ValueError(
+                f"GitHub release {tag} already exists. Use --overwrite to replace it."
+            )
+        print(f"Deleting existing GitHub release {tag} ...")
+        run_checked(["gh", "release", "delete", tag, "--repo", repo, "--yes"])
+
+    assets = [
+        str(artifact),
+        str(release_dir / "SHA256SUMS"),
+        str(release_dir / "release.json"),
+    ]
+    notes_file = release_dir / "RELEASE_NOTES.md"
+
+    run_checked([
+        "gh", "release", "create", tag,
+        *assets,
+        "--title", title,
+        "--notes-file", str(notes_file),
+        "--repo", repo,
+    ])
+    print(f"GitHub Release: https://github.com/{repo}/releases/tag/{tag}")
 
 
 def release_metadata(
@@ -150,7 +213,8 @@ def release_notes_text(metadata: dict[str, Any], notes: str | None = None) -> st
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skip-tests", action="store_true", help="skip tools/test_firefox_addon.sh")
-    parser.add_argument("--overwrite", action="store_true", help="replace an existing release directory for the same version")
+    parser.add_argument("--overwrite", action="store_true", help="replace an existing local release directory and GitHub release for the same version")
+    parser.add_argument("--publish", action="store_true", help="create a GitHub release and upload assets after a successful build")
     parser.add_argument("--notes-file", type=Path, help="Markdown/text inserted into the Changes section")
     parser.add_argument("--releases-dir", type=Path, default=DEFAULT_RELEASES_DIR)
     args = parser.parse_args(argv)
@@ -199,6 +263,20 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Artifact : {artifact}")
     print(f"SHA-256 : {checksum}")
     print("State    : unsigned; sign before persistent Firefox Release installation")
+
+    if args.publish:
+        tag = f"v{version}"
+        title = f"{name} {version}"
+        print(f"\nPublishing GitHub Release {tag} to {GITHUB_REPO} ...")
+        publish_github_release(
+            tag=tag,
+            title=title,
+            release_dir=release_dir,
+            artifact=artifact,
+            overwrite=args.overwrite,
+        )
+        print(f"PUBLISHED: {tag}")
+
     return 0
 
 

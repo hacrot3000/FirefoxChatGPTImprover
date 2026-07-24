@@ -525,3 +525,33 @@ The completed-download Execute shell command action now accepts valid frozen com
 Correlated Native Host move replies are now consumed before their pending requests resolve, completed download responses are idempotent, and automatic post-download execution no longer marks itself `starting` before calling the start routine. Manual Execute shell readiness and automatic execution therefore share the same verified completed-download state, while compound shell commands remain unchanged and run in background mode for full stdout/stderr capture.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0287_END -->
 
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0288_BEGIN -->
+### Phase 28 v0.28.8 — Same-tab session rebind and popup Execute readiness
+
+Managed download jobs now remain valid across same-tab navigation and content-runtime session-token rollover. Completion state is published before automatic startup, failed automatic launches without a run ID expose a manual fallback, and the page-centered popup uses the shared frozen-job readiness contract instead of disabling Execute merely because the configured mode is automatic. Content runtime version 20 replaces stale popup logic in already-open tabs after reload/reinjection.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0288_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0289_BEGIN -->
+### Phase 28 v0.28.9 — JavaScript source-integrity guard
+
+Standalone Docker BuildKit progress records such as `#10 51.98` are removed from extension JavaScript without touching valid code. The test suite now scans every JavaScript file for leaked terminal progress and runs `node --check` on each file before release.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V0289_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02810_BEGIN -->
+### Phase 28 v0.28.10 — Extended BuildKit source sanitizer
+
+The JavaScript source-integrity repair now removes complete standalone BuildKit progress records such as `#10 51.98 Configuring extension`, plus `DONE`, `CACHED`, `ERROR`, and stage records. The patch itself runs `node --check` against every extension JavaScript file before reporting success.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02810_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02812_BEGIN -->
+### Phase 28 v0.28.12 — Full source syntax audit and repair
+
+A complete 127-line terminal/build transcript accidentally inserted into `extension/background/background.js` is removed as one anchored block. The repository now includes a full syntax audit for JavaScript, Python, shell, JSON, and SVG sources, and the patch refuses to report success while any checked source still has a syntax error.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02812_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02813_BEGIN -->
+### Phase 28 v0.28.13 — Full regression and restart dashboard repair
+
+Updates stale Phase 23/25 contracts, restores repeatable `--overwrite` builds, verifies a fresh background dashboard after restart, retains full source-syntax validation, and reports incomplete `web-ext` installations clearly.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02813_END -->
+

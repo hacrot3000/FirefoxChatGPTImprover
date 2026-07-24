@@ -32,7 +32,11 @@ assert(version[0] > 0 || version[1] > 23 || (version[1] === 23 && version[2] >= 
 const background = fs.readFileSync(path.join(root, "extension/background/background.js"), "utf8");
 for (const token of [
   "configSnapshot", "jobExecutionConfig", "recoverDownloadJob", "retryDownloadMove",
-  "captures.length === 1 ? captures[0] : null", "job.sessionToken === session.sessionToken",
+  "captures.length === 1 ? captures[0] : null",
+  "const sameCapture = Boolean(inMemoryJob?.captureId && inMemoryJob.captureId === storedJob.captureId)",
+  "const activeInMemory = Boolean(sameCapture && [\"downloading\", \"moving\", \"completed\"].includes(inMemoryJob.status))",
+  "if (session.sessionToken) job.sessionToken = session.sessionToken",
+  "Number(job.tabId) !== Number(session.tabId)",
   "Recovered an interrupted relocation without replaying it automatically"
 ]) assert(background.includes(token), `Missing background contract: ${token}`);
 assert(background.includes("destinationDirectory: config.download.destinationDirectory"));
@@ -42,4 +46,5 @@ assert(html.includes('id="retryDownloadMoveButton"'));
 const sidebar = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.js"), "utf8");
 assert(sidebar.includes("MESSAGE.RETRY_DOWNLOAD_MOVE"));
 assert(sidebar.includes("!state.retryable"));
-console.log("PASS: Phase 23 immutable per-download local-action snapshots, safe multi-tab attribution, persisted recovery and explicit relocation retry contracts");
+assert(!background.includes("job.sessionToken === session.sessionToken"), "Legacy strict session-token gate must not return; same-tab jobs survive navigation token rollover");
+console.log("PASS: Phase 23 immutable per-download local-action snapshots, capture-bound same-tab attribution, session-token rollover recovery and explicit relocation retry contracts");

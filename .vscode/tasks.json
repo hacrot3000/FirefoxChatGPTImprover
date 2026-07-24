@@ -161,7 +161,7 @@
         },
         {
             "label": "Firefox Add-on: Build Release",
-            "detail": "Chạy tests, lint rồi build unsigned .zip artifact vào dist/releases/<version>/",
+            "detail": "Chạy tests, lint rồi build unsigned .zip artifact vào dist/releases/<version>/ (chỉ local, không publish)",
             "type": "shell",
             "command": "./tools/build_firefox_addon.sh",
             "args": ["--overwrite"],
@@ -181,6 +181,29 @@
                 "clear": true
             }
         },
+        {
+            "label": "Firefox Add-on: Build Release + Publish to GitHub",
+            "detail": "Chạy tests, lint, build rồi tự động tạo GitHub Release và upload .zip (yêu cầu gh auth login)",
+            "type": "shell",
+            "command": "./tools/build_firefox_addon.sh",
+            "args": ["--overwrite", "--publish"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "clear": true
+            }
+        },
+
         {
             "label": "Firefox Add-on: Publish Release (Tag + Push)",
             "detail": "Build release → tạo git annotated tag v<version> → commit → push lên remote để tải về cài Firefox",

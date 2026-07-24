@@ -29,8 +29,9 @@ const sidebar = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.js"),
 assert(sidebar.includes("MESSAGE.RUN_COMPLETED_DOWNLOAD_SHELL"));
 assert(sidebar.includes("shouldAutoOpenFullLog"));
 const content = fs.readFileSync(path.join(root, "extension/content/activation.js"), "utf8");
-assert(content.includes("const RUNTIME_VERSION = 19;"));
-assert(content.includes("Shell command starting automatically"));
+assert(/const RUNTIME_VERSION = (?:19|[2-9][0-9]);/.test(content), "Content runtime must remain at v19 or newer");
+assert(content.includes("Shell command started in background mode"));
+assert(content.includes("Automatic start did not create a run. A manual fallback is available."));
 const protocol = fs.readFileSync(path.join(root, "extension/shared/protocol.js"), "utf8");
 assert(protocol.includes("VERSION: 16"));
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));

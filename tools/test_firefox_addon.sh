@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+python3 tools/check_source_syntax.py
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
@@ -62,12 +63,21 @@ node tests/test_phase28_v0284_phase16_contract_compatibility.js
 node tests/test_phase28_v0285_status_dot_only.js
 node tests/test_phase28_v0286_download_execute_console_recovery.js
 node tests/test_phase28_v0287_native_move_automatic_shell.js
+node tests/test_phase28_v0288_tab_session_popup_execute.js
+node tests/test_phase28_v0289_source_integrity.js
+node tests/test_phase28_v02810_extended_buildkit_source_sanitizer.js
+node tests/test_phase28_v02812_full_source_syntax_integrity.js
+node tests/test_phase28_v02813_background_dashboard_bootstrap.js
 python3 tests/test_phase25_native_download_environment.py
 
 WEB_EXT_BIN="${ROOT}/.firefox-dev-tools/node_modules/.bin/web-ext"
-if [ -x "$WEB_EXT_BIN" ]; then
+if [ "${FCI_SKIP_WEB_EXT_LINT:-0}" = "1" ]; then
+  printf 'SKIP: web-ext lint disabled by FCI_SKIP_WEB_EXT_LINT for patch self-validation.\n'
+elif [ -x "$WEB_EXT_BIN" ] && "$WEB_EXT_BIN" --version >/dev/null 2>&1; then
   "$WEB_EXT_BIN" lint --source-dir "${ROOT}/extension"
+elif [ -x "$WEB_EXT_BIN" ]; then
+  printf 'SKIP: local web-ext install is incomplete; run ./tools/setup_firefox_addon_dev.sh before building.\n'
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-28 v0.28.7 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker, URL profile-routing, action-pipeline, deterministic monitor-stability, early-timer-rearm, session-recovery, compact-controls, monitor-title-spinner, multi-rule automation, runtime-isolation, forward-compatible version contracts, English-UI, title-de-duplication, help-popovers, command-presets, per-tab command-history, rule-command-actions, collision-free compact-header-controls, sanitized support-bundle export and bounded settings-snapshot rollback, verified configuration persistence, working-session save/import, separate local-action profiles, managed-download relocation, external-watcher, file-backed full shell-log, paged viewer, long-output preservation, right-aligned shell-header actions, immutable download-job snapshots, safe multi-tab attribution, persisted recovery, explicit relocation-retry and dedicated managed-download-group layout, verified local-action persistence, effective-source audit and unsaved-draft-protection no-dialog page-download-restart, capture-aware real-click, content-timer-binding, correlated download-move response, timeout, Native Host error-surfacing, page-centered completion overlay, visible destination path and current-destination retry semantics, verified manual/automatic post-download shell execution, FCI_DOWNLOAD_PATH environment binding, complete console integration and embedded Patch Tool/Native Host installation-guide, runtime sidebar-bootstrap tests, preload runtime-guard recovery diagnostics, per-tab shell persistence, completed-download execute readiness and auditable post-download shell outcome provenance, global-command-preset-library, prompt-created-preset-workflow, selected-preset saving, unrestricted command execution, immediate volatile direct commands, highest-priority volatile managed-download drafts, compact local-action status, repeatable same-version builds, historical Phase 16 global-command-preset contract compatibility, status-dot-only draft indication, completed-download manual fallback, inline/file-backed console recovery, correlated move completion and automatic shell launch.\n'
+printf 'PASS: FirefoxChatImprover Phase 04-28 v0.28.13 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker, URL profile-routing, action-pipeline, deterministic monitor-stability, early-timer-rearm, session-recovery, compact-controls, monitor-title-spinner, multi-rule automation, runtime-isolation, forward-compatible version contracts, English-UI, title-de-duplication, help-popovers, command-presets, per-tab command-history, rule-command-actions, collision-free compact-header-controls, sanitized support-bundle export and bounded settings-snapshot rollback, verified configuration persistence, working-session save/import, separate local-action profiles, managed-download relocation, external-watcher, file-backed full shell-log, paged viewer, long-output preservation, right-aligned shell-header actions, immutable download-job snapshots, safe multi-tab attribution, persisted recovery, explicit relocation-retry and dedicated managed-download-group layout, verified local-action persistence, effective-source audit and unsaved-draft-protection no-dialog page-download-restart, capture-aware real-click, content-timer-binding, correlated download-move response, timeout, Native Host error-surfacing, page-centered completion overlay, visible destination path and current-destination retry semantics, verified manual/automatic post-download shell execution, FCI_DOWNLOAD_PATH environment binding, complete console integration and embedded Patch Tool/Native Host installation-guide, runtime sidebar-bootstrap tests, preload runtime-guard recovery diagnostics, per-tab shell persistence, completed-download execute readiness and auditable post-download shell outcome provenance, global-command-preset-library, prompt-created-preset-workflow, selected-preset saving, unrestricted command execution, immediate volatile direct commands, highest-priority volatile managed-download drafts, compact local-action status, repeatable same-version builds, historical Phase 16 global-command-preset contract compatibility, status-dot-only draft indication, completed-download manual fallback, inline/file-backed console recovery, correlated move completion, automatic shell launch, same-tab session rebind, page-popup Execute readiness and full-project source-syntax validation and restart-safe background dashboard bootstrap.\n'

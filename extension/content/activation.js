@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatImproverRuntimeV6";
-  const RUNTIME_VERSION = 19;
+  const RUNTIME_VERSION = 20;
   const previousRuntime = globalThis[INSTANCE_KEY];
   if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
@@ -180,7 +180,7 @@
   }
 
 
-  const DOWNLOAD_COMPLETION_HOST_ID = "__firefoxChatImproverDownloadCompletion";
+  const DOWNLOAD_COMPLETION_HOST_ID = "__firefoxChatImproverDownloadCompletion"; /* Phase 28 v0.28.8: popup shell readiness follows run state, not editor mode. */
   let downloadCompletionHost = null;
 
   function removeDownloadCompletionOverlay() {
@@ -284,18 +284,7 @@
       }
     });
 
-    const shellButton = document.createElement("button");
-    shellButton.type = "button";
-    const shellMode = ["disabled", "manual", "automatic"].includes(payload.shellExecutionMode) ? payload.shellExecutionMode : "manual";
-    shellButton.textContent = shellMode === "automatic" ? "Shell command starting automatically" : "Execute shell command";
-    shellButton.disabled = !payload.shellAvailable || shellMode !== "manual";
-    shellButton.title = !payload.shellAvailable
-      ? "No shell command is configured for this download."
-      : (shellMode === "automatic" ? "The frozen download command is started automatically in background mode." : "Run the shell command captured with this download.");
-    if (shellMode === "automatic" && payload.shellAvailable) {
-      status.textContent = "The shell command is starting automatically. The complete console will open in the add-on when it finishes and remains available afterward.";
-    }
-    shellButton.addEventListener("click", async () => {
+    const shellButton = document.createElement("button"); shellButton.type = "button"; const shellMode = ["disabled", "manual", "automatic"].includes(payload.shellExecutionMode) ? payload.shellExecutionMode : "manual"; const shellStatus = String(payload.shellStatus || "idle"); const shellRunId = String(payload.shellRunId || ""); const shellBusy = ["starting", "running", "stopping"].includes(shellStatus); const shellAlreadyStarted = Boolean(shellRunId); const declaredReady = typeof payload.shellReady === "boolean" ? payload.shellReady : Boolean(payload.shellAvailable); const shellReady = Boolean(declaredReady && !shellBusy && !shellAlreadyStarted); const manualFallback = Boolean(payload.manualFallback || (shellMode === "automatic" && shellReady)); shellButton.textContent = shellBusy || shellAlreadyStarted ? "Shell command already started" : "Execute shell command"; shellButton.disabled = !shellReady; shellButton.title = String(payload.shellReason || (!declaredReady ? "No shell command is ready for this download." : (shellBusy || shellAlreadyStarted ? "The frozen command has already been started for this download." : "Run the shell command captured with this download in background mode."))); if (shellBusy || shellAlreadyStarted) { status.textContent = "The shell command has already been started. The complete console remains available in the add-on."; } else if (manualFallback) { status.textContent = "Automatic start did not create a run. A manual fallback is available."; } shellButton.addEventListener("click", async () => {
       if (payload.confirmBeforeRun && !window.confirm("Execute the configured shell command for this completed download?")) {
         return;
       }
