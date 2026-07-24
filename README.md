@@ -360,3 +360,12 @@ Managed-download destination, capture, conflict, completion, auto-shell, status,
 
 Details: `document/PHASE_23_V0_23_1_DOWNLOAD_GROUP_LAYOUT.md`.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE23_V0231_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE24_BEGIN -->
+## Phase 24 — Verified local-action saves and protected drafts
+
+The Local action profile header now shows Saved/Unsaved state and the effective configuration source. Switching tabs/profiles or applying/resetting local-action settings protects unsaved download and shell edits. Profile and tab-override saves are read back and verified before success is reported.
+
+Details: `document/PHASE_24_LOCAL_ACTION_SAVE_GUARD.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE24_END -->

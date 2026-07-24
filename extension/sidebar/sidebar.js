@@ -21,7 +21,7 @@
     targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), exportSupportBundleButton: $("#exportSupportBundleButton"), clearLogsButton: $("#clearLogsButton"),
-    localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), executeShellAfterMove: $("#executeShellAfterMove"), downloadStateSummary: $("#downloadStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
+    localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), executeShellAfterMove: $("#executeShellAfterMove"), downloadStateSummary: $("#downloadStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
     shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"),
@@ -43,6 +43,8 @@
   let formConfigDraft = Settings.defaultConfig();
   let shellPresetsDraft = [];
   let selectedShellPresetId = "";
+  let localActionBaseline = { profileId: null, tabId: null, profileName: "", config: LocalActions.defaultConfig(), fingerprint: "" };
+  let localActionDraftDirty = false;
   let busy = false;
   let activeTabRefreshSerial = 0;
   let collapsedGroups = {};
@@ -72,6 +74,70 @@
   function showMessage(text = "", level = "info") {
     elements.messageBox.textContent = text;
     elements.messageBox.dataset.level = level;
+  }
+
+  function currentLocalActionFingerprint(config = null, profileName = null) {
+    const normalized = config ? LocalActions.normalizeConfig(config) : readLocalActionConfig();
+    return JSON.stringify({
+      profileId: selectedLocalActionProfileId || null,
+      tabId: Number.isInteger(Number(selectedTabId)) ? Number(selectedTabId) : null,
+      profileName: String(profileName ?? elements.localActionProfileName?.value ?? "").trim(),
+      config: LocalActions.configFingerprint(normalized)
+    });
+  }
+
+  function renderLocalActionDraftStatus() {
+    const card = document.querySelector('section.card[data-group-id="local-actions"]');
+    if (card) card.dataset.dirty = localActionDraftDirty ? "true" : "false";
+    if (elements.localActionDraftStatus) {
+      elements.localActionDraftStatus.dataset.state = localActionDraftDirty ? "warning" : "online";
+      elements.localActionDraftStatus.textContent = localActionDraftDirty ? "Unsaved" : "Saved";
+      elements.localActionDraftStatus.title = localActionDraftDirty
+        ? "The displayed download or shell settings differ from persisted storage."
+        : "The displayed local-action settings match persisted storage.";
+    }
+    if (elements.revertLocalActionDraftButton) {
+      elements.revertLocalActionDraftButton.disabled = busy || !localActionDraftDirty;
+    }
+  }
+
+  function captureLocalActionBaseline(rawConfig) {
+    const config = LocalActions.normalizeConfig(rawConfig);
+    const profileName = elements.localActionProfileName?.value?.trim() || "";
+    localActionBaseline = {
+      profileId: selectedLocalActionProfileId || null,
+      tabId: Number.isInteger(Number(selectedTabId)) ? Number(selectedTabId) : null,
+      profileName,
+      config: LocalActions.clone(config),
+      fingerprint: currentLocalActionFingerprint(config, profileName)
+    };
+    localActionDraftDirty = false;
+    renderLocalActionDraftStatus();
+  }
+
+  function updateLocalActionDraftState() {
+    if (!localActionBaseline.fingerprint) return;
+    localActionDraftDirty = currentLocalActionFingerprint() !== localActionBaseline.fingerprint;
+    renderLocalActionDraftStatus();
+  }
+
+  function confirmDiscardLocalActionDraft(action) {
+    if (!localActionDraftDirty) return true;
+    return confirm(`Discard unsaved local-action edits before ${action}?`);
+  }
+
+  function revertLocalActionDraft() {
+    selectedLocalActionProfileId = localActionBaseline.profileId || selectedLocalActionProfileId;
+    elements.localActionProfileSelect.value = selectedLocalActionProfileId || "";
+    elements.localActionProfileName.value = localActionBaseline.profileName;
+    writeLocalActionConfig(localActionBaseline.config);
+    showMessage("Unsaved local-action edits reverted.", "success");
+  }
+
+  function assertSavedLocalActionConfig(expected, actual, label) {
+    if (LocalActions.configFingerprint(expected) !== LocalActions.configFingerprint(actual)) {
+      throw new Error(`${label}: Firefox storage returned different local-action data.`);
+    }
   }
 
   function persistSidebarUi() {
@@ -714,6 +780,7 @@
     renderShellPresetOptions();
     renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
     renderShellHistory();
+    captureLocalActionBaseline(value);
   }
 
   function readLocalActionConfig() {
@@ -760,13 +827,30 @@
     elements.localActionProfileSelect.value = selectedLocalActionProfileId || "";
     const profile = localActionProfileById(selectedLocalActionProfileId);
     elements.localActionProfileName.value = profile?.name || "";
+    const effectiveProfileName = session?.localActionProfileName || profile?.name || routed.profileName || "—";
     elements.localActionModeStatus.textContent = session
-      ? `${session.localActionConfigMode === CONFIG_MODE.TAB ? "Tab-specific" : "Profile-based"} · ${session.localActionProfileName || profile?.name || "—"}`
-      : `URL route: ${routed.profileName || "—"}`;
+      ? `${session.localActionConfigMode === CONFIG_MODE.TAB ? "Tab-specific" : "Profile-based"} · ${effectiveProfileName}`
+      : `${routed.matched ? "URL-routed" : "Default"} · ${effectiveProfileName}`;
+    elements.localActionModeStatus.dataset.state = session?.localActionConfigMode === CONFIG_MODE.TAB ? "warning" : "online";
+    if (session?.localActionConfigMode === CONFIG_MODE.TAB) {
+      elements.localActionSourceSummary.dataset.state = "tab";
+      elements.localActionSourceSummary.textContent = `Effective source: tab override for tab ${session.tabId}. Assigned profile “${effectiveProfileName}” remains the fallback.`;
+    } else if (session) {
+      elements.localActionSourceSummary.dataset.state = "profile";
+      elements.localActionSourceSummary.textContent = `Effective source: assigned profile “${effectiveProfileName}” for tab ${session.tabId}.`;
+    } else if (routed.matched) {
+      const pattern = routed.candidates?.[0]?.bestPattern || "matching URL rule";
+      elements.localActionSourceSummary.dataset.state = "route";
+      elements.localActionSourceSummary.textContent = `Effective source: URL-routed profile “${effectiveProfileName}” via ${pattern}.`;
+    } else {
+      elements.localActionSourceSummary.dataset.state = "profile";
+      elements.localActionSourceSummary.textContent = `Effective source: default local-action profile “${effectiveProfileName}”.`;
+    }
     elements.assignLocalActionProfileButton.disabled = busy || !session;
     elements.saveTabLocalActionsButton.disabled = busy || !session;
     elements.resetTabLocalActionsButton.disabled = busy || !session || session.localActionConfigMode !== CONFIG_MODE.TAB;
     elements.deleteLocalActionProfileButton.disabled = busy || store.profiles.length <= 1;
+    renderLocalActionDraftStatus();
   }
 
   function renderDownloadState() {
@@ -1498,27 +1582,71 @@ Command:
 ${shell.command}`;
   }
 
-  function saveLocalActionProfile() {
+  async function saveLocalActionProfile() {
     const profile = localActionProfileById(selectedLocalActionProfileId);
     if (!profile) {
       showMessage("Select a local-action profile first.", "error");
       return;
     }
-    const config = readLocalActionConfig();
-    void request(MESSAGE.SAVE_LOCAL_ACTION_PROFILE, {
-      profile: { ...profile, name: elements.localActionProfileName.value.trim() || profile.name, config }
-    }, "Local-action profile saved.");
+    const validation = LocalActions.validateConfig(readLocalActionConfig());
+    if (!validation.ok) {
+      showMessage(validation.errors.join("\n"), "error");
+      return;
+    }
+    const name = elements.localActionProfileName.value.trim() || profile.name;
+    setBusy(true);
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.SAVE_LOCAL_ACTION_PROFILE,
+        profile: { ...profile, name, config: validation.config }
+      });
+      if (!response?.ok) throw new Error(response?.error || "Could not save the local-action profile.");
+      assertSavedLocalActionConfig(validation.config, response.savedProfile?.config, "Save local-action profile");
+      if (response.savedProfile?.name !== name) throw new Error("Save local-action profile: Firefox storage returned a different profile name.");
+      dashboard = response.dashboard || dashboard;
+      selectedLocalActionProfileId = response.savedProfile.id;
+      renderSelectors(selectedTabId);
+      elements.localActionProfileName.value = response.savedProfile.name;
+      writeLocalActionConfig(response.savedProfile.config);
+      renderDetails(false);
+      showMessage(`Local-action profile “${response.savedProfile.name}” saved and verified.`, "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function saveTabLocalActions() {
-    if (!selectedSession()) {
+  async function saveTabLocalActions() {
+    const session = selectedSession();
+    if (!session) {
       showMessage("Activate the tab before saving a local-action override.", "error");
       return;
     }
-    void request(MESSAGE.SAVE_TAB_LOCAL_ACTIONS, {
-      tabId: selectedTabId,
-      config: readLocalActionConfig()
-    }, "Tab-specific local actions saved.");
+    const validation = LocalActions.validateConfig(readLocalActionConfig());
+    if (!validation.ok) {
+      showMessage(validation.errors.join("\n"), "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.SAVE_TAB_LOCAL_ACTIONS,
+        tabId: selectedTabId,
+        config: validation.config
+      });
+      if (!response?.ok) throw new Error(response?.error || "Could not save tab-specific local actions.");
+      assertSavedLocalActionConfig(validation.config, response.savedSession?.effectiveLocalActions, "Save tab local actions");
+      dashboard = response.dashboard || dashboard;
+      renderSelectors(selectedTabId);
+      writeLocalActionConfig(response.savedSession.effectiveLocalActions);
+      renderDetails(false);
+      showMessage(`Local actions for tab ${selectedTabId} saved and verified.`, "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function createLocalActionProfile() {
@@ -1738,7 +1866,13 @@ ${run.command || ""}`)) {
   }
 
   elements.tabSelect.addEventListener("change", () => {
-    selectedTabId = Number(elements.tabSelect.value);
+    const previousTabId = selectedTabId;
+    const nextTabId = Number(elements.tabSelect.value);
+    if (nextTabId !== Number(previousTabId) && !confirmDiscardLocalActionDraft("switching tabs")) {
+      elements.tabSelect.value = String(previousTabId);
+      return;
+    }
+    selectedTabId = nextTabId;
     const session = selectedSession();
     selectedProfileId = session?.profileId || dashboard.store.defaultProfileId;
     elements.profileSelect.value = selectedProfileId;
@@ -2004,27 +2138,43 @@ ${run.command || ""}`)) {
   }
 
   elements.localActionProfileSelect.addEventListener("change", () => {
-    selectedLocalActionProfileId = elements.localActionProfileSelect.value;
+    const previousProfileId = selectedLocalActionProfileId;
+    const nextProfileId = elements.localActionProfileSelect.value;
+    if (nextProfileId !== previousProfileId && !confirmDiscardLocalActionDraft("switching local-action profiles")) {
+      elements.localActionProfileSelect.value = previousProfileId || "";
+      return;
+    }
+    selectedLocalActionProfileId = nextProfileId;
     const profile = localActionProfileById(selectedLocalActionProfileId);
     elements.localActionProfileName.value = profile?.name || "";
     writeLocalActionConfig(profile?.config || LocalActions.defaultConfig());
     renderLocalActionProfileOptions();
   });
-  elements.assignLocalActionProfileButton.addEventListener("click", () => void request(MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE, {
-    tabId: selectedTabId, profileId: selectedLocalActionProfileId
-  }, "Local-action profile applied to tab."));
-  elements.newLocalActionProfileButton.addEventListener("click", createLocalActionProfile);
-  elements.saveLocalActionProfileButton.addEventListener("click", saveLocalActionProfile);
+  elements.assignLocalActionProfileButton.addEventListener("click", () => {
+    if (!confirmDiscardLocalActionDraft("applying another profile to this tab")) return;
+    void request(MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE, {
+      tabId: selectedTabId, profileId: selectedLocalActionProfileId
+    }, "Local-action profile applied to tab.");
+  });
+  elements.newLocalActionProfileButton.addEventListener("click", () => {
+    if (confirmDiscardLocalActionDraft("creating a new local-action profile")) createLocalActionProfile();
+  });
+  elements.saveLocalActionProfileButton.addEventListener("click", () => void saveLocalActionProfile());
   elements.deleteLocalActionProfileButton.addEventListener("click", () => {
     const profile = localActionProfileById(selectedLocalActionProfileId);
-    if (profile && confirm(`Delete local-action profile “${profile.name}”?`)) {
+    if (!profile || !confirmDiscardLocalActionDraft("deleting this local-action profile")) return;
+    if (confirm(`Delete local-action profile “${profile.name}”?`)) {
       void request(MESSAGE.DELETE_LOCAL_ACTION_PROFILE, { profileId: profile.id }, "Local-action profile deleted.");
     }
   });
-  elements.saveTabLocalActionsButton.addEventListener("click", saveTabLocalActions);
-  elements.resetTabLocalActionsButton.addEventListener("click", () => void request(MESSAGE.RESET_TAB_LOCAL_ACTIONS, {
-    tabId: selectedTabId
-  }, "This tab now uses its local-action profile."));
+  elements.saveTabLocalActionsButton.addEventListener("click", () => void saveTabLocalActions());
+  elements.resetTabLocalActionsButton.addEventListener("click", () => {
+    if (!confirmDiscardLocalActionDraft("removing the tab override")) return;
+    void request(MESSAGE.RESET_TAB_LOCAL_ACTIONS, {
+      tabId: selectedTabId
+    }, "This tab now uses its local-action profile.");
+  });
+  elements.revertLocalActionDraftButton.addEventListener("click", revertLocalActionDraft);
   elements.retryDownloadMoveButton.addEventListener("click", () => void request(MESSAGE.RETRY_DOWNLOAD_MOVE, {
     tabId: selectedTabId
   }, "Download relocation retry started."));
@@ -2032,6 +2182,18 @@ ${run.command || ""}`)) {
   elements.acknowledgeDownloadButton.addEventListener("click", () => {
     if (elements.downloadCompletionDialog.open) elements.downloadCompletionDialog.close();
   });
+
+  for (const element of [
+    elements.localActionProfileName, elements.localActionRoutingEnabled, elements.localActionRoutingPriority,
+    elements.localActionUrlPatterns, elements.managedDownloadEnabled, elements.downloadDestinationDirectory,
+    elements.downloadCaptureWindowSeconds, elements.downloadConflictAction, elements.showDownloadCompletionDialog,
+    elements.executeShellAfterMove, elements.shellPresetName, elements.shellPresetEnabled,
+    elements.requireShellPresetMatch, elements.workingDirectory, elements.shellCommand, elements.shellMode,
+    elements.confirmBeforeRun, elements.rememberShellHistory, elements.shellHistoryLimit
+  ]) {
+    element.addEventListener("input", updateLocalActionDraftState);
+    element.addEventListener("change", updateLocalActionDraftState);
+  }
 
   elements.logChannel.addEventListener("change", renderActivityLog);
   elements.copyLogsButton.addEventListener("click", () => void copySelectedLogs());

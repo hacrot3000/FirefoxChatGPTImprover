@@ -291,6 +291,10 @@
     });
   }
 
+  function configFingerprint(rawConfig) {
+    return JSON.stringify(normalizeConfig(rawConfig));
+  }
+
   function validateConfig(raw) {
     const config = normalizeConfig(raw);
     const errors = [];
@@ -336,6 +340,7 @@
       matchingPreset,
       createExecutionSnapshot,
       normalizeExecutionSnapshot,
+      configFingerprint,
       validateConfig
     })
   });

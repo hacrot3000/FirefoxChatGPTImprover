@@ -2901,9 +2901,17 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
           await assignLocalActionProfile(Number(message.tabId), message.profileId);
           return { ok: true, dashboard: await dashboard() };
 
-        case MESSAGE.SAVE_TAB_LOCAL_ACTIONS:
-          await saveTabLocalActions(Number(message.tabId), message.config);
-          return { ok: true, dashboard: await dashboard() };
+        case MESSAGE.SAVE_TAB_LOCAL_ACTIONS: {
+          const tabId = Number(message.tabId);
+          await saveTabLocalActions(tabId, message.config);
+          const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
+          const savedSession = sessions.get(tabId);
+          return {
+            ok: true,
+            savedSession: savedSession ? publicSession(savedSession, store, localStore) : null,
+            dashboard: await dashboard()
+          };
+        }
 
         case MESSAGE.RESET_TAB_LOCAL_ACTIONS:
           await resetTabLocalActions(Number(message.tabId));

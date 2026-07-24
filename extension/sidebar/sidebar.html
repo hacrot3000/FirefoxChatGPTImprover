@@ -433,8 +433,19 @@
     <section class="card" data-group-id="local-actions" aria-labelledby="localActionsHeading">
       <div class="section-title-row">
         <h2 id="localActionsHeading">Local action profile</h2>
-        <span id="localActionModeStatus" class="native-status" data-state="offline">Profile-based</span>
+        <div class="group-heading-actions" role="group" aria-label="Local action profile status and help">
+          <span id="localActionDraftStatus" class="native-status" data-state="online" title="The displayed local-action settings match persisted storage.">Saved</span>
+          <span id="localActionModeStatus" class="native-status" data-state="offline">Profile-based</span>
+          <details class="help-menu heading-help-menu">
+            <summary aria-label="Local action profile help" title="Help">?</summary>
+            <div class="help-popover" role="tooltip">
+              <p>Local-action profiles are separate from automation profiles and contain both managed-download and shell settings. Use the dedicated Managed download group above and Shell command group below to edit those settings.</p>
+              <p>The source summary shows whether the current tab uses a tab override, an assigned profile, a URL-routed profile, or the default profile. Unsaved edits are protected when switching tabs or profiles.</p>
+            </div>
+          </details>
+        </div>
       </div>
+      <output id="localActionSourceSummary" class="selector-test-result" data-state="idle">Effective source is not available.</output>
       <div class="selector-grid compact-fields">
         <label>Profile<select id="localActionProfileSelect"></select></label>
         <label>Profile name<input id="localActionProfileName" type="text" autocomplete="off"></label>
@@ -453,13 +464,8 @@
       <div class="button-grid">
         <button id="saveTabLocalActionsButton" type="button">Save for this tab</button>
         <button id="resetTabLocalActionsButton" type="button">Use profile for tab</button>
+        <button id="revertLocalActionDraftButton" type="button" disabled>Revert unsaved edits</button>
       </div>
-      <details class="help-menu">
-        <summary aria-label="Local action profile help" title="Help">?</summary>
-        <div class="help-popover" role="tooltip">
-          Local-action profiles are separate from automation profiles and contain both managed-download and shell settings. Use the dedicated Managed download group above and Shell command group below to edit those settings, then save the selected profile or tab override here. URL routing and per-tab assignment remain independent from automation profiles.
-        </div>
-      </details>
     </section>
 
     <section class="card" data-group-id="shell" aria-labelledby="shellHeading">
