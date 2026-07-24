@@ -862,10 +862,12 @@
     elements.downloadStateSummary.textContent = state.moveAttempt > 1 ? `${text} · attempt ${state.moveAttempt}` : text;
     elements.retryDownloadMoveButton.disabled = busy || !state.retryable || state.status !== "error";
     const config = selectedSession()?.effectiveLocalActions || localActionProfileById(selectedLocalActionProfileId)?.config || LocalActions.defaultConfig();
-    if (state.status === "completed" && state.destinationPath && config.download.showCompletionDialog && lastShownDownloadCaptureByTab.get(Number(selectedTabId)) !== state.captureId) {
-      lastShownDownloadCaptureByTab.set(Number(selectedTabId), state.captureId);
-      elements.downloadCompletionMessage.textContent = "The managed download was moved successfully.";
-      elements.downloadCompletionPath.textContent = state.destinationPath;
+    if (state.status === "completed" && state.destinationPath && state.completionSurface !== "page" && config.download.showCompletionDialog && lastShownDownloadCaptureByTab.get(Number(selectedTabId)) !== (state.completionId || state.moveId || state.captureId)) {
+      lastShownDownloadCaptureByTab.set(Number(selectedTabId), state.completionId || state.moveId || state.captureId);
+      elements.downloadCompletionMessage.textContent = state.completionReason === "retry"
+        ? "The existing staging file was relocated successfully. Retry did not download the file again."
+        : "The managed download was moved successfully.";
+      elements.downloadCompletionPath.value = state.destinationPath;
       if (!elements.downloadCompletionDialog.open) elements.downloadCompletionDialog.showModal();
     }
   }

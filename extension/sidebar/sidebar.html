@@ -386,7 +386,7 @@
       <label class="check-row"><input id="executeShellAfterMove" type="checkbox">Run the configured shell command automatically after relocation</label>
       <output id="downloadStateSummary" class="selector-test-result">No managed download for this tab.</output>
       <div class="button-grid managed-download-actions">
-        <button id="retryDownloadMoveButton" type="button" disabled>Retry relocation</button>
+        <button id="retryDownloadMoveButton" type="button" disabled>Retry move to saved destination</button>
       </div>
     </section>
 
@@ -610,7 +610,7 @@
       </form>
     </dialog>
 
-    <dialog id="downloadCompletionDialog" class="working-session-dialog">
+    <dialog id="downloadCompletionDialog" class="working-session-dialog download-completion-dialog">
       <form method="dialog" class="working-session-panel">
         <header class="working-session-header">
           <div>
@@ -619,7 +619,7 @@
           </div>
           <button type="submit" class="compact icon-button" aria-label="Close">×</button>
         </header>
-        <label>Destination<input id="downloadCompletionPath" type="text" readonly></label>
+        <label>Destination<textarea id="downloadCompletionPath" readonly spellcheck="false" rows="3"></textarea></label>
         <div class="button-grid">
           <button id="executeShellAfterDownloadButton" type="button">Execute shell command</button>
           <button id="acknowledgeDownloadButton" type="submit" class="primary">OK</button>

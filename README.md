@@ -369,3 +369,24 @@ The Local action profile header now shows Saved/Unsaved state and the effective 
 
 Details: `document/PHASE_24_LOCAL_ACTION_SAVE_GUARD.md`.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE24_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE24_V0241_BEGIN -->
+## Phase 24 v0.24.1 — No-dialog managed-download fallback
+
+Page-created downloads detected through `downloads.onCreated` are canceled and restarted by the extension with `saveAs: false`, then relocated by the Native Host. This prevents the fallback path from inheriting Firefox's normal Save As dialog behavior.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE24_V0241_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE24_V0242_BEGIN -->
+## Phase 24 v0.24.2 — Capture-aware target click hotfix
+
+An armed managed-download capture now converts that one target action from dry-run to a real click, allowing the page JavaScript download to start. Firefox content timers also use lexical Window binding to prevent recovery from remaining stuck with an illegal timer receiver.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE24_V0242_END -->
+
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE24_V0243_BEGIN -->
+## Phase 24 v0.24.4 — Correlated managed-download relocation
+
+Managed-download move requests now have an end-to-end correlation ID and a bounded timeout. Native Host validation/unsupported-action errors are shown in the download group instead of leaving the job stuck in `moving`. Reinstall Native Host 0.9.1 after applying this patch.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE24_V0243_END -->

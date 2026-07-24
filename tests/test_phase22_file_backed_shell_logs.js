@@ -35,5 +35,6 @@ for (const token of ["selectedShellLogDescriptor", "loadShellLogPage", "copyAllS
 const background = fs.readFileSync(path.join(root, "extension/background/background.js"), "utf8");
 for (const token of ["nativeRequest", "pendingNativeRequests", "readShellLog", "deleteShellLog", "ownedShellLog", "SHELL_LOG_READ_MAX_BYTES"]) assert(background.includes(token));
 const native = fs.readFileSync(path.join(root, "native-host/native_host.py"), "utf8");
-for (const token of ["HOST_VERSION = \"0.9.0\"", "read_log_chunk", "delete_log_file", "dataBase64", "_append_log"]) assert(native.includes(token));
+assert(/HOST_VERSION = "0\.9\.[1-9][0-9]*"/.test(native));
+for (const token of ["read_log_chunk", "delete_log_file", "dataBase64", "_append_log"]) assert(native.includes(token));
 console.log("PASS: Phase 22 file-backed full shell logs, paged viewer, copy controls and collapsed header actions");

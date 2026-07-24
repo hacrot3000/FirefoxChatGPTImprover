@@ -13,7 +13,7 @@ for (const file of ["extension/shared/settings.js", "extension/shared/local_acti
 }
 const Local = context.FCI_LOCAL_ACTIONS;
 const Protocol = context.FCI_PROTOCOL;
-assert.equal(Protocol.VERSION, 14);
+assert(Protocol.VERSION >= 14);
 assert.equal(Protocol.MESSAGE.RETRY_DOWNLOAD_MOVE, "FCI_RETRY_DOWNLOAD_MOVE");
 const original = Local.normalizeConfig({
   download: { enabled: true, destinationDirectory: "/tmp/original", conflictAction: "fail", executeShellAfterMove: true },

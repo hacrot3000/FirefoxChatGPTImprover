@@ -105,6 +105,10 @@
       moveId: null,
       moveAttempt: 0,
       retryable: false,
+      completionId: null,
+      completionReason: null,
+      completionSurface: null,
+      completionShownAt: null,
       recoveryNote: null,
       error: null,
       completedAt: null,
@@ -303,21 +307,86 @@
     await broadcast("download-captured", capture.tabId);
   }
 
-  async function startManagedDownload(capture, url, filename) {
-    if (!capture || capture.claimed) return;
+  function managedDownloadRequest(capture, url, filename, sourceItem = null) {
     const safeName = cleanDownloadFilename(filename || (() => {
       try { return new URL(url).pathname.split("/").pop(); } catch (_error) { return "download.bin"; }
     })());
-    const relative = `FirefoxChatImprover/${capture.captureId}/${safeName}`;
-    const downloadId = await browser.downloads.download({
+    const request = {
       url,
-      filename: relative,
+      filename: `FirefoxChatImprover/${capture.captureId}/${safeName}`,
       saveAs: false,
       conflictAction: "uniquify"
-    });
+    };
+    const referrer = String(sourceItem?.referrer || "");
+    if (/^https?:/i.test(String(url || "")) && /^https?:/i.test(referrer)) {
+      request.headers = [{ name: "Referer", value: referrer }];
+    }
+    if (typeof sourceItem?.cookieStoreId === "string" && sourceItem.cookieStoreId) {
+      request.cookieStoreId = sourceItem.cookieStoreId;
+    }
+    if (sourceItem?.incognito === true) {
+      request.incognito = true;
+    }
+    return request;
+  }
+
+  async function startManagedDownload(capture, url, filename, sourceItem = null) {
+    if (!capture || capture.claimed) return;
+    const downloadId = await browser.downloads.download(
+      managedDownloadRequest(capture, url, filename, sourceItem)
+    );
     managedDownloadIds.add(downloadId);
     const results = await browser.downloads.search({ id: downloadId });
     await claimDownload(capture, results[0] || { id: downloadId, url, filename: "" }, "managed-http-download");
+  }
+
+  async function cancelAndRestartCapturedDownload(capture, item) {
+    if (!capture || capture.claimed || capture.intercepting) return;
+    capture.intercepting = true;
+    downloadCaptures.delete(capture.tabId);
+    const session = sessions.get(capture.tabId);
+    const job = downloadJobs.get(capture.tabId) || emptyDownloadState(capture.tabId);
+    Object.assign(job, {
+      captureId: capture.captureId,
+      sessionToken: capture.sessionToken,
+      configSnapshot: LocalActions.normalizeExecutionSnapshot(capture.config),
+      status: "downloading",
+      sourceUrl: item?.finalUrl || item?.url || null,
+      downloadId: null,
+      error: null,
+      retryable: false
+    });
+    downloadJobs.set(capture.tabId, job);
+    appendLog(session, "debug", "download-fallback-restart", "Canceling the page-created download and restarting it with saveAs disabled.", {
+      captureId: capture.captureId,
+      originalDownloadId: item?.id,
+      url: item?.finalUrl || item?.url || null
+    });
+    await persistDownloadState(capture.tabId);
+    await broadcast("download-restarting", capture.tabId);
+
+    try {
+      if (Number.isInteger(item?.id)) {
+        await browser.downloads.cancel(item.id).catch(() => undefined);
+        await browser.downloads.erase({ id: item.id }).catch(() => undefined);
+      }
+      const url = String(item?.finalUrl || item?.url || "");
+      if (!url) throw new Error("Firefox did not expose a URL for the page-created download.");
+      await startManagedDownload(capture, url, cleanDownloadFilename(item?.filename || "download.bin"), item);
+    } catch (error) {
+      Object.assign(job, {
+        status: "error",
+        retryable: false,
+        error: `The page-created download was canceled, but the managed no-dialog restart failed: ${error instanceof Error ? error.message : String(error)}`,
+        completedAt: Settings.nowIso()
+      });
+      appendLog(session, "user", "download-restart-error", job.error, {
+        captureId: capture.captureId,
+        originalDownloadId: item?.id
+      });
+      await persistDownloadState(capture.tabId);
+      await broadcast("download-capture-error", capture.tabId);
+    }
   }
 
   async function moveCompletedDownload(tabId, downloadItem, options = {}) {
@@ -358,39 +427,130 @@
     job.moveId = moveId;
     job.moveAttempt = Math.max(0, Number(job.moveAttempt) || 0) + 1;
     job.retryable = false;
-    job.recoveryNote = options.recovery ? "Resumed after background recovery." : (options.retry ? "Manual relocation retry." : null);
+    job.destinationPath = null;
+    job.size = null;
+    job.completedAt = null;
+    job.completionId = null;
+    job.completionReason = options.retry ? "retry" : (options.recovery ? "recovery" : "initial");
+    job.completionSurface = null;
+    job.completionShownAt = null;
+    job.recoveryNote = options.recovery ? "Resumed after background recovery." : (options.retry ? "Manual relocation retry using the currently saved destination." : null);
     job.error = null;
     downloadMoveToTab.set(moveId, numericTabId);
-    try {
-      const port = ensureNativePort();
-      port.postMessage({
-        action: "move_download",
-        moveId,
-        tabId: numericTabId,
-        sourcePath,
-        destinationDirectory: config.download.destinationDirectory,
-        conflictAction: config.download.conflictAction
-      });
-    } catch (error) {
-      downloadMoveToTab.delete(moveId);
-      job.status = "error";
-      job.retryable = true;
-      job.error = error instanceof Error ? error.message : String(error);
-      job.completedAt = Settings.nowIso();
-      await persistDownloadState(numericTabId);
-      await broadcast("download-move-error", numericTabId);
-      return;
-    }
     appendLog(session, "debug", "download-move-request", "Native Host download relocation requested from the captured immutable local-action snapshot.", {
       moveId,
       sourcePath,
       destinationDirectory: config.download.destinationDirectory,
       localActionProfileId: job.localActionProfileId,
       localActionRevision: job.localActionRevision,
-      moveAttempt: job.moveAttempt
+      moveAttempt: job.moveAttempt,
+      nativeHostVersion: nativeState.hostVersion || null
     });
     await persistDownloadState(numericTabId);
     await broadcast("download-moving", numericTabId);
+    try {
+      // Correlate move success, validation errors and unsupported-host errors
+      // with the same moveId. The previous fire-and-forget path could leave a
+      // job in `moving` forever when the host returned an uncorrelated error.
+      const response = await nativeRequest("move_download", {
+        moveId,
+        tabId: numericTabId,
+        sourcePath,
+        destinationDirectory: config.download.destinationDirectory,
+        conflictAction: config.download.conflictAction
+      }, 20000, moveId);
+      await handleNativeDownloadMessage(response);
+    } catch (error) {
+      downloadMoveToTab.delete(moveId);
+      if (job.status === "completed") return;
+      job.status = "error";
+      job.error = error instanceof Error ? error.message : String(error);
+      const missingStagingFile = /source file does not exist|downloaded source file does not exist/i.test(job.error);
+      job.retryable = Boolean(job.sourcePath) && !missingStagingFile;
+      if (missingStagingFile) {
+        job.error += " The staging file is no longer available; trigger the target again to download a new file.";
+      }
+      if (/not supported/i.test(job.error)) {
+        job.error += " Reinstall the Native Host from this add-on version, then retry relocation.";
+      }
+      job.completedAt = Settings.nowIso();
+      appendLog(session, "user", "download-error", job.error, {
+        moveId,
+        sourcePath,
+        destinationDirectory: config.download.destinationDirectory,
+        nativeHostVersion: nativeState.hostVersion || null
+      });
+      if (session) {
+        session.downloadJob = publicDownloadState(numericTabId);
+        await persistSession(session);
+      }
+      await persistDownloadState(numericTabId);
+      await broadcast("download-move-error", numericTabId);
+    }
+  }
+
+  async function showDownloadCompletion(tabId, job, session) {
+    if (!job?.showCompletionDialog || !session || job.sessionToken !== session.sessionToken) {
+      job.completionSurface = null;
+      return false;
+    }
+    const config = jobExecutionConfig(job);
+    const shellAvailable = Boolean(config.shell.workingDirectory.trim() && config.shell.command.trim());
+    try {
+      const response = await browser.tabs.sendMessage(Number(tabId), {
+        type: MESSAGE.CONTENT_SHOW_DOWNLOAD_COMPLETION,
+        payload: {
+          captureId: job.captureId,
+          completionId: job.completionId,
+          destinationPath: job.destinationPath,
+          filename: job.filename,
+          size: job.size,
+          retry: job.completionReason === "retry",
+          shellAvailable,
+          confirmBeforeRun: Boolean(config.shell.confirmBeforeRun)
+        }
+      });
+      if (response?.ok && response?.shown) {
+        job.completionSurface = "page";
+        job.completionShownAt = Settings.nowIso();
+        return true;
+      }
+    } catch (_error) {
+      // A restricted, unloaded or navigated page may not have the content
+      // runtime. The sidebar completion dialog remains the fallback.
+    }
+    job.completionSurface = "sidebar";
+    return false;
+  }
+
+  async function runCompletedDownloadShell(message, sender) {
+    const tabId = Number(sender?.tab?.id);
+    if (!Number.isInteger(tabId)) {
+      throw new Error("The completed-download shell action must come from the original tab.");
+    }
+    const session = sessions.get(tabId);
+    const job = downloadJobs.get(tabId);
+    const captureId = String(message?.payload?.captureId || "");
+    if (!session || !job || job.status !== "completed" || !captureId || job.captureId !== captureId) {
+      throw new Error("This completed download is no longer available for shell execution.");
+    }
+    if (job.sessionToken !== session.sessionToken) {
+      throw new Error("The tab session changed after the download completed.");
+    }
+    const config = jobExecutionConfig(job);
+    if (config.shell.confirmBeforeRun && message?.payload?.confirmed !== true) {
+      throw new Error("Shell execution confirmation is required.");
+    }
+    const shell = validateShellPayload({
+      tabId,
+      cwd: config.shell.workingDirectory,
+      command: config.shell.command,
+      mode: config.shell.mode
+    }, config);
+    return startShellRunForSession(session, config, shell, {
+      source: "download",
+      trigger: "download-completion-page"
+    });
   }
 
   async function handleNativeDownloadMessage(message) {
@@ -400,12 +560,17 @@
     const job = downloadJobs.get(tabId) || emptyDownloadState(tabId);
     const session = sessions.get(tabId);
     if (message.event === "download_moved") {
+      const verifiedDestinationPath = String(message.destinationPath || "").trim();
+      if (!verifiedDestinationPath.startsWith("/")) {
+        throw new Error("The Native Host reported success without a valid absolute destination path.");
+      }
       Object.assign(job, {
         status: "completed",
-        destinationPath: String(message.destinationPath || ""),
+        destinationPath: verifiedDestinationPath,
         filename: String(message.filename || job.filename || ""),
-        size: Number(message.size || 0),
+        size: Math.max(0, Number(message.size || 0)),
         completedAt: Settings.nowIso(),
+        completionId: String(message.moveId || job.moveId || crypto.randomUUID()),
         retryable: false,
         recoveryNote: null,
         error: null
@@ -452,6 +617,12 @@
         });
         await persistSession(session);
       }
+      await showDownloadCompletion(tabId, job, session);
+      if (session) {
+        session.downloadJob = publicDownloadState(tabId);
+        await persistSession(session);
+      }
+      await persistDownloadState(tabId);
       await broadcast("download-completed", tabId);
       return;
     }
@@ -498,10 +669,10 @@
   }
 
   async function onBrowserDownloadCreated(item) {
-    if (managedDownloadIds.has(item.id)) return;
+    if (managedDownloadIds.has(item.id) || item?.byExtensionId === browser.runtime.id) return;
     const capture = captureForDownloadItem(item);
     if (!capture) return;
-    await claimDownload(capture, item, "browser-download-fallback");
+    await cancelAndRestartCapturedDownload(capture, item);
   }
 
   async function onBrowserDownloadChanged(delta) {
@@ -536,10 +707,43 @@
       throw new Error("This tab has no managed download job to retry.");
     }
     if (job.status !== "error" || !job.retryable || !job.sourcePath) {
-      throw new Error("The managed download relocation is not retryable.");
+      throw new Error("The managed download relocation is not retryable. Trigger the target again to create a new download.");
     }
+    const localStore = await loadLocalActionStore();
+    const currentConfig = sessionLocalActionConfig(session, localStore);
+    if (!currentConfig.download.enabled || !currentConfig.download.destinationDirectory.startsWith("/")) {
+      throw new Error("Save a valid absolute Managed download destination before retrying the move.");
+    }
+    const capturedConfig = jobExecutionConfig(job, currentConfig);
+    job.configSnapshot = LocalActions.createExecutionSnapshot({
+      ...capturedConfig,
+      download: {
+        ...capturedConfig.download,
+        enabled: true,
+        destinationDirectory: currentConfig.download.destinationDirectory,
+        conflictAction: currentConfig.download.conflictAction,
+        showCompletionDialog: currentConfig.download.showCompletionDialog
+      }
+    });
+    job.destinationDirectory = currentConfig.download.destinationDirectory;
+    job.showCompletionDialog = currentConfig.download.showCompletionDialog;
+    job.destinationPath = null;
+    job.completionId = null;
+    job.completionSurface = null;
+    job.completionShownAt = null;
+    appendLog(session, "debug", "download-retry-request", "Retry relocation uses the currently saved destination and the existing staging file; it does not download the URL again.", {
+      captureId: job.captureId,
+      sourcePath: job.sourcePath,
+      destinationDirectory: currentConfig.download.destinationDirectory,
+      previousDestinationDirectory: capturedConfig.download.destinationDirectory
+    });
+    await persistDownloadState(tabId);
     await moveCompletedDownload(tabId, { id: job.downloadId, filename: job.sourcePath }, { retry: true, force: true });
-    return publicDownloadState(tabId);
+    const result = publicDownloadState(tabId);
+    if (result.status !== "completed") {
+      throw new Error(result.error || "The relocation retry did not complete.");
+    }
+    return result;
   }
 
   async function recoverDownloadJob(session) {
@@ -600,15 +804,15 @@
     shellBroadcastTimers.set(tabId, timer);
   }
 
-  function nativeRequest(action, payload = {}, timeoutMs = 15000) {
-    const requestId = crypto.randomUUID();
+  function nativeRequest(action, payload = {}, timeoutMs = 15000, requestIdOverride = null) {
+    const requestId = String(requestIdOverride || crypto.randomUUID());
     const port = ensureNativePort();
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         pendingNativeRequests.delete(requestId);
-        reject(new Error(`Native Host request timed out: ${action}`));
+        reject(new Error(`Native Host request timed out after ${timeoutMs}ms: ${action}`));
       }, timeoutMs);
-      pendingNativeRequests.set(requestId, { resolve, reject, timer });
+      pendingNativeRequests.set(requestId, { resolve, reject, timer, action });
       port.postMessage({ action, requestId, ...payload });
     });
   }
@@ -638,7 +842,7 @@
     }
 
     const event = String(message?.event || "");
-    const requestId = String(message?.requestId || "");
+    const requestId = String(message?.requestId || message?.moveId || "");
     if (requestId && pendingNativeRequests.has(requestId)) {
       const pending = pendingNativeRequests.get(requestId);
       pendingNativeRequests.delete(requestId);
@@ -2994,6 +3198,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         case MESSAGE.RETRY_DOWNLOAD_MOVE:
           return { ok: true, download: await retryDownloadMove(message, sender), dashboard: await dashboard() };
 
+        case MESSAGE.RUN_COMPLETED_DOWNLOAD_SHELL:
+          return { ok: true, shellRun: await runCompletedDownloadShell(message, sender) };
+
         case MESSAGE.CONTENT_RUNTIME_EVENT:
           return { ok: true, runtime: await updateRuntimeFromContent(message, sender) };
 
@@ -3064,7 +3271,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.GET_DOWNLOAD_STATE,
     MESSAGE.RETRY_DOWNLOAD_MOVE,
     MESSAGE.CONTENT_RUNTIME_EVENT,
-    MESSAGE.CONTENT_PICKER_RESULT
+    MESSAGE.CONTENT_PICKER_RESULT,
+    MESSAGE.RUN_COMPLETED_DOWNLOAD_SHELL
   ]);
 
 
@@ -3112,7 +3320,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
   ]);
 
   function validateRequestSender(message, sender) {
-    if ([MESSAGE.CONTENT_RUNTIME_EVENT, MESSAGE.CONTENT_PICKER_RESULT, MESSAGE.ARM_DOWNLOAD_CAPTURE].includes(message.type)) {
+    if ([MESSAGE.CONTENT_RUNTIME_EVENT, MESSAGE.CONTENT_PICKER_RESULT, MESSAGE.ARM_DOWNLOAD_CAPTURE, MESSAGE.RUN_COMPLETED_DOWNLOAD_SHELL].includes(message.type)) {
       if (!Number.isInteger(sender?.tab?.id)) {
         throw new Error("Content events are accepted only from a content script in a tab.");
       }

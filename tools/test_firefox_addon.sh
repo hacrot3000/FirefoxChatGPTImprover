@@ -44,6 +44,11 @@ python3 tests/test_phase22_native_log_store.py
 node tests/test_phase23_immutable_download_jobs.js
 node tests/test_phase23_v0231_download_group_layout.js
 node tests/test_phase24_local_action_save_guard.js
+node tests/test_phase24_v0241_no_dialog_download_restart.js
+node tests/test_phase24_v0242_capture_aware_click_timer_binding.js
+node tests/test_phase24_v0243_correlated_download_move.js
+python3 tests/test_phase24_v0243_native_move_correlation.py
+node tests/test_phase24_v0244_page_completion_retry_semantics.js
 
 WEB_EXT_BIN="${ROOT}/.firefox-dev-tools/node_modules/.bin/web-ext"
 if [ -x "$WEB_EXT_BIN" ]; then
@@ -51,4 +56,4 @@ if [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-24 v0.24.0 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker, URL profile-routing, action-pipeline, deterministic monitor-stability, early-timer-rearm, session-recovery, compact-controls, monitor-title-spinner, multi-rule automation, runtime-isolation, forward-compatible version contracts, English-UI, title-de-duplication, help-popovers, command-presets, background-enforced allowlist, per-tab command-history, rule-command-actions, collision-free compact-header-controls, sanitized support-bundle export and bounded settings-snapshot rollback, verified configuration persistence, working-session save/import, separate local-action profiles, managed-download relocation, external-watcher, file-backed full shell-log, paged viewer, long-output preservation, right-aligned shell-header actions, immutable download-job snapshots, safe multi-tab attribution, persisted recovery, explicit relocation-retry and dedicated managed-download-group layout, verified local-action persistence, effective-source audit and unsaved-draft-protection tests.\n'
+printf 'PASS: FirefoxChatImprover Phase 04-24 v0.24.4 static, unit, integration-contract, security, release-tooling, alert lifecycle, element-picker, URL profile-routing, action-pipeline, deterministic monitor-stability, early-timer-rearm, session-recovery, compact-controls, monitor-title-spinner, multi-rule automation, runtime-isolation, forward-compatible version contracts, English-UI, title-de-duplication, help-popovers, command-presets, background-enforced allowlist, per-tab command-history, rule-command-actions, collision-free compact-header-controls, sanitized support-bundle export and bounded settings-snapshot rollback, verified configuration persistence, working-session save/import, separate local-action profiles, managed-download relocation, external-watcher, file-backed full shell-log, paged viewer, long-output preservation, right-aligned shell-header actions, immutable download-job snapshots, safe multi-tab attribution, persisted recovery, explicit relocation-retry and dedicated managed-download-group layout, verified local-action persistence, effective-source audit and unsaved-draft-protection no-dialog page-download-restart, capture-aware real-click, content-timer-binding, correlated download-move response, timeout, Native Host error-surfacing, page-centered completion overlay, visible destination path and current-destination retry semantics tests.\n'

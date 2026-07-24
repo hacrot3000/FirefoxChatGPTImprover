@@ -111,19 +111,33 @@
   }
 
   function createAlertController({ onRuntime, clock } = {}) {
-    const schedulerSource = clock && typeof clock === "object" ? clock : globalThis;
-    const nowFunction = typeof clock?.now === "function" ? clock.now : Date.now;
-    const setTimeoutFunction = typeof clock?.setTimeout === "function" ? clock.setTimeout : globalThis.setTimeout;
-    const clearTimeoutFunction = typeof clock?.clearTimeout === "function" ? clock.clearTimeout : globalThis.clearTimeout;
-    const setIntervalFunction = typeof clock?.setInterval === "function" ? clock.setInterval : globalThis.setInterval;
-    const clearIntervalFunction = typeof clock?.clearInterval === "function" ? clock.clearInterval : globalThis.clearInterval;
-    const scheduler = {
-      now: () => Reflect.apply(nowFunction, schedulerSource, []),
-      setTimeout: (callback, delay) => Reflect.apply(setTimeoutFunction, schedulerSource, [callback, delay]),
-      clearTimeout: (timerId) => Reflect.apply(clearTimeoutFunction, schedulerSource, [timerId]),
-      setInterval: (callback, delay) => Reflect.apply(setIntervalFunction, schedulerSource, [callback, delay]),
-      clearInterval: (timerId) => Reflect.apply(clearIntervalFunction, schedulerSource, [timerId])
-    };
+    const customClock = clock && typeof clock === "object" ? clock : null;
+    const scheduler = customClock
+      ? {
+        now: () => typeof customClock.now === "function" ? Reflect.apply(customClock.now, customClock, []) : Date.now(),
+        setTimeout: (callback, delay) => typeof customClock.setTimeout === "function"
+          ? Reflect.apply(customClock.setTimeout, customClock, [callback, delay])
+          : setTimeout(callback, delay),
+        clearTimeout: (timerId) => typeof customClock.clearTimeout === "function"
+          ? Reflect.apply(customClock.clearTimeout, customClock, [timerId])
+          : clearTimeout(timerId),
+        setInterval: (callback, delay) => typeof customClock.setInterval === "function"
+          ? Reflect.apply(customClock.setInterval, customClock, [callback, delay])
+          : setInterval(callback, delay),
+        clearInterval: (timerId) => typeof customClock.clearInterval === "function"
+          ? Reflect.apply(customClock.clearInterval, customClock, [timerId])
+          : clearInterval(timerId)
+      }
+      : {
+        // Firefox content-script timer methods can reject a wrapper object as
+        // `this`. Calling the lexical browser globals directly avoids the
+        // "does not implement interface Window" failure seen during recovery.
+        now: () => Date.now(),
+        setTimeout: (callback, delay) => setTimeout(callback, delay),
+        clearTimeout: (timerId) => clearTimeout(timerId),
+        setInterval: (callback, delay) => setInterval(callback, delay),
+        clearInterval: (timerId) => clearInterval(timerId)
+      };
     let config = Settings.defaultConfig();
     let mode = MODE.INACTIVE;
     let runtime = {};

@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Callable
 
 HOST_NAME = "com.duongtc.firefox_chat_assistant"
-HOST_VERSION = "0.9.0"
+HOST_VERSION = "0.9.1"
 MAX_MESSAGE_BYTES = 1024 * 1024
 MAX_COMMAND_CHARS = 32768
 MAX_OUTPUT_CHUNK_CHARS = 65536
@@ -192,6 +192,7 @@ def move_download(message: dict[str, Any]) -> dict[str, Any]:
     shutil.move(str(source), str(destination))
     return {
         "event": "download_moved",
+        "requestId": message.get("requestId"),
         "moveId": move_id,
         "tabId": tab_id,
         "sourcePath": str(source),
@@ -590,6 +591,7 @@ def run_host(reader: BinaryIO = sys.stdin.buffer, writer: MessageWriter | None =
                 output.send({
                     "event": "error",
                     "requestId": message.get("requestId"),
+                    "moveId": message.get("moveId"),
                     "runId": message.get("runId"),
                     "tabId": message.get("tabId"),
                     "error": str(error),

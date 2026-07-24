@@ -122,6 +122,10 @@
     return Math.max(0, Number(currentCount || 0) - Number(baselineCount || 0) - Number(handledCount || 0));
   }
 
+  function effectiveDryRunForCapture(requestedDryRun, captureResult) {
+    return Boolean(requestedDryRun) && !Boolean(captureResult?.armed);
+  }
+
   function clearActionHighlights() {
     if (activeActionCleanup) {
       activeActionCleanup();
@@ -525,6 +529,7 @@
 
     async function performAction(selected) {
       let lastError = null;
+      let captureResult = { armed: false, reason: "unavailable" };
       const actedElements = [];
       for (const item of selected) {
         const element = item.element;
@@ -540,20 +545,27 @@
         }
         actedElements.push(element);
       }
-      if (actedElements.length && !config.target.dryRun && typeof onBeforeClick === "function") {
+      if (actedElements.length && typeof onBeforeClick === "function") {
         try {
-          await onBeforeClick({
+          captureResult = await onBeforeClick({
             ruleId: config.activeRuleId || null,
             cycle: monitorCycle,
-            targetCount: actedElements.length
-          });
+            targetCount: actedElements.length,
+            requestedDryRun: Boolean(config.target.dryRun)
+          }) || captureResult;
         } catch (error) {
           lastError = `Download capture could not be armed: ${error instanceof Error ? error.message : String(error)}`;
         }
       }
+      const effectiveDryRun = effectiveDryRunForCapture(config.target.dryRun, captureResult);
+      if (config.target.dryRun && !effectiveDryRun) {
+        lastError = null;
+      } else if (config.target.dryRun && captureResult?.reason === "disabled" && !lastError) {
+        lastError = "Target remained in dry-run mode because managed download capture is disabled in the saved local-action settings.";
+      }
       for (const element of actedElements) {
-        recordAction(config.target.dryRun);
-        if (!config.target.dryRun) {
+        recordAction(effectiveDryRun);
+        if (!effectiveDryRun) {
           try {
             element.click();
           } catch (error) {
@@ -562,10 +574,15 @@
         }
       }
       if (actedElements.length) {
-        highlightAction(actedElements, config.target.dryRun);
+        highlightAction(actedElements, effectiveDryRun);
         targetState = TARGET_STATE.ACTED;
       }
-      return { actedElements, lastError };
+      return {
+        actedElements,
+        lastError,
+        dryRun: effectiveDryRun,
+        captureArmed: Boolean(captureResult?.armed)
+      };
     }
 
     function pipelineCancelled(token) {
@@ -602,7 +619,7 @@
 
         pipelineState = pipeline.postActionDelayMs > 0 ? "post-delay" : "acted";
         emit({
-          lastTargetAction: config.target.dryRun ? `dry-run:${action.actedElements.length}` : `click:${action.actedElements.length}`,
+          lastTargetAction: action.dryRun ? `dry-run:${action.actedElements.length}` : `click:${action.actedElements.length}`,
           lastTargetAt: new Date().toISOString(),
           lastTargetError: action.lastError
         }, true);
@@ -611,9 +628,9 @@
           return;
         }
 
-        if (config.target.dryRun || !pipeline.verifyEnabled) {
-          pipelineState = config.target.dryRun ? "dry-run-complete" : "completed";
-          verifyResult = config.target.dryRun && pipeline.verifyEnabled
+        if (action.dryRun || !pipeline.verifyEnabled) {
+          pipelineState = action.dryRun ? "dry-run-complete" : "completed";
+          verifyResult = action.dryRun && pipeline.verifyEnabled
             ? { passed: null, skipped: true, reason: "dry-run" }
             : null;
           emit({ lastTargetAction: pipelineState }, true);
@@ -660,7 +677,7 @@
       }
       emit({
         lastTargetAction: action.actedElements.length
-          ? (config.target.dryRun ? `dry-run:${action.actedElements.length}` : `click:${action.actedElements.length}`)
+          ? (action.dryRun ? `dry-run:${action.actedElements.length}` : `click:${action.actedElements.length}`)
           : reason,
         lastTargetAt: action.actedElements.length ? new Date().toISOString() : lastRuntime?.lastTargetAt || null,
         lastTargetError: action.lastError
@@ -826,6 +843,7 @@
       elementEnabled,
       fingerprintCounts,
       newSlotCount,
+      effectiveDryRunForCapture,
       clearActionHighlights,
       testTargetAction,
       verificationSnapshot,

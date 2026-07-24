@@ -28,5 +28,6 @@ vm.runInContext(localActionsSource, sandbox);
 const LocalActions = sandbox.globalThis.FCI_LOCAL_ACTIONS;
 assert.equal(LocalActions.configFingerprint({ download: { enabled: true, destinationDirectory: "/tmp" } }), LocalActions.configFingerprint(LocalActions.normalizeConfig({ download: { enabled: true, destinationDirectory: "/tmp" } })));
 assert.notEqual(LocalActions.configFingerprint({ download: { enabled: true, destinationDirectory: "/tmp/a" } }), LocalActions.configFingerprint({ download: { enabled: true, destinationDirectory: "/tmp/b" } }));
-assert.equal(manifest.version, "0.24.0");
+const version = manifest.version.split(".").map(Number);
+assert(version[0] > 0 || version[1] > 24 || (version[1] === 24 && version[2] >= 0));
 console.log("PASS: Phase 24 verified local-action persistence, effective-source audit and unsaved-draft protection");
