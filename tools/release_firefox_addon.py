@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 from typing import Any
@@ -119,10 +120,28 @@ def run_checked(command: list[str], *, cwd: Path = PROJECT_ROOT) -> None:
     subprocess.run(command, cwd=cwd, check=True)
 
 
-def gh_release_exists(tag: str, repo: str = GITHUB_REPO) -> bool:
+def resolve_gh() -> str:
+    """Return the absolute path to the gh CLI binary, or raise a clear error."""
+    # honour an explicit override, then search PATH
+    override = os.environ.get("GH_BIN")
+    if override:
+        gh = Path(override).expanduser()
+        if gh.is_file() and os.access(gh, os.X_OK):
+            return str(gh)
+        raise ValueError(f"GH_BIN={override!r} is not an executable file.")
+    gh = shutil.which("gh")
+    if gh:
+        return gh
+    raise ValueError(
+        "GitHub CLI (gh) not found in PATH.\n"
+        "Install it from https://cli.github.com/ and run: gh auth login"
+    )
+
+
+def gh_release_exists(gh: str, tag: str, repo: str = GITHUB_REPO) -> bool:
     """Return True if the GitHub release tag already exists."""
     result = subprocess.run(
-        ["gh", "release", "view", tag, "--repo", repo],
+        [gh, "release", "view", tag, "--repo", repo],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -139,13 +158,16 @@ def publish_github_release(
     overwrite: bool = False,
 ) -> None:
     """Create (or recreate) a GitHub release and upload release assets."""
-    if gh_release_exists(tag, repo):
+    gh = resolve_gh()
+    release_already_exists = gh_release_exists(gh, tag, repo)
+    if release_already_exists:
         if not overwrite:
             raise ValueError(
                 f"GitHub release {tag} already exists. Use --overwrite to replace it."
             )
         print(f"Deleting existing GitHub release {tag} ...")
-        run_checked(["gh", "release", "delete", tag, "--repo", repo, "--yes"])
+        run_checked([gh, "release", "delete", tag, "--repo", repo, "--yes"])
+        release_already_exists = False
 
     assets = [
         str(artifact),
@@ -154,13 +176,45 @@ def publish_github_release(
     ]
     notes_file = release_dir / "RELEASE_NOTES.md"
 
-    run_checked([
-        "gh", "release", "create", tag,
-        *assets,
-        "--title", title,
-        "--notes-file", str(notes_file),
-        "--repo", repo,
-    ])
+    # Step 1: create the release (tag + notes only, no asset upload yet).
+    # This succeeds even when uploads.github.com is temporarily unreachable.
+    if not release_already_exists:
+        print(f"  Step 1/2: creating release tag {tag} ...")
+        run_checked([
+            gh, "release", "create", tag,
+            "--title", title,
+            "--notes-file", str(notes_file),
+            "--repo", repo,
+            "--draft=false",
+        ])
+        print(f"  Release created: https://github.com/{repo}/releases/tag/{tag}")
+    else:
+        print(f"  Step 1/2: release {tag} already exists — skipping create, retrying upload only.")
+
+    # Step 2: upload assets separately with retry (uploads.github.com can be flaky).
+    print(f"  Step 2/2: uploading {len(assets)} asset(s) ...")
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        try:
+            run_checked([
+                gh, "release", "upload", tag,
+                *assets,
+                "--repo", repo,
+                "--clobber",
+            ])
+            break
+        except subprocess.CalledProcessError as exc:
+            if attempt < max_attempts:
+                print(f"  Upload attempt {attempt} failed — retrying ({attempt}/{max_attempts}) ...")
+            else:
+                print(f"  Upload failed after {max_attempts} attempts.")
+                print(f"  The release exists but has no assets attached.")
+                print(f"  Retry manually with:")
+                print(f"    gh release upload {tag} {' '.join(assets)} --repo {repo} --clobber")
+                raise ValueError(
+                    f"Asset upload to GitHub failed after {max_attempts} attempts: {exc}"
+                ) from exc
+
     print(f"GitHub Release: https://github.com/{repo}/releases/tag/{tag}")
 
 
