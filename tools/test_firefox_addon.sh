@@ -75,6 +75,7 @@ node tests/test_phase28_v02817_alert_engine_upgrade_title_priority.js
 node tests/test_phase28_v02818_cumulative_runtime22_rescue.js
 node tests/test_phase28_v02819_matched_ready_timeout.js
 node tests/test_phase28_v02820_recovery_completion.js
+node tests/test_phase28_v02821_native_version_badge.js
 python3 tests/test_phase28_v02820_native_receipts_and_legacy_logs.py
 python3 tests/test_phase28_v02820_update_channel.py
 python3 tests/test_phase25_native_download_environment.py
@@ -89,5 +90,5 @@ elif [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-28 v0.28.20 full regression, source syntax, restart-resumable captures, idempotent relocation receipts, legacy log recovery, guarded self-hosted update tooling, Firefox Android 142 manifest compatibility and consolidated project status.
+printf 'PASS: FirefoxChatImprover Phase 04-28 v0.28.21 full regression, source syntax, restart-resumable captures, idempotent relocation receipts, legacy log recovery, guarded self-hosted update tooling, Firefox Android 142 compatibility, consolidated project status and fully visible Native Host version badge.
 '

@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 28 v0.28.20  
+**Current baseline:** Phase 28 v0.28.21  
 **Primary supported environment:** Firefox Desktop on Linux  
 **Native Host:** 0.11.0
 
@@ -18,7 +18,7 @@
 | Native Host Linux | Complete | Version 0.11.0; shell execution, scoped stop, log store and transaction receipts. |
 | Firefox build/release tooling | Complete | Lint, build, checksum, signing helper, rollback and guarded update channel management. |
 | Firefox Android manifest validation | Complete | Minimum Firefox 142 removes unsupported-key warning. |
-| Source integrity and regression | Complete | Phase 04–28 plus v0.28.20 recovery/update tests. |
+| Source integrity and regression | Complete | Phase 04–28 plus v0.28.20 recovery/update and v0.28.21 Native-version UI tests. |
 
 ## Operator-provided deployment inputs
 

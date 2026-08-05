@@ -175,6 +175,32 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 .native-status[data-state="error"]::before { background: var(--error); }
 .native-status[data-state="warning"] { border-color: var(--paused); color: var(--paused); }
 .native-status[data-state="warning"]::before { background: var(--paused); }
+
+/* Phase 28 v0.28.21: keep the Native Host version readable in the shell heading.
+   The generic status badge remains compact; only this badge opts out of the 55% cap. */
+.native-host-status {
+  flex: 0 0 auto;
+  max-width: none;
+  min-width: max-content;
+  overflow: visible;
+  text-overflow: clip;
+}
+.card[data-group-id="shell"] .section-title-row > h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 360px) {
+  .card[data-group-id="shell"] .section-title-row {
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .card[data-group-id="shell"] .group-heading-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
 .shell-details { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 7px 0 9px; }
 .shell-details > div { min-width: 0; padding: 6px 7px; border: 1px solid var(--border); border-radius: 6px; background: Canvas; }
 .shell-actions { margin-bottom: 8px; }

@@ -601,3 +601,12 @@ Updates stale Phase 23/25 contracts, restores repeatable `--overwrite` builds, v
 - Raises Firefox minimum version to 142 for Android-compatible data-collection manifest metadata.
 - Uses `document/CURRENT_PROJECT_STATUS.md` as the canonical implementation-status document.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02820_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02821_BEGIN -->
+## Phase 28 v0.28.21 — visible Native Host version
+
+- The Shell command header displays the complete Native Host version instead of truncating it to `Native 0.`.
+- Hover text and the accessible label include version, connection state, error information and last-check time.
+- Native Host files are unchanged.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02821_END -->
+

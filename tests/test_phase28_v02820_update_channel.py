@@ -12,7 +12,7 @@ module = importlib.util.module_from_spec(spec)
 assert spec and spec.loader
 spec.loader.exec_module(module)
 manifest = json.loads((ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))
-assert manifest["version"] == "0.28.20"
+assert manifest["version"] == "0.28.21"
 assert manifest["browser_specific_settings"]["gecko"]["strict_min_version"] == "142.0"
 assert "update_url" not in manifest["browser_specific_settings"]["gecko"]
 
@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory() as raw:
     digest = module.sha256_file(xpi)
     updates = module.build_updates_json(manifest, "https://example.invalid/addon.xpi", digest)
     entry = module.update_entry(updates, "firefox-chat-assistant@duongtc.local")
-    assert entry["version"] == "0.28.20"
+    assert entry["version"] == manifest["version"]
     assert entry["update_hash"] == f"sha256:{digest}"
     assert entry["applications"]["gecko"]["strict_min_version"] == "142.0"
     enabled = module.set_update_url(manifest, "https://example.invalid/updates.json")

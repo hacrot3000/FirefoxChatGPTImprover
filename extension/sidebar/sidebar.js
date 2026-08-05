@@ -725,13 +725,20 @@
     const run = selectedShellRun();
     const nativeVersionParts = String(native.hostVersion || "0.0.0").split(".").map((part) => Number(part) || 0);
     const nativeNeedsUpdate = Boolean(native.connected) && (nativeVersionParts[0] < 0 || (nativeVersionParts[0] === 0 && nativeVersionParts[1] < 11));
-    elements.nativeHostStatus.dataset.state = nativeNeedsUpdate ? "error" : (native.connected ? "online" : (native.lastError ? "error" : "offline"));
-    elements.nativeHostStatus.textContent = native.connected
-      ? `Native ${native.hostVersion || "online"}${nativeNeedsUpdate ? " · update required" : ""}`
+    const nativeVersion = String(native.hostVersion || (native.connected ? "unknown" : "not checked"));
+    const nativeStatusText = native.connected
+      ? `Native ${nativeVersion}${nativeNeedsUpdate ? " · update required" : ""}`
       : (native.lastError ? "Native error" : "Native not checked");
-    elements.nativeHostStatus.title = nativeNeedsUpdate
-      ? "Reinstall Native Host 0.11.0 or newer for restart-safe download relocation receipts, legacy log discovery and complete stdout/stderr paging."
-      : (native.lastError || native.lastSeenAt || "");
+    const nativeStatusDetails = [
+      `Native Host version: ${nativeVersion}`,
+      `Status: ${nativeNeedsUpdate ? "update required" : (native.connected ? "connected" : (native.lastError ? "error" : "not checked"))}`,
+      native.lastError ? `Error: ${native.lastError}` : "",
+      native.lastSeenAt ? `Last checked: ${native.lastSeenAt}` : ""
+    ].filter(Boolean).join("\n");
+    elements.nativeHostStatus.dataset.state = nativeNeedsUpdate ? "error" : (native.connected ? "online" : (native.lastError ? "error" : "offline"));
+    elements.nativeHostStatus.textContent = nativeStatusText;
+    elements.nativeHostStatus.title = nativeStatusDetails;
+    elements.nativeHostStatus.setAttribute("aria-label", nativeStatusDetails.replace(/\n/g, ". "));
     elements.shellRunStatus.textContent = run.error
       ? `${run.status}: ${run.error}`
       : (run.returnCode === null || run.returnCode === undefined
