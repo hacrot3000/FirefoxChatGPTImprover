@@ -108,7 +108,11 @@ RELEASES_DIR="${PROJECT_ROOT}/dist/releases/${VERSION}"
 ARTIFACT="${RELEASES_DIR}/firefox-chat-ai-assistant-${VERSION}-unsigned.zip"
 RELEASE_NOTES_FILE="${RELEASES_DIR}/RELEASE_NOTES.md"
 SHA256_FILE="${RELEASES_DIR}/SHA256SUMS"
+PROJECT_STATUS_FILE="${RELEASES_DIR}/PROJECT_STATUS.md"
+CHANGELOG_FILE="${RELEASES_DIR}/CHANGELOG.md"
 [[ -f "$ARTIFACT" ]] || die "Không tìm thấy artifact: ${ARTIFACT}"
+[[ -f "$PROJECT_STATUS_FILE" ]] || die "Không tìm thấy project status: ${PROJECT_STATUS_FILE}"
+[[ -f "$CHANGELOG_FILE" ]] || die "Không tìm thấy changelog: ${CHANGELOG_FILE}"
 
 # ======================================================================
 # BƯỚC 2 — KIỂM TRA TRẠNG THÁI GIT VÀ XÁC NHẬN
@@ -197,8 +201,9 @@ else
     fi
 
     # Danh sách file đính kèm
-    UPLOAD_FILES=("$ARTIFACT")
+    UPLOAD_FILES=("$ARTIFACT" "$PROJECT_STATUS_FILE" "$CHANGELOG_FILE")
     [[ -f "$SHA256_FILE" ]] && UPLOAD_FILES+=("$SHA256_FILE")
+    [[ -f "${RELEASES_DIR}/release.json" ]] && UPLOAD_FILES+=("${RELEASES_DIR}/release.json")
 
     info "Đang tạo GitHub Release '${TAG}'..."
     gh release create "$TAG" \

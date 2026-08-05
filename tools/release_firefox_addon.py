@@ -14,6 +14,18 @@ import subprocess
 import sys
 from typing import Any
 
+TOOLS_DIR = Path(__file__).resolve().parent
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
+
+from release_documentation import (
+    copy_release_documents,
+    documentation_assets,
+    git_document_warning,
+    load_release_documents,
+    release_notes_text as build_release_notes_text,
+)
+
 GITHUB_REPO = "hacrot3000/FirefoxChatGPTImprover"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -173,6 +185,7 @@ def publish_github_release(
         str(artifact),
         str(release_dir / "SHA256SUMS"),
         str(release_dir / "release.json"),
+        *(str(path) for path in documentation_assets(release_dir)),
     ]
     notes_file = release_dir / "RELEASE_NOTES.md"
 
@@ -245,23 +258,13 @@ def release_metadata(
     }
 
 
-def release_notes_text(metadata: dict[str, Any], notes: str | None = None) -> str:
-    artifact = metadata["artifact"]
-    body = notes.strip() if notes and notes.strip() else "- Phase 08 release packaging and installation/update workflow."
-    return (
-        f"# Firefox ChatAI Assistant {metadata['version']}\n\n"
-        f"- Add-on ID: `{metadata['addonId']}`\n"
-        f"- Built UTC: `{metadata['builtAtUtc']}`\n"
-        f"- Git commit: `{metadata.get('gitCommit') or 'unknown'}`\n"
-        f"- Native host: `{metadata.get('nativeHostVersion') or 'not detected'}`\n"
-        f"- Artifact: `{artifact['filename']}`\n"
-        f"- SHA-256: `{artifact['sha256']}`\n"
-        "- Signing state: **unsigned source archive**\n\n"
-        "## Changes\n\n"
-        f"{body}\n\n"
-        "## Installation note\n\n"
-        "This ZIP is for validation or AMO signing. Use the Mozilla-signed XPI for persistent installation in Firefox Release.\n"
-    )
+def release_notes_text(
+    metadata: dict[str, Any],
+    documents: Any,
+    notes: str | None = None,
+) -> str:
+    """Compatibility wrapper around the release-documentation generator."""
+    return build_release_notes_text(metadata, documents, notes)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -275,6 +278,7 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest = load_manifest()
     name, version, addon_id = validate_manifest(manifest)
+    documents = load_release_documents(version)
     web_ext = resolve_web_ext()
     release_dir = args.releases_dir.expanduser().resolve() / version
     if release_dir.exists() and any(release_dir.iterdir()) and not args.overwrite:
@@ -309,14 +313,24 @@ def main(argv: list[str] | None = None) -> int:
         host_version=native_host_version(),
     )
     notes = args.notes_file.read_text(encoding="utf-8") if args.notes_file else None
+    metadata["documentation"] = copy_release_documents(release_dir, documents)
     (release_dir / "release.json").write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (release_dir / "SHA256SUMS").write_text(f"{checksum}  {artifact.name}\n", encoding="utf-8")
-    (release_dir / "RELEASE_NOTES.md").write_text(release_notes_text(metadata, notes), encoding="utf-8")
+    (release_dir / "RELEASE_NOTES.md").write_text(
+        release_notes_text(metadata, documents, notes),
+        encoding="utf-8",
+    )
 
     print(f"DONE: {name} {version} ({addon_id})")
     print(f"Artifact : {artifact}")
     print(f"SHA-256 : {checksum}")
     print("State    : unsigned; sign before persistent Firefox Release installation")
+    print(f"Status   : {release_dir / 'PROJECT_STATUS.md'}")
+    print(f"Changelog: {release_dir / 'CHANGELOG.md'}")
+
+    warning = git_document_warning()
+    if warning:
+        print(f"WARNING: {warning}")
 
     if args.publish:
         tag = f"v{version}"

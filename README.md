@@ -656,3 +656,12 @@ Windows Native Host support is available through `native-host/install_native_hos
 
 Adds non-destructive search/filter controls for tabs, configuration/monitor/target/local-action profiles, global command presets and per-tab command history. Current selections remain available outside the active query, and filter text is stored only as sidebar UI state. Native Host remains 0.13.0.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE30_V0300_END -->
+
+<!-- FCI_RELEASE_DOCUMENTATION_START -->
+## Project status and release history
+
+- [Project feature status](PROJECT_STATUS.md) — completed, in-progress, planned and deferred features with progress.
+- [Changelog](CHANGELOG.md) — version-specific user-visible changes.
+
+Release tasks validate both files and use them to generate GitHub Release notes and documentation assets.
+<!-- FCI_RELEASE_DOCUMENTATION_END -->
