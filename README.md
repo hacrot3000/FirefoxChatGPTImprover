@@ -674,3 +674,12 @@ Release tasks validate both files and use them to generate GitHub Release notes 
 - Existing working-session file export/import remains compatible.
 - Release-facing progress is tracked in `PROJECT_STATUS.md` and version changes in `CHANGELOG.md`.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE31_V0310_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE32_V0320_BEGIN -->
+## Phase 32 v0.32.0 — optional sound alerts
+
+- Adds an opt-in sound channel to the Alerts group; it remains disabled by default.
+- Supports Soft chime, Double beep and Urgent tones with bounded volume, repeat count and repeat interval.
+- Plays at most once per alert cycle, stops pending repeats when dismissed and does not replay an already-restored cycle.
+- Includes a Test sound preview and keeps Native Host unchanged at 0.13.0.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE32_V0320_END -->

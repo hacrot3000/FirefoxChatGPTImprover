@@ -106,5 +106,5 @@ for (const token of [
 ]) assert(sidebar.includes(token), `Missing sidebar token ${token}`);
 
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
-assert.equal(manifest.version, "0.31.0");
+assert.ok(manifest.version.localeCompare("0.31.0", undefined, { numeric: true }) >= 0);
 console.log("PASS: Phase 31 v0.31.0 named saved working-session catalog, controlled restore and typed JSON import/export");

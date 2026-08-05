@@ -14,8 +14,8 @@ const manifest = JSON.parse(read("extension/manifest.json"));
 
 assert.ok(manifest.version.localeCompare("0.28.17", undefined, { numeric: true }) >= 0);
 assert.match(activation, /const RUNTIME_VERSION = (?:2[6-9]|[3-9][0-9])/);
-assert.match(alertSource, /FCI_ALERT_ENGINE\?\.VERSION >= 11/);
-assert.match(alertSource, /VERSION: 11/);
+assert.match(alertSource, /FCI_ALERT_ENGINE\?\.VERSION >= (?:1[1-9]|[2-9][0-9])/);
+assert.match(alertSource, /VERSION: (?:1[1-9]|[2-9][0-9])/);
 assert.match(alertSource, /runtime\?\.monitorState === MONITOR_STATE\.WAITING/);
 assert.doesNotMatch(alertSource, /: \(commandPrefix \? alertTitle\(commandPrefix, baseTitle\) : baseTitle\)/);
 
@@ -80,7 +80,7 @@ function loadAlertEngine(document) {
 
 const waitingDocument = createDocument();
 const waitingLoaded = loadAlertEngine(waitingDocument);
-assert.equal(waitingLoaded.Alert.VERSION, 11, "v0.28.19 must replace a preloaded v9 alert engine");
+assert.ok(waitingLoaded.Alert.VERSION >= 11, "the current alert engine must replace a preloaded v9 alert engine");
 assert.equal(waitingLoaded.Alert.shouldSpinMonitorTitle({ monitorState: "matched" }, "active"), false,
   "a matched monitor is AI READY, not AI running");
 assert.equal(waitingLoaded.Alert.shouldShowReadyTitle({ monitorState: "matched" }, "active"), true);

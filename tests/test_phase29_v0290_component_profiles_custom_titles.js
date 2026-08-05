@@ -17,7 +17,7 @@ for (const file of ["extension/shared/settings.js", "extension/shared/working_se
 const Settings = context.FCI_SETTINGS;
 const WorkingSession = context.FCI_WORKING_SESSION;
 
-assert.equal(Settings.SCHEMA_VERSION, 16);
+assert.ok(Settings.SCHEMA_VERSION >= 16);
 const defaults = Settings.defaultStore();
 assert.equal(defaults.monitorProfiles.length, 1);
 assert.equal(defaults.targetProfiles.length, 1);
@@ -112,8 +112,8 @@ for (const token of [
 
 const activation = read("extension/content/activation.js");
 const alertSource = read("extension/content/alert.js");
-assert.match(activation, /const RUNTIME_VERSION = 27/);
-assert.match(alertSource, /VERSION: 11/);
+assert.match(activation, /const RUNTIME_VERSION = (?:2[7-9]|[3-9][0-9])/);
+assert.match(alertSource, /VERSION: (?:1[1-9]|[2-9][0-9])/);
 assert(activation.includes("customTitle"));
 assert(alertSource.includes("customTitle"));
 

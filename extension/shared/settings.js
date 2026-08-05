@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 16) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 17) {
     return;
   }
 
-  const SCHEMA_VERSION = 16;
+  const SCHEMA_VERSION = 17;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
@@ -235,6 +235,13 @@
         badge: true,
         sidebar: true,
         notification: false,
+        sound: {
+          enabled: false,
+          tone: "soft-chime",
+          volume: 0.45,
+          repeatCount: 1,
+          repeatIntervalMs: 900
+        },
         dismissOnUserActivity: true,
         activeTabTimeoutSeconds: 10
       },
@@ -471,6 +478,20 @@
         badge: safeBoolean(alerts.badge, true),
         sidebar: safeBoolean(alerts.sidebar, true),
         notification: safeBoolean(alerts.notification, false),
+        sound: (() => {
+          const sound = alerts.sound && typeof alerts.sound === "object" ? alerts.sound : {};
+          const tone = ["soft-chime", "double-beep", "urgent"].includes(sound.tone)
+            ? sound.tone
+            : defaults.alerts.sound.tone;
+          const volume = Number(sound.volume);
+          return {
+            enabled: safeBoolean(sound.enabled, defaults.alerts.sound.enabled),
+            tone,
+            volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : defaults.alerts.sound.volume,
+            repeatCount: safeInteger(sound.repeatCount, defaults.alerts.sound.repeatCount, 1, 5),
+            repeatIntervalMs: safeInteger(sound.repeatIntervalMs, defaults.alerts.sound.repeatIntervalMs, 250, 10000)
+          };
+        })(),
         dismissOnUserActivity: safeBoolean(alerts.dismissOnUserActivity, true),
         activeTabTimeoutSeconds: safeInteger(alerts.activeTabTimeoutSeconds, defaults.alerts.activeTabTimeoutSeconds, 0, 3600)
       },

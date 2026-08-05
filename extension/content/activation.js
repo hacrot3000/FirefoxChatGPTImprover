@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatImproverRuntimeV6";
-  const RUNTIME_VERSION = 27;
+  const RUNTIME_VERSION = 28;
   const previousRuntime = globalThis[INSTANCE_KEY];
   if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
@@ -84,6 +84,9 @@
       alertDismissReason: null,
       lastUserActivityAt: null,
       activeVisibleSince: null,
+      soundAlertState: "idle",
+      soundAlertCycle: 0,
+      soundAlertError: null,
       lastAlertReason: null,
       lastEventAt: null,
       shellCommandState: "idle",

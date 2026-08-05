@@ -16,7 +16,7 @@ current_version = manifest["version"]
 documents = module.load_release_documents(current_version)
 assert documents.version == current_version
 assert documents.changelog_entry.strip()
-assert "Optional sound alert" in documents.in_progress or "Optional sound alert" in documents.planned
+assert "Opt-in auto-activation by URL" in documents.in_progress or "Opt-in auto-activation by URL" in documents.planned
 assert "Native Host for macOS" in documents.deferred
 
 metadata = {

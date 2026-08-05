@@ -2391,6 +2391,9 @@
       alertDismissReason: null,
       lastUserActivityAt: null,
       activeVisibleSince: null,
+      soundAlertState: "idle",
+      soundAlertCycle: 0,
+      soundAlertError: null,
       lastAlertReason: null,
       lastEventAt: null,
       recoveryState: Recovery.STATE.NONE,
@@ -2790,6 +2793,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       files: [
         "shared/protocol.js",
         "shared/settings.js",
+        "shared/alert_sound.js",
         "content/monitor.js",
         "content/target.js",
         "content/alert.js",

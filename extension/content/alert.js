@@ -1,12 +1,13 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 11) {
+  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 12) {
     return;
   }
 
   const { MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
+  const AlertSound = globalThis.FCI_ALERT_SOUND;
   const MONITOR_SPINNER_FRAMES = Object.freeze(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]);
   const TITLE_BASE_ATTRIBUTE = "data-fci-base-title";
   const TITLE_PREFIX_ATTRIBUTE = "data-fci-title-prefix";
@@ -91,7 +92,7 @@
   function alertChannelsEnabled(config) {
     const normalized = Settings.normalizeConfig(config);
     return Boolean(normalized.alerts.titleBlink || normalized.alerts.badge ||
-      normalized.alerts.sidebar || normalized.alerts.notification);
+      normalized.alerts.sidebar || normalized.alerts.notification || normalized.alerts.sound?.enabled);
   }
 
   function shouldAlert(runtime, mode, config) {
@@ -146,7 +147,7 @@
     return parts.join(" · ");
   }
 
-  function createAlertController({ onRuntime, clock } = {}) {
+  function createAlertController({ onRuntime, clock, soundPlayer = null } = {}) {
     const customClock = clock && typeof clock === "object" ? clock : null;
     const scheduler = customClock
       ? {
@@ -195,6 +196,10 @@
     let activeTimeoutTimer = null;
     let listenersInstalled = false;
     let lastSignature = "";
+    const audioPlayer = soundPlayer || AlertSound?.createPlayer?.() || { play: async () => ({ started: false, reason: "sound-engine-unavailable" }), stop() {} };
+    let lastSoundCycle = 0;
+    let soundAlertState = "idle";
+    let soundAlertError = null;
 
     function nowIso() {
       return new Date(scheduler.now()).toISOString();
@@ -285,6 +290,9 @@
         alertDismissReason,
         lastUserActivityAt,
         activeVisibleSince: activeVisibleSince ? new Date(activeVisibleSince).toISOString() : null,
+        soundAlertState,
+        soundAlertCycle: lastSoundCycle,
+        soundAlertError,
         lastAlertReason: reason
       };
     }
@@ -390,6 +398,27 @@
       restoreTitle();
     }
 
+    function playSoundForCycle(cycle, restored) {
+      const soundConfig = config.alerts.sound || {};
+      const persistedSoundCycle = Math.max(0, Number(runtime?.soundAlertCycle || 0));
+      lastSoundCycle = Math.max(lastSoundCycle, persistedSoundCycle);
+      if (restored || !soundConfig.enabled || cycle <= lastSoundCycle) {
+        return;
+      }
+      lastSoundCycle = cycle;
+      soundAlertState = "scheduled";
+      soundAlertError = null;
+      Promise.resolve(audioPlayer.play(soundConfig)).then((result) => {
+        soundAlertState = result?.started ? "played" : "unavailable";
+        soundAlertError = result?.started ? null : String(result?.reason || "Sound could not be played.");
+        emit("sound-alert", true, true);
+      }).catch((error) => {
+        soundAlertState = "error";
+        soundAlertError = error instanceof Error ? error.message : String(error);
+        emit("sound-alert-error", true, true);
+      });
+    }
+
     function startAlert(reason, cycle, restored = false) {
       const nextCycle = Math.max(1, Number(cycle || runtime?.cycle || 1));
       const newCycle = nextCycle !== alertCycle;
@@ -405,6 +434,7 @@
       }
       refreshTitlePresentation();
       scheduleActiveTimeout();
+      playSoundForCycle(alertCycle, restored);
       return emit(reason, true);
     }
 
@@ -412,6 +442,8 @@
       const wasActive = active;
       active = false;
       clearActiveTimeout();
+      audioPlayer.stop?.();
+      if (wasActive) soundAlertState = "idle";
       restoreTitle();
       if (acknowledge) {
         alertAcknowledgedAt = nowIso();
@@ -501,6 +533,9 @@
         alertAcknowledgedAt = runtime.alertAcknowledgedAt || alertAcknowledgedAt;
         alertDismissReason = runtime.alertDismissReason || alertDismissReason;
         lastUserActivityAt = runtime.lastUserActivityAt || lastUserActivityAt;
+        lastSoundCycle = Math.max(lastSoundCycle, Number(runtime.soundAlertCycle || 0));
+        soundAlertState = runtime.soundAlertState || soundAlertState;
+        soundAlertError = runtime.soundAlertError || soundAlertError;
         return startAlert(reason, decision.cycle, true);
       }
       if (decision.action === "stop") {
@@ -545,7 +580,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 11,
+      VERSION: 12,
       TITLE_BASE_ATTRIBUTE,
       TITLE_PREFIX_ATTRIBUTE,
       stripManagedTitleDecorations,

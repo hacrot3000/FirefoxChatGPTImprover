@@ -495,11 +495,28 @@
         <label class="check-row"><input id="badgeAlert" type="checkbox">Badge toolbar</label>
         <label class="check-row"><input id="sidebarAlert" type="checkbox">Update sidebar status</label>
         <label class="check-row"><input id="notificationAlert" type="checkbox">Desktop notification</label>
+        <label class="check-row"><input id="soundAlertEnabled" type="checkbox">Sound alert (opt-in)</label>
       </div>
       <div class="selector-grid">
         <label>Title label<input id="titlePrefix" type="text" placeholder="⚠ AI READY"></label>
         <label>Blink interval (ms)<input id="blinkIntervalMs" type="number" min="250" max="5000" step="50"></label>
       </div>
+      <div class="selector-grid sound-alert-settings" id="soundAlertSettings">
+        <label>Sound tone
+          <select id="soundAlertTone">
+            <option value="soft-chime">Soft chime</option>
+            <option value="double-beep">Double beep</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </label>
+        <label>Volume (%)<input id="soundAlertVolume" type="number" min="0" max="100" step="5"></label>
+        <label>Repeat count<input id="soundAlertRepeatCount" type="number" min="1" max="5" step="1"></label>
+        <label>Repeat interval (ms)<input id="soundAlertRepeatIntervalMs" type="number" min="250" max="10000" step="50"></label>
+      </div>
+      <div class="button-grid sound-alert-actions">
+        <button id="testSoundAlertButton" type="button">Test sound</button>
+      </div>
+      <output id="soundAlertTestResult" class="selector-test-result">Sound is disabled by default.</output>
       <label class="check-row"><input id="dismissOnUserActivity" type="checkbox">Dismiss alerts after real user activity in the tab</label>
       <label>Fallback timeout while the tab stays active (seconds; 0 = disabled)
         <input id="activeTabTimeoutSeconds" type="number" min="0" max="3600" step="1">
@@ -507,7 +524,7 @@
       <details class="help-menu">
         <summary aria-label="Alerts help" title="Help">?</summary>
         <div class="help-popover" role="tooltip">
-          An alert remains latched for its cycle until the tab receives trusted user input, or it stays visible for the configured timeout. Dismissing the alert does not stop monitoring. The monitor re-arms only after the condition becomes false, and the next MATCHED cycle triggers alerts and target handling again.
+          An alert remains latched for its cycle until the tab receives trusted user input, or it stays visible for the configured timeout. The optional sound is played at most once per alert cycle, with a bounded repeat count, and stops when the alert is dismissed. Dismissing the alert does not stop monitoring. The monitor re-arms only after the condition becomes false, and the next MATCHED cycle triggers alerts and target handling again.
         </div>
       </details>
     </section>
@@ -838,6 +855,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
   <script src="../shared/sidebar_runtime_guard.js"></script>
   <script src="../shared/protocol.js"></script>
   <script src="../shared/settings.js"></script>
+  <script src="../shared/alert_sound.js"></script>
   <script src="../shared/command_presets.js"></script>
 <script src="../shared/local_actions.js"></script>
   <script src="../shared/settings_snapshots.js"></script>

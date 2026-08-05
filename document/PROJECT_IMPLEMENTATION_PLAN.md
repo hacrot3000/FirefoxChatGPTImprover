@@ -546,3 +546,15 @@ Completed: opt-in real-Firefox runtime validation and multi-binary compatibility
 
 Completed in v0.31.0: persistent named catalog, search, create/update/rename/duplicate/delete, individual and full-catalog JSON backup, and controlled subset restore with permission checks.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE31_PLAN_END -->
+
+### Phase 32 — Optional sound alert
+
+**Status:** Complete in v0.32.0.
+
+- Sound is disabled by default and configured per effective profile/tab configuration.
+- Available tones: Soft chime, Double beep and Urgent.
+- Volume is clamped to 0–100%; repeat count is limited to 1–5; repeat interval is bounded to 250–10000 ms.
+- Playback is scheduled once per alert cycle, pending repeats stop on dismissal, and recovery does not replay an already-sounded cycle.
+- The sidebar provides a Test sound preview without requiring Native Host.
+
+**Next approved task:** opt-in automatic activation for explicitly trusted URL patterns.

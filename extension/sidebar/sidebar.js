@@ -5,6 +5,7 @@
   const Settings = globalThis.FCI_SETTINGS;
   const LocalActions = globalThis.FCI_LOCAL_ACTIONS;
   const CommandPresets = globalThis.FCI_COMMAND_PRESETS;
+  const AlertSound = globalThis.FCI_ALERT_SOUND;
   // Phase 28 v0.28.3: volatile editor drafts are highest-priority runtime state.
   // Phase 28 v0.28.23: bind draft autosync to the originating tab/session and persist its working snapshot.
   // Phase 28 v0.28.1: prompt-created presets and unrestricted direct execution.
@@ -28,7 +29,7 @@
     autoProfileByUrl: $("#autoProfileByUrl"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), urlRoutingResult: $("#urlRoutingResult"),
     monitorProfileSearch: $("#monitorProfileSearch"), monitorProfileSearchResult: $("#monitorProfileSearchResult"), monitorProfileSelect: $("#monitorProfileSelect"), monitorProfileName: $("#monitorProfileName"), applyMonitorProfileButton: $("#applyMonitorProfileButton"), newMonitorProfileButton: $("#newMonitorProfileButton"), saveMonitorProfileButton: $("#saveMonitorProfileButton"), deleteMonitorProfileButton: $("#deleteMonitorProfileButton"), monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
     targetProfileSearch: $("#targetProfileSearch"), targetProfileSearchResult: $("#targetProfileSearchResult"), targetProfileSelect: $("#targetProfileSelect"), targetProfileName: $("#targetProfileName"), applyTargetProfileButton: $("#applyTargetProfileButton"), newTargetProfileButton: $("#newTargetProfileButton"), saveTargetProfileButton: $("#saveTargetProfileButton"), deleteTargetProfileButton: $("#deleteTargetProfileButton"), targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
-    titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
+    titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), soundAlertEnabled: $("#soundAlertEnabled"), soundAlertSettings: $("#soundAlertSettings"), soundAlertTone: $("#soundAlertTone"), soundAlertVolume: $("#soundAlertVolume"), soundAlertRepeatCount: $("#soundAlertRepeatCount"), soundAlertRepeatIntervalMs: $("#soundAlertRepeatIntervalMs"), testSoundAlertButton: $("#testSoundAlertButton"), soundAlertTestResult: $("#soundAlertTestResult"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), exportSupportBundleButton: $("#exportSupportBundleButton"), clearLogsButton: $("#clearLogsButton"),
     localActionProfileSearch: $("#localActionProfileSearch"), localActionProfileSearchResult: $("#localActionProfileSearchResult"), localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), downloadShellExecutionMode: $("#downloadShellExecutionMode"), openShellLogAfterExecution: $("#openShellLogAfterExecution"), downloadStateSummary: $("#downloadStateSummary"), downloadShellStateSummary: $("#downloadShellStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
     shellPresetSearch: $("#shellPresetSearch"), shellPresetSearchResult: $("#shellPresetSearchResult"), shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
@@ -68,6 +69,7 @@
   let localActionBaseline = { profileId: null, tabId: null, profileName: "", config: LocalActions.defaultConfig(), fingerprint: "" };
   let localActionDraftDirty = false;
   let nativeLogRetentionDirty = false;
+  const soundPreviewPlayer = AlertSound?.createPlayer?.() || { play: async () => ({ started: false, reason: "Sound engine unavailable." }), stop() {} };
   let busy = false;
   let activeTabRefreshSerial = 0;
   let collapsedGroups = {};
@@ -1136,6 +1138,32 @@
     return formConfigDraft;
   }
 
+  function renderSoundAlertControls() {
+    const enabled = elements.soundAlertEnabled.checked;
+    for (const element of [elements.soundAlertTone, elements.soundAlertVolume, elements.soundAlertRepeatCount, elements.soundAlertRepeatIntervalMs]) {
+      element.disabled = !enabled;
+    }
+    elements.soundAlertSettings.dataset.enabled = enabled ? "true" : "false";
+  }
+
+  function readSoundAlertPreviewOptions() {
+    return AlertSound.normalizeOptions({
+      enabled: true,
+      tone: elements.soundAlertTone.value,
+      volume: Number(elements.soundAlertVolume.value) / 100,
+      repeatCount: Number(elements.soundAlertRepeatCount.value),
+      repeatIntervalMs: Number(elements.soundAlertRepeatIntervalMs.value)
+    });
+  }
+
+  async function testSoundAlert() {
+    elements.soundAlertTestResult.textContent = "Playing sound preview…";
+    const result = await soundPreviewPlayer.play(readSoundAlertPreviewOptions(), { force: true });
+    elements.soundAlertTestResult.textContent = result?.started
+      ? `Preview started: ${result.options.tone}, ${Math.round(result.options.volume * 100)}%, repeat ${result.options.repeatCount}.`
+      : `Sound preview unavailable: ${result?.reason || "unknown error"}`;
+  }
+
   function writeConfig(config) {
     const value = Settings.normalizeConfig(config);
     formConfigDraft = value;
@@ -1152,6 +1180,12 @@
     elements.badgeAlert.checked = value.alerts.badge;
     elements.sidebarAlert.checked = value.alerts.sidebar;
     elements.notificationAlert.checked = value.alerts.notification;
+    elements.soundAlertEnabled.checked = value.alerts.sound.enabled;
+    elements.soundAlertTone.value = value.alerts.sound.tone;
+    elements.soundAlertVolume.value = String(Math.round(value.alerts.sound.volume * 100));
+    elements.soundAlertRepeatCount.value = String(value.alerts.sound.repeatCount);
+    elements.soundAlertRepeatIntervalMs.value = String(value.alerts.sound.repeatIntervalMs);
+    renderSoundAlertControls();
     elements.dismissOnUserActivity.checked = value.alerts.dismissOnUserActivity;
     elements.activeTabTimeoutSeconds.value = String(value.alerts.activeTabTimeoutSeconds);
     renderShellHistory();
@@ -1255,6 +1289,13 @@
         badge: elements.badgeAlert.checked,
         sidebar: elements.sidebarAlert.checked,
         notification: elements.notificationAlert.checked,
+        sound: {
+          enabled: elements.soundAlertEnabled.checked,
+          tone: elements.soundAlertTone.value,
+          volume: Number(elements.soundAlertVolume.value) / 100,
+          repeatCount: Number(elements.soundAlertRepeatCount.value),
+          repeatIntervalMs: Number(elements.soundAlertRepeatIntervalMs.value)
+        },
         dismissOnUserActivity: elements.dismissOnUserActivity.checked,
         activeTabTimeoutSeconds: Number(elements.activeTabTimeoutSeconds.value)
       }
@@ -1785,7 +1826,7 @@
     elements.matchedRuleCountText.textContent = session ? String(runtime.matchedRuleCount || 0) : "—";
     elements.alertStateText.textContent = session
       ? (runtime.alertActive
-        ? `ACTIVE cycle ${runtime.alertCycle || runtime.cycle || 0}${runtime.titleBlinking ? " / title blink" : ""}`
+        ? `ACTIVE cycle ${runtime.alertCycle || runtime.cycle || 0}${runtime.titleBlinking ? " / title blink" : ""}${runtime.soundAlertState && runtime.soundAlertState !== "idle" ? ` / sound ${runtime.soundAlertState}` : ""}`
         : (runtime.alertDismissReason ? `dismissed (${runtime.alertDismissReason})` : "inactive"))
       : "—";
     elements.commandNoticeText.textContent = !session
@@ -3450,6 +3491,11 @@ ${run.command || ""}`)) {
     element.addEventListener("change", updateLocalActionDraftState);
   }
 
+  elements.soundAlertEnabled.addEventListener("change", () => {
+    renderSoundAlertControls();
+    if (!elements.soundAlertEnabled.checked) soundPreviewPlayer.stop();
+  });
+  elements.testSoundAlertButton.addEventListener("click", () => void testSoundAlert());
   elements.logChannel.addEventListener("change", renderActivityLog);
   elements.copyLogsButton.addEventListener("click", () => void copySelectedLogs());
   elements.clearLogsButton.addEventListener("click", () => {

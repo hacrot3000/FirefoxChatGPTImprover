@@ -8,11 +8,21 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 
 ### In progress
 
-- Optional sound alert with safe default-off behavior and per-profile controls.
+- Opt-in automatic activation for explicitly trusted URL patterns, disabled by default.
 
 ### Deferred
 
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
+
+## [0.32.0] - 2026-08-05
+
+### Added
+
+- Optional sound alerts in the Alerts group, disabled by default.
+- Three built-in tones: Soft chime, Double beep and Urgent.
+- Per-profile/tab controls for volume, repeat count and repeat interval, with a Test sound preview.
+- One-play-per-alert-cycle semantics, bounded repeats and immediate stop when the alert is dismissed.
+- Recovery protection so an already-active alert cycle is not replayed after reload or background recovery.
 
 ## [0.31.0] - 2026-08-05
 
