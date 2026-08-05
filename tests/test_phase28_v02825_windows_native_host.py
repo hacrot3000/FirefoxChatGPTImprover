@@ -110,7 +110,7 @@ assert "integration_test" in integration
 assert "install_native_host.ps1" in integration and "uninstall_native_host.ps1" in integration
 
 manifest = json.loads((ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))
-assert manifest["version"] == "0.28.25"
+assert tuple(map(int, manifest["version"].split("."))) >= (0, 28, 25)
 assert "Windows Native Host" in manifest["description"]
 
 status = (ROOT / "document" / "CURRENT_PROJECT_STATUS.md").read_text(encoding="utf-8")

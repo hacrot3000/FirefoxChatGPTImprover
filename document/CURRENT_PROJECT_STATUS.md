@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 28 v0.28.25  
+**Current baseline:** Phase 29 v0.29.0
 **Primary supported environment:** Firefox Desktop on Linux and Windows  
 **Native Host:** 0.13.0
 
@@ -10,7 +10,8 @@
 |---|---|---|
 | Multi-tab monitor and target automation | Complete | Independent tab/rule state, stability windows, baseline-only target action and recovery. |
 | AI READY / Running status | Complete | `matched` remains AI READY; only `waiting` displays Running. |
-| Configuration, URL routing and tab overrides | Complete | Includes protected drafts, snapshots, import/export and working sessions. |
+| Persistent custom tab titles | Complete | User-defined per-tab names survive reload/navigation/background restart, preserve the original page title and remain compatible with AI READY/Running decorations. |
+| Configuration, URL routing and tab overrides | Complete | Includes protected drafts, snapshots, working sessions, reusable Monitor/Target component profiles and typed per-profile JSON import/export. |
 | Command presets and rule-triggered commands | Complete | Includes per-tab execution, status, stop and history. |
 | Managed downloads | Complete | Capture, no-dialog restart, immutable snapshot, relocation, retry and post-download command. |
 | Restart recovery for managed downloads | Complete | Armed captures resume while valid; moves replay by idempotent receipt. |

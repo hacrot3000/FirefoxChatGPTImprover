@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatImproverRuntimeV6";
-  const RUNTIME_VERSION = 26;
+  const RUNTIME_VERSION = 27;
   const previousRuntime = globalThis[INSTANCE_KEY];
   if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
@@ -28,6 +28,8 @@
     profileName: null,
     configMode: null,
     configRevision: 0,
+    customTitle: "",
+    pageTitle: document.title || "",
     config: null,
     runtime: {
       monitorState: MONITOR_STATE.IDLE,
@@ -86,7 +88,9 @@
       lastEventAt: null,
       shellCommandState: "idle",
       shellCommandRunId: null,
-      shellCommandLogId: null
+      shellCommandLogId: null,
+      customTitle: "",
+      pageTitle: document.title || ""
     }
   };
 
@@ -122,6 +126,8 @@
       profileName: state.profileName,
       configMode: state.configMode,
       configRevision: state.configRevision,
+      customTitle: state.customTitle,
+      pageTitle: state.pageTitle,
       runtime: { ...state.runtime }
     };
   }
@@ -373,10 +379,14 @@
       profileName: session?.profileName || state.profileName,
       configMode: session?.configMode || state.configMode,
       configRevision: Number(session?.configRevision || state.configRevision || 0),
+      customTitle: String(session?.customTitle || ""),
+      pageTitle: String(session?.pageTitle || session?.runtime?.pageTitle || state.pageTitle || document.title || ""),
       config: session?.effectiveConfig || state.config,
       runtime: {
         ...state.runtime,
         ...(session?.runtime || {}),
+        customTitle: String(session?.customTitle || ""),
+        pageTitle: String(session?.pageTitle || session?.runtime?.pageTitle || state.pageTitle || document.title || ""),
         ...shellNoticeRuntime(session?.shellNotice)
       }
     };

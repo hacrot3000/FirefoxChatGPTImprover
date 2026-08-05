@@ -634,3 +634,36 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 .native-log-retention-content .selector-grid,
 .native-log-retention-content .checks-grid,
 .native-log-retention-content .button-grid { margin: 0; }
+
+/* Phase 29 v0.29.0: reusable monitor/target profiles and per-type JSON transfer. */
+.component-profile-panel {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 10px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, Canvas 97%, CanvasText 3%);
+}
+.component-profile-panel .button-grid { margin: 0; }
+.profile-io-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.profile-io-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.profile-io-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}

@@ -1,12 +1,12 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_WORKING_SESSION?.VERSION >= 2) {
+  if (globalThis.FCI_WORKING_SESSION?.VERSION >= 3) {
     return;
   }
 
   const FORMAT = "firefox-chat-assistant-working-session";
-  const VERSION = 2;
+  const VERSION = 3;
   const MAX_TABS = 200;
 
   function clone(value) {
@@ -104,7 +104,9 @@
     return {
       sourceTabId: Number.isInteger(Number(source.sourceTabId)) ? Number(source.sourceTabId) : null,
       url,
-      title: cleanTitle(source.title),
+      customTitle: safeString(source.customTitle).trim().slice(0, 240),
+      pageTitle: cleanTitle(source.pageTitle || source.title),
+      title: cleanTitle(source.customTitle || source.title),
       addOnActive: source.addOnActive === true,
       mode: source.mode === "paused" ? "paused" : (source.mode === "active" ? "active" : "inactive"),
       profileId: safeString(source.profileId),
@@ -149,7 +151,7 @@
     if (source.format !== FORMAT) {
       throw new Error("The selected JSON file is not a Firefox ChatAI Assistant working session.");
     }
-    if (![1, VERSION].includes(Number(source.version))) {
+    if (![1, 2, VERSION].includes(Number(source.version))) {
       throw new Error(`Unsupported working session version: ${source.version}.`);
     }
     return build(source.tabs, {

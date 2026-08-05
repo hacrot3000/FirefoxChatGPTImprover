@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 10) {
+  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 11) {
     return;
   }
 
@@ -183,6 +183,7 @@
     let monitorSpinTimer = null;
     let monitorSpinIndex = 0;
     let titleObserver = null;
+    let customTitle = "";
     let baseTitle = storedBaseTitle("⚠ AI READY") || document.title || "";
     let lastWrittenTitle = null;
     let alertStartedAt = null;
@@ -214,6 +215,11 @@
       titleObserver = new MutationObserver(() => {
         const current = document.title || "";
         if (current === lastWrittenTitle) {
+          return;
+        }
+        if (customTitle) {
+          baseTitle = rememberBaseTitle(customTitle, config.alerts.titlePrefix) || customTitle;
+          applyCurrentTitleFrame();
           return;
         }
         const cleaned = rememberBaseTitle(current, config.alerts.titlePrefix);
@@ -474,11 +480,13 @@
 
     function apply(nextConfig, nextRuntime, nextMode, reason = "apply") {
       config = Settings.normalizeConfig(nextConfig);
-      const cleanedTitle = rememberBaseTitle(baseTitle || document.title || "", config.alerts.titlePrefix);
+      runtime = { ...(nextRuntime || {}) };
+      customTitle = String(runtime.customTitle || "").trim();
+      const preferredBaseTitle = customTitle || String(runtime.pageTitle || "").trim() || baseTitle || document.title || "";
+      const cleanedTitle = rememberBaseTitle(preferredBaseTitle, config.alerts.titlePrefix);
       if (cleanedTitle) {
         baseTitle = cleanedTitle;
       }
-      runtime = { ...(nextRuntime || {}) };
       mode = nextMode || MODE.INACTIVE;
       ensureActivityListeners();
 
@@ -537,7 +545,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 10,
+      VERSION: 11,
       TITLE_BASE_ATTRIBUTE,
       TITLE_PREFIX_ATTRIBUTE,
       stripManagedTitleDecorations,

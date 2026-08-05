@@ -1,14 +1,16 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 15) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 16) {
     return;
   }
 
-  const SCHEMA_VERSION = 15;
+  const SCHEMA_VERSION = 16;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
+  const DEFAULT_MONITOR_PROFILE_ID = "monitor-default";
+  const DEFAULT_TARGET_PROFILE_ID = "target-default";
   const SELECTOR_KINDS = new Set(["css", "id", "class", "attribute"]);
   const VISIBILITY_TRANSITIONS = new Set(["none", "hidden_to_visible", "visible_to_hidden"]);
   const CONDITION_OPERATORS = new Set([
@@ -107,6 +109,52 @@
         verifyTimeoutMs: 5000,
         verifyPollIntervalMs: 150
       }
+    };
+  }
+
+  function createMonitorProfile(name = "Default monitor", monitor = null, id = null) {
+    const timestamp = nowIso();
+    return {
+      id: id || makeId("monitor-profile"),
+      name: safeString(name, "Monitor profile").trim() || "Monitor profile",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      monitor: normalizeMonitorConfig(monitor || defaultMonitorConfig())
+    };
+  }
+
+  function normalizeMonitorProfile(raw, fallbackId = null) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const timestamp = nowIso();
+    return {
+      id: safeString(source.id, fallbackId || makeId("monitor-profile")).trim() || makeId("monitor-profile"),
+      name: safeString(source.name, "Monitor profile").trim() || "Monitor profile",
+      createdAt: safeString(source.createdAt, timestamp),
+      updatedAt: safeString(source.updatedAt, timestamp),
+      monitor: normalizeMonitorConfig(source.monitor || source.config)
+    };
+  }
+
+  function createTargetProfile(name = "Default target", target = null, id = null) {
+    const timestamp = nowIso();
+    return {
+      id: id || makeId("target-profile"),
+      name: safeString(name, "Target profile").trim() || "Target profile",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      target: normalizeTargetConfig(target || defaultTargetConfig())
+    };
+  }
+
+  function normalizeTargetProfile(raw, fallbackId = null) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const timestamp = nowIso();
+    return {
+      id: safeString(source.id, fallbackId || makeId("target-profile")).trim() || makeId("target-profile"),
+      name: safeString(source.name, "Target profile").trim() || "Target profile",
+      createdAt: safeString(source.createdAt, timestamp),
+      updatedAt: safeString(source.updatedAt, timestamp),
+      target: normalizeTargetConfig(source.target || source.config)
     };
   }
 
@@ -523,12 +571,18 @@
 
   function defaultStore() {
     const profile = createProfile("Default", defaultConfig(), DEFAULT_PROFILE_ID);
+    const monitorProfile = createMonitorProfile("Default monitor", defaultMonitorConfig(), DEFAULT_MONITOR_PROFILE_ID);
+    const targetProfile = createTargetProfile("Default target", defaultTargetConfig(), DEFAULT_TARGET_PROFILE_ID);
     return {
       schemaVersion: SCHEMA_VERSION,
       revision: 1,
       defaultProfileId: DEFAULT_PROFILE_ID,
+      defaultMonitorProfileId: DEFAULT_MONITOR_PROFILE_ID,
+      defaultTargetProfileId: DEFAULT_TARGET_PROFILE_ID,
       nativeLogRetention: defaultNativeLogRetention(),
-      profiles: [profile]
+      profiles: [profile],
+      monitorProfiles: [monitorProfile],
+      targetProfiles: [targetProfile]
     };
   }
 
@@ -547,25 +601,70 @@
     }
 
     if (!profiles.length) {
-      return defaultStore();
+      profiles.push(createProfile("Default", defaultConfig(), DEFAULT_PROFILE_ID));
+      used.add(DEFAULT_PROFILE_ID);
+    }
+
+    const monitorProfiles = [];
+    const usedMonitorIds = new Set();
+    for (const candidate of Array.isArray(source.monitorProfiles) ? source.monitorProfiles : []) {
+      const profile = normalizeMonitorProfile(candidate);
+      if (!usedMonitorIds.has(profile.id)) {
+        usedMonitorIds.add(profile.id);
+        monitorProfiles.push(profile);
+      }
+    }
+    if (!monitorProfiles.length) {
+      const legacyMonitor = profiles[0]?.config?.monitor || defaultMonitorConfig();
+      monitorProfiles.push(createMonitorProfile("Default monitor", legacyMonitor, DEFAULT_MONITOR_PROFILE_ID));
+      usedMonitorIds.add(DEFAULT_MONITOR_PROFILE_ID);
+    }
+
+    const targetProfiles = [];
+    const usedTargetIds = new Set();
+    for (const candidate of Array.isArray(source.targetProfiles) ? source.targetProfiles : []) {
+      const profile = normalizeTargetProfile(candidate);
+      if (!usedTargetIds.has(profile.id)) {
+        usedTargetIds.add(profile.id);
+        targetProfiles.push(profile);
+      }
+    }
+    if (!targetProfiles.length) {
+      const legacyTarget = profiles[0]?.config?.target || defaultTargetConfig();
+      targetProfiles.push(createTargetProfile("Default target", legacyTarget, DEFAULT_TARGET_PROFILE_ID));
+      usedTargetIds.add(DEFAULT_TARGET_PROFILE_ID);
     }
 
     let defaultProfileId = safeString(source.defaultProfileId);
-    if (!used.has(defaultProfileId)) {
-      defaultProfileId = profiles[0].id;
-    }
+    if (!used.has(defaultProfileId)) defaultProfileId = profiles[0].id;
+    let defaultMonitorProfileId = safeString(source.defaultMonitorProfileId);
+    if (!usedMonitorIds.has(defaultMonitorProfileId)) defaultMonitorProfileId = monitorProfiles[0].id;
+    let defaultTargetProfileId = safeString(source.defaultTargetProfileId);
+    if (!usedTargetIds.has(defaultTargetProfileId)) defaultTargetProfileId = targetProfiles[0].id;
 
     return {
       schemaVersion: SCHEMA_VERSION,
       revision: safeInteger(source.revision, 1, 1, Number.MAX_SAFE_INTEGER),
       defaultProfileId,
+      defaultMonitorProfileId,
+      defaultTargetProfileId,
       nativeLogRetention: normalizeNativeLogRetention(source.nativeLogRetention),
-      profiles
+      profiles,
+      monitorProfiles,
+      targetProfiles
     };
   }
 
   function profileById(store, profileId) {
-    return store.profiles.find((profile) => profile.id === profileId) || null;
+    return normalizeStore(store).profiles.find((profile) => profile.id === profileId) || null;
+  }
+
+  function monitorProfileById(store, profileId) {
+    return normalizeStore(store).monitorProfiles.find((profile) => profile.id === profileId) || null;
+  }
+
+  function targetProfileById(store, profileId) {
+    return normalizeStore(store).targetProfiles.find((profile) => profile.id === profileId) || null;
   }
 
   function wildcardToRegExp(pattern) {
@@ -711,6 +810,42 @@
     return { ok: errors.length === 0, errors, config };
   }
 
+  const PROFILE_BUNDLE_FORMAT = "firefox-chat-improver-profile-bundle";
+  const PROFILE_BUNDLE_VERSION = 1;
+  const PROFILE_TYPES = new Set(["configuration", "monitor", "target", "local-action"]);
+
+  function buildProfileBundle(type, profiles, metadata = {}) {
+    if (!PROFILE_TYPES.has(type)) throw new Error(`Unsupported profile type: ${type}.`);
+    return {
+      format: PROFILE_BUNDLE_FORMAT,
+      version: PROFILE_BUNDLE_VERSION,
+      profileType: type,
+      exportedAt: safeString(metadata.exportedAt, nowIso()),
+      defaultProfileId: safeString(metadata.defaultProfileId),
+      profiles: clone(Array.isArray(profiles) ? profiles : [])
+    };
+  }
+
+  function parseProfileBundle(text, expectedType = null) {
+    const source = JSON.parse(text);
+    if (!source || source.format !== PROFILE_BUNDLE_FORMAT || Number(source.version) !== PROFILE_BUNDLE_VERSION) {
+      throw new Error("The selected JSON file is not a supported Firefox ChatAI Assistant profile bundle.");
+    }
+    const type = safeString(source.profileType).trim();
+    if (!PROFILE_TYPES.has(type)) throw new Error(`Unsupported profile bundle type: ${type || "unknown"}.`);
+    if (expectedType && type !== expectedType) {
+      throw new Error(`This file contains ${type} profiles, not ${expectedType} profiles.`);
+    }
+    return {
+      format: PROFILE_BUNDLE_FORMAT,
+      version: PROFILE_BUNDLE_VERSION,
+      profileType: type,
+      exportedAt: safeString(source.exportedAt),
+      defaultProfileId: safeString(source.defaultProfileId),
+      profiles: Array.isArray(source.profiles) ? clone(source.profiles) : []
+    };
+  }
+
   function exportStore(store) {
     return JSON.stringify(normalizeStore(store), null, 2);
   }
@@ -728,11 +863,15 @@
       SCHEMA_VERSION,
       STORAGE_KEY,
       DEFAULT_PROFILE_ID,
+      DEFAULT_MONITOR_PROFILE_ID,
+      DEFAULT_TARGET_PROFILE_ID,
       clone,
       nowIso,
       makeId,
       defaultConfig,
       defaultRule,
+      defaultMonitorConfig,
+      defaultTargetConfig,
       defaultCommandAction,
       defaultShellPreset,
       defaultNativeLogRetention,
@@ -744,6 +883,12 @@
       matchingShellPreset,
       configForRule,
       normalizeProfile,
+      createMonitorProfile,
+      normalizeMonitorProfile,
+      monitorProfileById,
+      createTargetProfile,
+      normalizeTargetProfile,
+      targetProfileById,
       normalizeStore,
       createProfile,
       profileById,
@@ -753,6 +898,10 @@
       routeProfile,
       urlAllowed,
       validateConfig,
+      PROFILE_BUNDLE_FORMAT,
+      PROFILE_BUNDLE_VERSION,
+      buildProfileBundle,
+      parseProfileBundle,
       exportStore,
       importStore
     })

@@ -11,7 +11,7 @@ const alert = read("extension/content/alert.js");
 const background = read("extension/background/background.js");
 const sidebar = read("extension/sidebar/sidebar.js");
 const runner = read("tools/test_firefox_addon.sh");
-assert.match(manifest.version, /^0\.28\.(?:1[89]|[2-9][0-9])$/);
+assert.ok(manifest.version.localeCompare("0.28.18", undefined, { numeric: true }) >= 0);
 assert.match(activation, /const RUNTIME_VERSION = (?:25|2[6-9]|[3-9][0-9]);/);
 assert.match(alert, /FCI_ALERT_ENGINE\?\.VERSION >= (?:9|1[0-9]|[2-9][0-9])/);
 assert.match(alert, /VERSION: (?:9|1[0-9]|[2-9][0-9])/);

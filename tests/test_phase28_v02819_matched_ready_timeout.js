@@ -13,9 +13,9 @@ const activation = read("extension/content/activation.js");
 const manifest = JSON.parse(read("extension/manifest.json"));
 
 assert.ok(manifest.version.localeCompare("0.28.19", undefined, { numeric: true }) >= 0);
-assert.match(activation, /const RUNTIME_VERSION = 26/);
-assert.match(alertSource, /FCI_ALERT_ENGINE\?\.VERSION >= 10/);
-assert.match(alertSource, /VERSION: 10/);
+assert.match(activation, /const RUNTIME_VERSION = 27/);
+assert.match(alertSource, /FCI_ALERT_ENGINE\?\.VERSION >= 11/);
+assert.match(alertSource, /VERSION: 11/);
 
 function createHarness() {
   const timeouts = [];
@@ -64,7 +64,7 @@ function createHarness() {
 }
 
 const harness = createHarness();
-assert.equal(harness.Alert.VERSION, 10);
+assert.equal(harness.Alert.VERSION, 11);
 const controller = harness.Alert.createAlertController();
 const config = { alerts: { titleBlink: true, badge: true, sidebar: true, notification: false, titlePrefix: "⚠ AI READY", activeTabTimeoutSeconds: 10, blinkIntervalMs: 500, dismissOnUserActivity: false } };
 const matched = { monitorState: "matched", cycle: 149, alertCycle: 149, alertActive: true, shellCommandState: "idle" };

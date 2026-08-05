@@ -13,7 +13,7 @@ const sidebar = read("extension/sidebar/sidebar.js");
 const activation = read("extension/content/activation.js");
 const manifest = JSON.parse(read("extension/manifest.json"));
 
-assert.ok(/^0\.28\.(?:1[6-9]|[2-9][0-9])$/.test(manifest.version));
+assert.ok(manifest.version.localeCompare("0.28.16", undefined, { numeric: true }) >= 0);
 assert.match(activation, /const RUNTIME_VERSION = (?:2[3-9]|[3-9][0-9])/);
 assert.match(background, /SHELL_HISTORY_INLINE_CHAR_LIMIT = 65536/);
 assert.match(background, /inlineOutput: shellRunInlineText\(run\)/);

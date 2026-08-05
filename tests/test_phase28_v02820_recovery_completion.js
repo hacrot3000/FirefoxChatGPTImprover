@@ -9,7 +9,7 @@ const background = read("extension/background/background.js");
 const sidebar = read("extension/sidebar/sidebar.js");
 const manifest = JSON.parse(read("extension/manifest.json"));
 
-assert(Number(manifest.version.split(".")[2]) >= 21);
+assert.ok(manifest.version.localeCompare("0.28.20", undefined, { numeric: true }) >= 0);
 assert.equal(manifest.browser_specific_settings.gecko.strict_min_version, "142.0");
 for (const token of [
   "restoreArmedDownloadCapture",

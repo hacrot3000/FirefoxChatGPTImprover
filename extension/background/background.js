@@ -20,6 +20,7 @@
   const WorkingSession = globalThis.FCI_WORKING_SESSION;
   const LocalActions = globalThis.FCI_LOCAL_ACTIONS;
   const TAB_SESSION_KEY = "firefoxChatImprover.tabSession.v2";
+  const TAB_CUSTOM_TITLE_KEY = "firefoxChatImprover.customTabTitle.v1";
   const sessions = new Map();
   const pickerStates = new Map();
   const volatileLocalActionDrafts = new Map(); // tabId -> { config, context }; persisted mirror survives background restarts
@@ -1985,6 +1986,150 @@
       title: typeof tab?.title === "string" ? tab.title : ""
     };
   }
+  function normalizeCustomTitleState(raw, fallbackPageTitle = "") {
+    const source = raw && typeof raw === "object" ? raw : {};
+    return {
+      customTitle: typeof source.customTitle === "string" ? source.customTitle.trim().slice(0, 240) : "",
+      pageTitle: typeof source.pageTitle === "string" && source.pageTitle.trim()
+        ? source.pageTitle.trim().slice(0, 500)
+        : String(fallbackPageTitle || "").trim().slice(0, 500),
+      updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : Settings.nowIso()
+    };
+  }
+
+  async function loadCustomTitleState(tabId, fallbackPageTitle = "") {
+    if (!Number.isInteger(Number(tabId))) return normalizeCustomTitleState(null, fallbackPageTitle);
+    try {
+      const raw = await browser.sessions.getTabValue(Number(tabId), TAB_CUSTOM_TITLE_KEY);
+      return normalizeCustomTitleState(raw, fallbackPageTitle);
+    } catch (_error) {
+      return normalizeCustomTitleState(null, fallbackPageTitle);
+    }
+  }
+
+  async function saveCustomTitleState(tabId, rawState) {
+    const state = normalizeCustomTitleState(rawState);
+    if (!Number.isInteger(Number(tabId))) throw new Error("The selected tab has no valid tab ID.");
+    if (!state.customTitle) {
+      try {
+        await browser.sessions.removeTabValue(Number(tabId), TAB_CUSTOM_TITLE_KEY);
+      } catch (_error) {
+        // The tab may have closed while clearing its custom title.
+      }
+      return state;
+    }
+    await browser.sessions.setTabValue(Number(tabId), TAB_CUSTOM_TITLE_KEY, state);
+    return state;
+  }
+
+  function applyCustomTitleStateToSession(session, state, fallbackPageTitle = "") {
+    if (!session) return;
+    const normalized = normalizeCustomTitleState(state, fallbackPageTitle || session.pageTitle || session.title);
+    session.customTitle = normalized.customTitle;
+    session.pageTitle = normalized.pageTitle || String(fallbackPageTitle || session.pageTitle || session.title || "");
+    session.title = session.customTitle || session.pageTitle || session.title || session.url;
+    session.runtime = {
+      ...newRuntime(),
+      ...(session.runtime || {}),
+      customTitle: session.customTitle,
+      pageTitle: session.pageTitle
+    };
+  }
+
+  async function applyPlainCustomTitle(tabId, title, enabled = true) {
+    const value = String(title || "");
+    await browser.scripting.executeScript({
+      target: { tabId: Number(tabId) },
+      func: (nextTitle, lockEnabled) => {
+        const key = "__fciCustomTabTitleLockV1";
+        const previous = globalThis[key];
+        if (previous?.observer) previous.observer.disconnect();
+        delete globalThis[key];
+        const apply = () => {
+          const text = String(nextTitle || "");
+          if (document.title !== text) document.title = text;
+        };
+        apply();
+        if (!lockEnabled) return;
+        const target = document.querySelector("title") || document.head || document.documentElement;
+        if (!target) return;
+        let applying = false;
+        const observer = new MutationObserver(() => {
+          if (applying || document.title === String(nextTitle || "")) return;
+          applying = true;
+          apply();
+          queueMicrotask(() => { applying = false; });
+        });
+        observer.observe(target, { childList: true, characterData: true, subtree: true });
+        globalThis[key] = { observer, title: String(nextTitle || "") };
+      },
+      args: [value, Boolean(enabled)]
+    });
+  }
+
+  async function setTabCustomTitle(tabId, rawTitle) {
+    const numericTabId = Number(tabId);
+    if (!Number.isInteger(numericTabId)) throw new Error("The selected tab has no valid tab ID.");
+    const tab = await browser.tabs.get(numericTabId);
+    if (!isSupportedUrl(tab.url)) throw new Error("Only normal HTTP or HTTPS tabs can use a custom title.");
+    const previous = await loadCustomTitleState(numericTabId, tab.title || "");
+    const session = sessions.get(numericTabId);
+    const customTitle = String(rawTitle || "").trim().slice(0, 240);
+    const pageTitle = previous.pageTitle || session?.pageTitle || session?.runtime?.originalTitle || tab.title || tab.url || "";
+    const state = await saveCustomTitleState(numericTabId, {
+      customTitle,
+      pageTitle,
+      updatedAt: Settings.nowIso()
+    });
+
+    if (session) {
+      applyCustomTitleStateToSession(session, state, pageTitle);
+      session.updatedAt = Settings.nowIso();
+      const store = await loadStore();
+      await applySessionToContent(session, store);
+      await persistSession(session);
+    } else {
+      await applyPlainCustomTitle(numericTabId, customTitle || pageTitle, Boolean(customTitle));
+    }
+    await broadcast(customTitle ? "tab-custom-title-set" : "tab-custom-title-cleared", numericTabId);
+    return {
+      tabId: numericTabId,
+      customTitle,
+      pageTitle,
+      title: customTitle || pageTitle
+    };
+  }
+
+  async function tabMetaWithCustomTitle(tab) {
+    const meta = tabMeta(tab);
+    if (!Number.isInteger(meta.tabId)) return { ...meta, customTitle: "", pageTitle: meta.title };
+    const state = await loadCustomTitleState(meta.tabId, meta.title);
+    return {
+      ...meta,
+      pageTitle: state.pageTitle || meta.title,
+      customTitle: state.customTitle,
+      title: state.customTitle || meta.title
+    };
+  }
+
+  async function restoreAllCustomTabTitles() {
+    const tabs = await browser.tabs.query({});
+    for (const tab of tabs) {
+      if (!Number.isInteger(tab?.id) || !isSupportedUrl(tab?.url)) continue;
+      const state = await loadCustomTitleState(tab.id, tab.title || "");
+      if (!state.customTitle) continue;
+      const session = sessions.get(tab.id);
+      if (session) {
+        applyCustomTitleStateToSession(session, state, tab.title || state.pageTitle);
+        continue;
+      }
+      try {
+        await applyPlainCustomTitle(tab.id, state.customTitle, true);
+      } catch (_error) {
+        // A site may no longer have permission; the next user save can request it again.
+      }
+    }
+  }
 
   async function loadStore() {
     if (!storePromise) {
@@ -2241,6 +2386,8 @@
     const now = Settings.nowIso();
     return {
       ...tabMeta(tab),
+      pageTitle: typeof tab?.title === "string" ? tab.title : "",
+      customTitle: "",
       mode: MODE.ACTIVE,
       activatedAt: now,
       updatedAt: now,
@@ -2469,7 +2616,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
   async function reattachSession(session, store, reason = "background-recovery") {
     const tab = await browser.tabs.get(session.tabId);
     session.url = tab.url || session.url;
-    session.title = tab.title || session.title;
+    const customTitleState = await loadCustomTitleState(session.tabId, tab.title || session.pageTitle || session.title || "");
+    applyCustomTitleStateToSession(session, customTitleState, tab.title || session.pageTitle || session.title || "");
     session.windowId = tab.windowId;
     session.index = tab.index;
 
@@ -2540,6 +2688,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     const recovered = {
       ...stored,
       ...tabMeta(tab),
+      pageTitle: stored.pageTitle || tab.title || "",
+      customTitle: stored.customTitle || "",
       sessionToken: stored.sessionToken || Settings.makeId("session"),
       runtime: { ...newRuntime(), ...(stored.runtime || {}) },
       logs: normalizeLogs(stored.logs),
@@ -2547,6 +2697,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       shellHistory: normalizeShellHistory(stored.shellHistory, 100),
       shellNotice: normalizeShellNotice(stored.shellNotice, tab.id)
     };
+    const recoveredCustomTitle = await loadCustomTitleState(tab.id, recovered.pageTitle || tab.title || "");
+    applyCustomTitleStateToSession(recovered, recoveredCustomTitle, tab.title || recovered.pageTitle || "");
     if (recovered.shellNotice.status === "running") {
       recovered.shellNotice = normalizeShellNotice({
         ...recovered.shellNotice,
@@ -2999,6 +3151,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
     const localRouting = LocalActions.routeProfile(localStore, tab.url);
     const session = makeSession(tab, profile.id, source, localRouting.profileId || localStore.defaultProfileId);
+    const customTitleState = await loadCustomTitleState(tab.id, tab.title || "");
+    applyCustomTitleStateToSession(session, customTitleState, tab.title || "");
     try {
       await applySessionToContent(session, store, MESSAGE.CONTENT_ACTIVATE);
       appendLog(session, "user", "activated", `Tab activated by ${source}.`, {
@@ -3260,6 +3414,195 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     }
   }
 
+  function normalizeComponentProfile(type, rawProfile) {
+    if (type === "monitor") return Settings.normalizeMonitorProfile(rawProfile);
+    if (type === "target") return Settings.normalizeTargetProfile(rawProfile);
+    throw new Error(`Unsupported component profile type: ${type}.`);
+  }
+
+  function validateComponentProfile(type, profile) {
+    const config = Settings.defaultConfig();
+    if (type === "monitor") config.monitor = Settings.clone(profile.monitor);
+    if (type === "target") config.target = Settings.clone(profile.target);
+    config.rules = [{
+      ...config.rules[0],
+      monitor: Settings.clone(config.monitor),
+      target: Settings.clone(config.target)
+    }];
+    const validation = Settings.validateConfig(config);
+    if (!validation.ok) throw new Error(validation.errors.join("\n"));
+  }
+
+  async function createComponentProfile(type, name, rawConfig) {
+    const store = await loadStore();
+    let profile;
+    if (type === "monitor") {
+      profile = Settings.createMonitorProfile(name || "New monitor profile", rawConfig || Settings.defaultMonitorConfig());
+      validateComponentProfile(type, profile);
+      store.monitorProfiles.push(profile);
+    } else if (type === "target") {
+      profile = Settings.createTargetProfile(name || "New target profile", rawConfig || Settings.defaultTargetConfig());
+      validateComponentProfile(type, profile);
+      store.targetProfiles.push(profile);
+    } else {
+      throw new Error(`Unsupported component profile type: ${type}.`);
+    }
+    await saveStore(store);
+    await broadcast(`${type}-profile-created`);
+    return profile;
+  }
+
+  async function saveComponentProfile(type, rawProfile) {
+    const store = await loadStore();
+    const profile = normalizeComponentProfile(type, rawProfile);
+    validateComponentProfile(type, profile);
+    const collection = type === "monitor" ? store.monitorProfiles : store.targetProfiles;
+    const index = collection.findIndex((item) => item.id === profile.id);
+    if (index < 0) throw new Error(`${type === "monitor" ? "Monitor" : "Target"} profile not found.`);
+    profile.createdAt = collection[index].createdAt;
+    profile.updatedAt = Settings.nowIso();
+    await createSettingsSnapshot("before_component_profile_save", `Before saving ${type} profile: ${collection[index].name}`, store);
+    collection[index] = profile;
+    await saveStore(store);
+    await broadcast(`${type}-profile-saved`);
+    return profile;
+  }
+
+  async function deleteComponentProfile(type, profileId) {
+    const store = await loadStore();
+    const collectionKey = type === "monitor" ? "monitorProfiles" : (type === "target" ? "targetProfiles" : null);
+    const defaultKey = type === "monitor" ? "defaultMonitorProfileId" : (type === "target" ? "defaultTargetProfileId" : null);
+    if (!collectionKey) throw new Error(`Unsupported component profile type: ${type}.`);
+    const collection = store[collectionKey];
+    if (collection.length <= 1) throw new Error(`At least one ${type} profile must remain.`);
+    const profileToDelete = collection.find((item) => item.id === profileId);
+    if (!profileToDelete) throw new Error(`${type} profile not found.`);
+    await createSettingsSnapshot("before_component_profile_delete", `Before deleting ${type} profile: ${profileToDelete.name}`, store);
+    store[collectionKey] = collection.filter((item) => item.id !== profileId);
+    if (store[defaultKey] === profileId) store[defaultKey] = store[collectionKey][0].id;
+    await saveStore(store);
+    await broadcast(`${type}-profile-deleted`);
+  }
+
+  function upsertProfiles(existing, incoming, normalize) {
+    const result = existing.map((item) => Settings.clone(item));
+    let created = 0;
+    let updated = 0;
+    for (const rawProfile of incoming) {
+      const profile = normalize(rawProfile);
+      const index = result.findIndex((item) => item.id === profile.id);
+      if (index >= 0) {
+        profile.createdAt = result[index].createdAt || profile.createdAt;
+        profile.updatedAt = Settings.nowIso();
+        result[index] = profile;
+        updated += 1;
+      } else {
+        result.push(profile);
+        created += 1;
+      }
+    }
+    return { profiles: result, created, updated };
+  }
+
+  async function exportProfileBundle(type) {
+    if (type === "local-action") {
+      const store = await loadLocalActionStore();
+      return Settings.buildProfileBundle(type, store.profiles, { defaultProfileId: store.defaultProfileId });
+    }
+    const store = await loadStore();
+    if (type === "configuration") {
+      return Settings.buildProfileBundle(type, store.profiles, { defaultProfileId: store.defaultProfileId });
+    }
+    if (type === "monitor") {
+      return Settings.buildProfileBundle(type, store.monitorProfiles, { defaultProfileId: store.defaultMonitorProfileId });
+    }
+    if (type === "target") {
+      return Settings.buildProfileBundle(type, store.targetProfiles, { defaultProfileId: store.defaultTargetProfileId });
+    }
+    throw new Error(`Unsupported profile type: ${type}.`);
+  }
+
+  async function importProfileBundle(type, text) {
+    const bundle = Settings.parseProfileBundle(text, type);
+    if (!bundle.profiles.length) throw new Error("The selected profile bundle does not contain any profiles.");
+
+    if (type === "local-action") {
+      const store = await loadLocalActionStore();
+      const merged = upsertProfiles(store.profiles, bundle.profiles, (item) => {
+        const profile = LocalActions.normalizeProfile(item);
+        const validation = LocalActions.validateConfig(profile.config);
+        if (!validation.ok) throw new Error(validation.errors.join("\n"));
+        profile.config = validation.config;
+        return profile;
+      });
+      store.profiles = merged.profiles;
+      if (bundle.defaultProfileId && store.profiles.some((item) => item.id === bundle.defaultProfileId)) {
+        store.defaultProfileId = bundle.defaultProfileId;
+      } else if (!store.profiles.some((item) => item.id === store.defaultProfileId)) {
+        store.defaultProfileId = store.profiles[0].id;
+      }
+      const saved = await saveLocalActionStore(store);
+      for (const session of sessions.values()) {
+        if (session.localActionConfigMode !== CONFIG_MODE.PROFILE) continue;
+        if (!LocalActions.profileById(saved, session.localActionProfileId)) session.localActionProfileId = saved.defaultProfileId;
+        clearWorkingLocalActionSnapshot(session);
+        session.localActionRevision = Number(session.localActionRevision || 0) + 1;
+        await persistSession(session);
+      }
+      await broadcast("local-action-profiles-imported");
+      return merged;
+    }
+
+    const store = await loadStore();
+    await createSettingsSnapshot("before_profile_bundle_import", `Before importing ${type} profiles`, store);
+    let merged;
+    if (type === "configuration") {
+      merged = upsertProfiles(store.profiles, bundle.profiles, (item) => {
+        const profile = Settings.normalizeProfile(item);
+        const validation = Settings.validateConfig(profile.config);
+        if (!validation.ok) throw new Error(validation.errors.join("\n"));
+        profile.config = validation.config;
+        return profile;
+      });
+      store.profiles = merged.profiles;
+      if (bundle.defaultProfileId && store.profiles.some((item) => item.id === bundle.defaultProfileId)) {
+        store.defaultProfileId = bundle.defaultProfileId;
+      } else if (!store.profiles.some((item) => item.id === store.defaultProfileId)) {
+        store.defaultProfileId = store.profiles[0].id;
+      }
+    } else if (type === "monitor") {
+      merged = upsertProfiles(store.monitorProfiles, bundle.profiles, (item) => {
+        const profile = Settings.normalizeMonitorProfile(item);
+        validateComponentProfile(type, profile);
+        return profile;
+      });
+      store.monitorProfiles = merged.profiles;
+      if (bundle.defaultProfileId && store.monitorProfiles.some((item) => item.id === bundle.defaultProfileId)) {
+        store.defaultMonitorProfileId = bundle.defaultProfileId;
+      } else if (!store.monitorProfiles.some((item) => item.id === store.defaultMonitorProfileId)) {
+        store.defaultMonitorProfileId = store.monitorProfiles[0].id;
+      }
+    } else if (type === "target") {
+      merged = upsertProfiles(store.targetProfiles, bundle.profiles, (item) => {
+        const profile = Settings.normalizeTargetProfile(item);
+        validateComponentProfile(type, profile);
+        return profile;
+      });
+      store.targetProfiles = merged.profiles;
+      if (bundle.defaultProfileId && store.targetProfiles.some((item) => item.id === bundle.defaultProfileId)) {
+        store.defaultTargetProfileId = bundle.defaultProfileId;
+      } else if (!store.targetProfiles.some((item) => item.id === store.defaultTargetProfileId)) {
+        store.defaultTargetProfileId = store.targetProfiles[0].id;
+      }
+    } else {
+      throw new Error(`Unsupported profile type: ${type}.`);
+    }
+    const saved = await saveStore(store);
+    if (type === "configuration") await refreshSessionsForStore(saved);
+    await broadcast(`${type}-profiles-imported`);
+    return merged;
+  }
+
   async function createProfile(name, baseProfileId = null) {
     const store = await loadStore();
     const base = Settings.profileById(store, baseProfileId);
@@ -3486,7 +3829,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         return {
           tabId: tab.id,
           windowId: tab.windowId,
-          title: WorkingSession.cleanTitle(session?.runtime?.originalTitle || tab.title || ""),
+          title: WorkingSession.cleanTitle(session?.customTitle || session?.runtime?.originalTitle || tab.title || ""),
+          customTitle: session?.customTitle || "",
+          pageTitle: session?.pageTitle || tab.title || "",
           url: tab.url,
           addOnActive: Boolean(session),
           mode: session?.mode || MODE.INACTIVE,
@@ -3523,7 +3868,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       records.push({
         sourceTabId: tab.id,
         url: tab.url,
-        title: WorkingSession.cleanTitle(session?.runtime?.originalTitle || tab.title || ""),
+        title: WorkingSession.cleanTitle(session?.customTitle || session?.runtime?.originalTitle || tab.title || ""),
+        customTitle: session?.customTitle || (await loadCustomTitleState(tab.id, tab.title || "")).customTitle,
+        pageTitle: session?.pageTitle || tab.title || "",
         addOnActive: Boolean(session),
         mode: session?.mode || MODE.INACTIVE,
         profileId: profile.id,
@@ -3608,12 +3955,24 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       try {
         tab = await browser.tabs.create({ url: savedTab.url, active: false });
         report.openedTabIds.push(tab.id);
+        if (savedTab.customTitle) {
+          await saveCustomTitleState(tab.id, {
+            customTitle: savedTab.customTitle,
+            pageTitle: savedTab.pageTitle || savedTab.title || "",
+            updatedAt: Settings.nowIso()
+          });
+        }
         if (!savedTab.addOnActive) {
           continue;
         }
         const profileId = merged.profileMap.get(savedTab.profileId) || store.defaultProfileId;
         const localActionProfileId = mergedLocal.profileMap.get(savedTab.localActionProfileId) || localStore.defaultProfileId;
         const session = makeSession(tab, profileId, "working-session-import", localActionProfileId);
+        applyCustomTitleStateToSession(session, {
+          customTitle: savedTab.customTitle || "",
+          pageTitle: savedTab.pageTitle || savedTab.title || tab.title || "",
+          updatedAt: Settings.nowIso()
+        }, tab.title || savedTab.pageTitle || savedTab.title || "");
         session.configMode = savedTab.configMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE;
         session.tabConfig = session.configMode === CONFIG_MODE.TAB
           ? Settings.normalizeConfig(savedTab.tabConfig || savedTab.effectiveConfig)
@@ -3655,6 +4014,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     const [store, localActionStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
     const snapshotCollection = await loadSnapshotCollection();
     const tab = await currentTab();
+    const currentTabMeta = await tabMetaWithCustomTitle(tab);
     const publicSessions = [...sessions.values()]
       .map((session) => publicSession(session, store, localActionStore))
       .sort((left, right) => left.tabId - right.tabId);
@@ -3662,7 +4022,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     const localActionRoutingPreview = LocalActions.routeProfile(localActionStore, tab?.url || "");
     return {
       protocolVersion: globalThis.FCI_PROTOCOL.VERSION,
-      currentTab: tabMeta(tab),
+      currentTab: currentTabMeta,
       sessions: publicSessions,
       store,
       localActionStore,
@@ -3788,6 +4148,35 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         case MESSAGE.DELETE_PROFILE:
           await deleteProfile(message.profileId);
           return { ok: true, dashboard: await dashboard() };
+
+        case MESSAGE.CREATE_COMPONENT_PROFILE: {
+          const profile = await createComponentProfile(message.profileType, message.name, message.config);
+          return { ok: true, profileType: message.profileType, componentProfileId: profile.id, savedProfile: profile, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.SAVE_COMPONENT_PROFILE: {
+          const profile = await saveComponentProfile(message.profileType, message.profile);
+          return { ok: true, profileType: message.profileType, componentProfileId: profile.id, savedProfile: profile, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.DELETE_COMPONENT_PROFILE:
+          await deleteComponentProfile(message.profileType, message.profileId);
+          return { ok: true, profileType: message.profileType, dashboard: await dashboard() };
+
+        case MESSAGE.EXPORT_PROFILE_BUNDLE: {
+          const bundle = await exportProfileBundle(message.profileType);
+          return { ok: true, profileType: message.profileType, text: JSON.stringify(bundle, null, 2), count: bundle.profiles.length };
+        }
+
+        case MESSAGE.IMPORT_PROFILE_BUNDLE: {
+          const result = await importProfileBundle(message.profileType, message.text);
+          return { ok: true, profileType: message.profileType, imported: result.created + result.updated, created: result.created, updated: result.updated, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.SET_TAB_CUSTOM_TITLE: {
+          const titleState = await setTabCustomTitle(Number(message.tabId), message.title);
+          return { ok: true, titleState, dashboard: await dashboard() };
+        }
 
         case MESSAGE.EXPORT_SETTINGS: {
           const store = await loadStore();
@@ -3994,6 +4383,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.DUPLICATE_PROFILE,
     MESSAGE.SAVE_PROFILE,
     MESSAGE.DELETE_PROFILE,
+    MESSAGE.CREATE_COMPONENT_PROFILE,
+    MESSAGE.SAVE_COMPONENT_PROFILE,
+    MESSAGE.DELETE_COMPONENT_PROFILE,
+    MESSAGE.EXPORT_PROFILE_BUNDLE,
+    MESSAGE.IMPORT_PROFILE_BUNDLE,
+    MESSAGE.SET_TAB_CUSTOM_TITLE,
     MESSAGE.EXPORT_SETTINGS,
     MESSAGE.EXPORT_SUPPORT_BUNDLE,
     MESSAGE.IMPORT_SETTINGS,
@@ -4044,6 +4439,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.DUPLICATE_PROFILE,
     MESSAGE.SAVE_PROFILE,
     MESSAGE.DELETE_PROFILE,
+    MESSAGE.CREATE_COMPONENT_PROFILE,
+    MESSAGE.SAVE_COMPONENT_PROFILE,
+    MESSAGE.DELETE_COMPONENT_PROFILE,
+    MESSAGE.EXPORT_PROFILE_BUNDLE,
+    MESSAGE.IMPORT_PROFILE_BUNDLE,
+    MESSAGE.SET_TAB_CUSTOM_TITLE,
     MESSAGE.EXPORT_SETTINGS,
     MESSAGE.EXPORT_SUPPORT_BUNDLE,
     MESSAGE.IMPORT_SETTINGS,
@@ -4141,7 +4542,13 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     const urlChanged = typeof changeInfo.url === "string" && changeInfo.url !== session.url;
     if (changeInfo.status === "loading" || urlChanged) {
       session.url = tab.url || changeInfo.url || session.url;
-      session.title = tab.title || session.title;
+      if (!session.customTitle && tab.title) session.pageTitle = tab.title;
+      session.title = session.customTitle || session.pageTitle || tab.title || session.title;
+      session.runtime = {
+        ...session.runtime,
+        customTitle: session.customTitle || "",
+        pageTitle: session.pageTitle || ""
+      };
       session.windowId = tab.windowId;
       session.index = tab.index;
       session.runtime = {
@@ -4174,12 +4581,38 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       return;
     }
 
-    if (typeof changeInfo.title === "string" && !session.runtime?.alertActive) {
+    if (typeof changeInfo.title === "string" && !session.runtime?.alertActive && !session.customTitle) {
+      session.pageTitle = changeInfo.title;
       session.title = changeInfo.title;
+      session.runtime = { ...session.runtime, pageTitle: changeInfo.title, customTitle: "" };
       session.updatedAt = Settings.nowIso();
       void persistSession(session);
       void broadcast("tab-title-updated", tabId);
     }
+  });
+
+  browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status !== "complete") return;
+    void (async () => {
+      const state = await loadCustomTitleState(tabId, tab?.title || "");
+      if (!state.customTitle) return;
+      const refreshed = normalizeCustomTitleState({
+        ...state,
+        pageTitle: tab?.title || sessions.get(tabId)?.pageTitle || state.pageTitle,
+        updatedAt: state.updatedAt
+      }, tab?.title || "");
+      await saveCustomTitleState(tabId, refreshed);
+      const session = sessions.get(tabId);
+      if (session) {
+        applyCustomTitleStateToSession(session, refreshed, refreshed.pageTitle);
+        const store = await loadStore();
+        await applySessionToContent(session, store);
+        await persistSession(session);
+      } else {
+        await applyPlainCustomTitle(tabId, refreshed.customTitle, true);
+      }
+      await broadcast("tab-custom-title-restored", tabId);
+    })().catch(() => { /* Site permission or navigation may temporarily block title restoration. */ });
   });
 
   browser.tabs.onActivated.addListener((activeInfo) => {
@@ -4235,8 +4668,11 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     void clearNotification(tabId);
   });
 
-  void recoverAll().then(() => scheduleNativeLogCleanup("startup", 2500)).catch((error) => {
-    console.error("FirefoxChatImprover: startup session recovery failed", error);
-  });
+  void recoverAll()
+    .then(() => restoreAllCustomTabTitles())
+    .then(() => scheduleNativeLogCleanup("startup", 2500))
+    .catch((error) => {
+      console.error("FirefoxChatImprover: startup session recovery failed", error);
+    });
 
 })();

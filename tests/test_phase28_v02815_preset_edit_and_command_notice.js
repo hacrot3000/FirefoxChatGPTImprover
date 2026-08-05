@@ -16,7 +16,7 @@ const activation = fs.readFileSync(path.join(root, "extension/content/activation
 const alertSource = fs.readFileSync(path.join(root, "extension/content/alert.js"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
 
-assert.ok(/^0\.28\.(?:1[5-9]|[2-9][0-9])$/.test(manifest.version));
+assert.ok(manifest.version.localeCompare("0.28.15", undefined, { numeric: true }) >= 0);
 
 // Preset editing must keep the selected preset and protect unsaved edits.
 assert.doesNotMatch(sidebar, /Direct command for this tab/);

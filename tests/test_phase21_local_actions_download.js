@@ -34,7 +34,7 @@ const bundle = Working.build([{
   effectiveLocalActions: { ...shared.config, download: { ...shared.config.download, destinationDirectory: "/tmp/tab-specific" } }
 }], { extensionVersion: "0.21.0" });
 const parsed = Working.parse(Working.stringify(bundle));
-assert.equal(parsed.version, 2);
+assert.equal(parsed.version, 3);
 assert.equal(parsed.tabs[0].localActionProfileId, shared.id);
 assert.equal(parsed.tabs[0].localActionConfigMode, "tab");
 assert.equal(parsed.tabs[0].effectiveLocalActions.download.destinationDirectory, "/tmp/tab-specific");

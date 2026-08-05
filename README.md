@@ -642,3 +642,11 @@ Updates stale Phase 23/25 contracts, restores repeatable `--overwrite` builds, v
 
 Windows Native Host support is available through `native-host/install_native_host.ps1` and `native-host/uninstall_native_host.ps1`. Linux installations continue to use `native-host/install_native_host.sh`. See `document/PHASE_28_V0_28_25_WINDOWS_NATIVE_HOST.md` for validation and usage.
 
+<!-- FIREFOX_CHAT_IMPROVER_PHASE29_V0290_BEGIN -->
+## Phase 29 v0.29.0 — component profiles and custom tab titles
+
+- Adds reusable Monitor element and New target element profile libraries.
+- Renames Save configuration to Import/export configuration and adds type-safe JSON import/export for configuration, monitor, target and local-action profiles.
+- Adds per-tab custom titles that survive reload/navigation and remain the base title for AI READY/Running indicators.
+- Native Host remains 0.13.0 and does not need reinstalling.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE29_V0290_END -->

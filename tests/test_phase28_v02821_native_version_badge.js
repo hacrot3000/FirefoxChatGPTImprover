@@ -9,7 +9,7 @@ const css = fs.readFileSync("extension/sidebar/sidebar.css", "utf8");
 const js = fs.readFileSync("extension/sidebar/sidebar.js", "utf8");
 const manifest = JSON.parse(fs.readFileSync("extension/manifest.json", "utf8"));
 
-assert(Number(manifest.version.split(".")[2]) >= 21);
+assert.ok(manifest.version.localeCompare("0.28.21", undefined, { numeric: true }) >= 0);
 assert.match(html, /id="nativeHostStatus" class="native-status native-host-status"/);
 assert.match(html, /id="nativeHostStatus"[^>]+role="status"[^>]+aria-live="polite"/);
 assert.match(css, /\.native-host-status\s*\{[^}]*max-width:\s*none;/s);

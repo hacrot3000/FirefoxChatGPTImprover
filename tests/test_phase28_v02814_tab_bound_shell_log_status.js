@@ -51,7 +51,7 @@ const css = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.css"), "u
 const activation = fs.readFileSync(path.join(root, "extension/content/activation.js"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
 
-assert.ok(/^0\.28\.(?:1[5-9]|[2-9][0-9])$/.test(manifest.version));
+assert.ok(manifest.version.localeCompare("0.28.14", undefined, { numeric: true }) >= 0);
 assert(background.includes("function normalizeShellNotice(raw, tabId)"));
 assert(background.includes('status: completed ? "unread" : "running"'));
 assert(background.includes("async function acknowledgeShellNotice(session"));

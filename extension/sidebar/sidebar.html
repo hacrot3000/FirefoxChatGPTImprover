@@ -39,6 +39,14 @@
         Selected tab
         <select id="tabSelect"></select>
       </label>
+      <label>
+        Custom tab title
+        <input id="customTabTitle" type="text" maxlength="240" autocomplete="off" placeholder="Use the page title">
+      </label>
+      <div class="button-grid">
+        <button id="saveCustomTabTitleButton" type="button">Save custom title</button>
+        <button id="clearCustomTabTitleButton" type="button">Use page title</button>
+      </div>
       <dl class="details">
         <div>
           <dt>Tab ID</dt>
@@ -220,6 +228,16 @@
 
     <section class="card" data-group-id="monitor" aria-labelledby="monitorHeading">
       <h2 id="monitorHeading">Monitor element</h2>
+      <div class="component-profile-panel">
+        <label>Monitor profile<select id="monitorProfileSelect"></select></label>
+        <label>Profile name<input id="monitorProfileName" type="text" autocomplete="off"></label>
+        <div class="button-grid four">
+          <button id="applyMonitorProfileButton" type="button">Apply to rule</button>
+          <button id="newMonitorProfileButton" type="button">New from current</button>
+          <button id="saveMonitorProfileButton" type="button">Save selected</button>
+          <button id="deleteMonitorProfileButton" type="button" class="danger">Delete</button>
+        </div>
+      </div>
       <div class="selector-grid">
         <label>Tag<select id="monitorTag">
             <option>*</option>
@@ -292,6 +310,16 @@
               Use “Pick on page” to select a target. On activation, or when the monitor leaves MATCHED, existing targets become the baseline and are not clicked. While MATCHED, only targets newer than the baseline are handled. Dry run still marks targets as handled for the cycle. Pending pipelines are cancelled when the tab is paused or stopped, the configuration changes, or the monitor re-arms.
             </div>
           </details>
+        </div>
+      </div>
+      <div class="component-profile-panel">
+        <label>Target profile<select id="targetProfileSelect"></select></label>
+        <label>Profile name<input id="targetProfileName" type="text" autocomplete="off"></label>
+        <div class="button-grid four">
+          <button id="applyTargetProfileButton" type="button">Apply to rule</button>
+          <button id="newTargetProfileButton" type="button">New from current</button>
+          <button id="saveTargetProfileButton" type="button">Save selected</button>
+          <button id="deleteTargetProfileButton" type="button" class="danger">Delete</button>
         </div>
       </div>
       <label class="check-row"><input id="targetEnabled" type="checkbox">Process new targets while the monitor is MATCHED</label>
@@ -629,18 +657,25 @@ cd C:\absolute\path\to\FirefoxChatImprover
     </section>
 
     <section class="card" data-group-id="save" aria-labelledby="saveHeading">
-      <h2 id="saveHeading">Save configuration</h2>
+      <h2 id="saveHeading">Import/export configuration</h2>
       <div class="button-grid">
         <button id="saveProfileButton" type="button" class="primary">Save to profile</button>
         <button id="saveTabButton" type="button">Save for this tab</button>
         <button id="resetTabButton" type="button">Use profile for tab</button>
-        <button id="exportButton" type="button">Export JSON</button>
-        <button id="importButton" type="button">Import JSON</button>
+        <button id="exportButton" type="button">Export all settings</button>
+        <button id="importButton" type="button">Import all settings</button>
         <button id="saveWorkingSessionButton" type="button">Save working session</button>
         <button id="importWorkingSessionButton" type="button">Import working session</button>
         <button id="clearHighlightsButton" type="button">Clear highlights</button>
         <input id="importFile" type="file" accept="application/json,.json" hidden>
         <input id="importWorkingSessionFile" type="file" accept="application/json,.json" hidden>
+      </div>
+      <div class="profile-io-list" aria-label="Profile import and export">
+        <div class="profile-io-row"><strong>Configuration profiles</strong><button id="exportConfigurationProfilesButton" type="button">Export</button><button id="importConfigurationProfilesButton" type="button">Import</button></div>
+        <div class="profile-io-row"><strong>Monitor profiles</strong><button id="exportMonitorProfilesButton" type="button">Export</button><button id="importMonitorProfilesButton" type="button">Import</button></div>
+        <div class="profile-io-row"><strong>Target profiles</strong><button id="exportTargetProfilesButton" type="button">Export</button><button id="importTargetProfilesButton" type="button">Import</button></div>
+        <div class="profile-io-row"><strong>Local action profiles</strong><button id="exportLocalActionProfilesButton" type="button">Export</button><button id="importLocalActionProfilesButton" type="button">Import</button></div>
+        <input id="profileImportFile" type="file" accept="application/json,.json" hidden>
       </div>
       <div class="settings-snapshot-row">
         <label>Recovery snapshot

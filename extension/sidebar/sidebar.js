@@ -22,12 +22,12 @@
     statusPill: $("#statusPill"), commandStatusIcon: $("#commandStatusIcon"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
     modeText: $("#modeText"), configModeText: $("#configModeText"), profileText: $("#profileText"), tabUrl: $("#tabUrl"), commandNoticeText: $("#commandNoticeText"),
     monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), ruleCountText: $("#ruleCountText"), matchedRuleCountText: $("#matchedRuleCountText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
-    activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"),
+    activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"), customTabTitle: $("#customTabTitle"), saveCustomTabTitleButton: $("#saveCustomTabTitleButton"), clearCustomTabTitleButton: $("#clearCustomTabTitleButton"),
     profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     ruleSelect: $("#ruleSelect"), ruleName: $("#ruleName"), ruleEnabled: $("#ruleEnabled"), newRuleButton: $("#newRuleButton"), duplicateRuleButton: $("#duplicateRuleButton"), deleteRuleButton: $("#deleteRuleButton"), ruleRuntimeSummary: $("#ruleRuntimeSummary"), ruleRuntimeBadge: $("#ruleRuntimeBadge"), ruleCommandEnabled: $("#ruleCommandEnabled"), ruleCommandPreset: $("#ruleCommandPreset"), ruleCommandTrigger: $("#ruleCommandTrigger"), ruleCommandAllowDryRun: $("#ruleCommandAllowDryRun"), ruleCommandStatus: $("#ruleCommandStatus"),
     autoProfileByUrl: $("#autoProfileByUrl"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), urlRoutingResult: $("#urlRoutingResult"),
-    monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
-    targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
+    monitorProfileSelect: $("#monitorProfileSelect"), monitorProfileName: $("#monitorProfileName"), applyMonitorProfileButton: $("#applyMonitorProfileButton"), newMonitorProfileButton: $("#newMonitorProfileButton"), saveMonitorProfileButton: $("#saveMonitorProfileButton"), deleteMonitorProfileButton: $("#deleteMonitorProfileButton"), monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
+    targetProfileSelect: $("#targetProfileSelect"), targetProfileName: $("#targetProfileName"), applyTargetProfileButton: $("#applyTargetProfileButton"), newTargetProfileButton: $("#newTargetProfileButton"), saveTargetProfileButton: $("#saveTargetProfileButton"), deleteTargetProfileButton: $("#deleteTargetProfileButton"), targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), exportSupportBundleButton: $("#exportSupportBundleButton"), clearLogsButton: $("#clearLogsButton"),
     localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), downloadShellExecutionMode: $("#downloadShellExecutionMode"), openShellLogAfterExecution: $("#openShellLogAfterExecution"), downloadStateSummary: $("#downloadStateSummary"), downloadShellStateSummary: $("#downloadShellStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
@@ -35,7 +35,7 @@
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"), nativeLogRetentionEnabled: $("#nativeLogRetentionEnabled"), nativeLogMaxAgeDays: $("#nativeLogMaxAgeDays"), nativeLogMaxTotalMiB: $("#nativeLogMaxTotalMiB"), nativeLogMaxFiles: $("#nativeLogMaxFiles"), nativeLogCleanupOnStartup: $("#nativeLogCleanupOnStartup"), nativeLogCleanupAfterCommand: $("#nativeLogCleanupAfterCommand"), saveNativeLogRetentionButton: $("#saveNativeLogRetentionButton"), runNativeLogCleanupButton: $("#runNativeLogCleanupButton"), nativeLogCleanupStatus: $("#nativeLogCleanupStatus"),
     shellLogDialog: $("#shellLogDialog"), shellLogDialogTitle: $("#shellLogDialogTitle"), shellLogMetadata: $("#shellLogMetadata"), shellLogViewer: $("#shellLogViewer"), shellLogPageInfo: $("#shellLogPageInfo"), closeShellLogDialogButton: $("#closeShellLogDialogButton"), shellLogFirstButton: $("#shellLogFirstButton"), shellLogPreviousButton: $("#shellLogPreviousButton"), shellLogNextButton: $("#shellLogNextButton"), shellLogLastButton: $("#shellLogLastButton"), copyShellLogSelectionButton: $("#copyShellLogSelectionButton"), copyShellLogPageButton: $("#copyShellLogPageButton"), copyShellLogAllButton: $("#copyShellLogAllButton"), refreshShellLogButton: $("#refreshShellLogButton"), deleteShellLogButton: $("#deleteShellLogButton"),
-    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), saveWorkingSessionButton: $("#saveWorkingSessionButton"), importWorkingSessionButton: $("#importWorkingSessionButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), importWorkingSessionFile: $("#importWorkingSessionFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), messageBox: $("#messageBox")
+    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), exportConfigurationProfilesButton: $("#exportConfigurationProfilesButton"), importConfigurationProfilesButton: $("#importConfigurationProfilesButton"), exportMonitorProfilesButton: $("#exportMonitorProfilesButton"), importMonitorProfilesButton: $("#importMonitorProfilesButton"), exportTargetProfilesButton: $("#exportTargetProfilesButton"), importTargetProfilesButton: $("#importTargetProfilesButton"), exportLocalActionProfilesButton: $("#exportLocalActionProfilesButton"), importLocalActionProfilesButton: $("#importLocalActionProfilesButton"), profileImportFile: $("#profileImportFile"), saveWorkingSessionButton: $("#saveWorkingSessionButton"), importWorkingSessionButton: $("#importWorkingSessionButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), importWorkingSessionFile: $("#importWorkingSessionFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), messageBox: $("#messageBox")
   };
 
   const modeLabels = {
@@ -47,7 +47,10 @@
   let dashboard = { currentTab: {}, sessions: [], store: Settings.defaultStore(), localActionStore: LocalActions.defaultStore(), nativeHost: { connected: false, runs: [], downloads: [] } };
   let selectedTabId = null;
   let selectedProfileId = null;
+  let selectedMonitorProfileId = null;
+  let selectedTargetProfileId = null;
   let selectedLocalActionProfileId = null;
+  let pendingProfileImportType = null;
   let selectedRuleId = null;
   let formConfigDraft = Settings.defaultConfig();
   let commandPresetStore = CommandPresets.defaultStore();
@@ -80,7 +83,9 @@
     MESSAGE.GET_DASHBOARD, MESSAGE.ACTIVATE_CURRENT, MESSAGE.STOP_TAB,
     MESSAGE.ASSIGN_PROFILE, MESSAGE.SAVE_TAB_CONFIG, MESSAGE.RESET_TAB_CONFIG,
     MESSAGE.CREATE_PROFILE, MESSAGE.DUPLICATE_PROFILE, MESSAGE.SAVE_PROFILE,
-    MESSAGE.DELETE_PROFILE, MESSAGE.IMPORT_SETTINGS, MESSAGE.CREATE_SETTINGS_SNAPSHOT,
+    MESSAGE.DELETE_PROFILE, MESSAGE.CREATE_COMPONENT_PROFILE, MESSAGE.SAVE_COMPONENT_PROFILE,
+    MESSAGE.DELETE_COMPONENT_PROFILE, MESSAGE.IMPORT_PROFILE_BUNDLE, MESSAGE.SET_TAB_CUSTOM_TITLE,
+    MESSAGE.IMPORT_SETTINGS, MESSAGE.CREATE_SETTINGS_SNAPSHOT,
     MESSAGE.CREATE_LOCAL_ACTION_PROFILE, MESSAGE.SAVE_LOCAL_ACTION_PROFILE,
     MESSAGE.DELETE_LOCAL_ACTION_PROFILE, MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE,
     MESSAGE.SAVE_TAB_LOCAL_ACTIONS, MESSAGE.RESET_TAB_LOCAL_ACTIONS,
@@ -269,7 +274,9 @@
     return browser.storage.local.set({
       [SIDEBAR_UI_STORAGE_KEY]: {
         collapsedGroups: { ...collapsedGroups },
-        autoProfileByUrl
+        autoProfileByUrl,
+        selectedMonitorProfileId,
+        selectedTargetProfileId
       }
     });
   }
@@ -308,6 +315,8 @@
     const stored = storedUi.collapsedGroups;
     collapsedGroups = stored && typeof stored === "object" ? { ...stored } : {};
     autoProfileByUrl = storedUi.autoProfileByUrl !== false;
+    selectedMonitorProfileId = typeof storedUi.selectedMonitorProfileId === "string" ? storedUi.selectedMonitorProfileId : null;
+    selectedTargetProfileId = typeof storedUi.selectedTargetProfileId === "string" ? storedUi.selectedTargetProfileId : null;
     elements.autoProfileByUrl.checked = autoProfileByUrl;
 
     for (const section of document.querySelectorAll("section.card[data-group-id]")) {
@@ -360,6 +369,20 @@
 
   function localActionProfileById(profileId) {
     return LocalActions.profileById(dashboard.localActionStore, profileId) || dashboard.localActionStore.profiles[0];
+  }
+
+  function monitorProfileById(profileId) {
+    return Settings.monitorProfileById(dashboard.store, profileId) || dashboard.store.monitorProfiles?.[0] || null;
+  }
+
+  function targetProfileById(profileId) {
+    return Settings.targetProfileById(dashboard.store, profileId) || dashboard.store.targetProfiles?.[0] || null;
+  }
+
+  function selectedTabMetadata() {
+    const session = selectedSession();
+    if (session) return session;
+    return Number(dashboard.currentTab?.tabId) === Number(selectedTabId) ? dashboard.currentTab : null;
   }
 
   function selectedDownloadState() {
@@ -1309,6 +1332,32 @@
     return routing;
   }
 
+  function renderComponentProfileOptions() {
+    const monitorProfiles = Array.isArray(dashboard.store?.monitorProfiles) ? dashboard.store.monitorProfiles : [];
+    elements.monitorProfileSelect.replaceChildren();
+    for (const profile of monitorProfiles) {
+      const suffix = profile.id === dashboard.store.defaultMonitorProfileId ? " (default)" : "";
+      elements.monitorProfileSelect.add(new Option(`${profile.name}${suffix}`, profile.id));
+    }
+    selectedMonitorProfileId = monitorProfiles.some((profile) => profile.id === selectedMonitorProfileId)
+      ? selectedMonitorProfileId
+      : (dashboard.store.defaultMonitorProfileId || monitorProfiles[0]?.id || null);
+    elements.monitorProfileSelect.value = selectedMonitorProfileId || "";
+    elements.monitorProfileName.value = monitorProfileById(selectedMonitorProfileId)?.name || "";
+
+    const targetProfiles = Array.isArray(dashboard.store?.targetProfiles) ? dashboard.store.targetProfiles : [];
+    elements.targetProfileSelect.replaceChildren();
+    for (const profile of targetProfiles) {
+      const suffix = profile.id === dashboard.store.defaultTargetProfileId ? " (default)" : "";
+      elements.targetProfileSelect.add(new Option(`${profile.name}${suffix}`, profile.id));
+    }
+    selectedTargetProfileId = targetProfiles.some((profile) => profile.id === selectedTargetProfileId)
+      ? selectedTargetProfileId
+      : (dashboard.store.defaultTargetProfileId || targetProfiles[0]?.id || null);
+    elements.targetProfileSelect.value = selectedTargetProfileId || "";
+    elements.targetProfileName.value = targetProfileById(selectedTargetProfileId)?.name || "";
+  }
+
   function renderSelectors(preferredTabId = null) {
     const oldTab = selectedTabId;
     elements.tabSelect.replaceChildren();
@@ -1352,6 +1401,7 @@
       (dashboard.store.profiles.some((profile) => profile.id === routedProfileId) ? routedProfileId : null) ||
       (dashboard.store.profiles.some((profile) => profile.id === oldProfile) ? oldProfile : dashboard.store.defaultProfileId);
     elements.profileSelect.value = selectedProfileId;
+    renderComponentProfileOptions();
     const localStore = dashboard.localActionStore || LocalActions.defaultStore();
     const routedLocal = LocalActions.routeProfile(localStore, session?.url || dashboard.currentTab?.url || "");
     selectedLocalActionProfileId = session?.localActionProfileId ||
@@ -1537,7 +1587,10 @@
     elements.monitorTransitionText.textContent = runtime.pendingMonitorState
       ? `waiting for ${runtime.pendingMonitorState}; ${runtime.stabilityDelayMs || 0} ms`
       : (runtime.lastVisibilityTransition || runtime.lastTransition || runtime.lastReason || "—");
+    const tabMetadata = selectedTabMetadata();
     elements.tabUrl.textContent = session?.url || (currentIsSelected ? dashboard.currentTab.url : "") || "—";
+    elements.saveCustomTabTitleButton.disabled = busy || !tabMetadata;
+    elements.clearCustomTabTitleButton.disabled = busy || !tabMetadata || !String(tabMetadata?.customTitle || "").trim();
     const recoveryActionRequired = Boolean(session) && [
       "permission-required",
       "url-blocked",
@@ -1569,6 +1622,14 @@
     elements.autoProfileByUrl.checked = autoProfileByUrl;
     elements.saveTabButton.disabled = busy || !session;
     elements.resetTabButton.disabled = busy || !session || session.configMode !== CONFIG_MODE.TAB;
+    elements.applyMonitorProfileButton.disabled = busy || !monitorProfileById(selectedMonitorProfileId);
+    elements.newMonitorProfileButton.disabled = busy;
+    elements.saveMonitorProfileButton.disabled = busy || !monitorProfileById(selectedMonitorProfileId);
+    elements.deleteMonitorProfileButton.disabled = busy || (dashboard.store.monitorProfiles?.length || 0) <= 1;
+    elements.applyTargetProfileButton.disabled = busy || !targetProfileById(selectedTargetProfileId);
+    elements.newTargetProfileButton.disabled = busy;
+    elements.saveTargetProfileButton.disabled = busy || !targetProfileById(selectedTargetProfileId);
+    elements.deleteTargetProfileButton.disabled = busy || (dashboard.store.targetProfiles?.length || 0) <= 1;
     renderPickerButtons(currentIsSelected);
     elements.monitorTestButton.disabled = busy || !currentIsSelected;
     elements.targetTestButton.disabled = busy || !currentIsSelected;
@@ -1589,6 +1650,7 @@
     const profile = profileById(selectedProfileId);
     if (loadForm) {
       elements.profileName.value = profile?.name || "";
+      elements.customTabTitle.value = String(tabMetadata?.customTitle || "");
       writeConfig(session?.effectiveConfig || profile?.config || Settings.defaultConfig());
       const localProfile = localActionProfileById(selectedLocalActionProfileId);
       writeLocalActionConfig(session?.effectiveLocalActions || localProfile?.config || LocalActions.defaultConfig());
@@ -1606,6 +1668,10 @@
         profile.id, profile.name
       ]),
       defaultProfileId: data.store?.defaultProfileId || null,
+      monitorProfiles: (Array.isArray(data.store?.monitorProfiles) ? data.store.monitorProfiles : []).map((profile) => [profile.id, profile.name, profile.updatedAt]),
+      defaultMonitorProfileId: data.store?.defaultMonitorProfileId || null,
+      targetProfiles: (Array.isArray(data.store?.targetProfiles) ? data.store.targetProfiles : []).map((profile) => [profile.id, profile.name, profile.updatedAt]),
+      defaultTargetProfileId: data.store?.defaultTargetProfileId || null,
       localSessions: (Array.isArray(data.sessions) ? data.sessions : []).map((session) => [
         session.tabId, session.localActionProfileId, session.localActionConfigMode
       ]),
@@ -2468,6 +2534,14 @@ ${run.command || ""}`)) {
       if (response.localActionProfileId) {
         selectedLocalActionProfileId = response.localActionProfileId;
       }
+      if (response.componentProfileId && response.profileType === "monitor") {
+        selectedMonitorProfileId = response.componentProfileId;
+        void persistSidebarUi();
+      }
+      if (response.componentProfileId && response.profileType === "target") {
+        selectedTargetProfileId = response.componentProfileId;
+        void persistSidebarUi();
+      }
       if (response.dashboard) {
         const reloadForm = options.reloadForm ?? FORM_RELOAD_MESSAGE_TYPES.has(type);
         if (reloadForm) {
@@ -2564,6 +2638,35 @@ ${run.command || ""}`)) {
     renderRuleRuntimeSummary();
     showMessage(`Removed rule “${rule.name}” from the draft.`, "success");
   }
+
+  elements.monitorProfileSelect.addEventListener("change", () => {
+    selectedMonitorProfileId = elements.monitorProfileSelect.value;
+    elements.monitorProfileName.value = monitorProfileById(selectedMonitorProfileId)?.name || "";
+    void persistSidebarUi();
+  });
+  elements.applyMonitorProfileButton.addEventListener("click", () => applyComponentProfileToRule("monitor"));
+  elements.newMonitorProfileButton.addEventListener("click", () => void createComponentProfileFromRule("monitor"));
+  elements.saveMonitorProfileButton.addEventListener("click", () => void saveSelectedComponentProfile("monitor"));
+  elements.deleteMonitorProfileButton.addEventListener("click", () => void deleteSelectedComponentProfile("monitor"));
+
+  elements.targetProfileSelect.addEventListener("change", () => {
+    selectedTargetProfileId = elements.targetProfileSelect.value;
+    elements.targetProfileName.value = targetProfileById(selectedTargetProfileId)?.name || "";
+    void persistSidebarUi();
+  });
+  elements.applyTargetProfileButton.addEventListener("click", () => applyComponentProfileToRule("target"));
+  elements.newTargetProfileButton.addEventListener("click", () => void createComponentProfileFromRule("target"));
+  elements.saveTargetProfileButton.addEventListener("click", () => void saveSelectedComponentProfile("target"));
+  elements.deleteTargetProfileButton.addEventListener("click", () => void deleteSelectedComponentProfile("target"));
+
+  elements.saveCustomTabTitleButton.addEventListener("click", () => void saveCustomTabTitle(elements.customTabTitle.value));
+  elements.clearCustomTabTitleButton.addEventListener("click", () => void saveCustomTabTitle(""));
+  elements.customTabTitle.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void saveCustomTabTitle(elements.customTabTitle.value);
+    }
+  });
 
   elements.tabSelect.addEventListener("change", () => {
     const previousTabId = selectedTabId;
@@ -2676,6 +2779,131 @@ ${run.command || ""}`)) {
     if (expectedFingerprint !== actualFingerprint) {
       throw new Error(`${label}: Firefox storage returned different configuration data.`);
     }
+  }
+
+  function currentRuleDraft() {
+    const config = readConfig();
+    return { config, rule: ruleById(config, selectedRuleId) || config.rules[0] };
+  }
+
+  function applyComponentProfileToRule(type) {
+    const { config, rule } = currentRuleDraft();
+    const profile = type === "monitor"
+      ? monitorProfileById(selectedMonitorProfileId)
+      : targetProfileById(selectedTargetProfileId);
+    if (!profile || !rule) {
+      showMessage(`Select a ${type} profile first.`, "error");
+      return;
+    }
+    const nextRule = {
+      ...rule,
+      monitor: type === "monitor" ? Settings.clone(profile.monitor) : Settings.clone(rule.monitor),
+      target: type === "target" ? Settings.clone(profile.target) : Settings.clone(rule.target)
+    };
+    const rules = config.rules.map((item) => item.id === rule.id ? nextRule : item);
+    formConfigDraft = Settings.normalizeConfig({
+      ...config,
+      activeRuleId: nextRule.id,
+      rules,
+      monitor: nextRule.monitor,
+      target: nextRule.target
+    });
+    writeRuleFields(nextRule);
+    renderRuleRuntimeSummary();
+    showMessage(`${type === "monitor" ? "Monitor" : "Target"} profile “${profile.name}” applied to rule “${nextRule.name}”. Save the configuration profile or tab configuration to persist it.`, "success");
+  }
+
+  async function createComponentProfileFromRule(type) {
+    const { rule } = currentRuleDraft();
+    if (!rule) return;
+    const defaultName = type === "monitor" ? "New monitor profile" : "New target profile";
+    const name = prompt(`${type === "monitor" ? "Monitor" : "Target"} profile name:`, defaultName);
+    if (!name) return;
+    await request(MESSAGE.CREATE_COMPONENT_PROFILE, {
+      profileType: type,
+      name,
+      config: type === "monitor" ? rule.monitor : rule.target
+    }, `${type === "monitor" ? "Monitor" : "Target"} profile created.`);
+  }
+
+  async function saveSelectedComponentProfile(type) {
+    const { rule } = currentRuleDraft();
+    const profile = type === "monitor"
+      ? monitorProfileById(selectedMonitorProfileId)
+      : targetProfileById(selectedTargetProfileId);
+    if (!profile || !rule) {
+      showMessage(`Select a ${type} profile before saving.`, "error");
+      return;
+    }
+    const nameElement = type === "monitor" ? elements.monitorProfileName : elements.targetProfileName;
+    const response = await request(MESSAGE.SAVE_COMPONENT_PROFILE, {
+      profileType: type,
+      profile: {
+        ...profile,
+        name: nameElement.value.trim() || profile.name,
+        ...(type === "monitor" ? { monitor: rule.monitor } : { target: rule.target })
+      }
+    }, `${type === "monitor" ? "Monitor" : "Target"} profile saved.`);
+    if (response?.savedProfile) {
+      if (type === "monitor") selectedMonitorProfileId = response.savedProfile.id;
+      else selectedTargetProfileId = response.savedProfile.id;
+      void persistSidebarUi();
+    }
+  }
+
+  async function deleteSelectedComponentProfile(type) {
+    const profile = type === "monitor"
+      ? monitorProfileById(selectedMonitorProfileId)
+      : targetProfileById(selectedTargetProfileId);
+    if (!profile || !confirm(`Delete ${type} profile “${profile.name}”?`)) return;
+    await request(MESSAGE.DELETE_COMPONENT_PROFILE, {
+      profileType: type,
+      profileId: profile.id
+    }, `${type === "monitor" ? "Monitor" : "Target"} profile deleted.`);
+  }
+
+  async function saveCustomTabTitle(title) {
+    const value = String(title || "").trim();
+    const metadata = selectedTabMetadata();
+    if (!metadata) {
+      showMessage("Select a normal tab before changing its title.", "error");
+      return;
+    }
+    if (value) {
+      const origin = hostPermissionPattern(metadata.url || dashboard.currentTab?.url || "");
+      if (origin) {
+        const alreadyGranted = await browser.permissions.contains({ origins: [origin] });
+        if (!alreadyGranted) {
+          const granted = await browser.permissions.request({ origins: [origin] });
+          if (!granted) {
+            showMessage("Site access is required to keep a custom title after reload.", "error");
+            return;
+          }
+        }
+      }
+    }
+    const response = await request(MESSAGE.SET_TAB_CUSTOM_TITLE, {
+      tabId: selectedTabId,
+      title: value
+    }, value ? "Custom tab title saved." : "Page title restored.");
+    if (response?.ok) elements.customTabTitle.value = value;
+  }
+
+  async function exportProfileType(type) {
+    const response = await request(MESSAGE.EXPORT_PROFILE_BUNDLE, { profileType: type });
+    if (!response?.text) return;
+    const label = type === "local-action" ? "local-action" : type;
+    downloadBlob(
+      new Blob([response.text], { type: "application/json" }),
+      `firefox-chat-improver-${label}-profiles-${new Date().toISOString().slice(0, 10)}.json`
+    );
+    showMessage(`${response.count || 0} ${type} profile(s) exported.`, "success");
+  }
+
+  function chooseProfileImport(type) {
+    pendingProfileImportType = type;
+    elements.profileImportFile.value = "";
+    elements.profileImportFile.click();
   }
 
   async function saveProfileConfiguration() {
@@ -3081,6 +3309,29 @@ Cancel: keep editing without losing the changes.`);
     const text = await file.text();
     await request(MESSAGE.IMPORT_SETTINGS, { text }, "Settings imported. The previous settings were saved as a recovery snapshot.");
     elements.importFile.value = "";
+  });
+  elements.exportConfigurationProfilesButton.addEventListener("click", () => void exportProfileType("configuration"));
+  elements.importConfigurationProfilesButton.addEventListener("click", () => chooseProfileImport("configuration"));
+  elements.exportMonitorProfilesButton.addEventListener("click", () => void exportProfileType("monitor"));
+  elements.importMonitorProfilesButton.addEventListener("click", () => chooseProfileImport("monitor"));
+  elements.exportTargetProfilesButton.addEventListener("click", () => void exportProfileType("target"));
+  elements.importTargetProfilesButton.addEventListener("click", () => chooseProfileImport("target"));
+  elements.exportLocalActionProfilesButton.addEventListener("click", () => void exportProfileType("local-action"));
+  elements.importLocalActionProfilesButton.addEventListener("click", () => chooseProfileImport("local-action"));
+  elements.profileImportFile.addEventListener("change", async () => {
+    const file = elements.profileImportFile.files?.[0];
+    const type = pendingProfileImportType;
+    pendingProfileImportType = null;
+    if (!file || !type) return;
+    try {
+      const text = await file.text();
+      const response = await request(MESSAGE.IMPORT_PROFILE_BUNDLE, { profileType: type, text });
+      if (response?.ok) {
+        showMessage(`${response.imported || 0} ${type} profile(s) imported (${response.created || 0} new, ${response.updated || 0} updated).`, "success");
+      }
+    } finally {
+      elements.profileImportFile.value = "";
+    }
   });
   elements.settingsSnapshotSelect.addEventListener("change", renderSettingsSnapshots);
   elements.createSettingsSnapshotButton.addEventListener("click", () => {
