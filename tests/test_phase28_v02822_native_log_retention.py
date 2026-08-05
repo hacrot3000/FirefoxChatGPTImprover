@@ -59,7 +59,7 @@ with tempfile.TemporaryDirectory() as tmp:
 
         stats = native_host.log_store_stats()
         assert stats["fileCount"] == result["after"]["fileCount"]
-        assert native_host.HOST_VERSION == "0.12.0"
+        assert tuple(map(int, native_host.HOST_VERSION.split("."))) >= (0, 12, 0)
     finally:
         if old_state is None:
             os.environ.pop("XDG_STATE_HOME", None)

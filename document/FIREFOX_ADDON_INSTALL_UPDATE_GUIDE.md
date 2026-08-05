@@ -244,10 +244,19 @@ Profile tạm của `web-ext` không mặc định giữ dữ liệu qua lần c
 
 ## Phase 06 — cài/cập nhật Native Messaging Host
 
-Native host không nằm bên trong tiến trình WebExtension. Mỗi khi `native-host/native_host.py` thay đổi, chạy trực tiếp:
+Native host không nằm bên trong tiến trình WebExtension. Mỗi khi `native-host/native_host.py` thay đổi, cài lại host đúng theo hệ điều hành.
+
+Linux:
 
 ```bash
 ./native-host/install_native_host.sh
+```
+
+Windows PowerShell:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\native-host\install_native_host.ps1
 ```
 
 File được cài theo user:
@@ -266,7 +275,21 @@ Gỡ host hoặc self-test:
 python3 ./native-host/native_host.py --self-test
 ```
 
-Không chạy installer bằng `sudo`; host phải chạy cùng tài khoản người dùng đang chạy Firefox.
+Không chạy Linux installer bằng `sudo`; host phải chạy cùng tài khoản người dùng đang chạy Firefox. Trên Windows, mặc định installer đăng ký theo user hiện tại trong cả registry view 32-bit và 64-bit; chỉ dùng `-Scope AllUsers` từ PowerShell chạy quyền Administrator khi thật sự cần.
+
+Windows per-user files và registry:
+
+```text
+%LOCALAPPDATA%\FirefoxChatAIAssistant\native-host\native_host.py
+%LOCALAPPDATA%\FirefoxChatAIAssistant\native-host\native_host.cmd
+HKCU\Software\Mozilla\NativeMessagingHosts\com.duongtc.firefox_chat_assistant
+```
+
+Gỡ trên Windows:
+
+```powershell
+.\native-host\uninstall_native_host.ps1
+```
 
 ## Phase 08 — release, XPI ký và cập nhật
 

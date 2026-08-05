@@ -637,3 +637,8 @@ Updates stale Phase 23/25 contracts, restores repeatable `--overwrite` builds, v
 - Test-only hooks are injected only into a temporary extension copy and are never included in release builds.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02824_END -->
 
+<!-- FCI_PHASE_28_V0_28_25_WINDOWS_NATIVE_HOST -->
+## Phase 28 v0.28.25 — Windows Native Host
+
+Windows Native Host support is available through `native-host/install_native_host.ps1` and `native-host/uninstall_native_host.ps1`. Linux installations continue to use `native-host/install_native_host.sh`. See `document/PHASE_28_V0_28_25_WINDOWS_NATIVE_HOST.md` for validation and usage.
+

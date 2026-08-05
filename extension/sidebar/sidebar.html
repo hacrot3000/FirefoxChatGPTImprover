@@ -596,8 +596,8 @@ chmod +x tools/run_python_patches.sh</code></pre>
           <a class="guide-link-button" href="https://github.com/hacrot3000/FirefoxChatGPTImprover/tree/main/native-host" target="_blank" rel="noopener noreferrer">
             Open Native Host source and installer
           </a>
-          <p>The current installer targets desktop Firefox on Linux. Keep the complete <code>native-host/</code> directory inside the repository and run it as the same user that runs Firefox. Do not use <code>sudo</code>.</p>
-          <p><strong>Initial setup or update:</strong></p>
+          <p>The Native Host supports desktop Firefox on Linux and Windows. Keep the complete <code>native-host/</code> directory inside the repository and install it as the same user that runs Firefox.</p>
+          <p><strong>Linux initial setup or update:</strong> Do not use <code>sudo</code>.</p>
           <pre class="guide-command"><code>cd /home/duongtc/FirefoxChatImprover
 python3 ./native-host/native_host.py --self-test
 chmod +x ./native-host/install_native_host.sh \
@@ -612,9 +612,18 @@ chmod +x ./native-host/install_native_host.sh \
           <p>The installer creates the per-user host and manifest under:</p>
           <pre class="guide-command"><code>~/.local/share/firefox-chat-ai-assistant/native_host.py
 ~/.mozilla/native-messaging-hosts/com.duongtc.firefox_chat_assistant.json</code></pre>
-          <p><strong>Uninstall:</strong></p>
+          <p><strong>Linux uninstall:</strong></p>
           <pre class="guide-command"><code>cd /home/duongtc/FirefoxChatImprover
 ./native-host/uninstall_native_host.sh</code></pre>
+          <p><strong>Windows initial setup or update:</strong> Open PowerShell as the same Windows user that runs Firefox. Administrator rights are needed only with <code>-Scope AllUsers</code>.</p>
+          <pre class="guide-command"><code>Set-ExecutionPolicy -Scope Process Bypass
+cd C:\absolute\path\to\FirefoxChatImprover
+.\native-host\install_native_host.ps1</code></pre>
+          <p>The per-user installer writes the host under <code>%LOCALAPPDATA%\FirefoxChatAIAssistant\native-host</code> and registers both 32-bit and 64-bit Firefox registry views under <code>HKCU\Software\Mozilla\NativeMessagingHosts</code>.</p>
+          <p><strong>Windows uninstall:</strong></p>
+          <pre class="guide-command"><code>cd C:\absolute\path\to\FirefoxChatImprover
+.\native-host\uninstall_native_host.ps1</code></pre>
+          <p>After either installer, reload the add-on and confirm the Shell command badge shows <code>Native 0.13.0</code>.</p>
         </div>
       </details>
     </section>

@@ -1,8 +1,8 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 28 v0.28.24  
-**Primary supported environment:** Firefox Desktop on Linux  
-**Native Host:** 0.12.0
+**Current baseline:** Phase 28 v0.28.25  
+**Primary supported environment:** Firefox Desktop on Linux and Windows  
+**Native Host:** 0.13.0
 
 ## Completed production scope
 
@@ -15,10 +15,13 @@
 | Managed downloads | Complete | Capture, no-dialog restart, immutable snapshot, relocation, retry and post-download command. |
 | Restart recovery for managed downloads | Complete | Armed captures resume while valid; moves replay by idempotent receipt. |
 | Full command logs | Complete | File-backed paging, persisted fallback and legacy `runId` discovery. |
-| Native Host Linux | Complete | Version 0.12.0; shell execution, scoped stop, bounded log retention and transaction receipts. |
+| Native Host Linux | Complete | Version 0.13.0; shell execution, scoped stop, bounded log retention and transaction receipts. |
+| Native Host Windows | Complete | PowerShell install/uninstall, dual registry-view registration, PowerShell/cmd execution, process-tree stop, Windows state/download paths and integration-test script. |
 | Firefox build/release tooling | Complete | Lint, build, checksum, signing helper, rollback and guarded update channel management. |
 | Firefox Android manifest validation | Complete | Minimum Firefox 142 removes unsupported-key warning. |
-| Source integrity and regression | Complete | Phase 04–28 plus v0.28.20 recovery/update, v0.28.21 Native-version UI, v0.28.22 log retention and v0.28.23 tab-bound local-action snapshot tests and v0.28.24 real-Firefox E2E/matrix tooling. |
+| Tab-bound local-action working snapshots | Complete | Unsaved destination/command edits survive background recovery; stale cross-tab autosync is rejected by tab/session/URL/revision context. |
+| Real Firefox E2E and version matrix | Complete | Opt-in runner covers tabs, title, badge, DOM action, navigation and optional Native Host download/shell; matrix emits JSON/Markdown per Firefox binary. |
+| Source integrity and regression | Complete | Phase 04–28 plus v0.28.20 recovery/update, v0.28.21 Native-version UI, v0.28.22 log retention and v0.28.23 tab-bound local-action snapshot tests and v0.28.24 real-Firefox E2E/matrix tooling and v0.28.25 Windows Native Host contracts. |
 
 ## Operator-provided deployment inputs
 
@@ -46,14 +49,15 @@ python3 tools/manage_firefox_update_channel.py enable \
 ## Known physical limitation
 
 A log file deleted before v0.28.20 cannot be reconstructed from metadata. Existing legacy files are now rediscovered automatically by `runId`; missing bytes remain irrecoverable by definition.
-| Tab-bound local-action working snapshots | Unsaved destination/command edits survive background recovery and stale cross-tab autosync is rejected by tab/session/URL/revision context. | Complete in v0.28.23 |
-| Real Firefox E2E and version matrix | Complete | Opt-in real-browser runner covers tabs, title, badge, DOM action, navigation and optional Native Host download/shell; matrix emits JSON/Markdown per Firefox binary. |
 
-## Remaining required implementation
+## Required implementation status
 
-| Area | Status | Next step |
-|---|---|---|
-| Native Host Windows | Not implemented | Add PowerShell install/uninstall, Windows Native Messaging manifest registration, process-tree stop, path handling and Windows integration tests. |
+No required implementation tasks remain from the v0.28.19 feature audit. The project is ready to pause here and begin a separately approved new-feature phase.
 
-Real-Firefox E2E and the desktop version matrix are complete in v0.28.24. Native Host Windows is the final required implementation item from the v0.28.19 feature audit.
+Windows runtime validation can be run on a Windows machine with:
 
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\tools\test_native_host_windows.ps1
+python .\tools\run_firefox_e2e.py --require-native
+```

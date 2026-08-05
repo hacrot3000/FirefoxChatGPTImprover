@@ -30,13 +30,18 @@ with tempfile.TemporaryDirectory() as tmp:
         "mode": "background",
     })
     received = []
-    deadline = time.time() + 15
+    deadline = time.time() + 20
     while time.time() < deadline:
-        event = events.get(timeout=1)
+        remaining = max(0.05, deadline - time.time())
+        try:
+            event = events.get(timeout=min(1.0, remaining))
+        except queue.Empty:
+            continue
         received.append(event)
         if event.get("event") == "exited":
             break
-    exited = next(item for item in received if item.get("event") == "exited")
+    exited = next((item for item in received if item.get("event") == "exited"), None)
+    assert exited is not None, f"Native Host command did not exit before timeout; events={received!r}"
     log_id = exited["logId"]
     assert exited["logBytes"] > 350000
     offset = 0

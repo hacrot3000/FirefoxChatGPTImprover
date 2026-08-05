@@ -48,15 +48,40 @@ def find_firefox(explicit: str | None) -> Path:
         value = os.environ.get(env_name)
         if value:
             candidates.append(value)
-    for name in ("firefox", "firefox-esr", "firefox-developer-edition"):
+    for name in ("firefox", "firefox-esr", "firefox-developer-edition", "firefox.exe"):
         resolved = shutil.which(name)
         if resolved:
             candidates.append(resolved)
+    if os.name == "nt":
+        for root_name in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"):
+            root = os.environ.get(root_name)
+            if root:
+                candidates.append(str(Path(root) / "Mozilla Firefox" / "firefox.exe"))
     for candidate in candidates:
-        path = Path(candidate).expanduser().resolve()
-        if path.is_file() and os.access(path, os.X_OK):
+        path = Path(os.path.expandvars(candidate)).expanduser().resolve()
+        if path.is_file() and (os.name == "nt" or os.access(path, os.X_OK)):
             return path
     raise RuntimeError("Firefox binary was not found. Pass --firefox /absolute/path/to/firefox.")
+
+
+def executable_command(executable: Path, *arguments: str) -> list[str]:
+    if os.name == "nt" and executable.suffix.lower() in {".cmd", ".bat"}:
+        command_processor = os.environ.get("COMSPEC") or "cmd.exe"
+        command_line = subprocess.list2cmdline([str(executable), *arguments])
+        return [command_processor, "/d", "/s", "/c", command_line]
+    return [str(executable), *arguments]
+
+
+def native_shell_test_command(marker: Path, platform_name: str | None = None) -> str:
+    marker_text = str(marker.resolve())
+    is_windows = (platform_name or os.name) in {"nt", "windows"}
+    if is_windows:
+        escaped = marker_text.replace("'", "''")
+        return (
+            f"Set-Content -LiteralPath '{escaped}' -Value 'firefox-e2e' -Encoding UTF8; "
+            f"if (-not (Test-Path -LiteralPath '{escaped}' -PathType Leaf)) {{ exit 1 }}"
+        )
+    return f"printf 'firefox-e2e\n' > {json.dumps(marker_text)} && test -s {json.dumps(marker_text)}"
 
 
 def find_web_ext(explicit: str | None) -> Path:
@@ -67,13 +92,14 @@ def find_web_ext(explicit: str | None) -> Path:
     if env_value:
         candidates.append(env_value)
     candidates.append(str(ROOT / ".firefox-dev-tools" / "node_modules" / ".bin" / "web-ext"))
+    candidates.append(str(ROOT / ".firefox-dev-tools" / "node_modules" / ".bin" / "web-ext.cmd"))
     resolved = shutil.which("web-ext")
     if resolved:
         candidates.append(resolved)
     for candidate in candidates:
-        path = Path(candidate).expanduser().resolve()
-        if path.is_file() and os.access(path, os.X_OK):
-            probe = subprocess.run([str(path), "--version"], text=True, capture_output=True, check=False)
+        path = Path(os.path.expandvars(candidate)).expanduser().resolve()
+        if path.is_file() and (os.name == "nt" or os.access(path, os.X_OK)):
+            probe = subprocess.run(executable_command(path, "--version"), text=True, capture_output=True, check=False)
             if probe.returncode == 0:
                 return path
     raise RuntimeError(
@@ -215,7 +241,9 @@ def inject_test_hooks(background_text: str) -> str:
 def driver_script(origin: str, work_dir: Path, require_native: bool) -> str:
     destination_a = str((work_dir / "downloads-a").resolve())
     destination_b = str((work_dir / "downloads-b").resolve())
-    shell_marker = str((work_dir / "shell-marker.txt").resolve())
+    shell_marker_path = (work_dir / "shell-marker.txt").resolve()
+    shell_marker = str(shell_marker_path)
+    shell_command = native_shell_test_command(shell_marker_path)
     report_url = f"{origin}/report"
     fixture_a = f"{origin}/fixture.html?tab=A"
     fixture_b = f"{origin}/fixture.html?tab=B"
@@ -228,6 +256,7 @@ def driver_script(origin: str, work_dir: Path, require_native: bool) -> str:
             "destinationA": destination_a,
             "destinationB": destination_b,
             "shellMarker": shell_marker,
+            "shellCommand": shell_command,
             "requireNative": bool(require_native),
         },
         ensure_ascii=False,
@@ -475,10 +504,9 @@ def prepare_extension(temp_root: Path, origin: str, require_native: bool) -> Pat
 
 
 def build_web_ext_command(web_ext: Path, firefox: Path, extension: Path, origin: str, profile: Path) -> list[str]:
-    help_result = subprocess.run([str(web_ext), "run", "--help"], text=True, capture_output=True, check=False)
+    help_result = subprocess.run(executable_command(web_ext, "run", "--help"), text=True, capture_output=True, check=False)
     help_text = (help_result.stdout or "") + (help_result.stderr or "")
-    command = [
-        str(web_ext),
+    arguments = [
         "run",
         "--source-dir",
         str(extension),
@@ -493,10 +521,10 @@ def build_web_ext_command(web_ext: Path, firefox: Path, extension: Path, origin:
         f"{origin}/health",
     ]
     if "--headless" in help_text:
-        command.append("--headless")
+        arguments.append("--headless")
     elif "--args" in help_text:
-        command.extend(["--args", "-headless"])
-    return command
+        arguments.extend(["--args", "-headless"])
+    return executable_command(web_ext, *arguments)
 
 
 def terminate_process(process: subprocess.Popen[str]) -> None:

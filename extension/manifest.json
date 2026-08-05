@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.28.24",
-  "description": "Private Firefox sidebar helper with tab-bound downloads, bounded Native Host logs, real-Firefox E2E validation and multi-version compatibility-matrix tooling.",
+  "version": "0.28.25",
+  "description": "Private Firefox sidebar helper with tab-bound downloads, bounded Windows Native Host and Linux Native Host logs and shell execution, real-Firefox E2E validation and compatibility-matrix tooling.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-assistant@duongtc.local",
