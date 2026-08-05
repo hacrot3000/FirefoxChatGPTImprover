@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 9) {
+  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 10) {
     return;
   }
 
@@ -71,7 +71,14 @@
   function shouldSpinMonitorTitle(runtime, mode) {
     return Boolean(
       mode === MODE.ACTIVE &&
-      (runtime?.monitorState === MONITOR_STATE.WAITING || runtime?.monitorState === MONITOR_STATE.MATCHED)
+      runtime?.monitorState === MONITOR_STATE.WAITING
+    );
+  }
+
+  function shouldShowReadyTitle(runtime, mode) {
+    return Boolean(
+      mode === MODE.ACTIVE &&
+      runtime?.monitorState === MONITOR_STATE.MATCHED
     );
   }
 
@@ -319,6 +326,10 @@
         writeTitle(alertTitle(combinedTitlePrefix(primaryPrefix, runtime, true), baseTitle));
         return;
       }
+      if (shouldShowReadyTitle(runtime, mode)) {
+        writeTitle(alertTitle(combinedTitlePrefix(config.alerts.titlePrefix, runtime, true), baseTitle));
+        return;
+      }
       if (monitorSpinWanted()) {
         const decoratedBase = commandPrefix ? `[${commandPrefix}] ${baseTitle}` : baseTitle;
         writeTitle(monitorTitle(MONITOR_SPINNER_FRAMES[monitorSpinIndex], decoratedBase));
@@ -340,6 +351,13 @@
             applyCurrentTitleFrame();
           }, config.alerts.blinkIntervalMs);
         }
+        applyCurrentTitleFrame();
+        return;
+      }
+      if (shouldShowReadyTitle(runtime, mode)) {
+        clearBlinkTimer();
+        clearMonitorSpinTimer();
+        ensureTitleObserver();
         applyCurrentTitleFrame();
         return;
       }
@@ -519,7 +537,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 9,
+      VERSION: 10,
       TITLE_BASE_ATTRIBUTE,
       TITLE_PREFIX_ATTRIBUTE,
       stripManagedTitleDecorations,
@@ -527,6 +545,7 @@
       alertChannelsEnabled,
       shouldAlert,
       shouldSpinMonitorTitle,
+    shouldShowReadyTitle,
       deriveAlertDecision,
       alertTitle,
       quietAlertPrefix,

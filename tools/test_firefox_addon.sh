@@ -73,6 +73,7 @@ node tests/test_phase28_v02815_preset_edit_and_command_notice.js
 node tests/test_phase28_v02816_ai_status_and_log_fallback.js
 node tests/test_phase28_v02817_alert_engine_upgrade_title_priority.js
 node tests/test_phase28_v02818_cumulative_runtime22_rescue.js
+node tests/test_phase28_v02819_matched_ready_timeout.js
 python3 tests/test_phase25_native_download_environment.py
 
 WEB_EXT_BIN="${ROOT}/.firefox-dev-tools/node_modules/.bin/web-ext"
@@ -85,5 +86,5 @@ elif [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-28 v0.28.18 full regression, source syntax, cumulative runtime-22 rescue, restart-safe dashboard, managed-download execution, tab-bound logs, protected preset editing, forced alert-controller upgrades, AI-primary page-title status, active-tab viewed-log acknowledgement and persisted command-log fallback.
+printf 'PASS: FirefoxChatImprover Phase 04-28 v0.28.19 full regression, source syntax, cumulative runtime-22 rescue, restart-safe dashboard, managed-download execution, tab-bound logs, protected preset editing, forced alert-controller upgrades, matched-ready page-title semantics, active-tab viewed-log acknowledgement and persisted command-log fallback.
 '

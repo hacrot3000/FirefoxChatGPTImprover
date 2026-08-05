@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.28.18",
+  "version": "0.28.19",
   "description": "Private Firefox sidebar helper with cumulative runtime-22 rescue, forced alert-controller upgrades, AI-primary page-title status, per-tab command indicators, persisted command-log fallback, reliable managed downloads and restart-safe dashboard recovery.",
   "browser_specific_settings": {
     "gecko": {

@@ -12,11 +12,11 @@ const alertSource = read("extension/content/alert.js");
 const activation = read("extension/content/activation.js");
 const manifest = JSON.parse(read("extension/manifest.json"));
 
-assert.ok(/^0\.28\.(?:1[8-9]|[2-9][0-9])$/.test(manifest.version));
-assert.match(activation, /const RUNTIME_VERSION = (?:2[4-9]|[3-9][0-9])/);
-assert.match(alertSource, /FCI_ALERT_ENGINE\?\.VERSION >= 9/);
-assert.match(alertSource, /VERSION: 9/);
-assert.match(alertSource, /MONITOR_STATE\.WAITING \|\| runtime\?\.monitorState === MONITOR_STATE\.MATCHED/);
+assert.ok(/^0\.28\.(?:19|[2-9][0-9])$/.test(manifest.version));
+assert.match(activation, /const RUNTIME_VERSION = (?:2[6-9]|[3-9][0-9])/);
+assert.match(alertSource, /FCI_ALERT_ENGINE\?\.VERSION >= 10/);
+assert.match(alertSource, /VERSION: 10/);
+assert.match(alertSource, /runtime\?\.monitorState === MONITOR_STATE\.WAITING/);
 assert.doesNotMatch(alertSource, /: \(commandPrefix \? alertTitle\(commandPrefix, baseTitle\) : baseTitle\)/);
 
 function createDocument(title = "Project") {
@@ -72,7 +72,7 @@ function loadAlertEngine(document) {
     configurable: true,
     enumerable: false,
     writable: false,
-    value: Object.freeze({ VERSION: 8 })
+    value: Object.freeze({ VERSION: 9 })
   });
   vm.runInNewContext(alertSource, sandbox, { filename: "alert.js" });
   return { Alert: sandbox.FCI_ALERT_ENGINE, intervals };
@@ -80,9 +80,10 @@ function loadAlertEngine(document) {
 
 const waitingDocument = createDocument();
 const waitingLoaded = loadAlertEngine(waitingDocument);
-assert.equal(waitingLoaded.Alert.VERSION, 9, "v0.28.18 must replace a preloaded v8 alert engine");
-assert.equal(waitingLoaded.Alert.shouldSpinMonitorTitle({ monitorState: "matched" }, "active"), true,
-  "an acknowledged matched monitor remains an active AI runtime and must retain the running spinner");
+assert.equal(waitingLoaded.Alert.VERSION, 10, "v0.28.19 must replace a preloaded v9 alert engine");
+assert.equal(waitingLoaded.Alert.shouldSpinMonitorTitle({ monitorState: "matched" }, "active"), false,
+  "a matched monitor is AI READY, not AI running");
+assert.equal(waitingLoaded.Alert.shouldShowReadyTitle({ monitorState: "matched" }, "active"), true);
 
 const waitingController = waitingLoaded.Alert.createAlertController();
 waitingController.apply({
@@ -116,8 +117,9 @@ matchedController.apply({
     dismissOnUserActivity: false
   }
 }, { monitorState: "matched", shellCommandState: "unread", alertActive: false }, "active", "matched-acknowledged");
-assert.match(matchedDocument.title, /^⠋ \[✓\] Project$/,
-  "after an alert is acknowledged, the still-active AI monitor must resume the spinner instead of leaving a tick-only title");
+assert.match(matchedDocument.title, /^\[⚠ AI READY · ✓\] Project$/,
+  "after an alert is acknowledged or timed out, matched must remain a static AI READY state");
+assert.equal(matchedController.snapshot().monitorTitleSpinning, false);
 
 const alertDocument = createDocument();
 const alertLoaded = loadAlertEngine(alertDocument);
@@ -147,4 +149,4 @@ assert.match(alertDocument.title, /^\[AI READY · ✓\] Project$/,
   "the alternate alert frame must remain AI-primary and may never degrade to a tick-only title");
 assert.doesNotMatch(alertDocument.title, /^\[✓\]/);
 
-console.log("PASS: Phase 28 v0.28.18 forces the cumulative alert engine and keeps AI page-title status primary on every frame");
+console.log("PASS: Phase 28 v0.28.19 keeps matched as AI READY and reserves the spinner for waiting");

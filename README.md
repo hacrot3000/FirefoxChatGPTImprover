@@ -582,3 +582,12 @@ Updates stale Phase 23/25 contracts, restores repeatable `--overwrite` builds, v
 - Forces activation runtime 25 and alert engine 9 so stale title controllers are replaced.
 - Moves failed v0.28.16/v0.28.17 packages out of the active patch queue after validation.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02818_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02819_BEGIN -->
+## Phase 28 v0.28.19 — matched remains AI READY
+
+- Active-tab timeout stops alert blinking but keeps `matched` as a static AI READY title.
+- The running spinner is reserved strictly for `waiting`.
+- Alert engine 10 and content runtime 26 replace v0.28.18 title controllers.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02819_END -->
+

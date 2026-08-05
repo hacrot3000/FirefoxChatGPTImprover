@@ -23,7 +23,7 @@ assert(css.includes('.group-heading-actions'));
 assert(sidebar.includes('function runPrimaryTabAction()'));
 assert(sidebar.includes('elements.tabPrimaryQuickButton.textContent = quickAction.icon'));
 assert(sidebar.includes('elements.targetClickQuickButton.addEventListener("click", () => testTargetAction(true))'));
-assert(/VERSION:\s*[5-9]/.test(alert));
+assert(/VERSION:\s*(?:[5-9]|[1-9][0-9]+)/.test(alert));
 assert(alert.includes('monitorSpinTimer = scheduler.setInterval'));
 assert(alert.includes('shouldSpinMonitorTitle(runtime, mode)'));
 assert(/const RUNTIME_VERSION = (1[1-9]|[2-9][0-9]);/.test(activation));

@@ -64,6 +64,10 @@ assert.equal(Alert.shouldSpinMonitorTitle(
 assert.equal(Alert.shouldSpinMonitorTitle(
   { monitorState: Protocol.MONITOR_STATE.MATCHED },
   Protocol.MODE.ACTIVE
+), false);
+assert.equal(Alert.shouldShowReadyTitle(
+  { monitorState: Protocol.MONITOR_STATE.MATCHED },
+  Protocol.MODE.ACTIVE
 ), true);
 assert.equal(Alert.shouldSpinMonitorTitle(
   { monitorState: Protocol.MONITOR_STATE.WAITING },
