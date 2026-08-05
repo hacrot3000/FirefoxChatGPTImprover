@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FirefoxChatImprover E2E fixture</title>
+  <link rel="icon" href="data:,">
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    #monitor { padding: .75rem; border: 1px solid #777; margin-bottom: 1rem; }
+    .download-target { margin: .25rem; padding: .5rem .8rem; }
+  </style>
+</head>
+<body>
+  <h1>FirefoxChatImprover real-Firefox fixture</h1>
+  <div id="monitor" data-state="waiting">waiting</div>
+  <div id="targets"></div>
+  <a id="download-link" href="/download/e2e.bin" download="e2e.bin">download</a>
+  <output id="result">idle</output>
+  <script src="/fixture.js"></script>
+</body>
+</html>

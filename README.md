@@ -628,3 +628,12 @@ Updates stale Phase 23/25 contracts, restores repeatable `--overwrite` builds, v
 - Freezes and logs the exact destination source and fingerprint when managed-download capture is armed.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02823_END -->
 
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02824_BEGIN -->
+## Phase 28 v0.28.24 — real Firefox E2E validation
+
+- Adds a real-Firefox E2E runner for multi-tab activation, AI title/badge state, target clicks, SPA/full navigation recovery and tab-bound download configuration.
+- When Native Host is available, the same E2E run verifies real managed-download relocation and shell execution.
+- Adds a multi-binary Firefox compatibility matrix with JSON and Markdown reports.
+- Test-only hooks are injected only into a temporary extension copy and are never included in release builds.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02824_END -->
+

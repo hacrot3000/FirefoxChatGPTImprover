@@ -1,0 +1,16 @@
+{
+  "firefox": [
+    {
+      "name": "stable",
+      "binary": "/usr/bin/firefox",
+      "required": true,
+      "requireNative": true
+    },
+    {
+      "name": "esr",
+      "binary": "/usr/bin/firefox-esr",
+      "required": false,
+      "requireNative": false
+    }
+  ]
+}

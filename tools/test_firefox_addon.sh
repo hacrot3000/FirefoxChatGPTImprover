@@ -81,7 +81,18 @@ node tests/test_phase28_v02823_tab_bound_local_action_snapshot.js
 python3 tests/test_phase28_v02822_native_log_retention.py
 python3 tests/test_phase28_v02820_native_receipts_and_legacy_logs.py
 python3 tests/test_phase28_v02820_update_channel.py
+python3 tests/test_phase28_v02824_real_firefox_e2e_matrix.py
 python3 tests/test_phase25_native_download_environment.py
+
+if [ "${FCI_RUN_FIREFOX_E2E:-0}" = "1" ]; then
+  python3 tools/run_firefox_e2e.py ${FCI_FIREFOX_E2E_ARGS:-}
+else
+  printf 'SKIP: real Firefox E2E is opt-in; run with FCI_RUN_FIREFOX_E2E=1.\n'
+fi
+
+if [ -n "${FCI_FIREFOX_MATRIX_CONFIG:-}" ]; then
+  python3 tools/run_firefox_version_matrix.py --config "${FCI_FIREFOX_MATRIX_CONFIG}" ${FCI_FIREFOX_MATRIX_ARGS:-}
+fi
 
 WEB_EXT_BIN="${ROOT}/.firefox-dev-tools/node_modules/.bin/web-ext"
 if [ "${FCI_SKIP_WEB_EXT_LINT:-0}" = "1" ]; then
@@ -93,5 +104,5 @@ elif [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-28 v0.28.23 full regression, source syntax, restart-safe downloads, tab-bound restart-persistent local-action working snapshots, stale sidebar-sync rejection, legacy log recovery and protected command-log retention.
+printf 'PASS: FirefoxChatImprover Phase 04-28 v0.28.24 full regression, source syntax, restart-safe downloads, tab-bound local actions, real-Firefox E2E tooling, multi-version matrix tooling, legacy log recovery and protected command-log retention.
 '

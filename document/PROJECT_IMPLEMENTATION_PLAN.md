@@ -1,6 +1,6 @@
 # FirefoxChatImprover — Kế hoạch triển khai
 
-> **Current implementation baseline:** Phase 28 v0.28.23. All historical phases below have been implemented. For the authoritative current feature and deployment status, see [`CURRENT_PROJECT_STATUS.md`](CURRENT_PROJECT_STATUS.md). The remainder of this file is retained as the original implementation roadmap.
+> **Current implementation baseline:** Phase 28 v0.28.24. All historical phases below have been implemented. For the authoritative current feature and deployment status, see [`CURRENT_PROJECT_STATUS.md`](CURRENT_PROJECT_STATUS.md). The remainder of this file is retained as the original implementation roadmap.
 
 
 ## 1. Mục tiêu dự án
@@ -536,3 +536,8 @@ Tiêu chí hoàn tất:
 - Automatically snapshot before destructive or overwrite operations.
 - Restore snapshots while re-applying the restored store to active sessions.
 - Expose compact create/restore/delete controls without adding VS Code tasks.
+
+## Phase 28 v0.28.24 — real Firefox E2E and compatibility matrix
+
+Completed: opt-in real-Firefox runtime validation and multi-binary compatibility reports.
+

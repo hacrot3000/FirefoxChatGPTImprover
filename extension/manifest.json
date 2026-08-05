@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.28.23",
-  "description": "Private Firefox sidebar helper with tab-bound restart-persistent local-action snapshots, stale cross-tab autosync rejection, bounded Native Host logs and restart-resumable managed downloads.",
+  "version": "0.28.24",
+  "description": "Private Firefox sidebar helper with tab-bound downloads, bounded Native Host logs, real-Firefox E2E validation and multi-version compatibility-matrix tooling.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-assistant@duongtc.local",

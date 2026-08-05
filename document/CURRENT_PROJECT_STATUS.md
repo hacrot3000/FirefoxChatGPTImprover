@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 28 v0.28.23  
+**Current baseline:** Phase 28 v0.28.24  
 **Primary supported environment:** Firefox Desktop on Linux  
 **Native Host:** 0.12.0
 
@@ -18,7 +18,7 @@
 | Native Host Linux | Complete | Version 0.12.0; shell execution, scoped stop, bounded log retention and transaction receipts. |
 | Firefox build/release tooling | Complete | Lint, build, checksum, signing helper, rollback and guarded update channel management. |
 | Firefox Android manifest validation | Complete | Minimum Firefox 142 removes unsupported-key warning. |
-| Source integrity and regression | Complete | Phase 04–28 plus v0.28.20 recovery/update, v0.28.21 Native-version UI, v0.28.22 log retention and v0.28.23 tab-bound local-action snapshot tests. |
+| Source integrity and regression | Complete | Phase 04–28 plus v0.28.20 recovery/update, v0.28.21 Native-version UI, v0.28.22 log retention and v0.28.23 tab-bound local-action snapshot tests and v0.28.24 real-Firefox E2E/matrix tooling. |
 
 ## Operator-provided deployment inputs
 
@@ -47,3 +47,13 @@ python3 tools/manage_firefox_update_channel.py enable \
 
 A log file deleted before v0.28.20 cannot be reconstructed from metadata. Existing legacy files are now rediscovered automatically by `runId`; missing bytes remain irrecoverable by definition.
 | Tab-bound local-action working snapshots | Unsaved destination/command edits survive background recovery and stale cross-tab autosync is rejected by tab/session/URL/revision context. | Complete in v0.28.23 |
+| Real Firefox E2E and version matrix | Complete | Opt-in real-browser runner covers tabs, title, badge, DOM action, navigation and optional Native Host download/shell; matrix emits JSON/Markdown per Firefox binary. |
+
+## Remaining required implementation
+
+| Area | Status | Next step |
+|---|---|---|
+| Native Host Windows | Not implemented | Add PowerShell install/uninstall, Windows Native Messaging manifest registration, process-tree stop, path handling and Windows integration tests. |
+
+Real-Firefox E2E and the desktop version matrix are complete in v0.28.24. Native Host Windows is the final required implementation item from the v0.28.19 feature audit.
+
