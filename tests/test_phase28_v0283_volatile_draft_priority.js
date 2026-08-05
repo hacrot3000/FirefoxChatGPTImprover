@@ -18,7 +18,7 @@ assert.match(sidebar, /profileCard\.after\(localCard\)/);
 assert.ok(sidebar.indexOf("placeLocalActionProfileAfterConfigurationProfiles();") < sidebar.indexOf("await initializeCollapsibleGroups();"));
 
 assert.match(sidebar, /elements\.localActionDraftStatus\.textContent = ""/);
-assert.match(sidebar, /Unsaved tab-only edits; lost after reload\./);
+assert.match(sidebar, /Unsaved tab-only working edits/);
 assert.match(sidebar, /elements\.localActionDraftStatus\.hidden = !dirty/);
 assert.match(sidebar, /elements\.localActionModeStatus\.hidden = true/);
 assert.match(sidebar, /elements\.localActionSourceSummary\.hidden = true/);
@@ -41,8 +41,8 @@ assert.ok(runBlock.indexOf("syncVolatileLocalActionDraft") < runBlock.indexOf("M
 assert.doesNotMatch(runBlock, /type: MESSAGE\.SAVE_TAB_LOCAL_ACTIONS/);
 
 assert.match(background, /const volatileLocalActionDrafts = new Map\(\)/);
-assert.match(background, /const volatileConfig = volatileLocalActionDrafts\.get\(Number\(session\?\.tabId\)\)/);
-assert.ok(background.indexOf("volatileConfig") < background.indexOf("session.localActionConfigMode === CONFIG_MODE.TAB"));
+assert.match(background, /const volatileEntry = volatileLocalActionDrafts\.get\(tabId\)/);
+assert.ok(background.indexOf("volatileEntry") < background.indexOf("session.localActionConfigMode === CONFIG_MODE.TAB"));
 assert.match(background, /message\.volatile === true/);
 assert.match(background, /setVolatileLocalActionDraft/);
 assert.match(background, /volatileLocalActionDrafts\.delete\(Number\(message\.tabId\)\)/);

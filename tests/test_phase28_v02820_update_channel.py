@@ -12,7 +12,7 @@ module = importlib.util.module_from_spec(spec)
 assert spec and spec.loader
 spec.loader.exec_module(module)
 manifest = json.loads((ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))
-assert manifest["version"] == "0.28.21"
+assert tuple(map(int, manifest["version"].split("."))) >= (0, 28, 21)
 assert manifest["browser_specific_settings"]["gecko"]["strict_min_version"] == "142.0"
 assert "update_url" not in manifest["browser_specific_settings"]["gecko"]
 

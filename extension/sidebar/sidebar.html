@@ -526,6 +526,27 @@
         <label>History limit<input id="shellHistoryLimit" type="number" min="1" max="100" step="1"></label>
       </div>
       <label class="check-row"><input id="rememberShellHistory" type="checkbox">Remember command history for this tab session</label>
+      <details class="native-log-retention-panel">
+        <summary>Native log retention</summary>
+        <div class="native-log-retention-content">
+          <label class="check-row"><input id="nativeLogRetentionEnabled" type="checkbox">Automatically bound stored command logs</label>
+          <div class="selector-grid compact-fields">
+            <label>Maximum age (days)<input id="nativeLogMaxAgeDays" type="number" min="1" max="3650" step="1"></label>
+            <label>Maximum total (MiB)<input id="nativeLogMaxTotalMiB" type="number" min="16" max="16384" step="1"></label>
+            <label>Maximum files<input id="nativeLogMaxFiles" type="number" min="10" max="10000" step="1"></label>
+          </div>
+          <div class="checks-grid compact-fields">
+            <label class="check-row"><input id="nativeLogCleanupOnStartup" type="checkbox">Clean after browser startup</label>
+            <label class="check-row"><input id="nativeLogCleanupAfterCommand" type="checkbox">Clean after command completion</label>
+          </div>
+          <div class="button-grid">
+            <button id="saveNativeLogRetentionButton" type="button">Save retention</button>
+            <button id="runNativeLogCleanupButton" type="button">Clean now</button>
+          </div>
+          <output id="nativeLogCleanupStatus" class="selector-test-result" data-state="idle">Log-store status has not been checked.</output>
+          <small class="inline-result">Running and completed-unread logs are protected. Older viewed logs are deleted by age first, then oldest-first until file-count and total-size limits are met.</small>
+        </div>
+      </details>
       <div class="button-grid shell-history-actions">
         <button id="loadShellHistoryButton" type="button">Load history entry</button>
         <button id="clearShellHistoryButton" type="button" class="danger">Clear tab history</button>

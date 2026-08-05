@@ -6,6 +6,7 @@
   const LocalActions = globalThis.FCI_LOCAL_ACTIONS;
   const CommandPresets = globalThis.FCI_COMMAND_PRESETS;
   // Phase 28 v0.28.3: volatile editor drafts are highest-priority runtime state.
+  // Phase 28 v0.28.23: bind draft autosync to the originating tab/session and persist its working snapshot.
   // Phase 28 v0.28.1: prompt-created presets and unrestricted direct execution.
   const RuntimeGuard = globalThis.FCI_SIDEBAR_RUNTIME_GUARD;
   const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
@@ -32,7 +33,7 @@
     localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), downloadShellExecutionMode: $("#downloadShellExecutionMode"), openShellLogAfterExecution: $("#openShellLogAfterExecution"), downloadStateSummary: $("#downloadStateSummary"), downloadShellStateSummary: $("#downloadShellStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
     shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
-    nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"),
+    nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"), nativeLogRetentionEnabled: $("#nativeLogRetentionEnabled"), nativeLogMaxAgeDays: $("#nativeLogMaxAgeDays"), nativeLogMaxTotalMiB: $("#nativeLogMaxTotalMiB"), nativeLogMaxFiles: $("#nativeLogMaxFiles"), nativeLogCleanupOnStartup: $("#nativeLogCleanupOnStartup"), nativeLogCleanupAfterCommand: $("#nativeLogCleanupAfterCommand"), saveNativeLogRetentionButton: $("#saveNativeLogRetentionButton"), runNativeLogCleanupButton: $("#runNativeLogCleanupButton"), nativeLogCleanupStatus: $("#nativeLogCleanupStatus"),
     shellLogDialog: $("#shellLogDialog"), shellLogDialogTitle: $("#shellLogDialogTitle"), shellLogMetadata: $("#shellLogMetadata"), shellLogViewer: $("#shellLogViewer"), shellLogPageInfo: $("#shellLogPageInfo"), closeShellLogDialogButton: $("#closeShellLogDialogButton"), shellLogFirstButton: $("#shellLogFirstButton"), shellLogPreviousButton: $("#shellLogPreviousButton"), shellLogNextButton: $("#shellLogNextButton"), shellLogLastButton: $("#shellLogLastButton"), copyShellLogSelectionButton: $("#copyShellLogSelectionButton"), copyShellLogPageButton: $("#copyShellLogPageButton"), copyShellLogAllButton: $("#copyShellLogAllButton"), refreshShellLogButton: $("#refreshShellLogButton"), deleteShellLogButton: $("#deleteShellLogButton"),
     saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), saveWorkingSessionButton: $("#saveWorkingSessionButton"), importWorkingSessionButton: $("#importWorkingSessionButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), importWorkingSessionFile: $("#importWorkingSessionFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), messageBox: $("#messageBox")
   };
@@ -62,6 +63,7 @@
   let volatileTabCommandDirty = false;
   let localActionBaseline = { profileId: null, tabId: null, profileName: "", config: LocalActions.defaultConfig(), fingerprint: "" };
   let localActionDraftDirty = false;
+  let nativeLogRetentionDirty = false;
   let busy = false;
   let activeTabRefreshSerial = 0;
   let collapsedGroups = {};
@@ -121,7 +123,7 @@
       elements.localActionDraftStatus.hidden = !dirty;
       elements.localActionDraftStatus.dataset.state = "warning";
       elements.localActionDraftStatus.textContent = "";
-      const statusDetail = detail || "Unsaved tab-only edits; lost after reload.";
+      const statusDetail = detail || "Unsaved tab-only working edits; isolated to this tab and preserved across background recovery.";
       elements.localActionDraftStatus.title = statusDetail;
       elements.localActionDraftStatus.setAttribute("aria-label", statusDetail);
     }
@@ -156,21 +158,33 @@
     });
   }
 
+  function localActionSyncContext(tabId = selectedTabId) {
+    const session = sessionById(Number(tabId));
+    if (!session) return null;
+    return {
+      tabId: Number(tabId),
+      sessionToken: String(session.sessionToken || ""),
+      localActionRevision: Math.max(0, Number(session.localActionRevision) || 0),
+      localActionProfileId: String(session.localActionProfileId || ""),
+      localActionConfigMode: session.localActionConfigMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE,
+      pageUrl: String(session.url || "")
+    };
+  }
+
+  function cancelScheduledVolatileLocalActionSync() {
+    if (volatileLocalActionSyncTimer) clearTimeout(volatileLocalActionSyncTimer);
+    volatileLocalActionSyncTimer = null;
+    volatileLocalActionSyncSerial += 1;
+  }
+
   async function syncVolatileLocalActionDraft(options = {}) {
-    const session = selectedSession();
-    if (!session || !Number.isInteger(Number(selectedTabId))) return false;
-    const clear = Boolean(options.clear) || !hasVolatileLocalActionEdits();
-    let config = currentVolatileExecutionConfig();
+    const context = options.context || localActionSyncContext();
+    if (!context || !Number.isInteger(context.tabId)) return false;
+    const clear = Boolean(options.clear);
+    let config = options.config ? LocalActions.normalizeConfig(options.config) : currentVolatileExecutionConfig();
     if (!clear) {
       const validation = LocalActions.validateConfig(config);
       if (!validation.ok) {
-        await browser.runtime.sendMessage({
-          type: MESSAGE.SAVE_TAB_LOCAL_ACTIONS,
-          tabId: selectedTabId,
-          config: LocalActions.defaultConfig(),
-          volatile: true,
-          clear: true
-        });
         const message = `Current edits are not active yet: ${validation.errors.join(" ")}`;
         renderLocalActionDraftStatus(message);
         if (options.reportErrors) throw new Error(message);
@@ -181,8 +195,9 @@
     const serial = ++volatileLocalActionSyncSerial;
     const response = await browser.runtime.sendMessage({
       type: MESSAGE.SAVE_TAB_LOCAL_ACTIONS,
-      tabId: selectedTabId,
+      tabId: context.tabId,
       config,
+      context,
       volatile: true,
       clear
     });
@@ -192,6 +207,10 @@
       if (options.reportErrors) throw new Error(message);
       return false;
     }
+    if (response.stale) {
+      if (options.reportErrors) throw new Error("The tab context changed before the local-action draft could be applied.");
+      return false;
+    }
     if (serial !== volatileLocalActionSyncSerial) return false;
     dashboard = response.dashboard || dashboard;
     renderLocalActionDraftStatus();
@@ -199,11 +218,22 @@
   }
 
   function scheduleVolatileLocalActionSync() {
-    if (volatileLocalActionSyncTimer) clearTimeout(volatileLocalActionSyncTimer);
+    cancelScheduledVolatileLocalActionSync();
+    const context = localActionSyncContext();
+    if (!context) return;
+    const clear = !hasVolatileLocalActionEdits();
+    const config = clear ? LocalActions.defaultConfig() : currentVolatileExecutionConfig();
     volatileLocalActionSyncTimer = setTimeout(() => {
       volatileLocalActionSyncTimer = null;
-      void syncVolatileLocalActionDraft();
+      void syncVolatileLocalActionDraft({ context, config, clear });
     }, 140);
+  }
+
+  function discardVolatileLocalActionDraft(tabId) {
+    const context = localActionSyncContext(tabId);
+    cancelScheduledVolatileLocalActionSync();
+    if (!context) return;
+    void syncVolatileLocalActionDraft({ context, config: LocalActions.defaultConfig(), clear: true });
   }
 
   function updateLocalActionDraftState() {
@@ -223,8 +253,9 @@
     elements.localActionProfileSelect.value = selectedLocalActionProfileId || "";
     elements.localActionProfileName.value = localActionBaseline.profileName;
     volatileTabCommandDirty = false;
+    const context = localActionSyncContext(localActionBaseline.tabId);
     writeLocalActionConfig(localActionBaseline.config);
-    void syncVolatileLocalActionDraft({ clear: true });
+    if (context) void syncVolatileLocalActionDraft({ context, config: LocalActions.defaultConfig(), clear: true });
     showMessage("Current volatile local-action edits reverted.", "success");
   }
 
@@ -720,11 +751,49 @@
     elements.shellLogPageInfo.textContent = `Copied ${formatByteCount(shellLogState.totalBytes)} from the complete stored log.`;
   }
 
+  function readNativeLogRetentionForm() {
+    return Settings.normalizeNativeLogRetention({
+      enabled: elements.nativeLogRetentionEnabled.checked,
+      maxAgeDays: Number(elements.nativeLogMaxAgeDays.value),
+      maxTotalMiB: Number(elements.nativeLogMaxTotalMiB.value),
+      maxFiles: Number(elements.nativeLogMaxFiles.value),
+      runOnStartup: elements.nativeLogCleanupOnStartup.checked,
+      runAfterCommand: elements.nativeLogCleanupAfterCommand.checked
+    });
+  }
+
+  function writeNativeLogRetentionForm(rawPolicy) {
+    const policy = Settings.normalizeNativeLogRetention(rawPolicy);
+    elements.nativeLogRetentionEnabled.checked = policy.enabled;
+    elements.nativeLogMaxAgeDays.value = String(policy.maxAgeDays);
+    elements.nativeLogMaxTotalMiB.value = String(policy.maxTotalMiB);
+    elements.nativeLogMaxFiles.value = String(policy.maxFiles);
+    elements.nativeLogCleanupOnStartup.checked = policy.runOnStartup;
+    elements.nativeLogCleanupAfterCommand.checked = policy.runAfterCommand;
+  }
+
+  function nativeCleanupSummary() {
+    const cleanup = dashboard.nativeHost?.logCleanup || {};
+    const store = cleanup.lastResult?.after || dashboard.nativeHost?.logStore || {};
+    if (cleanup.lastError) return { text: `Cleanup error: ${cleanup.lastError}`, state: "error" };
+    const count = Number(store.fileCount);
+    const bytes = Number(store.totalBytes);
+    const prefix = Number.isFinite(count) && Number.isFinite(bytes)
+      ? `${count} log file${count === 1 ? "" : "s"}, ${formatByteCount(bytes)}`
+      : "Log-store status has not been checked";
+    if (!cleanup.lastCleanupAt) return { text: `${prefix}.`, state: "idle" };
+    const deleted = Number(cleanup.lastResult?.deletedLogIds?.length || 0);
+    return {
+      text: `${prefix}. Last cleanup: ${cleanup.lastCleanupAt}; deleted ${deleted} file${deleted === 1 ? "" : "s"}${cleanup.lastReason ? ` (${cleanup.lastReason})` : ""}.`,
+      state: "success"
+    };
+  }
+
   function renderShellState() {
     const native = dashboard.nativeHost || {};
     const run = selectedShellRun();
     const nativeVersionParts = String(native.hostVersion || "0.0.0").split(".").map((part) => Number(part) || 0);
-    const nativeNeedsUpdate = Boolean(native.connected) && (nativeVersionParts[0] < 0 || (nativeVersionParts[0] === 0 && nativeVersionParts[1] < 11));
+    const nativeNeedsUpdate = Boolean(native.connected) && (nativeVersionParts[0] < 0 || (nativeVersionParts[0] === 0 && nativeVersionParts[1] < 12));
     const nativeVersion = String(native.hostVersion || (native.connected ? "unknown" : "not checked"));
     const nativeStatusText = native.connected
       ? `Native ${nativeVersion}${nativeNeedsUpdate ? " · update required" : ""}`
@@ -739,6 +808,10 @@
     elements.nativeHostStatus.textContent = nativeStatusText;
     elements.nativeHostStatus.title = nativeStatusDetails;
     elements.nativeHostStatus.setAttribute("aria-label", nativeStatusDetails.replace(/\n/g, ". "));
+    if (!nativeLogRetentionDirty) writeNativeLogRetentionForm(dashboard.nativeLogRetention);
+    const cleanupSummary = nativeCleanupSummary();
+    elements.nativeLogCleanupStatus.textContent = cleanupSummary.text;
+    elements.nativeLogCleanupStatus.dataset.state = cleanupSummary.state;
     elements.shellRunStatus.textContent = run.error
       ? `${run.status}: ${run.error}`
       : (run.returnCode === null || run.returnCode === undefined
@@ -750,6 +823,8 @@
     const inlineOutput = inlineShellOutputText(run);
     elements.shellOutput.textContent = inlineOutput || "No output yet.";
     elements.checkNativeButton.disabled = busy;
+    elements.saveNativeLogRetentionButton.disabled = busy || !nativeLogRetentionDirty;
+    elements.runNativeLogCleanupButton.disabled = busy || !native.connected || nativeNeedsUpdate;
     elements.runShellButton.disabled = busy || !selectedSession() || shellIsActive(run);
     elements.stopShellButton.disabled = busy || !shellIsActive(run);
     elements.clearShellOutputButton.disabled = busy || output.length === 0;
@@ -2497,6 +2572,11 @@ ${run.command || ""}`)) {
       elements.tabSelect.value = String(previousTabId);
       return;
     }
+    if (nextTabId !== Number(previousTabId) && hasVolatileLocalActionEdits()) {
+      discardVolatileLocalActionDraft(previousTabId);
+    } else {
+      cancelScheduledVolatileLocalActionSync();
+    }
     selectedTabId = nextTabId;
     syncOpenShellLogToSelectedTab();
     const session = selectedSession();
@@ -2770,6 +2850,11 @@ ${run.command || ""}`)) {
       elements.localActionProfileSelect.value = previousProfileId || "";
       return;
     }
+    if (nextProfileId !== previousProfileId && hasVolatileLocalActionEdits()) {
+      discardVolatileLocalActionDraft(selectedTabId);
+    } else {
+      cancelScheduledVolatileLocalActionSync();
+    }
     selectedLocalActionProfileId = nextProfileId;
     const profile = localActionProfileById(selectedLocalActionProfileId);
     elements.localActionProfileName.value = profile?.name || "";
@@ -2879,6 +2964,18 @@ Cancel: keep editing without losing the changes.`);
     }
   });
   elements.checkNativeButton.addEventListener("click", () => void request(MESSAGE.GET_NATIVE_STATUS, {}, "Native Host status requested."));
+  for (const element of [elements.nativeLogRetentionEnabled, elements.nativeLogMaxAgeDays, elements.nativeLogMaxTotalMiB, elements.nativeLogMaxFiles, elements.nativeLogCleanupOnStartup, elements.nativeLogCleanupAfterCommand]) {
+    element.addEventListener("input", () => { nativeLogRetentionDirty = true; renderShellState(); });
+    element.addEventListener("change", () => { nativeLogRetentionDirty = true; renderShellState(); });
+  }
+  elements.saveNativeLogRetentionButton.addEventListener("click", async () => {
+    const response = await request(MESSAGE.SAVE_NATIVE_LOG_RETENTION, { policy: readNativeLogRetentionForm() }, "Native log-retention policy saved.");
+    if (response?.ok) nativeLogRetentionDirty = false;
+  });
+  elements.runNativeLogCleanupButton.addEventListener("click", async () => {
+    const response = await request(MESSAGE.RUN_NATIVE_LOG_CLEANUP, {}, "Native command-log cleanup completed.");
+    if (response?.ok) nativeLogRetentionDirty = false;
+  });
   elements.runShellButton.addEventListener("click", runShellCommand);
   elements.runShellQuickButton.addEventListener("click", runShellCommand);
   elements.stopShellButton.addEventListener("click", stopShellCommand);

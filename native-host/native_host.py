@@ -25,13 +25,16 @@ from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Callable
 
 HOST_NAME = "com.duongtc.firefox_chat_assistant"
-HOST_VERSION = "0.11.0"
+HOST_VERSION = "0.12.0"
 MAX_MESSAGE_BYTES = 1024 * 1024
 MAX_COMMAND_CHARS = 32768
 MAX_ENVIRONMENT_ITEMS = 32
 MAX_ENVIRONMENT_VALUE_CHARS = 8192
 MAX_OUTPUT_CHUNK_CHARS = 65536
 MAX_LOG_READ_BYTES = 256 * 1024
+MAX_LOG_RETENTION_FILES = 10000
+MAX_LOG_RETENTION_BYTES = 16 * 1024 * 1024 * 1024
+MAX_LOG_RETENTION_DAYS = 3650
 MOVE_RECEIPT_SCHEMA = 1
 STOP_GRACE_SECONDS = 3.0
 
@@ -342,6 +345,136 @@ def _log_path(log_id: str) -> Path:
     return _log_directory() / f"{_validate_log_id(log_id)}.log"
 
 
+def _log_store_entries() -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    for path in _log_directory().glob("*.log"):
+        stem = path.stem.lower()
+        if len(stem) != 64 or any(character not in "0123456789abcdef" for character in stem):
+            continue
+        try:
+            stat = path.stat()
+        except OSError:
+            continue
+        entries.append({
+            "logId": stem,
+            "path": path,
+            "bytes": int(stat.st_size),
+            "modifiedAt": float(stat.st_mtime),
+        })
+    entries.sort(key=lambda item: (item["modifiedAt"], item["logId"]))
+    return entries
+
+
+def log_store_stats() -> dict[str, Any]:
+    entries = _log_store_entries()
+    return {
+        "fileCount": len(entries),
+        "totalBytes": sum(int(item["bytes"]) for item in entries),
+        "oldestModifiedAt": entries[0]["modifiedAt"] if entries else None,
+        "newestModifiedAt": entries[-1]["modifiedAt"] if entries else None,
+    }
+
+
+def _retention_integer(message: dict[str, Any], key: str, default: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int(message.get(key, default))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"The log retention value is invalid: {key}") from exc
+    return max(minimum, min(maximum, value))
+
+
+def cleanup_log_store(message: dict[str, Any], active_log_ids: set[str] | None = None) -> dict[str, Any]:
+    """Delete completed shell logs by age, then oldest-first quota enforcement.
+
+    Active runs and extension-provided unread/viewer logs are protected. Quotas
+    can remain temporarily exceeded when protected logs alone exceed a limit.
+    """
+    max_age_days = _retention_integer(message, "maxAgeDays", 90, 1, MAX_LOG_RETENTION_DAYS)
+    max_files = _retention_integer(message, "maxFiles", 500, 10, MAX_LOG_RETENTION_FILES)
+    max_total_bytes = _retention_integer(
+        message, "maxTotalBytes", 512 * 1024 * 1024, 16 * 1024 * 1024, MAX_LOG_RETENTION_BYTES
+    )
+    dry_run = bool(message.get("dryRun", False))
+    protected: set[str] = set(active_log_ids or set())
+    raw_protected = message.get("protectedLogIds") or []
+    if not isinstance(raw_protected, list) or len(raw_protected) > MAX_LOG_RETENTION_FILES:
+        raise ValueError("The protected shell log list is invalid or too large.")
+    for value in raw_protected:
+        protected.add(_validate_log_id(value))
+
+    now = time.time()
+    cutoff = now - max_age_days * 86400
+    entries = _log_store_entries()
+    before_files = len(entries)
+    before_bytes = sum(int(item["bytes"]) for item in entries)
+    selected: list[dict[str, Any]] = []
+    selected_ids: set[str] = set()
+
+    def select(item: dict[str, Any], reason: str) -> None:
+        if item["logId"] in protected or item["logId"] in selected_ids:
+            return
+        selected_ids.add(item["logId"])
+        selected.append({**item, "reason": reason})
+
+    for item in entries:
+        if float(item["modifiedAt"]) < cutoff:
+            select(item, "age")
+
+    remaining = [item for item in entries if item["logId"] not in selected_ids]
+    remaining_files = len(remaining)
+    remaining_bytes = sum(int(item["bytes"]) for item in remaining)
+    for item in remaining:
+        if remaining_files <= max_files and remaining_bytes <= max_total_bytes:
+            break
+        if item["logId"] in protected:
+            continue
+        select(item, "quota")
+        remaining_files -= 1
+        remaining_bytes -= int(item["bytes"])
+
+    deleted: list[dict[str, Any]] = []
+    for item in selected:
+        path = item["path"]
+        if not dry_run:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as exc:
+                raise ValueError(f"Could not delete shell log {item['logId']}: {exc}") from exc
+        deleted.append({
+            "logId": item["logId"],
+            "bytes": int(item["bytes"]),
+            "modifiedAt": float(item["modifiedAt"]),
+            "reason": item["reason"],
+        })
+
+    after = log_store_stats() if not dry_run else {
+        "fileCount": before_files - len(deleted),
+        "totalBytes": before_bytes - sum(int(item["bytes"]) for item in deleted),
+        "oldestModifiedAt": None,
+        "newestModifiedAt": None,
+    }
+    return {
+        "event": "logs_cleaned",
+        "requestId": message.get("requestId"),
+        "dryRun": dry_run,
+        "policy": {
+            "maxAgeDays": max_age_days,
+            "maxFiles": max_files,
+            "maxTotalBytes": max_total_bytes,
+        },
+        "before": {"fileCount": before_files, "totalBytes": before_bytes},
+        "after": after,
+        "deletedLogIds": [item["logId"] for item in deleted],
+        "deleted": deleted,
+        "deletedBytes": sum(int(item["bytes"]) for item in deleted),
+        "protectedLogIds": sorted(protected),
+        "protectedCount": len(protected),
+        "limitsSatisfied": int(after["fileCount"]) <= max_files and int(after["totalBytes"]) <= max_total_bytes,
+        "completedAt": now,
+        "logStore": after,
+    }
+
+
 def read_log_chunk(message: dict[str, Any]) -> dict[str, Any]:
     log_id = _validate_log_id(message.get("logId"))
     path = _log_path(log_id)
@@ -502,7 +635,7 @@ class ProcessManager:
                 }
                 for item in self.runs.values()
             ]
-        return {"activeRuns": active}
+        return {"activeRuns": active, "logStore": log_store_stats()}
 
     def start(self, message: dict[str, Any]) -> None:
         run_id, tab_id, cwd, command, mode = validate_run_request(message)
@@ -743,6 +876,10 @@ def run_host(reader: BinaryIO = sys.stdin.buffer, writer: MessageWriter | None =
                     output.send(resolve_log_for_run(message))
                 elif action == "delete_log":
                     output.send(delete_log_file(message))
+                elif action == "cleanup_logs":
+                    with manager.lock:
+                        active_log_ids = {item.log_id for item in manager.runs.values() if item.log_id}
+                    output.send(cleanup_log_store(message, active_log_ids))
                 else:
                     raise ValueError("The Native Host action is not supported.")
             except Exception as error:

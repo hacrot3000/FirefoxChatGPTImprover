@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.28.21",
-  "description": "Private Firefox sidebar helper with restart-resumable managed downloads, idempotent relocation receipts, legacy command-log recovery, Android-compatible manifest metadata, deployment-ready self-hosted updates and consolidated project status.",
+  "version": "0.28.23",
+  "description": "Private Firefox sidebar helper with tab-bound restart-persistent local-action snapshots, stale cross-tab autosync rejection, bounded Native Host logs and restart-resumable managed downloads.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-assistant@duongtc.local",

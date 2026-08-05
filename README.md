@@ -610,3 +610,21 @@ Updates stale Phase 23/25 contracts, restores repeatable `--overwrite` builds, v
 - Native Host files are unchanged.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02821_END -->
 
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02822_BEGIN -->
+## Phase 28 v0.28.22 — bounded Native command logs
+
+- Automatically limits Native Host command logs by age, total MiB and file count.
+- Protects running and completed-unread logs from cleanup.
+- Supports startup cleanup, post-command cleanup and an explicit Clean now action.
+- Requires Native Host 0.12.0.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02822_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02823_BEGIN -->
+## Phase 28 v0.28.23 — tab-bound download configuration
+
+- Persists unsaved local-action working snapshots per tab across background restart and navigation recovery.
+- Binds delayed sidebar autosync to the originating tab, session token, URL and local-action revision.
+- Rejects stale cross-tab autosync instead of allowing another tab's destination to overwrite the current tab.
+- Freezes and logs the exact destination source and fingerprint when managed-download capture is armed.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02823_END -->
+

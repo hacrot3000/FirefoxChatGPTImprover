@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 14) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 15) {
     return;
   }
 
-  const SCHEMA_VERSION = 14;
+  const SCHEMA_VERSION = 15;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
@@ -139,6 +139,30 @@
       command: "",
       mode: "terminal",
       confirmBeforeRun: true
+    };
+  }
+
+  function defaultNativeLogRetention() {
+    return {
+      enabled: true,
+      maxAgeDays: 90,
+      maxTotalMiB: 512,
+      maxFiles: 500,
+      runOnStartup: true,
+      runAfterCommand: true
+    };
+  }
+
+  function normalizeNativeLogRetention(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const fallback = defaultNativeLogRetention();
+    return {
+      enabled: safeBoolean(source.enabled, fallback.enabled),
+      maxAgeDays: safeInteger(source.maxAgeDays, fallback.maxAgeDays, 1, 3650),
+      maxTotalMiB: safeInteger(source.maxTotalMiB, fallback.maxTotalMiB, 16, 16384),
+      maxFiles: safeInteger(source.maxFiles, fallback.maxFiles, 10, 10000),
+      runOnStartup: safeBoolean(source.runOnStartup, fallback.runOnStartup),
+      runAfterCommand: safeBoolean(source.runAfterCommand, fallback.runAfterCommand)
     };
   }
 
@@ -503,6 +527,7 @@
       schemaVersion: SCHEMA_VERSION,
       revision: 1,
       defaultProfileId: DEFAULT_PROFILE_ID,
+      nativeLogRetention: defaultNativeLogRetention(),
       profiles: [profile]
     };
   }
@@ -534,6 +559,7 @@
       schemaVersion: SCHEMA_VERSION,
       revision: safeInteger(source.revision, 1, 1, Number.MAX_SAFE_INTEGER),
       defaultProfileId,
+      nativeLogRetention: normalizeNativeLogRetention(source.nativeLogRetention),
       profiles
     };
   }
@@ -709,6 +735,8 @@
       defaultRule,
       defaultCommandAction,
       defaultShellPreset,
+      defaultNativeLogRetention,
+      normalizeNativeLogRetention,
       defaultStore,
       normalizeConfig,
       normalizeRule,

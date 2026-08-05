@@ -1,8 +1,8 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 28 v0.28.21  
+**Current baseline:** Phase 28 v0.28.23  
 **Primary supported environment:** Firefox Desktop on Linux  
-**Native Host:** 0.11.0
+**Native Host:** 0.12.0
 
 ## Completed production scope
 
@@ -15,10 +15,10 @@
 | Managed downloads | Complete | Capture, no-dialog restart, immutable snapshot, relocation, retry and post-download command. |
 | Restart recovery for managed downloads | Complete | Armed captures resume while valid; moves replay by idempotent receipt. |
 | Full command logs | Complete | File-backed paging, persisted fallback and legacy `runId` discovery. |
-| Native Host Linux | Complete | Version 0.11.0; shell execution, scoped stop, log store and transaction receipts. |
+| Native Host Linux | Complete | Version 0.12.0; shell execution, scoped stop, bounded log retention and transaction receipts. |
 | Firefox build/release tooling | Complete | Lint, build, checksum, signing helper, rollback and guarded update channel management. |
 | Firefox Android manifest validation | Complete | Minimum Firefox 142 removes unsupported-key warning. |
-| Source integrity and regression | Complete | Phase 04–28 plus v0.28.20 recovery/update and v0.28.21 Native-version UI tests. |
+| Source integrity and regression | Complete | Phase 04–28 plus v0.28.20 recovery/update, v0.28.21 Native-version UI, v0.28.22 log retention and v0.28.23 tab-bound local-action snapshot tests. |
 
 ## Operator-provided deployment inputs
 
@@ -46,3 +46,4 @@ python3 tools/manage_firefox_update_channel.py enable \
 ## Known physical limitation
 
 A log file deleted before v0.28.20 cannot be reconstructed from metadata. Existing legacy files are now rediscovered automatically by `runId`; missing bytes remain irrecoverable by definition.
+| Tab-bound local-action working snapshots | Unsaved destination/command edits survive background recovery and stale cross-tab autosync is rejected by tab/session/URL/revision context. | Complete in v0.28.23 |

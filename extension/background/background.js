@@ -9,6 +9,8 @@
   // Phase 28 v0.28.15: active-tab viewed notices clear to idle and AI status regains priority.
   // Phase 28 v0.28.16: command notices never suppress AI state; missing native logs use a persisted per-run fallback.
   // Phase 28 v0.28.20: restart-resumable captures, idempotent moves and legacy log recovery.
+  // Phase 28 v0.28.22: bounded Native Host log retention with protected unread logs.
+  // Phase 28 v0.28.23: tab-bound working local actions survive background restarts and reject stale sidebar syncs.
 
   const { MESSAGE, MODE, CONFIG_MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
@@ -20,11 +22,14 @@
   const TAB_SESSION_KEY = "firefoxChatImprover.tabSession.v2";
   const sessions = new Map();
   const pickerStates = new Map();
-  const volatileLocalActionDrafts = new Map(); // Phase 28 v0.28.3 volatile local-action drafts
+  const volatileLocalActionDrafts = new Map(); // tabId -> { config, context }; persisted mirror survives background restarts
   let storePromise = null;
   let localActionStorePromise = null;
   let snapshotPromise = null;
   let recoveryPromise = null;
+  let nativeLogCleanupTimer = null;
+  let nativeLogCleanupRunning = false;
+  let nativeLogCleanupState = { lastCleanupAt: null, lastReason: null, lastResult: null, lastError: null };
 
   const NATIVE_HOST_NAME = "com.duongtc.firefox_chat_assistant";
   const SHELL_OUTPUT_LIMIT = 500;
@@ -47,7 +52,8 @@
     hostName: NATIVE_HOST_NAME,
     hostVersion: null,
     lastError: null,
-    lastSeenAt: null
+    lastSeenAt: null,
+    logStore: null
   };
 
   function emptyShellRun(tabId) {
@@ -223,6 +229,8 @@
       sessionToken: null,
       localActionProfileId: null,
       localActionRevision: 0,
+      localActionSource: null,
+      localActionFingerprint: null,
       configSnapshot: null,
       ruleId: null,
       cycle: 0,
@@ -280,6 +288,8 @@
       sessionToken: source.sessionToken ? String(source.sessionToken) : null,
       localActionProfileId: source.localActionProfileId ? String(source.localActionProfileId) : null,
       localActionRevision: Math.max(0, Number(source.localActionRevision) || 0),
+      localActionSource: source.localActionSource ? String(source.localActionSource) : null,
+      localActionFingerprint: source.localActionFingerprint ? String(source.localActionFingerprint) : null,
       configSnapshot,
       ruleId: source.ruleId ? String(source.ruleId) : null,
       cycle: Math.max(0, Number(source.cycle) || 0),
@@ -369,7 +379,8 @@
     const session = sessions.get(Number(tabId));
     if (!session) throw new Error("This tab is not activated.");
     const localStore = await loadLocalActionStore();
-    const config = sessionLocalActionConfig(session, localStore);
+    const resolution = sessionLocalActionResolution(session, localStore);
+    const config = resolution.config;
     if (!config.download.enabled) {
       return { armed: false, reason: "disabled" };
     }
@@ -386,6 +397,8 @@
       origin: (() => { try { return new URL(session.url).origin; } catch (_error) { return ""; } })(),
       localActionProfileId: session.localActionProfileId,
       localActionRevision: Number(session.localActionRevision || 0),
+      localActionSource: resolution.source,
+      localActionFingerprint: resolution.fingerprint,
       config: configSnapshot,
       armedAtMs: Date.now(),
       expiresAtMs: Date.now() + seconds * 1000,
@@ -398,6 +411,8 @@
       sessionToken: session.sessionToken,
       localActionProfileId: session.localActionProfileId,
       localActionRevision: Number(session.localActionRevision || 0),
+      localActionSource: resolution.source,
+      localActionFingerprint: resolution.fingerprint,
       configSnapshot,
       ruleId: capture.ruleId,
       cycle: capture.cycle,
@@ -414,7 +429,15 @@
     });
     session.downloadJob = publicDownloadState(Number(tabId));
     appendLog(session, "debug", "download-capture-armed", "Managed download capture armed before target click.", {
-      captureId, ruleId: capture.ruleId, cycle: capture.cycle, expiresAt: capture.expiresAtMs
+      captureId,
+      ruleId: capture.ruleId,
+      cycle: capture.cycle,
+      expiresAt: capture.expiresAtMs,
+      destinationDirectory: config.download.destinationDirectory,
+      localActionSource: resolution.source,
+      localActionProfileId: session.localActionProfileId,
+      localActionRevision: Number(session.localActionRevision || 0),
+      localActionFingerprint: resolution.fingerprint
     });
     await persistSession(session);
     await broadcast("download-capture-armed", Number(tabId));
@@ -454,6 +477,8 @@
       sessionToken: capture.sessionToken,
       localActionProfileId: capture.localActionProfileId,
       localActionRevision: capture.localActionRevision,
+      localActionSource: capture.localActionSource || null,
+      localActionFingerprint: capture.localActionFingerprint || null,
       configSnapshot: LocalActions.normalizeExecutionSnapshot(capture.config),
       destinationDirectory: capture.config.download.destinationDirectory,
       showCompletionDialog: capture.config.download.showCompletionDialog,
@@ -614,6 +639,8 @@
       destinationDirectory: config.download.destinationDirectory,
       localActionProfileId: job.localActionProfileId,
       localActionRevision: job.localActionRevision,
+      localActionSource: job.localActionSource,
+      localActionFingerprint: job.localActionFingerprint,
       moveAttempt: job.moveAttempt,
       nativeHostVersion: nativeState.hostVersion || null
     });
@@ -1173,11 +1200,133 @@
     await persistSession(session);
   }
 
+  function nativeLogRetentionPolicy(store) {
+    return Settings.normalizeNativeLogRetention(store?.nativeLogRetention);
+  }
+
+  function protectedShellLogIds() {
+    const protectedIds = new Set();
+    for (const run of shellRuns.values()) {
+      if (run?.logId && ["starting", "running", "terminal", "stopping"].includes(run.status)) {
+        protectedIds.add(String(run.logId));
+      }
+    }
+    for (const session of sessions.values()) {
+      const notice = normalizeShellNotice(session.shellNotice, session.tabId);
+      if (notice.status === "unread" && notice.logId) protectedIds.add(String(notice.logId));
+    }
+    return [...protectedIds].sort();
+  }
+
+  async function clearDeletedShellLogReferences(deletedLogIds) {
+    const deleted = new Set((Array.isArray(deletedLogIds) ? deletedLogIds : []).map(String));
+    if (!deleted.size) return;
+    for (const run of shellRuns.values()) {
+      if (run.logId && deleted.has(String(run.logId))) {
+        run.logId = null;
+        run.logBytes = 0;
+      }
+    }
+    for (const session of sessions.values()) {
+      let changed = false;
+      if (Array.isArray(session.shellHistory)) {
+        session.shellHistory = session.shellHistory.map((entry) => {
+          if (!entry?.logId || !deleted.has(String(entry.logId))) return entry;
+          changed = true;
+          return { ...entry, logId: null, logBytes: 0, logRetentionExpired: true };
+        });
+      }
+      const notice = normalizeShellNotice(session.shellNotice, session.tabId);
+      if (notice.logId && deleted.has(String(notice.logId))) {
+        session.shellNotice = normalizeShellNotice({ ...notice, logId: null, logBytes: 0 }, session.tabId);
+        changed = true;
+      }
+      const job = downloadJobs.get(session.tabId);
+      if (job?.shellLogId && deleted.has(String(job.shellLogId))) {
+        job.shellLogId = null;
+        job.shellLogBytes = 0;
+        job.shellLogRetentionExpired = true;
+        changed = true;
+      }
+      if (changed) await persistSession(session);
+    }
+  }
+
+  async function runNativeLogCleanup(reason = "manual", { force = false, dryRun = false } = {}) {
+    if (nativeLogCleanupRunning) throw new Error("Native log cleanup is already running.");
+    const store = await loadStore();
+    const policy = nativeLogRetentionPolicy(store);
+    if (!force && !policy.enabled) {
+      return { skipped: true, reason: "disabled", policy };
+    }
+    nativeLogCleanupRunning = true;
+    nativeLogCleanupState = { ...nativeLogCleanupState, lastReason: reason, lastError: null };
+    try {
+      const result = await nativeRequest("cleanup_logs", {
+        maxAgeDays: policy.maxAgeDays,
+        maxFiles: policy.maxFiles,
+        maxTotalBytes: policy.maxTotalMiB * 1024 * 1024,
+        protectedLogIds: protectedShellLogIds(),
+        dryRun
+      }, 30000);
+      nativeLogCleanupState = {
+        lastCleanupAt: Settings.nowIso(),
+        lastReason: reason,
+        lastResult: clone(result),
+        lastError: null
+      };
+      if (result?.logStore) nativeState.logStore = clone(result.logStore);
+      if (!dryRun) await clearDeletedShellLogReferences(result?.deletedLogIds);
+      await broadcast("native-log-cleanup");
+      return result;
+    } catch (error) {
+      nativeLogCleanupState = {
+        ...nativeLogCleanupState,
+        lastCleanupAt: Settings.nowIso(),
+        lastReason: reason,
+        lastError: error instanceof Error ? error.message : String(error)
+      };
+      await broadcast("native-log-cleanup-error");
+      throw error;
+    } finally {
+      nativeLogCleanupRunning = false;
+    }
+  }
+
+  function scheduleNativeLogCleanup(reason, delayMs = 1200) {
+    if (nativeLogCleanupTimer) clearTimeout(nativeLogCleanupTimer);
+    nativeLogCleanupTimer = setTimeout(() => {
+      nativeLogCleanupTimer = null;
+      void loadStore().then((store) => {
+        const policy = nativeLogRetentionPolicy(store);
+        const allowed = reason === "startup" ? policy.runOnStartup : policy.runAfterCommand;
+        if (!policy.enabled || !allowed) return null;
+        return runNativeLogCleanup(reason);
+      }).catch(() => {
+        // Cleanup availability is reflected in the dashboard; startup remains non-fatal.
+      });
+    }, Math.max(0, Number(delayMs) || 0));
+  }
+
+  async function saveNativeLogRetention(rawPolicy) {
+    const store = await loadStore();
+    const policy = Settings.normalizeNativeLogRetention(rawPolicy);
+    const saved = await saveStore({
+      ...store,
+      revision: Number(store.revision || 0) + 1,
+      nativeLogRetention: policy
+    });
+    nativeLogCleanupState = { ...nativeLogCleanupState, lastError: null };
+    await broadcast("native-log-retention-saved");
+    return saved.nativeLogRetention;
+  }
+
   function nativeDashboardState() {
     return {
       ...clone(nativeState),
       runs: [...shellRuns.values()].map((run) => clone(run)),
-      downloads: [...downloadJobs.values()].map((job) => clone(job))
+      downloads: [...downloadJobs.values()].map((job) => clone(job)),
+      logCleanup: clone(nativeLogCleanupState)
     };
   }
 
@@ -1227,6 +1376,9 @@
     }
     if (message?.hostVersion) {
       nativeState.hostVersion = message.hostVersion;
+    }
+    if (message?.logStore && typeof message.logStore === "object") {
+      nativeState.logStore = clone(message.logStore);
     }
 
     const event = String(message?.event || "");
@@ -1362,6 +1514,7 @@
       }
       await persistSession(session);
       await publishShellNotice(session, { persist: false, reason: "native-shell-event" });
+      if (["exited", "error"].includes(event)) scheduleNativeLogCleanup("command-complete", 1800);
       return;
     }
     await broadcast("native-shell-event", tabId);
@@ -1933,7 +2086,67 @@
     return Settings.profileById(store, session.profileId)?.name || "Profile not found";
   }
 
-  function sessionLocalActionConfig(session, localStore) { const volatileConfig = volatileLocalActionDrafts.get(Number(session?.tabId)); if (volatileConfig) { return LocalActions.normalizeConfig(volatileConfig); } if (session.localActionConfigMode === CONFIG_MODE.TAB && session.localActionTabConfig) { return LocalActions.normalizeConfig(session.localActionTabConfig); } const profile = LocalActions.profileById(localStore, session.localActionProfileId) || LocalActions.profileById(localStore, localStore.defaultProfileId) || localStore.profiles[0]; return LocalActions.normalizeConfig(profile.config); }
+  function currentLocalActionContext(session) {
+    return {
+      sessionToken: String(session?.sessionToken || ""),
+      localActionRevision: Math.max(0, Number(session?.localActionRevision) || 0),
+      localActionProfileId: String(session?.localActionProfileId || ""),
+      localActionConfigMode: session?.localActionConfigMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE,
+      pageUrl: String(session?.url || "")
+    };
+  }
+
+  function localActionContextMatches(session, context) {
+    if (!session || !context || typeof context !== "object") return false;
+    const current = currentLocalActionContext(session);
+    return String(context.sessionToken || "") === current.sessionToken &&
+      Math.max(0, Number(context.localActionRevision) || 0) === current.localActionRevision &&
+      String(context.localActionProfileId || "") === current.localActionProfileId &&
+      String(context.localActionConfigMode || CONFIG_MODE.PROFILE) === current.localActionConfigMode;
+  }
+
+  function clearWorkingLocalActionSnapshot(session) {
+    if (!session) return;
+    volatileLocalActionDrafts.delete(Number(session.tabId));
+    session.localActionWorkingConfig = null;
+    session.localActionWorkingContext = null;
+  }
+
+  function normalizeWorkingLocalActionSnapshot(session) {
+    if (!session?.localActionWorkingConfig || !localActionContextMatches(session, session.localActionWorkingContext)) {
+      clearWorkingLocalActionSnapshot(session);
+      return null;
+    }
+    return LocalActions.normalizeConfig(session.localActionWorkingConfig);
+  }
+
+  function sessionLocalActionResolution(session, localStore) {
+    const tabId = Number(session?.tabId);
+    const volatileEntry = volatileLocalActionDrafts.get(tabId);
+    if (volatileEntry) {
+      if (localActionContextMatches(session, volatileEntry.context)) {
+        const config = LocalActions.normalizeConfig(volatileEntry.config);
+        return { config, source: "tab-working-draft", fingerprint: LocalActions.configFingerprint(config) };
+      }
+      volatileLocalActionDrafts.delete(tabId);
+    }
+    const workingConfig = normalizeWorkingLocalActionSnapshot(session);
+    if (workingConfig) {
+      return { config: workingConfig, source: "tab-working-snapshot", fingerprint: LocalActions.configFingerprint(workingConfig) };
+    }
+    if (session.localActionConfigMode === CONFIG_MODE.TAB && session.localActionTabConfig) {
+      const config = LocalActions.normalizeConfig(session.localActionTabConfig);
+      return { config, source: "tab-override", fingerprint: LocalActions.configFingerprint(config) };
+    }
+    const profile = LocalActions.profileById(localStore, session.localActionProfileId) ||
+      LocalActions.profileById(localStore, localStore.defaultProfileId) || localStore.profiles[0];
+    const config = LocalActions.normalizeConfig(profile.config);
+    return { config, source: "assigned-profile", fingerprint: LocalActions.configFingerprint(config) };
+  }
+
+  function sessionLocalActionConfig(session, localStore) {
+    return sessionLocalActionResolution(session, localStore).config;
+  }
 
   function localActionProfileName(session, localStore) {
     return LocalActions.profileById(localStore, session.localActionProfileId)?.name || "Local-action profile not found";
@@ -2042,6 +2255,8 @@
       localActionConfigMode: CONFIG_MODE.PROFILE,
       localActionTabConfig: null,
       localActionRevision: 1,
+      localActionWorkingConfig: null,
+      localActionWorkingContext: null,
       runtime: newRuntime(),
       logs: { user: [], debug: [] },
       downloadJob: emptyDownloadState(tab.id),
@@ -2357,6 +2572,13 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       ? LocalActions.normalizeConfig(recovered.localActionTabConfig)
       : null;
     recovered.localActionRevision = Math.max(1, Number(recovered.localActionRevision || 1));
+    recovered.localActionWorkingConfig = recovered.localActionWorkingConfig
+      ? LocalActions.normalizeConfig(recovered.localActionWorkingConfig)
+      : null;
+    recovered.localActionWorkingContext = recovered.localActionWorkingContext && typeof recovered.localActionWorkingContext === "object"
+      ? clone(recovered.localActionWorkingContext)
+      : null;
+    normalizeWorkingLocalActionSnapshot(recovered);
     sessions.set(tab.id, recovered);
     try {
       await recoverLegacyShellLogs(recovered);
@@ -2932,6 +3154,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     const profile = LocalActions.profileById(localStore, profileId);
     if (!session) throw new Error("This tab is not activated.");
     if (!profile) throw new Error("Local-action profile not found.");
+    clearWorkingLocalActionSnapshot(session);
     session.localActionProfileId = profile.id;
     session.localActionConfigMode = CONFIG_MODE.PROFILE;
     session.localActionTabConfig = null;
@@ -2946,6 +3169,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     if (!session) throw new Error("This tab is not activated.");
     const validation = LocalActions.validateConfig(rawConfig);
     if (!validation.ok) throw new Error(validation.errors.join("\n"));
+    clearWorkingLocalActionSnapshot(session);
     session.localActionConfigMode = CONFIG_MODE.TAB;
     session.localActionTabConfig = validation.config;
     session.localActionRevision = Number(session.localActionRevision || 0) + 1;
@@ -2957,6 +3181,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
   async function resetTabLocalActions(tabId) {
     const session = sessions.get(tabId);
     if (!session) throw new Error("This tab is not activated.");
+    clearWorkingLocalActionSnapshot(session);
     session.localActionConfigMode = CONFIG_MODE.PROFILE;
     session.localActionTabConfig = null;
     session.localActionRevision = Number(session.localActionRevision || 0) + 1;
@@ -2987,6 +3212,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     profile.updatedAt = LocalActions.nowIso();
     store.profiles[index] = profile;
     const saved = await saveLocalActionStore(store);
+    for (const session of sessions.values()) {
+      if (session.localActionProfileId !== profile.id || session.localActionConfigMode !== CONFIG_MODE.PROFILE) continue;
+      clearWorkingLocalActionSnapshot(session);
+      session.localActionRevision = Number(session.localActionRevision || 0) + 1;
+      await persistSession(session);
+    }
     await broadcast("local-action-profile-saved");
     return saved;
   }
@@ -3000,6 +3231,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     const saved = await saveLocalActionStore(store);
     for (const session of sessions.values()) {
       if (session.localActionProfileId !== profileId) continue;
+      clearWorkingLocalActionSnapshot(session);
       const routed = LocalActions.routeProfile(saved, session.url || "");
       session.localActionProfileId = routed.profileId || saved.defaultProfileId;
       session.localActionConfigMode = CONFIG_MODE.PROFILE;
@@ -3449,6 +3681,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         candidates: routingPreview.candidates
       },
       nativeHost: nativeDashboardState(),
+      nativeLogRetention: nativeLogRetentionPolicy(store),
       settingsSnapshots: snapshotCollection.snapshots.map(Snapshots.summary),
       pickers: [...pickerStates.values()].map((state) => clone(state))
     };
@@ -3461,7 +3694,36 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     };
   }
 
-  async function setVolatileLocalActionDraft(tabId, rawConfig, clear = false) { const numericTabId = Number(tabId); if (!Number.isInteger(numericTabId)) { throw new Error("The volatile local-action draft has no valid tab ID."); } const session = sessions.get(numericTabId); if (!session) { throw new Error("This tab is not activated."); } if (clear) { volatileLocalActionDrafts.delete(numericTabId); } else { const validation = LocalActions.validateConfig(rawConfig); if (!validation.ok) { throw new Error(validation.errors.join("\n")); } volatileLocalActionDrafts.set(numericTabId, validation.config); } const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]); await broadcast(clear ? "volatile-local-actions-cleared" : "volatile-local-actions-updated", numericTabId); return publicSession(session, store, localStore); }
+  async function setVolatileLocalActionDraft(tabId, rawConfig, clear = false, expectedContext = {}) {
+    const numericTabId = Number(tabId);
+    if (!Number.isInteger(numericTabId)) throw new Error("The volatile local-action draft has no valid tab ID.");
+    const session = sessions.get(numericTabId);
+    if (!session) throw new Error("This tab is not activated.");
+
+    const suppliedContext = expectedContext && typeof expectedContext === "object" ? expectedContext : {};
+    const hasContext = Boolean(suppliedContext.sessionToken || suppliedContext.localActionProfileId || suppliedContext.localActionRevision !== undefined);
+    if (hasContext && !localActionContextMatches(session, suppliedContext)) {
+      const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
+      return { stale: true, session: publicSession(session, store, localStore) };
+    }
+
+    if (clear) {
+      clearWorkingLocalActionSnapshot(session);
+    } else {
+      const validation = LocalActions.validateConfig(rawConfig);
+      if (!validation.ok) throw new Error(validation.errors.join("\n"));
+      const context = currentLocalActionContext(session);
+      const config = validation.config;
+      volatileLocalActionDrafts.set(numericTabId, { config, context });
+      session.localActionWorkingConfig = LocalActions.clone(config);
+      session.localActionWorkingContext = { ...context, updatedAt: Settings.nowIso(), fingerprint: LocalActions.configFingerprint(config) };
+    }
+    session.updatedAt = Settings.nowIso();
+    await persistSession(session);
+    const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
+    await broadcast(clear ? "volatile-local-actions-cleared" : "volatile-local-actions-updated", numericTabId);
+    return { stale: false, session: publicSession(session, store, localStore) };
+  }
 
   async function handleRequest(message, sender = null) {
     try {
@@ -3584,7 +3846,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         volatileLocalActionDrafts.delete(Number(message.tabId));await assignLocalActionProfile(Number(message.tabId), message.profileId);
           return { ok: true, dashboard: await dashboard() };
 
-        case MESSAGE.SAVE_TAB_LOCAL_ACTIONS: { if (message.volatile === true) { assertSidebarSender(sender); const savedSession = await setVolatileLocalActionDraft(Number(message.tabId), message.config, Boolean(message.clear)); return { ok: true, savedSession, volatile: true, dashboard: await dashboard() }; } volatileLocalActionDrafts.delete(Number(message.tabId));
+        case MESSAGE.SAVE_TAB_LOCAL_ACTIONS: { if (message.volatile === true) { assertSidebarSender(sender); const result = await setVolatileLocalActionDraft(Number(message.tabId), message.config, Boolean(message.clear), message.context); return { ok: true, savedSession: result.session, stale: result.stale, volatile: true, dashboard: await dashboard() }; } volatileLocalActionDrafts.delete(Number(message.tabId));
           const tabId = Number(message.tabId);
           await saveTabLocalActions(tabId, message.config);
           const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
@@ -3650,6 +3912,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
         case MESSAGE.GET_NATIVE_STATUS:
           return { ok: true, nativeHost: await checkNativeStatus(sender), dashboard: await dashboard() };
+
+        case MESSAGE.SAVE_NATIVE_LOG_RETENTION:
+          return { ok: true, nativeLogRetention: await saveNativeLogRetention(message.policy), dashboard: await dashboard() };
+
+        case MESSAGE.RUN_NATIVE_LOG_CLEANUP:
+          return { ok: true, cleanup: await runNativeLogCleanup("manual", { force: true, dryRun: Boolean(message.dryRun) }), dashboard: await dashboard() };
 
         case MESSAGE.RUN_SHELL:
           return { ok: true, shellRun: await runShell(message, sender), dashboard: await dashboard() };
@@ -3742,6 +4010,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.CLEAR_HIGHLIGHTS,
     MESSAGE.CLEAR_SESSION_LOGS,
     MESSAGE.GET_NATIVE_STATUS,
+    MESSAGE.SAVE_NATIVE_LOG_RETENTION,
+    MESSAGE.RUN_NATIVE_LOG_CLEANUP,
     MESSAGE.RUN_SHELL,
     MESSAGE.STOP_SHELL,
     MESSAGE.CLEAR_SHELL_OUTPUT,
@@ -3790,6 +4060,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.CLEAR_HIGHLIGHTS,
     MESSAGE.CLEAR_SESSION_LOGS,
     MESSAGE.GET_NATIVE_STATUS,
+    MESSAGE.SAVE_NATIVE_LOG_RETENTION,
+    MESSAGE.RUN_NATIVE_LOG_CLEANUP,
     MESSAGE.RUN_SHELL,
     MESSAGE.STOP_SHELL,
     MESSAGE.CLEAR_SHELL_OUTPUT,
@@ -3963,7 +4235,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     void clearNotification(tabId);
   });
 
-  void recoverAll().catch((error) => {
+  void recoverAll().then(() => scheduleNativeLogCleanup("startup", 2500)).catch((error) => {
     console.error("FirefoxChatImprover: startup session recovery failed", error);
   });
 
