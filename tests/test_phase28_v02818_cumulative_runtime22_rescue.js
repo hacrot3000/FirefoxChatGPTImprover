@@ -1,0 +1,25 @@
+#!/usr/bin/env node
+"use strict";
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const root = path.resolve(__dirname, "..");
+const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
+const manifest = JSON.parse(read("extension/manifest.json"));
+const activation = read("extension/content/activation.js");
+const alert = read("extension/content/alert.js");
+const background = read("extension/background/background.js");
+const sidebar = read("extension/sidebar/sidebar.js");
+const runner = read("tools/test_firefox_addon.sh");
+assert.equal(manifest.version, "0.28.18");
+assert.match(activation, /const RUNTIME_VERSION = 25;/);
+assert.match(alert, /FCI_ALERT_ENGINE\?\.VERSION >= 9/);
+assert.match(alert, /VERSION: 9/);
+assert.match(alert, /MONITOR_STATE\.WAITING \|\| runtime\?\.monitorState === MONITOR_STATE\.MATCHED/);
+assert.match(background, /Phase 28 v0\.28\.16: command notices never suppress AI state/);
+assert.match(background, /SHELL_HISTORY_INLINE_CHAR_LIMIT = 65536/);
+assert.match(sidebar, /function shellHistoryFallbackText\(entry\)/);
+assert.match(runner, /test_phase28_v02816_ai_status_and_log_fallback\.js/);
+assert.match(runner, /test_phase28_v02817_alert_engine_upgrade_title_priority\.js/);
+assert.match(runner, /test_phase28_v02818_cumulative_runtime22_rescue\.js/);
+console.log("PASS: Phase 28 v0.28.18 cumulatively rescues runtime 22/23 and installs the final AI-primary title controller");

@@ -13,7 +13,10 @@
     <div>
       <p class="eyebrow">Firefox ChatAI Assistant</p>
     </div>
-    <span id="statusPill" class="status-pill">Inactive</span>
+    <div class="header-status-cluster">
+      <span id="commandStatusIcon" class="command-status-icon" data-state="idle" hidden aria-live="polite"></span>
+      <span id="statusPill" class="status-pill">Inactive</span>
+    </div>
   </header>
 
   <main>
@@ -595,7 +598,7 @@ chmod +x ./native-host/install_native_host.sh \
       </details>
     </section>
 
-    <section class="card sticky-actions" data-group-id="save" aria-labelledby="saveHeading">
+    <section class="card" data-group-id="save" aria-labelledby="saveHeading">
       <h2 id="saveHeading">Save configuration</h2>
       <div class="button-grid">
         <button id="saveProfileButton" type="button" class="primary">Save to profile</button>

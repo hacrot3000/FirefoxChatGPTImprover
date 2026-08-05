@@ -22,8 +22,10 @@ assert.match(sidebarSource, /Save a valid Working directory and Command before a
 assert.match(sidebarSource, /shellPresetName\?\.closest\("label"\)\?\.remove\(\)/);
 assert.match(sidebarSource, /shellPresetEnabled\?\.closest\("label"\)\?\.remove\(\)/);
 assert.match(sidebarSource, /requireShellPresetMatch\?\.closest\("label"\)\?\.remove\(\)/);
-assert.match(sidebarSource, /useDirectTabCommandButton/);
-assert.match(sidebarSource, /Direct command values are active immediately for this tab and are lost after reload unless applied or saved/);
+assert.doesNotMatch(sidebarSource, /function useDirectTabCommand/);
+assert.doesNotMatch(sidebarSource, /button\.textContent = "Direct command for this tab"/);
+assert.match(sidebarSource, /selectedShellPresetDirty/);
+assert.match(sidebarSource, /Save changes to preset/);
 assert.doesNotMatch(sidebarSource, /elements\.shellPresetName\.value\.trim/);
 assert.doesNotMatch(localActionsSource, /The download shell command must match an enabled background command preset/);
 

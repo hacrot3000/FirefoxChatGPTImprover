@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 7) {
+  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 9) {
     return;
   }
 
@@ -25,6 +25,8 @@
       "RUNNING",
       "MATCHED",
       "MONITORING",
+      "⌘",
+      "✓",
       "⌘ COMMAND RUNNING",
       "✓ COMMAND LOG",
       "COMMAND RUNNING",
@@ -67,7 +69,10 @@
   }
 
   function shouldSpinMonitorTitle(runtime, mode) {
-    return Boolean(mode === MODE.ACTIVE && runtime?.monitorState === MONITOR_STATE.WAITING);
+    return Boolean(
+      mode === MODE.ACTIVE &&
+      (runtime?.monitorState === MONITOR_STATE.WAITING || runtime?.monitorState === MONITOR_STATE.MATCHED)
+    );
   }
 
   function monitorTitle(frame, baseTitle) {
@@ -114,9 +119,15 @@
     return cleanBase ? `[${cleanPrefix}] ${cleanBase}` : `[${cleanPrefix}]`;
   }
 
+  function quietAlertPrefix(prefix) {
+    const clean = String(prefix || "⚠ AI READY").trim() || "⚠ AI READY";
+    const quiet = clean.replace(/^[^\p{L}\p{N}]+/u, "").trim();
+    return quiet || "AI READY";
+  }
+
   function commandTitlePrefix(runtime) {
-    if (runtime?.shellCommandState === "running") return "⌘ COMMAND RUNNING";
-    if (runtime?.shellCommandState === "unread") return "✓ COMMAND LOG";
+    if (runtime?.shellCommandState === "running") return "⌘";
+    if (runtime?.shellCommandState === "unread") return "✓";
     return "";
   }
 
@@ -296,23 +307,25 @@
     }
 
     function monitorSpinWanted() {
-      return shouldSpinMonitorTitle(runtime, mode) && !commandTitlePrefix(runtime) && !(active && config.alerts.titleBlink);
+      return shouldSpinMonitorTitle(runtime, mode) && !(active && config.alerts.titleBlink);
     }
 
     function applyCurrentTitleFrame() {
       const commandPrefix = commandTitlePrefix(runtime);
       if (active && config.alerts.titleBlink) {
-        writeTitle(blinkOn
-          ? alertTitle(combinedTitlePrefix(config.alerts.titlePrefix, runtime, true), baseTitle)
-          : (commandPrefix ? alertTitle(commandPrefix, baseTitle) : baseTitle));
+        const primaryPrefix = blinkOn
+          ? config.alerts.titlePrefix
+          : quietAlertPrefix(config.alerts.titlePrefix);
+        writeTitle(alertTitle(combinedTitlePrefix(primaryPrefix, runtime, true), baseTitle));
+        return;
+      }
+      if (monitorSpinWanted()) {
+        const decoratedBase = commandPrefix ? `[${commandPrefix}] ${baseTitle}` : baseTitle;
+        writeTitle(monitorTitle(MONITOR_SPINNER_FRAMES[monitorSpinIndex], decoratedBase));
         return;
       }
       if (commandPrefix) {
         writeTitle(alertTitle(commandPrefix, baseTitle));
-        return;
-      }
-      if (monitorSpinWanted()) {
-        writeTitle(monitorTitle(MONITOR_SPINNER_FRAMES[monitorSpinIndex], baseTitle));
       }
     }
 
@@ -330,13 +343,6 @@
         applyCurrentTitleFrame();
         return;
       }
-      if (commandTitlePrefix(runtime)) {
-        clearBlinkTimer();
-        clearMonitorSpinTimer();
-        ensureTitleObserver();
-        applyCurrentTitleFrame();
-        return;
-      }
       if (monitorSpinWanted()) {
         clearBlinkTimer();
         ensureTitleObserver();
@@ -347,6 +353,13 @@
             applyCurrentTitleFrame();
           }, 180);
         }
+        applyCurrentTitleFrame();
+        return;
+      }
+      if (commandTitlePrefix(runtime)) {
+        clearBlinkTimer();
+        clearMonitorSpinTimer();
+        ensureTitleObserver();
         applyCurrentTitleFrame();
         return;
       }
@@ -506,7 +519,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 7,
+      VERSION: 9,
       TITLE_BASE_ATTRIBUTE,
       TITLE_PREFIX_ATTRIBUTE,
       stripManagedTitleDecorations,
@@ -516,6 +529,7 @@
       shouldSpinMonitorTitle,
       deriveAlertDecision,
       alertTitle,
+      quietAlertPrefix,
       commandTitlePrefix,
       combinedTitlePrefix,
       monitorTitle,

@@ -18,7 +18,7 @@
   const $ = (selector) => document.querySelector(selector);
   const elements = {
     body: document.body,
-    statusPill: $("#statusPill"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
+    statusPill: $("#statusPill"), commandStatusIcon: $("#commandStatusIcon"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
     modeText: $("#modeText"), configModeText: $("#configModeText"), profileText: $("#profileText"), tabUrl: $("#tabUrl"), commandNoticeText: $("#commandNoticeText"),
     monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), ruleCountText: $("#ruleCountText"), matchedRuleCountText: $("#matchedRuleCountText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"),
@@ -53,6 +53,7 @@
   let shellPresetsDraft = [];
   let selectedShellPresetId = "";
   let commandPresetEditorMode = "tab";
+  let selectedShellPresetDirty = false;
   let suppressTabCommandAutosave = false;
   let tabCommandSaveTimer = null;
   let tabCommandSaveSerial = 0;
@@ -407,7 +408,10 @@
       ? "Select a command preset first."
       : (commandPresetIsRunnable(preset) ? "Apply the saved preset to this tab." : "Save a valid Working directory and Command before applying this preset.");
     elements.updateShellPresetButton.disabled = busy || !preset;
-    elements.updateShellPresetButton.title = preset ? `Save the editor values into “${preset.name}”.` : "Create or select a preset first.";
+    elements.updateShellPresetButton.textContent = preset && selectedShellPresetDirty ? "Save changes" : "Save preset";
+    elements.updateShellPresetButton.title = preset
+      ? (selectedShellPresetDirty ? `Save the edited values into “${preset.name}”.` : `Save the current editor values into “${preset.name}”.`)
+      : "Create or select a preset first.";
     elements.deleteShellPresetButton.disabled = busy || !preset;
   }
 
@@ -445,6 +449,23 @@
     return output.map((item) => `${item.stream === "stderr" ? "[stderr] " : (item.stream === "system" ? "[system] " : "")}${item.text || ""}`).join("");
   }
 
+  function shellHistoryFallbackText(entry) {
+    if (!entry) return "";
+    const stored = String(entry.inlineOutput || "");
+    if (stored) return stored;
+    const lines = [
+      "[system] The complete Native Host log is unavailable; showing the persisted command summary.",
+      entry.startedAt ? `[started] ${entry.startedAt}` : "",
+      entry.workingDirectory || entry.cwd ? `[cwd] ${entry.workingDirectory || entry.cwd}` : "",
+      entry.command ? `[command] ${entry.command}` : "",
+      entry.endedAt ? `[ended] ${entry.endedAt}` : "",
+      entry.status ? `[status] ${entry.status}` : "",
+      Number.isInteger(entry.returnCode) ? `[returnCode] ${entry.returnCode}` : "",
+      entry.error ? `[error] ${entry.error}` : ""
+    ].filter(Boolean);
+    return `${lines.join("\n")}\n`;
+  }
+
   function selectedShellLogDescriptor() {
     const run = selectedShellRun();
     const inlineText = inlineShellOutputText(run);
@@ -460,8 +481,15 @@
     }
     const history = Array.isArray(selectedSession()?.shellHistory) ? selectedSession().shellHistory : [];
     const selectedId = elements.shellHistorySelect.value;
-    const entry = history.find((item) => item.id === selectedId && item.logId) || history.find((item) => item.logId);
-    return entry ? { tabId: selectedTabId, logId: entry.logId, runId: entry.runId, logBytes: Number(entry.logBytes) || 0, inlineText: "", label: entry.presetName || entry.command || "Command history" } : null;
+    const entry = history.find((item) => item.id === selectedId) || history[0];
+    return entry ? {
+      tabId: selectedTabId,
+      logId: entry.logId || null,
+      runId: entry.runId || null,
+      logBytes: Number(entry.logBytes) || 0,
+      inlineText: shellHistoryFallbackText(entry),
+      label: entry.presetName || entry.command || "Command history"
+    } : null;
   }
 
   function decodeLogChunk(base64Value) {
@@ -556,7 +584,8 @@
       type: MESSAGE.ACKNOWLEDGE_SHELL_LOG,
       tabId: descriptor.tabId,
       runId: descriptor.runId || null,
-      logId: descriptor.logId || null
+      logId: descriptor.logId || null,
+      requireActiveTab: true
     });
     if (response?.ok && response.dashboard) renderRuntimeDashboard(response.dashboard);
   }
@@ -590,7 +619,8 @@
       if (fallback) {
         const loaded = await loadShellLogPage({ ...descriptor, logId: null, inlineText: fallback }, { fromEnd: true, requestEpoch });
         displayed = Boolean(loaded);
-        elements.shellLogPageInfo.textContent = `Stored log unavailable; showing all output received by the add-on. ${error instanceof Error ? error.message : String(error)}`;
+        elements.shellLogPageInfo.textContent = `Stored complete log unavailable; showing the persisted per-run fallback. ${error instanceof Error ? error.message : String(error)}`;
+        showMessage("Stored complete log unavailable; the persisted command output or summary is shown instead.", "info");
       } else {
         elements.shellLogViewer.value = "";
         reportShellLogFailure(error);
@@ -1017,7 +1047,8 @@
         elements.shellCommand.value = value.shell.command;
         elements.shellMode.value = value.shell.mode;
         elements.confirmBeforeRun.checked = value.shell.confirmBeforeRun;
-        commandPresetEditorMode = "tab";
+        selectedShellPresetDirty = false;
+        commandPresetEditorMode = selectedShellPresetId ? "preset-edit" : "tab";
       }
     } finally {
       suppressTabCommandAutosave = false;
@@ -1325,7 +1356,15 @@
     elements.body.dataset.command = shellNotice.status;
     elements.statusPill.textContent = sidebarAlertEnabled && alertActive
       ? "Condition matched"
-      : (shellNotice.status === "running" ? "Command running" : (shellNotice.status === "unread" ? "Command log unread" : (modeLabels[mode] || mode)));
+      : (modeLabels[mode] || mode);
+    const commandIcon = shellNotice.status === "running" ? "⌘" : (shellNotice.status === "unread" ? "✓" : "");
+    elements.commandStatusIcon.hidden = !commandIcon;
+    elements.commandStatusIcon.textContent = commandIcon;
+    elements.commandStatusIcon.dataset.state = shellNotice.status;
+    elements.commandStatusIcon.title = shellNotice.status === "running"
+      ? "A shell command is running in this tab."
+      : (shellNotice.status === "unread" ? "The shell command finished; open its console log to clear this indicator." : "");
+    elements.commandStatusIcon.setAttribute("aria-label", elements.commandStatusIcon.title || "No command notification");
     elements.tabId.textContent = Number.isInteger(selectedTabId) ? String(selectedTabId) : "—";
     const recoveryState = runtime.recoveryState || "none";
     const recoverySuffix = recoveryState !== "none" && recoveryState !== "attached"
@@ -1353,11 +1392,14 @@
       : "—";
     elements.commandNoticeText.textContent = !session
       ? "—"
+      : (shellNotice.status === "running" ? "⌘" : (shellNotice.status === "unread" ? "✓" : "—"));
+    elements.commandNoticeText.title = !session
+      ? ""
       : (shellNotice.status === "running"
-        ? `RUNNING${shellNotice.command ? ` · ${shellNotice.command}` : ""}`
+        ? `Command running${shellNotice.command ? `: ${shellNotice.command}` : ""}`
         : (shellNotice.status === "unread"
-          ? `FINISHED · log not viewed${shellNotice.returnCode === null ? "" : ` · rc=${shellNotice.returnCode}`}`
-          : (shellNotice.status === "viewed" ? "Log viewed" : "Idle")));
+          ? `Command finished; console not viewed${shellNotice.returnCode === null ? "" : `; rc=${shellNotice.returnCode}`}`
+          : "No command notification."));
     elements.targetStateText.textContent = session ? (runtime.targetState || "disabled") : "—";
     elements.baselineCountText.textContent = session ? String(runtime.baselineCount || 0) : "—";
     elements.candidateCountText.textContent = session ? `${runtime.candidateCount || 0} / total ${runtime.targetTotalCount || 0}` : "—";
@@ -1780,19 +1822,10 @@
       const note = document.createElement("p");
       note.id = "commandPresetScopeNote";
       note.className = "command-preset-scope-note";
-      note.innerHTML = "<strong>Command presets are global.</strong> New preset asks only for its name. Select a preset, edit the command below, then Save preset or Apply to this tab.";
+      note.innerHTML = "<strong>Command presets are global.</strong> Select a preset, edit the fields below, then save the changes directly back to that preset or apply it to this tab.";
       panel.prepend(note);
     }
-    if (panel && !document.querySelector("#useDirectTabCommandButton")) {
-      const button = document.createElement("button");
-      button.id = "useDirectTabCommandButton";
-      button.type = "button";
-      button.className = "secondary";
-      button.textContent = "Direct command for this tab";
-      button.addEventListener("click", useDirectTabCommand);
-      const actions = elements.newShellPresetButton.closest(".button-row") || elements.newShellPresetButton.parentElement;
-      actions?.append(button);
-    }
+    document.querySelector("#useDirectTabCommandButton")?.remove();
     if (!document.querySelector("#tabCommandSaveStatus")) {
       const output = document.createElement("output");
       output.id = "tabCommandSaveStatus";
@@ -1869,7 +1902,12 @@
   }
 
   function scheduleTabCommandPersistence() {
-    if (suppressTabCommandAutosave || ["preset-edit", "preset-preview"].includes(commandPresetEditorMode)) return;
+    if (suppressTabCommandAutosave) return;
+    if (selectedShellPresetId && selectedShellPreset()) {
+      refreshSelectedPresetDirtyState();
+      return;
+    }
+    selectedShellPresetDirty = false;
     selectedShellPresetId = "";
     elements.shellPresetSelect.value = "";
     volatileTabCommandDirty = true;
@@ -1881,16 +1919,26 @@
     }, 140);
   }
 
-  function useDirectTabCommand() {
-    const shell = LocalActions.normalizeConfig(selectedSession()?.effectiveLocalActions || LocalActions.defaultConfig()).shell;
-    selectedShellPresetId = "";
-    commandPresetEditorMode = "tab";
-    suppressTabCommandAutosave = true;
-    loadShellValues(shell);
-    suppressTabCommandAutosave = false;
+
+  function shellPresetEditorMatches(preset = selectedShellPreset()) {
+    if (!preset) return false;
+    return String(elements.workingDirectory.value || "") === String(preset.workingDirectory || "") &&
+      String(elements.shellCommand.value || "") === String(preset.command || "") &&
+      String(elements.shellMode.value || "terminal") === String(preset.mode || "terminal") &&
+      Boolean(elements.confirmBeforeRun.checked) === Boolean(preset.confirmBeforeRun);
+  }
+
+  function refreshSelectedPresetDirtyState() {
+    const preset = selectedShellPreset();
+    selectedShellPresetDirty = Boolean(preset && !shellPresetEditorMatches(preset));
+    if (preset) {
+      commandPresetEditorMode = "preset-edit";
+      commandPresetStatus(selectedShellPresetDirty
+        ? `Unsaved changes for preset “${preset.name}”. Click Save changes before selecting another preset.`
+        : `Editing preset “${preset.name}”.`, selectedShellPresetDirty ? "saving" : "idle");
+    }
     renderShellPresetOptions();
-    elements.workingDirectory.focus();
-    commandPresetStatus("Direct command values are active immediately for this tab and are lost after reload unless applied or saved.", "idle");
+    return selectedShellPresetDirty;
   }
 
   function createShellPresetFromForm(name, id = null) {
@@ -1914,7 +1962,9 @@
     suppressTabCommandAutosave = true;
     loadShellValues(preset);
     suppressTabCommandAutosave = false;
-    commandPresetEditorMode = "tab";
+    selectedShellPresetDirty = false;
+    commandPresetEditorMode = "preset-edit";
+    renderShellPresetOptions();
     const saved = await persistCurrentTabCommand(`preset “${preset.name}”`, {
       workingDirectory: preset.workingDirectory,
       command: preset.command,
@@ -1950,6 +2000,7 @@
     commandPresetStore = result.store;
     shellPresetsDraft = CommandPresets.clone(result.store.presets);
     selectedShellPresetId = result.preset.id;
+    selectedShellPresetDirty = false;
     commandPresetEditorMode = "preset-edit";
     suppressTabCommandAutosave = true;
     loadShellValues(result.preset);
@@ -1965,34 +2016,37 @@
     }
   }
 
-  async function updateShellPreset() {
+  async function updateShellPreset({ quiet = false } = {}) {
     const current = selectedShellPreset();
     if (!current) {
-      showMessage("Create or select a command preset first.", "error");
-      return;
+      if (!quiet) showMessage("Create or select a command preset first.", "error");
+      return false;
     }
     const candidate = createShellPresetFromForm(current.name, current.id);
     if (!candidate.workingDirectory.startsWith("/")) {
-      showMessage("Preset working directory must be an absolute path.", "error");
-      return;
+      if (!quiet) showMessage("Preset working directory must be an absolute path.", "error");
+      return false;
     }
     if (!candidate.command.trim()) {
-      showMessage("Preset command must not be empty.", "error");
-      return;
+      if (!quiet) showMessage("Preset command must not be empty.", "error");
+      return false;
     }
     try {
       const result = CommandPresets.upsert(commandPresetStore, candidate);
       commandPresetStore = result.store;
       shellPresetsDraft = CommandPresets.clone(result.store.presets);
       selectedShellPresetId = result.preset.id;
-      commandPresetEditorMode = "preset-preview";
+      selectedShellPresetDirty = false;
+      commandPresetEditorMode = "preset-edit";
       await saveCommandPresetLibrary();
       renderShellPresetOptions();
       renderRuleCommandPresetOptions(ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId));
-      commandPresetStatus(`Preset “${result.preset.name}” saved globally. Click Apply to this tab when this tab should use it.`, "saved");
-      showMessage(`Global command preset “${result.preset.name}” saved and verified.`, "success");
+      commandPresetStatus(`Preset “${result.preset.name}” saved.`, "saved");
+      if (!quiet) showMessage(`Global command preset “${result.preset.name}” saved and verified.`, "success");
+      return true;
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : String(error), "error");
+      if (!quiet) showMessage(error instanceof Error ? error.message : String(error), "error");
+      return false;
     }
   }
 
@@ -2003,6 +2057,7 @@
       commandPresetStore = CommandPresets.remove(commandPresetStore, preset.id);
       shellPresetsDraft = CommandPresets.clone(commandPresetStore.presets);
       selectedShellPresetId = "";
+      selectedShellPresetDirty = false;
       commandPresetEditorMode = "tab";
       await saveCommandPresetLibrary();
       renderShellPresetOptions();
@@ -2729,16 +2784,37 @@ ${run.command || ""}`)) {
     }
   });
   elements.clearHighlightsButton.addEventListener("click", () => void request(MESSAGE.CLEAR_HIGHLIGHTS, { tabId: selectedTabId }, "Tab highlights cleared."));
-  elements.shellPresetSelect.addEventListener("change", () => {
-    selectedShellPresetId = elements.shellPresetSelect.value;
+  elements.shellPresetSelect.addEventListener("change", async () => {
+    const requestedPresetId = elements.shellPresetSelect.value;
+    const previousPresetId = selectedShellPresetId;
+    const previousPreset = selectedShellPreset();
+    if (previousPreset && selectedShellPresetDirty && requestedPresetId !== previousPresetId) {
+      const shouldSave = confirm(`Save changes to preset “${previousPreset.name}” before switching?
+
+OK: save and continue.
+Cancel: keep editing without losing the changes.`);
+      if (!shouldSave) {
+        elements.shellPresetSelect.value = previousPresetId;
+        return;
+      }
+      const saved = await updateShellPreset({ quiet: true });
+      if (!saved) {
+        elements.shellPresetSelect.value = previousPresetId;
+        showMessage(`Could not save preset “${previousPreset.name}”. The edited values are still in the form.`, "error");
+        return;
+      }
+    }
+    selectedShellPresetId = requestedPresetId;
+    selectedShellPresetDirty = false;
     const preset = selectedShellPreset();
     if (preset) {
       commandPresetEditorMode = "preset-edit";
       suppressTabCommandAutosave = true;
       loadShellValues(preset);
       suppressTabCommandAutosave = false;
-      commandPresetStatus(`Editing preset “${preset.name}”. Change the fields below, then click Save preset.`, "idle");
+      commandPresetStatus(`Editing preset “${preset.name}”.`, "idle");
     } else {
+      commandPresetEditorMode = "tab";
       commandPresetStatus("Select an existing preset or click New preset.", "idle");
     }
     renderShellPresetOptions();

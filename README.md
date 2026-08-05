@@ -563,3 +563,22 @@ Updates stale Phase 23/25 contracts, restores repeatable `--overwrite` builds, v
 - The unread indicator is cleared only after the matching log is successfully displayed (stored page or inline fallback).
 - Stored-log read failures are non-fatal and no longer become unhandled sidebar rejections.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02814_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02815_BEGIN -->
+## Phase 28 v0.28.15 — preset editing and icon-only command status
+
+- Removes the redundant **Direct command for this tab** button.
+- Keeps the selected preset while editing, exposes **Save changes**, and protects unsaved preset values before switching.
+- Makes **Save configuration** a normal non-sticky group.
+- Uses icon-only command indicators (`⌘` running, `✓` finished/unread) without replacing the AI monitor status.
+- Clears the unread indicator to idle only after the matching console is displayed for the active tab; legacy `viewed` notices are migrated to idle while the stored log remains reopenable.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02815_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02818_BEGIN -->
+## Phase 28 v0.28.18 — cumulative runtime-22 rescue
+
+- Repairs directly from v0.28.15/runtime 22 or verifies a partial v0.28.16/v0.28.17 tree.
+- README differences are not a prerequisite for functional code repair.
+- Forces activation runtime 25 and alert engine 9 so stale title controllers are replaced.
+- Moves failed v0.28.16/v0.28.17 packages out of the active patch queue after validation.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02818_END -->

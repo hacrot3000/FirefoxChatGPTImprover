@@ -73,7 +73,7 @@ for (const token of [
   "inlineShellOutputText",
   "inlineText",
   "Showing all output received by the add-on",
-  "Stored log unavailable; showing all output received by the add-on",
+  "Stored complete log unavailable; showing the persisted per-run fallback",
   "run.logId || inlineShellOutputText(run)",
   "Native Host 0.10.0 or newer"
 ]) {

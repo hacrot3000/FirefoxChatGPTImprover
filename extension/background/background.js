@@ -6,6 +6,8 @@
   // Phase 28 v0.28.8: same-tab download jobs survive session-token rollover.
 
   // Phase 28 v0.28.14: tab-bound shell log viewer and persistent command notices.
+  // Phase 28 v0.28.15: active-tab viewed notices clear to idle and AI status regains priority.
+  // Phase 28 v0.28.16: command notices never suppress AI state; missing native logs use a persisted per-run fallback.
 
   const { MESSAGE, MODE, CONFIG_MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
@@ -26,6 +28,8 @@
   const NATIVE_HOST_NAME = "com.duongtc.firefox_chat_assistant";
   const SHELL_OUTPUT_LIMIT = 500;
   const SHELL_OUTPUT_CHAR_LIMIT = 200000; // UI tail only; the Native Host keeps the complete file-backed log.
+  const SHELL_HISTORY_INLINE_CHAR_LIMIT = 65536;
+  const SHELL_HISTORY_INLINE_ENTRY_LIMIT = 5;
   const SHELL_LOG_READ_MAX_BYTES = 256 * 1024;
   const shellRuns = new Map();
   const downloadCaptures = new Map();
@@ -157,16 +161,35 @@
     return clone(session.shellNotice);
   }
 
-  async function acknowledgeShellNotice(session, { runId = null, logId = null } = {}) {
+  async function acknowledgeShellNotice(session, { runId = null, logId = null, requireActiveTab = false } = {}) {
     if (!session) throw new Error("This tab is not activated.");
     const notice = normalizeShellNotice(session.shellNotice, session.tabId);
     const runMatches = !runId || !notice.runId || String(runId) === notice.runId;
     const logMatches = !logId || !notice.logId || String(logId) === notice.logId;
+    let activeTabMatches = true;
+    if (requireActiveTab) {
+      const active = await currentTab();
+      activeTabMatches = Number(active?.id) === Number(session.tabId);
+    }
     if (notice.status === "unread" && runMatches && logMatches) {
-      session.shellNotice = normalizeShellNotice({ ...notice, status: "viewed", viewedAt: Settings.nowIso() }, session.tabId);
-      await publishShellNotice(session, { reason: "shell-log-viewed" });
+      session.shellNotice = normalizeShellNotice({
+        ...notice,
+        status: activeTabMatches ? "idle" : "viewed",
+        viewedAt: Settings.nowIso()
+      }, session.tabId);
+      await publishShellNotice(session, { reason: activeTabMatches ? "shell-log-viewed" : "shell-log-viewed-pending-active-tab" });
     }
     return clone(normalizeShellNotice(session.shellNotice, session.tabId));
+  }
+
+  async function clearViewedShellNoticeForActiveTab(tabId) {
+    const session = sessions.get(Number(tabId));
+    if (!session) return false;
+    const notice = normalizeShellNotice(session.shellNotice, session.tabId);
+    if (notice.status !== "viewed") return false;
+    session.shellNotice = normalizeShellNotice({ ...notice, status: "idle" }, session.tabId);
+    await publishShellNotice(session, { reason: "shell-log-viewed-active-tab" });
+    return true;
   }
 
   function appendShellOutput(run, stream, text) {
@@ -182,6 +205,14 @@
     while (total > SHELL_OUTPUT_CHAR_LIMIT && run.output.length > 1) {
       total -= run.output.shift().text.length;
     }
+  }
+
+  function shellRunInlineText(run) {
+    const output = Array.isArray(run?.output) ? run.output : [];
+    const text = output.map((item) => `${item.stream === "stderr" ? "[stderr] " : (item.stream === "system" ? "[system] " : "")}${item.text || ""}`).join("");
+    return text.length > SHELL_HISTORY_INLINE_CHAR_LIMIT
+      ? text.slice(text.length - SHELL_HISTORY_INLINE_CHAR_LIMIT)
+      : text;
   }
 
   function emptyDownloadState(tabId) {
@@ -1271,7 +1302,7 @@
   function normalizeShellHistory(raw, limit = 20) {
     const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
     const entries = Array.isArray(raw) ? raw : [];
-    return entries.filter((entry) => entry && typeof entry === "object").slice(0, safeLimit).map((entry) => ({
+    return entries.filter((entry) => entry && typeof entry === "object").slice(0, safeLimit).map((entry, index) => ({
       id: String(entry.id || Settings.makeId("shell-history")),
       runId: entry.runId ? String(entry.runId) : null,
       startedAt: String(entry.startedAt || Settings.nowIso()),
@@ -1292,7 +1323,10 @@
       trigger: entry.trigger ? String(entry.trigger) : null,
       cycle: Number.isInteger(Number(entry.cycle)) ? Number(entry.cycle) : null,
       logId: entry.logId ? String(entry.logId) : null,
-      logBytes: Math.max(0, Number(entry.logBytes) || 0)
+      logBytes: Math.max(0, Number(entry.logBytes) || 0),
+      inlineOutput: index < SHELL_HISTORY_INLINE_ENTRY_LIMIT
+        ? String(entry.inlineOutput || "").slice(-SHELL_HISTORY_INLINE_CHAR_LIMIT)
+        : ""
     }));
   }
 
@@ -1308,7 +1342,8 @@
       returnCode: Number.isInteger(run.returnCode) ? run.returnCode : null,
       error: run.error || null,
       logId: run.logId || entry.logId || null,
-      logBytes: Math.max(Number(run.logBytes) || 0, Number(entry.logBytes) || 0)
+      logBytes: Math.max(Number(run.logBytes) || 0, Number(entry.logBytes) || 0),
+      inlineOutput: shellRunInlineText(run) || entry.inlineOutput || ""
     });
   }
 
@@ -1410,7 +1445,8 @@
         trigger: metadata.trigger || null,
         cycle: Number.isInteger(Number(metadata.cycle)) ? Number(metadata.cycle) : null,
         logId: null,
-        logBytes: 0
+        logBytes: 0,
+        inlineOutput: ""
       });
       session.shellHistory = normalizeShellHistory(session.shellHistory, config.shell.historyLimit);
     }
@@ -1561,7 +1597,6 @@
       maxBytes: Math.min(SHELL_LOG_READ_MAX_BYTES, Math.max(1, Number(message.maxBytes) || SHELL_LOG_READ_MAX_BYTES)),
       fromEnd: Boolean(message.fromEnd)
     });
-    await acknowledgeShellNotice(session, { runId: message.runId || null, logId });
     return chunk;
   }
 
@@ -1569,7 +1604,11 @@
     assertSidebarSender(sender);
     const tabId = Number(message.tabId);
     const session = sessions.get(tabId);
-    return acknowledgeShellNotice(session, { runId: message.runId || null, logId: message.logId || null });
+    return acknowledgeShellNotice(session, {
+      runId: message.runId || null,
+      logId: message.logId || null,
+      requireActiveTab: message.requireActiveTab !== false
+    });
   }
 
   async function deleteShellLog(message, sender) {
@@ -1591,7 +1630,7 @@
     );
     const notice = normalizeShellNotice(session.shellNotice, tabId);
     if (notice.logId === logId) {
-      session.shellNotice = normalizeShellNotice({ ...notice, status: "viewed", logId: null, logBytes: 0, viewedAt: Settings.nowIso() }, tabId);
+      session.shellNotice = normalizeShellNotice({ ...notice, status: "idle", logId: null, logBytes: 0, viewedAt: Settings.nowIso() }, tabId);
     }
     await persistSession(session);
     await publishShellNotice(session, { persist: false, reason: "shell-log-deleted" });
@@ -1948,17 +1987,17 @@
       await applyBadge(session.tabId, "!", "#cf222e");
       return;
     }
+    if (session.mode === MODE.ACTIVE) {
+      await applyBadge(session.tabId, "ON", "#238636");
+      return;
+    }
     const shellNotice = normalizeShellNotice(session.shellNotice, session.tabId);
     if (shellNotice.status === "running") {
-      await applyBadge(session.tabId, "CMD", "#0969da");
+      await applyBadge(session.tabId, "⌘", "#0969da");
       return;
     }
     if (shellNotice.status === "unread") {
-      await applyBadge(session.tabId, "LOG", "#9a6700");
-      return;
-    }
-    if (session.mode === MODE.ACTIVE) {
-      await applyBadge(session.tabId, "ON", "#238636");
+      await applyBadge(session.tabId, "✓", "#9a6700");
       return;
     }
     await applyBadge(session.tabId, "", null);
@@ -3723,7 +3762,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
   });
 
   browser.tabs.onActivated.addListener((activeInfo) => {
-    void broadcast("active-tab-changed", activeInfo.tabId);
+    void clearViewedShellNoticeForActiveTab(activeInfo.tabId)
+      .then((cleared) => cleared || broadcast("active-tab-changed", activeInfo.tabId))
+      .catch(() => broadcast("active-tab-changed", activeInfo.tabId));
   });
 
   browser.tabs.onRemoved.addListener((tabId) => { volatileLocalActionDrafts.delete(Number(tabId));

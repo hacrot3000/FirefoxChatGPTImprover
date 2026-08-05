@@ -28,7 +28,8 @@ assert.match(sidebar, /volatile: true/);
 assert.match(sidebar, /\n      clear\n/);
 assert.match(sidebar, /function currentVolatileExecutionConfig\(\)/);
 assert.match(sidebar, /commandPresetEditorMode === "tab" \? draft\.shell : base\.shell/);
-assert.match(sidebar, /Direct command values are active immediately for this tab and are lost after reload unless applied or saved\./);
+assert.match(sidebar, /if \(selectedShellPresetId && selectedShellPreset\(\)\)/);
+assert.match(sidebar, /syncVolatileLocalActionDraft/);
 assert.doesNotMatch(sidebar, /Command changed; saving automatically/);
 assert.doesNotMatch(sidebar, /direct command auto-save/);
 

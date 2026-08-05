@@ -43,7 +43,9 @@ assert.match(sidebarSource, /const CommandPresets = globalThis\.FCI_COMMAND_PRES
 assert.match(sidebarSource, /loadCommandPresetLibrary/);
 assert.match(sidebarSource, /saveCommandPresetLibrary/);
 assert.match(sidebarSource, /Apply to this tab/);
-assert.match(sidebarSource, /Direct command for this tab/);
+assert.doesNotMatch(sidebarSource, /Direct command for this tab/);
+assert.match(sidebarSource, /selectedShellPresetDirty/);
+assert.match(sidebarSource, /Save changes/);
 assert.match(sidebarSource, /scheduleTabCommandPersistence/);
 assert.match(sidebarSource, /SAVE_TAB_LOCAL_ACTIONS/);
 assert.match(sidebarSource, /readLocalActionProfileConfig/);
@@ -51,4 +53,4 @@ assert.match(css, /Phase 28/);
 const manifestParts = manifest.version.split(".").map(Number);
 assert.ok(manifestParts[0] > 0 || manifestParts[1] > 28 || (manifestParts[1] === 28 && manifestParts[2] >= 0));
 
-console.log("PASS: Phase 28 independent global command presets and auto-saved direct tab commands");
+console.log("PASS: Phase 28 independent global command presets, protected preset editing and tab command persistence");

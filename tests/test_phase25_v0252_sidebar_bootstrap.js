@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, "..");
 const localActionsSource = fs.readFileSync(path.join(root, "extension/shared/local_actions.js"), "utf8");
 const sidebarSource = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.css"), "utf8");
+const html = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.html"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
 
 const context = {
@@ -53,12 +54,12 @@ assert.match(sidebarSource, /document\.body\.dataset\.sidebarReady = "true"/);
 assert.match(sidebarSource, /await request\(MESSAGE\.GET_DASHBOARD\)/);
 assert.match(sidebarSource, /"installation-guide": true/);
 assert.match(sidebarSource, /save: true/);
-assert.match(css, /body\[data-sidebar-ready="true"\] \.sticky-actions \{ position: sticky/);
-assert.match(css, /body:not\(\[data-sidebar-ready="true"\]\) \.sticky-actions \{ position: static/);
+assert.doesNotMatch(html, /class="card sticky-actions"[^>]*data-group-id="save"/);
+assert.doesNotMatch(css, /\.sticky-actions\s*\{[^}]*position:\s*sticky/);
 {
   const parts = String(manifest.version || "").split(".").map(Number);
   assert.ok(parts.length === 3 && parts.every(Number.isInteger));
   assert.ok(parts[0] > 0 || parts[1] > 25 || (parts[1] === 25 && parts[2] >= 2));
 }
 
-console.log("PASS: Phase 25 v0.25.2 local-action runtime bootstrap, dashboard startup and sticky Save fail-safe");
+console.log("PASS: Phase 25 v0.25.2+ local-action runtime bootstrap, dashboard startup and normal-flow Save group");

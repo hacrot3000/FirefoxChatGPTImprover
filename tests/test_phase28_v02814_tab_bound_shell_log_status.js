@@ -31,16 +31,16 @@ const Alert = context.FCI_ALERT_ENGINE;
 assert(Protocol.VERSION >= 17);
 assert.equal(Protocol.MESSAGE.ACKNOWLEDGE_SHELL_LOG, "FCI_ACKNOWLEDGE_SHELL_LOG");
 assert.equal(Protocol.MESSAGE.CONTENT_SHELL_NOTICE, "FCI_CONTENT_SHELL_NOTICE");
-assert(Alert.VERSION >= 7);
-assert.equal(Alert.commandTitlePrefix({ shellCommandState: "running" }), "⌘ COMMAND RUNNING");
-assert.equal(Alert.commandTitlePrefix({ shellCommandState: "unread" }), "✓ COMMAND LOG");
+assert(Alert.VERSION >= 8);
+assert.equal(Alert.commandTitlePrefix({ shellCommandState: "running" }), "⌘");
+assert.equal(Alert.commandTitlePrefix({ shellCommandState: "unread" }), "✓");
 assert.equal(Alert.commandTitlePrefix({ shellCommandState: "idle" }), "");
 assert.equal(
   Alert.combinedTitlePrefix("⚠ AI READY", { shellCommandState: "running" }, true),
-  "⚠ AI READY · ⌘ COMMAND RUNNING"
+  "⚠ AI READY · ⌘"
 );
 assert.equal(
-  Alert.stripManagedTitleDecorations("[✓ COMMAND LOG] Project", ["⚠ AI READY"]),
+  Alert.stripManagedTitleDecorations("[✓] Project", ["⚠ AI READY"]),
   "Project"
 );
 
@@ -51,12 +51,16 @@ const css = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.css"), "u
 const activation = fs.readFileSync(path.join(root, "extension/content/activation.js"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
 
-assert.equal(manifest.version, "0.28.14");
+assert.ok(/^0\.28\.(?:1[5-9]|[2-9][0-9])$/.test(manifest.version));
 assert(background.includes("function normalizeShellNotice(raw, tabId)"));
 assert(background.includes('status: completed ? "unread" : "running"'));
-assert(background.includes("await acknowledgeShellNotice(session"));
-assert(background.includes('await applyBadge(session.tabId, "CMD"'));
-assert(background.includes('await applyBadge(session.tabId, "LOG"'));
+assert(background.includes("async function acknowledgeShellNotice(session"));
+assert(background.includes("return acknowledgeShellNotice(session"));
+assert(background.includes('status: activeTabMatches ? "idle" : "viewed"'));
+assert(background.includes('viewedAt: Settings.nowIso()'));
+assert(background.includes("requireActiveTab: message.requireActiveTab !== false"));
+assert(background.includes('await applyBadge(session.tabId, "⌘"'));
+assert(background.includes('await applyBadge(session.tabId, "✓"'));
 assert(background.includes('reason: "native-disconnected"'));
 assert(sidebar.includes("let shellLogLoadEpoch = 0"));
 assert(sidebar.includes("requestEpoch !== shellLogLoadEpoch"));
@@ -65,10 +69,10 @@ assert(sidebar.includes('RuntimeGuard?.report("shell-log", error, { fatal: false
 assert(sidebar.includes("MESSAGE.ACKNOWLEDGE_SHELL_LOG"));
 assert(sidebar.includes('status === "running" ? "⌘ "'));
 assert(html.includes('id="commandNoticeText"'));
-assert(css.includes('body[data-command="running"]'));
-assert(css.includes('body[data-command="unread"]'));
-assert(activation.includes("const RUNTIME_VERSION = 21"));
+assert(css.includes('.command-status-icon[data-state="running"]'));
+assert(css.includes('.command-status-icon[data-state="unread"]'));
+assert(/const RUNTIME_VERSION = (?:2[2-9]|[3-9][0-9]);/.test(activation));
 assert(activation.includes("case MESSAGE.CONTENT_SHELL_NOTICE"));
 assert(activation.includes('"stop-shell-notice"'));
 
-console.log("PASS: Phase 28 v0.28.14 tab-bound log viewer and persistent per-tab command notices");
+console.log("PASS: Phase 28 v0.28.14+ tab-bound log viewer and persistent per-tab icon command notices");

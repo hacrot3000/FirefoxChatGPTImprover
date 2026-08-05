@@ -64,7 +64,7 @@ assert.equal(Alert.shouldSpinMonitorTitle(
 assert.equal(Alert.shouldSpinMonitorTitle(
   { monitorState: Protocol.MONITOR_STATE.MATCHED },
   Protocol.MODE.ACTIVE
-), false);
+), true);
 assert.equal(Alert.shouldSpinMonitorTitle(
   { monitorState: Protocol.MONITOR_STATE.WAITING },
   Protocol.MODE.PAUSED
