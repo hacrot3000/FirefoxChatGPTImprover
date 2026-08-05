@@ -8,7 +8,7 @@ const html = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.html"), 
 const js = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.css"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
-assert.strictEqual(manifest.version, "0.30.0");
+assert(manifest.version.split(".").map(Number).reduce((a, v, i) => a + v * [1000000, 1000, 1][i], 0) >= 30000);
 for (const id of [
   "tabSearch", "profileSearch", "monitorProfileSearch", "targetProfileSearch",
   "localActionProfileSearch", "shellPresetSearch", "shellHistorySearch"

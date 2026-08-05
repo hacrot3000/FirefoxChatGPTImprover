@@ -541,3 +541,8 @@ Tiêu chí hoàn tất:
 
 Completed: opt-in real-Firefox runtime validation and multi-binary compatibility reports.
 
+<!-- FIREFOX_CHAT_IMPROVER_PHASE31_PLAN_BEGIN -->
+## Phase 31 — Named saved working-session catalog
+
+Completed in v0.31.0: persistent named catalog, search, create/update/rename/duplicate/delete, individual and full-catalog JSON backup, and controlled subset restore with permission checks.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE31_PLAN_END -->

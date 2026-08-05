@@ -68,7 +68,7 @@ const working = WorkingSession.parse(WorkingSession.stringify(WorkingSession.bui
   configMode: "profile",
   effectiveConfig: automationProfile.config
 }], { extensionVersion: "0.29.0" })));
-assert.equal(working.version, 3);
+assert.equal(working.version, WorkingSession.VERSION);
 assert.equal(working.tabs[0].customTitle, "Naruto server patch");
 assert.equal(working.tabs[0].pageTitle, "Original page title");
 assert.equal(working.tabs[0].title, "Naruto server patch");
@@ -78,7 +78,7 @@ for (const token of [
   "CREATE_COMPONENT_PROFILE", "SAVE_COMPONENT_PROFILE", "DELETE_COMPONENT_PROFILE",
   "EXPORT_PROFILE_BUNDLE", "IMPORT_PROFILE_BUNDLE", "SET_TAB_CUSTOM_TITLE"
 ]) assert(protocol.includes(token), token);
-assert.match(protocol, /VERSION: 19/);
+assert(Number((protocol.match(/VERSION:\s*(\d+)/) || [])[1]) >= 19);
 
 const html = read("extension/sidebar/sidebar.html");
 for (const id of [

@@ -138,6 +138,49 @@
       </div>
     </section>
 
+    <section class="card" data-group-id="working-sessions" aria-labelledby="workingSessionsHeading">
+      <h2 id="workingSessionsHeading">Saved working sessions</h2>
+      <label class="filter-field">
+        Find saved session
+        <input id="workingSessionCatalogSearch" type="search" autocomplete="off" placeholder="Name, description, title, URL, or session ID">
+        <small id="workingSessionCatalogSearchResult" class="filter-result" aria-live="polite"></small>
+      </label>
+      <label>
+        Saved session
+        <select id="workingSessionCatalogSelect">
+          <option value="">No saved sessions yet</option>
+        </select>
+      </label>
+      <label>
+        Session name
+        <input id="workingSessionCatalogName" type="text" maxlength="120" autocomplete="off" placeholder="Example: Naruto server workspace">
+      </label>
+      <label>
+        Description
+        <textarea id="workingSessionCatalogDescription" rows="2" maxlength="500" placeholder="Optional note about this workspace"></textarea>
+      </label>
+      <dl class="details saved-session-details">
+        <div><dt>Tabs</dt><dd id="workingSessionCatalogTabCount">0</dd></div>
+        <div><dt>Updated</dt><dd id="workingSessionCatalogUpdatedAt">—</dd></div>
+        <div class="details-wide"><dt>Last restored</dt><dd id="workingSessionCatalogLastRestoredAt">Never</dd></div>
+      </dl>
+      <div class="button-grid saved-session-actions">
+        <button id="newWorkingSessionEntryButton" type="button" class="primary">Save current tabs as new</button>
+        <button id="updateWorkingSessionEntryButton" type="button">Update from current tabs</button>
+        <button id="restoreWorkingSessionEntryButton" type="button">Restore selected</button>
+        <button id="renameWorkingSessionEntryButton" type="button">Rename</button>
+        <button id="duplicateWorkingSessionEntryButton" type="button">Duplicate</button>
+        <button id="deleteWorkingSessionEntryButton" type="button" class="danger">Delete</button>
+        <button id="exportWorkingSessionEntryButton" type="button">Export selected JSON</button>
+        <button id="importWorkingSessionEntryButton" type="button">Import session JSON</button>
+        <button id="exportWorkingSessionCatalogButton" type="button">Export catalog JSON</button>
+        <button id="importWorkingSessionCatalogButton" type="button">Import catalog JSON</button>
+      </div>
+      <input id="importWorkingSessionEntryFile" type="file" accept="application/json,.json" hidden>
+      <input id="importWorkingSessionCatalogFile" type="file" accept="application/json,.json" hidden>
+      <output id="workingSessionCatalogResult" class="inline-result" aria-live="polite">Saved sessions are stored locally in the extension and may also be exported as JSON.</output>
+    </section>
+
     <section class="card" data-group-id="profiles" aria-labelledby="profileHeading">
       <h2 id="profileHeading">Configuration profiles</h2>
       <label class="filter-field">

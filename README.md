@@ -665,3 +665,12 @@ Adds non-destructive search/filter controls for tabs, configuration/monitor/targ
 
 Release tasks validate both files and use them to generate GitHub Release notes and documentation assets.
 <!-- FCI_RELEASE_DOCUMENTATION_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE31_V0310_BEGIN -->
+## Phase 31 v0.31.0 — named saved working-session catalog
+
+- Store multiple named working sessions inside the extension instead of relying only on downloaded JSON files.
+- Search, update, rename, duplicate, delete, export/import and restore a selected subset of tabs.
+- Existing working-session file export/import remains compatible.
+- Release-facing progress is tracked in `PROJECT_STATUS.md` and version changes in `CHANGELOG.md`.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE31_V0310_END -->

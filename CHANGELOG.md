@@ -8,11 +8,22 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 
 ### In progress
 
-- Named saved working-session catalog: multiple named sessions, search, rename, update, duplicate, delete, typed import/export and controlled restore.
+- Optional sound alert with safe default-off behavior and per-profile controls.
 
 ### Deferred
 
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
+
+## [0.31.0] - 2026-08-05
+
+### Added
+
+- A local catalog of multiple named working sessions stored inside the extension.
+- Search by session name, description, tab title, URL or session ID.
+- Create from selected open tabs, update from current tabs, rename, duplicate and delete saved sessions.
+- Controlled restore that lets the user choose a subset of saved tabs and grants required site access before opening them.
+- Export/import for an individual saved session and typed JSON export/import for the complete saved-session catalog.
+- Existing file-based working-session save/import remains available for compatibility.
 
 ## [0.30.0] - 2026-08-05
 

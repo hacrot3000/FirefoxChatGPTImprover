@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "description": "Firefox ChatAI Assistant with independent tab automation, reusable profiles, persistent custom titles, managed downloads, Linux/Windows Native Host commands, and fast search/filter across tabs, profiles, presets, and command history.",
   "browser_specific_settings": {
     "gecko": {

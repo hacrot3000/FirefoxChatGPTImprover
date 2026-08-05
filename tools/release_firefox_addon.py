@@ -260,11 +260,17 @@ def release_metadata(
 
 def release_notes_text(
     metadata: dict[str, Any],
-    documents: Any,
+    documents: Any | None = None,
     notes: str | None = None,
 ) -> str:
-    """Compatibility wrapper around the release-documentation generator."""
-    return build_release_notes_text(metadata, documents, notes)
+    """Compatibility wrapper around the release-documentation generator.
+
+    Older tests and external callers passed only metadata. Preserve that API by
+    loading the version-matched release documents when they are not supplied.
+    The actual release build still validates and passes the documents explicitly.
+    """
+    resolved_documents = documents or load_release_documents(str(metadata.get("version", "")))
+    return build_release_notes_text(metadata, resolved_documents, notes)
 
 
 def main(argv: list[str] | None = None) -> int:

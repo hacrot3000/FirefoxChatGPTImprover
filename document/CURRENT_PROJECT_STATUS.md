@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 30 v0.30.0
+**Current baseline:** Phase 31 v0.31.0
 **Primary supported environment:** Firefox Desktop on Linux and Windows  
 **Native Host:** 0.13.0
 
@@ -22,6 +22,7 @@
 | Firefox Android manifest validation | Complete | Minimum Firefox 142 removes unsupported-key warning. |
 | Tab-bound local-action working snapshots | Complete | Unsaved destination/command edits survive background recovery; stale cross-tab autosync is rejected by tab/session/URL/revision context. |
 | Real Firefox E2E and version matrix | Complete | Opt-in runner covers tabs, title, badge, DOM action, navigation and optional Native Host download/shell; matrix emits JSON/Markdown per Firefox binary. |
+| Named saved working-session catalog | Complete | Multiple locally stored named sessions with search, update, rename, duplicate, delete, per-session/catalog JSON backup and controlled subset restore. |
 | Source integrity and regression | Complete | Phase 04–28 plus v0.28.20 recovery/update, v0.28.21 Native-version UI, v0.28.22 log retention and v0.28.23 tab-bound local-action snapshot tests and v0.28.24 real-Firefox E2E/matrix tooling and v0.28.25 Windows Native Host contracts. |
 
 ## Operator-provided deployment inputs
@@ -53,7 +54,7 @@ A log file deleted before v0.28.20 cannot be reconstructed from metadata. Existi
 
 ## Required implementation status
 
-No required implementation tasks remain from the v0.28.19 feature audit. The project is ready to pause here and begin a separately approved new-feature phase.
+No required implementation tasks remain from the v0.28.19 feature audit. The recommended-feature sequence is active; Phase 31 delivered the named saved working-session catalog, and the next approved item is the optional sound alert. Native Host for macOS remains deferred by project decision.
 
 Windows runtime validation can be run on a Windows machine with:
 

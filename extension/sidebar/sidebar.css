@@ -681,3 +681,10 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 .filter-result[data-state="empty"] { color: var(--paused); }
 .filter-result[data-state="active"] { color: LinkText; }
 
+
+/* Phase 31: named saved working-session catalog. */
+.saved-session-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.saved-session-details { margin-top: 2px; }
+#workingSessionCatalogDescription { resize: vertical; min-height: 48px; }
+#workingSessionCatalogResult[data-state="error"] { color: var(--danger); }
+#workingSessionCatalogResult[data-state="success"] { color: var(--active); }

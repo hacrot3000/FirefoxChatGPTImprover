@@ -11,14 +11,16 @@ sys.path.insert(0, str(ROOT / "tools"))
 import release_documentation as module
 
 
-documents = module.load_release_documents("0.30.0")
-assert "Search/filter controls" in documents.changelog_entry
-assert "Named saved working-session catalog" in documents.in_progress
-assert "Optional sound alert" in documents.planned
+manifest = json.loads((ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))
+current_version = manifest["version"]
+documents = module.load_release_documents(current_version)
+assert documents.version == current_version
+assert documents.changelog_entry.strip()
+assert "Optional sound alert" in documents.in_progress or "Optional sound alert" in documents.planned
 assert "Native Host for macOS" in documents.deferred
 
 metadata = {
-    "version": "0.30.0",
+    "version": current_version,
     "addonId": "test@example.invalid",
     "builtAtUtc": "2026-08-05T00:00:00+00:00",
     "gitCommit": "abc123",
@@ -49,10 +51,10 @@ with tempfile.TemporaryDirectory() as temp_dir:
     temp = Path(temp_dir)
     status = temp / "PROJECT_STATUS.md"
     changelog = temp / "CHANGELOG.md"
-    status.write_text(documents.project_status.replace("**0.30.0**", "**0.29.0**", 1), encoding="utf-8")
+    status.write_text(documents.project_status.replace(f"**{current_version}**", "**0.0.0**", 1), encoding="utf-8")
     changelog.write_text(documents.changelog, encoding="utf-8")
     try:
-        module.load_release_documents("0.30.0", project_status_path=status, changelog_path=changelog)
+        module.load_release_documents(current_version, project_status_path=status, changelog_path=changelog)
     except ValueError as exc:
         assert "stale" in str(exc)
     else:

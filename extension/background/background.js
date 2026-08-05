@@ -27,6 +27,7 @@
   let storePromise = null;
   let localActionStorePromise = null;
   let snapshotPromise = null;
+  let workingSessionCatalogPromise = null;
   let recoveryPromise = null;
   let nativeLogCleanupTimer = null;
   let nativeLogCleanupRunning = false;
@@ -2194,6 +2195,25 @@
     return Snapshots.clone(normalized);
   }
 
+  async function loadWorkingSessionCatalog() {
+    if (!workingSessionCatalogPromise) {
+      workingSessionCatalogPromise = browser.storage.local.get(WorkingSession.CATALOG_STORAGE_KEY).then(async (result) => {
+        const catalog = WorkingSession.normalizeCatalog(result[WorkingSession.CATALOG_STORAGE_KEY]);
+        await browser.storage.local.set({ [WorkingSession.CATALOG_STORAGE_KEY]: catalog });
+        return catalog;
+      });
+    }
+    return WorkingSession.clone(await workingSessionCatalogPromise);
+  }
+
+  async function saveWorkingSessionCatalog(nextCatalog) {
+    const normalized = WorkingSession.normalizeCatalog(nextCatalog);
+    normalized.updatedAt = Settings.nowIso();
+    await browser.storage.local.set({ [WorkingSession.CATALOG_STORAGE_KEY]: normalized });
+    workingSessionCatalogPromise = Promise.resolve(normalized);
+    return WorkingSession.clone(normalized);
+  }
+
   async function createSettingsSnapshot(reason = "manual", label = "Manual snapshot", rawStore = null) {
     const store = rawStore ? Settings.normalizeStore(rawStore) : await loadStore();
     const collection = await loadSnapshotCollection();
@@ -3889,6 +3909,105 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return WorkingSession.build(records, { extensionVersion: manifest.version, exportedAt: Settings.nowIso() });
   }
 
+  function selectedWorkingSessionBundle(bundle, rawIndexes) {
+    const normalized = WorkingSession.normalize(bundle);
+    const indexes = new Set((Array.isArray(rawIndexes) ? rawIndexes : normalized.tabs.map((_tab, index) => index))
+      .map(Number).filter((index) => Number.isInteger(index) && index >= 0 && index < normalized.tabs.length));
+    if (!indexes.size) throw new Error("Select at least one saved tab to restore.");
+    return WorkingSession.build(
+      normalized.tabs.filter((_tab, index) => indexes.has(index)),
+      normalized
+    );
+  }
+
+  async function saveWorkingSessionEntry(name, rawTabIds, entryId = null, description = "") {
+    const bundle = await exportWorkingSession(rawTabIds);
+    const catalog = await loadWorkingSessionCatalog();
+    const existing = entryId ? WorkingSession.catalogEntryById(catalog, entryId) : null;
+    if (entryId && !existing) throw new Error("The selected saved working session no longer exists.");
+    const entry = WorkingSession.createCatalogEntry(name || existing?.name, bundle, {
+      id: existing?.id || null,
+      description: description || existing?.description || "",
+      createdAt: existing?.createdAt || null,
+      lastRestoredAt: existing?.lastRestoredAt || ""
+    });
+    const saved = await saveWorkingSessionCatalog(WorkingSession.upsertCatalogEntry(catalog, entry));
+    await broadcast(existing ? "working-session-entry-updated" : "working-session-entry-created");
+    return { catalog: WorkingSession.catalogSummary(saved), entryId: entry.id };
+  }
+
+  async function renameWorkingSessionEntry(entryId, name) {
+    const catalog = await loadWorkingSessionCatalog();
+    const existing = WorkingSession.catalogEntryById(catalog, entryId);
+    if (!existing) throw new Error("The selected saved working session no longer exists.");
+    const renamed = WorkingSession.createCatalogEntry(name, existing.bundle, {
+      id: existing.id,
+      description: existing.description,
+      createdAt: existing.createdAt,
+      lastRestoredAt: existing.lastRestoredAt
+    });
+    const saved = await saveWorkingSessionCatalog(WorkingSession.upsertCatalogEntry(catalog, renamed));
+    await broadcast("working-session-entry-renamed");
+    return WorkingSession.catalogSummary(saved);
+  }
+
+  async function duplicateWorkingSessionEntry(entryId, name) {
+    const catalog = await loadWorkingSessionCatalog();
+    const result = WorkingSession.duplicateCatalogEntry(catalog, entryId, name);
+    const saved = await saveWorkingSessionCatalog(result.catalog);
+    await broadcast("working-session-entry-duplicated");
+    return { catalog: WorkingSession.catalogSummary(saved), entryId: result.entry.id };
+  }
+
+  async function deleteWorkingSessionEntry(entryId) {
+    const catalog = await loadWorkingSessionCatalog();
+    if (!WorkingSession.catalogEntryById(catalog, entryId)) {
+      throw new Error("The selected saved working session no longer exists.");
+    }
+    const saved = await saveWorkingSessionCatalog(WorkingSession.removeCatalogEntry(catalog, entryId));
+    await broadcast("working-session-entry-deleted");
+    return WorkingSession.catalogSummary(saved);
+  }
+
+  async function restoreWorkingSessionEntry(entryId, rawIndexes) {
+    const catalog = await loadWorkingSessionCatalog();
+    const entry = WorkingSession.catalogEntryById(catalog, entryId);
+    if (!entry) throw new Error("The selected saved working session no longer exists.");
+    const subset = selectedWorkingSessionBundle(entry.bundle, rawIndexes);
+    const report = await importWorkingSession(WorkingSession.stringify(subset));
+    const restoredEntry = WorkingSession.createCatalogEntry(entry.name, entry.bundle, {
+      id: entry.id,
+      description: entry.description,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      lastRestoredAt: Settings.nowIso()
+    });
+    await saveWorkingSessionCatalog(WorkingSession.upsertCatalogEntry(catalog, restoredEntry));
+    await broadcast("working-session-entry-restored");
+    return report;
+  }
+
+  async function importWorkingSessionEntry(text, name = "") {
+    const bundle = WorkingSession.parse(text);
+    const catalog = await loadWorkingSessionCatalog();
+    const entry = WorkingSession.createCatalogEntry(
+      name || `Imported session ${new Date().toISOString().slice(0, 10)}`,
+      bundle
+    );
+    const saved = await saveWorkingSessionCatalog(WorkingSession.upsertCatalogEntry(catalog, entry));
+    await broadcast("working-session-entry-imported");
+    return { catalog: WorkingSession.catalogSummary(saved), entryId: entry.id };
+  }
+
+  async function importWorkingSessionCatalog(text) {
+    const incoming = WorkingSession.parseCatalog(text);
+    const current = await loadWorkingSessionCatalog();
+    const merged = WorkingSession.mergeCatalog(current, incoming);
+    const saved = await saveWorkingSessionCatalog(merged.catalog);
+    await broadcast("working-session-catalog-imported");
+    return { catalog: WorkingSession.catalogSummary(saved), report: merged.report };
+  }
+
   function mergeWorkingSessionProfiles(store, bundle) {
     const saved = Settings.normalizeStore(store);
     const profileMap = new Map();
@@ -4011,7 +4130,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
   async function dashboard() {
     await recoverAll();
-    const [store, localActionStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
+    const [store, localActionStore, workingSessionCatalog] = await Promise.all([loadStore(), loadLocalActionStore(), loadWorkingSessionCatalog()]);
     const snapshotCollection = await loadSnapshotCollection();
     const tab = await currentTab();
     const currentTabMeta = await tabMetaWithCustomTitle(tab);
@@ -4043,6 +4162,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       nativeHost: nativeDashboardState(),
       nativeLogRetention: nativeLogRetentionPolicy(store),
       settingsSnapshots: snapshotCollection.snapshots.map(Snapshots.summary),
+      workingSessionCatalog: WorkingSession.catalogSummary(workingSessionCatalog),
       pickers: [...pickerStates.values()].map((state) => clone(state))
     };
   }
@@ -4214,6 +4334,49 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         case MESSAGE.IMPORT_WORKING_SESSION: {
           const report = await importWorkingSession(message.text);
           return { ok: true, report, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.SAVE_WORKING_SESSION_ENTRY: {
+          const result = await saveWorkingSessionEntry(message.name, message.tabIds, message.entryId, message.description);
+          return { ok: true, ...result, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.RENAME_WORKING_SESSION_ENTRY:
+          return { ok: true, catalog: await renameWorkingSessionEntry(message.entryId, message.name), dashboard: await dashboard() };
+
+        case MESSAGE.DUPLICATE_WORKING_SESSION_ENTRY: {
+          const result = await duplicateWorkingSessionEntry(message.entryId, message.name);
+          return { ok: true, ...result, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.DELETE_WORKING_SESSION_ENTRY:
+          return { ok: true, catalog: await deleteWorkingSessionEntry(message.entryId), dashboard: await dashboard() };
+
+        case MESSAGE.RESTORE_WORKING_SESSION_ENTRY: {
+          const report = await restoreWorkingSessionEntry(message.entryId, message.tabIndexes);
+          return { ok: true, report, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.EXPORT_WORKING_SESSION_ENTRY: {
+          const catalog = await loadWorkingSessionCatalog();
+          const entry = WorkingSession.catalogEntryById(catalog, message.entryId);
+          if (!entry) throw new Error("The selected saved working session no longer exists.");
+          return { ok: true, text: WorkingSession.stringify(entry.bundle), name: entry.name, tabCount: entry.bundle.tabs.length };
+        }
+
+        case MESSAGE.IMPORT_WORKING_SESSION_ENTRY: {
+          const result = await importWorkingSessionEntry(message.text, message.name);
+          return { ok: true, ...result, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.EXPORT_WORKING_SESSION_CATALOG: {
+          const catalog = await loadWorkingSessionCatalog();
+          return { ok: true, text: WorkingSession.stringifyCatalog(catalog), entryCount: catalog.entries.length };
+        }
+
+        case MESSAGE.IMPORT_WORKING_SESSION_CATALOG: {
+          const result = await importWorkingSessionCatalog(message.text);
+          return { ok: true, ...result, dashboard: await dashboard() };
         }
 
         case MESSAGE.CREATE_LOCAL_ACTION_PROFILE: {
@@ -4398,6 +4561,15 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.LIST_WORKING_SESSION_TABS,
     MESSAGE.EXPORT_WORKING_SESSION,
     MESSAGE.IMPORT_WORKING_SESSION,
+    MESSAGE.SAVE_WORKING_SESSION_ENTRY,
+    MESSAGE.RENAME_WORKING_SESSION_ENTRY,
+    MESSAGE.DUPLICATE_WORKING_SESSION_ENTRY,
+    MESSAGE.DELETE_WORKING_SESSION_ENTRY,
+    MESSAGE.RESTORE_WORKING_SESSION_ENTRY,
+    MESSAGE.EXPORT_WORKING_SESSION_ENTRY,
+    MESSAGE.IMPORT_WORKING_SESSION_ENTRY,
+    MESSAGE.EXPORT_WORKING_SESSION_CATALOG,
+    MESSAGE.IMPORT_WORKING_SESSION_CATALOG,
     MESSAGE.TEST_SELECTOR,
     MESSAGE.START_ELEMENT_PICKER,
     MESSAGE.CANCEL_ELEMENT_PICKER,
@@ -4454,6 +4626,15 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.LIST_WORKING_SESSION_TABS,
     MESSAGE.EXPORT_WORKING_SESSION,
     MESSAGE.IMPORT_WORKING_SESSION,
+    MESSAGE.SAVE_WORKING_SESSION_ENTRY,
+    MESSAGE.RENAME_WORKING_SESSION_ENTRY,
+    MESSAGE.DUPLICATE_WORKING_SESSION_ENTRY,
+    MESSAGE.DELETE_WORKING_SESSION_ENTRY,
+    MESSAGE.RESTORE_WORKING_SESSION_ENTRY,
+    MESSAGE.EXPORT_WORKING_SESSION_ENTRY,
+    MESSAGE.IMPORT_WORKING_SESSION_ENTRY,
+    MESSAGE.EXPORT_WORKING_SESSION_CATALOG,
+    MESSAGE.IMPORT_WORKING_SESSION_CATALOG,
     MESSAGE.TEST_SELECTOR,
     MESSAGE.START_ELEMENT_PICKER,
     MESSAGE.CANCEL_ELEMENT_PICKER,

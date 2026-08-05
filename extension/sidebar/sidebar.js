@@ -35,6 +35,7 @@
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySearch: $("#shellHistorySearch"), shellHistorySearchResult: $("#shellHistorySearchResult"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"), nativeLogRetentionEnabled: $("#nativeLogRetentionEnabled"), nativeLogMaxAgeDays: $("#nativeLogMaxAgeDays"), nativeLogMaxTotalMiB: $("#nativeLogMaxTotalMiB"), nativeLogMaxFiles: $("#nativeLogMaxFiles"), nativeLogCleanupOnStartup: $("#nativeLogCleanupOnStartup"), nativeLogCleanupAfterCommand: $("#nativeLogCleanupAfterCommand"), saveNativeLogRetentionButton: $("#saveNativeLogRetentionButton"), runNativeLogCleanupButton: $("#runNativeLogCleanupButton"), nativeLogCleanupStatus: $("#nativeLogCleanupStatus"),
     shellLogDialog: $("#shellLogDialog"), shellLogDialogTitle: $("#shellLogDialogTitle"), shellLogMetadata: $("#shellLogMetadata"), shellLogViewer: $("#shellLogViewer"), shellLogPageInfo: $("#shellLogPageInfo"), closeShellLogDialogButton: $("#closeShellLogDialogButton"), shellLogFirstButton: $("#shellLogFirstButton"), shellLogPreviousButton: $("#shellLogPreviousButton"), shellLogNextButton: $("#shellLogNextButton"), shellLogLastButton: $("#shellLogLastButton"), copyShellLogSelectionButton: $("#copyShellLogSelectionButton"), copyShellLogPageButton: $("#copyShellLogPageButton"), copyShellLogAllButton: $("#copyShellLogAllButton"), refreshShellLogButton: $("#refreshShellLogButton"), deleteShellLogButton: $("#deleteShellLogButton"),
+    workingSessionCatalogSearch: $("#workingSessionCatalogSearch"), workingSessionCatalogSearchResult: $("#workingSessionCatalogSearchResult"), workingSessionCatalogSelect: $("#workingSessionCatalogSelect"), workingSessionCatalogName: $("#workingSessionCatalogName"), workingSessionCatalogDescription: $("#workingSessionCatalogDescription"), workingSessionCatalogTabCount: $("#workingSessionCatalogTabCount"), workingSessionCatalogUpdatedAt: $("#workingSessionCatalogUpdatedAt"), workingSessionCatalogLastRestoredAt: $("#workingSessionCatalogLastRestoredAt"), newWorkingSessionEntryButton: $("#newWorkingSessionEntryButton"), updateWorkingSessionEntryButton: $("#updateWorkingSessionEntryButton"), restoreWorkingSessionEntryButton: $("#restoreWorkingSessionEntryButton"), renameWorkingSessionEntryButton: $("#renameWorkingSessionEntryButton"), duplicateWorkingSessionEntryButton: $("#duplicateWorkingSessionEntryButton"), deleteWorkingSessionEntryButton: $("#deleteWorkingSessionEntryButton"), exportWorkingSessionEntryButton: $("#exportWorkingSessionEntryButton"), importWorkingSessionEntryButton: $("#importWorkingSessionEntryButton"), exportWorkingSessionCatalogButton: $("#exportWorkingSessionCatalogButton"), importWorkingSessionCatalogButton: $("#importWorkingSessionCatalogButton"), importWorkingSessionEntryFile: $("#importWorkingSessionEntryFile"), importWorkingSessionCatalogFile: $("#importWorkingSessionCatalogFile"), workingSessionCatalogResult: $("#workingSessionCatalogResult"),
     saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), exportConfigurationProfilesButton: $("#exportConfigurationProfilesButton"), importConfigurationProfilesButton: $("#importConfigurationProfilesButton"), exportMonitorProfilesButton: $("#exportMonitorProfilesButton"), importMonitorProfilesButton: $("#importMonitorProfilesButton"), exportTargetProfilesButton: $("#exportTargetProfilesButton"), importTargetProfilesButton: $("#importTargetProfilesButton"), exportLocalActionProfilesButton: $("#exportLocalActionProfilesButton"), importLocalActionProfilesButton: $("#importLocalActionProfilesButton"), profileImportFile: $("#profileImportFile"), saveWorkingSessionButton: $("#saveWorkingSessionButton"), importWorkingSessionButton: $("#importWorkingSessionButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), importWorkingSessionFile: $("#importWorkingSessionFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), messageBox: $("#messageBox")
   };
 
@@ -44,7 +45,7 @@
     [MODE.PAUSED]: "Paused",
     [MODE.ERROR]: "Error"
   };
-  let dashboard = { currentTab: {}, sessions: [], store: Settings.defaultStore(), localActionStore: LocalActions.defaultStore(), nativeHost: { connected: false, runs: [], downloads: [] } };
+  let dashboard = { currentTab: {}, sessions: [], store: Settings.defaultStore(), localActionStore: LocalActions.defaultStore(), workingSessionCatalog: WorkingSession.catalogSummary(WorkingSession.defaultCatalog()), nativeHost: { connected: false, runs: [], downloads: [] } };
   let selectedTabId = null;
   let selectedProfileId = null;
   let selectedMonitorProfileId = null;
@@ -78,7 +79,8 @@
     targetProfiles: "",
     localActionProfiles: "",
     commandPresets: "",
-    commandHistory: ""
+    commandHistory: "",
+    workingSessions: ""
   };
   const manualProfileSelectionByTab = new Map();
   const pendingPickerResults = new Map();
@@ -98,12 +100,19 @@
     MESSAGE.CREATE_LOCAL_ACTION_PROFILE, MESSAGE.SAVE_LOCAL_ACTION_PROFILE,
     MESSAGE.DELETE_LOCAL_ACTION_PROFILE, MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE,
     MESSAGE.SAVE_TAB_LOCAL_ACTIONS, MESSAGE.RESET_TAB_LOCAL_ACTIONS,
-    MESSAGE.RESTORE_SETTINGS_SNAPSHOT, MESSAGE.DELETE_SETTINGS_SNAPSHOT
+    MESSAGE.RESTORE_SETTINGS_SNAPSHOT, MESSAGE.DELETE_SETTINGS_SNAPSHOT,
+    MESSAGE.SAVE_WORKING_SESSION_ENTRY, MESSAGE.RENAME_WORKING_SESSION_ENTRY,
+    MESSAGE.DUPLICATE_WORKING_SESSION_ENTRY, MESSAGE.DELETE_WORKING_SESSION_ENTRY,
+    MESSAGE.RESTORE_WORKING_SESSION_ENTRY, MESSAGE.IMPORT_WORKING_SESSION_ENTRY,
+    MESSAGE.IMPORT_WORKING_SESSION_CATALOG
   ]);
   let passiveRefreshTimer = null;
   let passiveRefreshSerial = 0;
   let workingSessionMode = null;
   let pendingWorkingSessionBundle = null;
+  let pendingWorkingSessionEntryId = null;
+  let selectedWorkingSessionEntryId = null;
+  let workingSessionEditorEntryId = null;
 
   function showMessage(text = "", level = "info") {
     elements.messageBox.textContent = text;
@@ -286,6 +295,7 @@
         autoProfileByUrl,
         selectedMonitorProfileId,
         selectedTargetProfileId,
+        selectedWorkingSessionEntryId,
         listFilters: { ...listFilters }
       }
     });
@@ -327,6 +337,7 @@
     autoProfileByUrl = storedUi.autoProfileByUrl !== false;
     selectedMonitorProfileId = typeof storedUi.selectedMonitorProfileId === "string" ? storedUi.selectedMonitorProfileId : null;
     selectedTargetProfileId = typeof storedUi.selectedTargetProfileId === "string" ? storedUi.selectedTargetProfileId : null;
+    selectedWorkingSessionEntryId = typeof storedUi.selectedWorkingSessionEntryId === "string" ? storedUi.selectedWorkingSessionEntryId : null;
     const storedFilters = storedUi.listFilters && typeof storedUi.listFilters === "object" ? storedUi.listFilters : {};
     listFilters = {
       tabs: String(storedFilters.tabs || ""),
@@ -335,7 +346,8 @@
       targetProfiles: String(storedFilters.targetProfiles || ""),
       localActionProfiles: String(storedFilters.localActionProfiles || ""),
       commandPresets: String(storedFilters.commandPresets || ""),
-      commandHistory: String(storedFilters.commandHistory || "")
+      commandHistory: String(storedFilters.commandHistory || ""),
+      workingSessions: String(storedFilters.workingSessions || "")
     };
     elements.autoProfileByUrl.checked = autoProfileByUrl;
     elements.tabSearch.value = listFilters.tabs;
@@ -345,6 +357,7 @@
     elements.localActionProfileSearch.value = listFilters.localActionProfiles;
     elements.shellPresetSearch.value = listFilters.commandPresets;
     elements.shellHistorySearch.value = listFilters.commandHistory;
+    elements.workingSessionCatalogSearch.value = listFilters.workingSessions;
 
     for (const section of document.querySelectorAll("section.card[data-group-id]")) {
       const directChildren = [...section.children];
@@ -1469,6 +1482,80 @@
     renderFilterResult(elements.targetProfileSearchResult, { ...targetResult, query: listFilters.targetProfiles });
   }
 
+  function workingSessionCatalogEntries() {
+    return Array.isArray(dashboard.workingSessionCatalog?.entries)
+      ? dashboard.workingSessionCatalog.entries
+      : [];
+  }
+
+  function selectedWorkingSessionEntry() {
+    return workingSessionCatalogEntries().find((entry) => entry.id === selectedWorkingSessionEntryId) || null;
+  }
+
+  function formatSavedSessionDate(rawValue, fallback = "—") {
+    if (!rawValue) return fallback;
+    const date = new Date(rawValue);
+    return Number.isNaN(date.getTime()) ? fallback : date.toLocaleString("en-GB", { hour12: false });
+  }
+
+  function setWorkingSessionCatalogResult(text, state = "idle") {
+    elements.workingSessionCatalogResult.textContent = text;
+    elements.workingSessionCatalogResult.dataset.state = state;
+  }
+
+  function renderWorkingSessionCatalog() {
+    const entries = workingSessionCatalogEntries();
+    if (!entries.some((entry) => entry.id === selectedWorkingSessionEntryId)) {
+      selectedWorkingSessionEntryId = entries[0]?.id || null;
+      workingSessionEditorEntryId = null;
+    }
+    const result = filteredWithSelection(
+      entries,
+      listFilters.workingSessions,
+      selectedWorkingSessionEntryId,
+      (entry) => filterMatches(
+        listFilters.workingSessions,
+        entry.id,
+        entry.name,
+        entry.description,
+        entry.tabCount,
+        entry.tabs?.map((tab) => [tab.title, tab.customTitle, tab.pageTitle, tab.url, tab.mode, tab.addOnActive ? "active" : "inactive"])
+      )
+    );
+    elements.workingSessionCatalogSelect.replaceChildren(...(
+      result.items.length
+        ? result.items.map((entry) => {
+          const kept = result.selectedKept && entry.id === selectedWorkingSessionEntryId ? " (selected; outside filter)" : "";
+          return new Option(`${entry.name} · ${entry.tabCount} tab(s)${kept}`, entry.id);
+        })
+        : [new Option("No saved sessions yet", "")]
+    ));
+    elements.workingSessionCatalogSelect.value = selectedWorkingSessionEntryId || "";
+    renderFilterResult(elements.workingSessionCatalogSearchResult, { ...result, query: listFilters.workingSessions });
+
+    const entry = selectedWorkingSessionEntry();
+    if (workingSessionEditorEntryId !== (entry?.id || null)) {
+      elements.workingSessionCatalogName.value = entry?.name || "";
+      elements.workingSessionCatalogDescription.value = entry?.description || "";
+      workingSessionEditorEntryId = entry?.id || null;
+    }
+    elements.workingSessionCatalogTabCount.textContent = String(entry?.tabCount || 0);
+    elements.workingSessionCatalogUpdatedAt.textContent = formatSavedSessionDate(entry?.updatedAt);
+    elements.workingSessionCatalogLastRestoredAt.textContent = formatSavedSessionDate(entry?.lastRestoredAt, "Never");
+
+    const hasEntry = Boolean(entry);
+    elements.newWorkingSessionEntryButton.disabled = busy;
+    elements.updateWorkingSessionEntryButton.disabled = busy || !hasEntry;
+    elements.restoreWorkingSessionEntryButton.disabled = busy || !hasEntry;
+    elements.renameWorkingSessionEntryButton.disabled = busy || !hasEntry;
+    elements.duplicateWorkingSessionEntryButton.disabled = busy || !hasEntry;
+    elements.deleteWorkingSessionEntryButton.disabled = busy || !hasEntry;
+    elements.exportWorkingSessionEntryButton.disabled = busy || !hasEntry;
+    elements.importWorkingSessionEntryButton.disabled = busy;
+    elements.exportWorkingSessionCatalogButton.disabled = busy || !entries.length;
+    elements.importWorkingSessionCatalogButton.disabled = busy;
+  }
+
   function renderSelectors(preferredTabId = null) {
     const oldTab = selectedTabId;
     const current = dashboard.currentTab;
@@ -1787,6 +1874,7 @@
     renderUrlRoutingPreview();
     renderRuleRuntimeSummary();
     renderSettingsSnapshots();
+    renderWorkingSessionCatalog();
 
     const profile = profileById(selectedProfileId);
     if (loadForm) {
@@ -1818,7 +1906,8 @@
       ]),
       localProfiles: (Array.isArray(data.localActionStore?.profiles) ? data.localActionStore.profiles : []).map((profile) => [profile.id, profile.name]),
       localDefaultProfileId: data.localActionStore?.defaultProfileId || null,
-      snapshotIds: (Array.isArray(data.settingsSnapshots) ? data.settingsSnapshots : []).map((snapshot) => snapshot.id)
+      snapshotIds: (Array.isArray(data.settingsSnapshots) ? data.settingsSnapshots : []).map((snapshot) => snapshot.id),
+      workingSessionEntries: (Array.isArray(data.workingSessionCatalog?.entries) ? data.workingSessionCatalog.entries : []).map((entry) => [entry.id, entry.name, entry.updatedAt, entry.lastRestoredAt, entry.tabCount])
     });
   }
 
@@ -3121,11 +3210,21 @@ ${run.command || ""}`)) {
 
   function renderWorkingSessionDialog(tabs, mode) {
     workingSessionMode = mode;
-    elements.workingSessionDialogTitle.textContent = mode === "import" ? "Import working session" : "Save working session";
-    elements.workingSessionDialogDescription.textContent = mode === "import"
-      ? "The selected tabs will be opened and their saved add-on configuration will be restored."
-      : "Active add-on tabs are selected by default. Select any additional tabs to include.";
-    elements.confirmWorkingSessionButton.textContent = mode === "import" ? "Open and restore tabs" : "Save selected tabs";
+    const isRestore = mode === "import" || mode === "catalog-restore";
+    const isCatalogSave = mode === "catalog-create" || mode === "catalog-update";
+    elements.workingSessionDialogTitle.textContent = mode === "import"
+      ? "Import working session"
+      : (mode === "catalog-restore"
+        ? "Restore saved working session"
+        : (isCatalogSave ? "Save tabs to catalog" : "Save working session file"));
+    elements.workingSessionDialogDescription.textContent = isRestore
+      ? "Choose which saved tabs to open. Firefox site access is requested before restore."
+      : (isCatalogSave
+        ? "Active add-on tabs are selected by default. Choose the tabs to store in this named saved session."
+        : "Active add-on tabs are selected by default. Select any additional tabs to include in the JSON file.");
+    elements.confirmWorkingSessionButton.textContent = isRestore
+      ? "Open and restore tabs"
+      : (isCatalogSave ? "Save selected tabs" : "Export selected tabs");
     elements.workingSessionResult.textContent = "";
     elements.workingSessionTabList.replaceChildren(...tabs.map((tab, index) => {
       const label = document.createElement("label");
@@ -3133,19 +3232,19 @@ ${run.command || ""}`)) {
       label.dataset.addonActive = tab.addOnActive ? "true" : "false";
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
-      checkbox.dataset.tabId = String(tab.tabId ?? tab.sourceTabId ?? index);
-      checkbox.checked = mode === "import" ? true : Boolean(tab.addOnActive);
+      checkbox.dataset.tabId = String(tab.tabId ?? tab.sourceTabId ?? tab.index ?? index);
+      checkbox.checked = isRestore ? true : Boolean(tab.addOnActive);
       const content = document.createElement("span");
       const title = document.createElement("span");
       title.className = "working-session-tab-title";
-      title.textContent = tab.title || "Untitled tab";
+      title.textContent = tab.title || tab.customTitle || tab.pageTitle || "Untitled tab";
       const url = document.createElement("span");
       url.className = "working-session-tab-url";
       url.textContent = tab.url;
       const meta = document.createElement("span");
       meta.className = "working-session-tab-meta";
       meta.textContent = tab.addOnActive
-        ? `Add-on ${tab.mode || "active"}; profile ${tab.profileName || tab.profile?.name || "unknown"}`
+        ? `Add-on ${tab.mode || "active"}; profile ${tab.profileName || tab.profile?.name || "saved"}`
         : "Add-on inactive";
       content.append(title, url, meta);
       label.append(checkbox, content);
@@ -3156,18 +3255,35 @@ ${run.command || ""}`)) {
     }
   }
 
-  async function openSaveWorkingSessionDialog() {
+  async function openSaveWorkingSessionDialog(mode = "export", entryId = null) {
     setBusy(true);
     try {
       const response = await browser.runtime.sendMessage({ type: MESSAGE.LIST_WORKING_SESSION_TABS });
       if (!response?.ok) throw new Error(response?.error || "Could not list open tabs.");
       pendingWorkingSessionBundle = null;
-      renderWorkingSessionDialog(response.tabs || [], "export");
+      pendingWorkingSessionEntryId = entryId;
+      renderWorkingSessionDialog(response.tabs || [], mode);
     } catch (error) {
       showMessage(error instanceof Error ? error.message : String(error), "error");
     } finally {
       setBusy(false);
     }
+  }
+
+  function openCatalogRestoreDialog() {
+    const entry = selectedWorkingSessionEntry();
+    if (!entry) {
+      setWorkingSessionCatalogResult("Choose a saved working session first.", "error");
+      return;
+    }
+    pendingWorkingSessionEntryId = entry.id;
+    pendingWorkingSessionBundle = { tabs: entry.tabs || [] };
+    renderWorkingSessionDialog(entry.tabs || [], "catalog-restore");
+  }
+
+  function safeSessionFilename(value, fallback = "working-session") {
+    const normalized = String(value || "").trim().replace(/[^a-z0-9._-]+/gi, "-").replace(/^-+|-+$/g, "");
+    return normalized || fallback;
   }
 
   async function confirmWorkingSession() {
@@ -3176,6 +3292,7 @@ ${run.command || ""}`)) {
       elements.workingSessionResult.textContent = "Select at least one tab.";
       return;
     }
+
     if (workingSessionMode === "export") {
       setBusy(true);
       try {
@@ -3183,7 +3300,65 @@ ${run.command || ""}`)) {
         if (!response?.ok) throw new Error(response?.error || "Could not save the working session.");
         downloadBlob(new Blob([response.text], { type: "application/json" }), `firefox-chat-assistant-working-session-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
         elements.workingSessionDialog.close();
-        showMessage(`Working session saved with ${response.tabCount} tab(s).`, "success");
+        showMessage(`Working session file saved with ${response.tabCount} tab(s).`, "success");
+      } catch (error) {
+        elements.workingSessionResult.textContent = error instanceof Error ? error.message : String(error);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    if (workingSessionMode === "catalog-create" || workingSessionMode === "catalog-update") {
+      const name = elements.workingSessionCatalogName.value.trim();
+      if (!name) {
+        elements.workingSessionResult.textContent = "Enter a saved-session name before continuing.";
+        return;
+      }
+      setBusy(true);
+      try {
+        const response = await browser.runtime.sendMessage({
+          type: MESSAGE.SAVE_WORKING_SESSION_ENTRY,
+          entryId: workingSessionMode === "catalog-update" ? pendingWorkingSessionEntryId : null,
+          name,
+          description: elements.workingSessionCatalogDescription.value.trim(),
+          tabIds: selected
+        });
+        if (!response?.ok) throw new Error(response?.error || "Could not save the named working session.");
+        selectedWorkingSessionEntryId = response.entryId || response.dashboard?.workingSessionCatalog?.entries?.[0]?.id || selectedWorkingSessionEntryId;
+        workingSessionEditorEntryId = null;
+        void persistSidebarUi();
+        if (response.dashboard) render(response.dashboard, false);
+        elements.workingSessionDialog.close();
+        setWorkingSessionCatalogResult(`Saved “${name}” with ${selected.length} tab(s).`, "success");
+        showMessage(`Saved working session “${name}”.`, "success");
+      } catch (error) {
+        elements.workingSessionResult.textContent = error instanceof Error ? error.message : String(error);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    if (workingSessionMode === "catalog-restore") {
+      const entry = selectedWorkingSessionEntry();
+      const selectedTabs = (pendingWorkingSessionBundle?.tabs || []).filter((tab) => selected.includes(Number(tab.index)));
+      const origins = [...new Set(selectedTabs.map((tab) => hostPermissionPattern(tab.url)).filter(Boolean))];
+      const permissionRequest = origins.length ? browser.permissions.request({ origins }) : Promise.resolve(true);
+      setBusy(true);
+      try {
+        const granted = await permissionRequest;
+        if (!granted) throw new Error("Site access was not granted for every restored tab.");
+        const response = await browser.runtime.sendMessage({
+          type: MESSAGE.RESTORE_WORKING_SESSION_ENTRY,
+          entryId: pendingWorkingSessionEntryId,
+          tabIndexes: selected
+        });
+        if (!response?.ok) throw new Error(response?.error || "Could not restore the saved working session.");
+        if (response.dashboard) render(response.dashboard, true, response.report?.openedTabIds?.[0] || null);
+        elements.workingSessionDialog.close();
+        setWorkingSessionCatalogResult(`Restored “${entry?.name || "saved session"}”: ${response.report.restored} active add-on tab(s), ${response.report.failed.length} failure(s).`, response.report.failed.length ? "error" : "success");
+        showMessage(`Saved working session restored: ${response.report.restored} restored, ${response.report.failed.length} failed.`, response.report.failed.length ? "error" : "success");
       } catch (error) {
         elements.workingSessionResult.textContent = error instanceof Error ? error.message : String(error);
       } finally {
@@ -3443,6 +3618,116 @@ Cancel: keep editing without losing the changes.`);
       elements.importWorkingSessionFile.value = "";
     }
   });
+  elements.workingSessionCatalogSelect.addEventListener("change", () => {
+    selectedWorkingSessionEntryId = elements.workingSessionCatalogSelect.value || null;
+    workingSessionEditorEntryId = null;
+    renderWorkingSessionCatalog();
+    void persistSidebarUi();
+  });
+  elements.newWorkingSessionEntryButton.addEventListener("click", () => {
+    workingSessionEditorEntryId = "new";
+    elements.workingSessionCatalogName.value = `Working session ${new Date().toLocaleString("en-GB", { hour12: false })}`;
+    elements.workingSessionCatalogDescription.value = "";
+    pendingWorkingSessionEntryId = null;
+    void openSaveWorkingSessionDialog("catalog-create", null);
+  });
+  elements.updateWorkingSessionEntryButton.addEventListener("click", () => {
+    const entry = selectedWorkingSessionEntry();
+    if (!entry) return;
+    pendingWorkingSessionEntryId = entry.id;
+    void openSaveWorkingSessionDialog("catalog-update", entry.id);
+  });
+  elements.restoreWorkingSessionEntryButton.addEventListener("click", openCatalogRestoreDialog);
+  elements.renameWorkingSessionEntryButton.addEventListener("click", async () => {
+    const entry = selectedWorkingSessionEntry();
+    const name = elements.workingSessionCatalogName.value.trim();
+    if (!entry || !name) {
+      setWorkingSessionCatalogResult("Choose a saved session and enter a non-empty name.", "error");
+      return;
+    }
+    const response = await request(MESSAGE.RENAME_WORKING_SESSION_ENTRY, { entryId: entry.id, name }, `Saved session renamed to “${name}”.`);
+    if (response?.ok) {
+      workingSessionEditorEntryId = null;
+      setWorkingSessionCatalogResult(`Renamed saved session to “${name}”.`, "success");
+    }
+  });
+  elements.duplicateWorkingSessionEntryButton.addEventListener("click", async () => {
+    const entry = selectedWorkingSessionEntry();
+    if (!entry) return;
+    const name = prompt("Duplicate saved-session name:", `${entry.name} - copy`);
+    if (!name?.trim()) return;
+    const response = await request(MESSAGE.DUPLICATE_WORKING_SESSION_ENTRY, { entryId: entry.id, name: name.trim() }, `Saved session duplicated as “${name.trim()}”.`);
+    if (response?.ok) {
+      selectedWorkingSessionEntryId = response.entryId || selectedWorkingSessionEntryId;
+      workingSessionEditorEntryId = null;
+      if (response.dashboard) render(response.dashboard, false);
+      void persistSidebarUi();
+      setWorkingSessionCatalogResult(`Created duplicate “${name.trim()}”.`, "success");
+    }
+  });
+  elements.deleteWorkingSessionEntryButton.addEventListener("click", async () => {
+    const entry = selectedWorkingSessionEntry();
+    if (!entry || !confirm(`Delete saved working session “${entry.name}”?`)) return;
+    const response = await request(MESSAGE.DELETE_WORKING_SESSION_ENTRY, { entryId: entry.id }, `Saved session “${entry.name}” deleted.`);
+    if (response?.ok) {
+      selectedWorkingSessionEntryId = response.dashboard?.workingSessionCatalog?.entries?.[0]?.id || null;
+      workingSessionEditorEntryId = null;
+      if (response.dashboard) render(response.dashboard, false);
+      void persistSidebarUi();
+      setWorkingSessionCatalogResult(`Deleted “${entry.name}”.`, "success");
+    }
+  });
+  elements.exportWorkingSessionEntryButton.addEventListener("click", async () => {
+    const entry = selectedWorkingSessionEntry();
+    if (!entry) return;
+    const response = await request(MESSAGE.EXPORT_WORKING_SESSION_ENTRY, { entryId: entry.id });
+    if (!response?.text) return;
+    downloadBlob(new Blob([response.text], { type: "application/json" }), `${safeSessionFilename(response.name)}.working-session.json`);
+    setWorkingSessionCatalogResult(`Exported “${response.name}” with ${response.tabCount} tab(s).`, "success");
+  });
+  elements.importWorkingSessionEntryButton.addEventListener("click", () => elements.importWorkingSessionEntryFile.click());
+  elements.importWorkingSessionEntryFile.addEventListener("change", async () => {
+    const file = elements.importWorkingSessionEntryFile.files?.[0];
+    if (!file) return;
+    try {
+      const suggestedName = file.name.replace(/(?:\.working-session)?\.json$/i, "").replace(/[-_]+/g, " ").trim();
+      const response = await request(MESSAGE.IMPORT_WORKING_SESSION_ENTRY, { text: await file.text(), name: suggestedName }, "Working-session file added to the saved catalog.");
+      if (response?.ok) {
+        selectedWorkingSessionEntryId = response.entryId || selectedWorkingSessionEntryId;
+        workingSessionEditorEntryId = null;
+        if (response.dashboard) render(response.dashboard, false);
+        void persistSidebarUi();
+        setWorkingSessionCatalogResult(`Imported “${suggestedName || "working session"}” into the catalog without opening tabs.`, "success");
+      }
+    } finally {
+      elements.importWorkingSessionEntryFile.value = "";
+    }
+  });
+  elements.exportWorkingSessionCatalogButton.addEventListener("click", async () => {
+    const response = await request(MESSAGE.EXPORT_WORKING_SESSION_CATALOG);
+    if (!response?.text) return;
+    downloadBlob(new Blob([response.text], { type: "application/json" }), `firefox-chat-assistant-saved-sessions-${new Date().toISOString().slice(0, 10)}.json`);
+    setWorkingSessionCatalogResult(`Exported ${response.entryCount} saved working session(s).`, "success");
+  });
+  elements.importWorkingSessionCatalogButton.addEventListener("click", () => elements.importWorkingSessionCatalogFile.click());
+  elements.importWorkingSessionCatalogFile.addEventListener("change", async () => {
+    const file = elements.importWorkingSessionCatalogFile.files?.[0];
+    if (!file) return;
+    try {
+      const response = await request(MESSAGE.IMPORT_WORKING_SESSION_CATALOG, { text: await file.text() }, "Saved-session catalog imported.");
+      if (response?.ok) {
+        selectedWorkingSessionEntryId = response.dashboard?.workingSessionCatalog?.entries?.[0]?.id || selectedWorkingSessionEntryId;
+        workingSessionEditorEntryId = null;
+        if (response.dashboard) render(response.dashboard, false);
+        void persistSidebarUi();
+        const report = response.report || {};
+        setWorkingSessionCatalogResult(`Catalog import: ${report.created || 0} created, ${report.updated || 0} updated, ${report.renamed || 0} collision copy/copies.`, "success");
+      }
+    } finally {
+      elements.importWorkingSessionCatalogFile.value = "";
+    }
+  });
+
   elements.importButton.addEventListener("click", () => elements.importFile.click());
   elements.importFile.addEventListener("change", async () => {
     const file = elements.importFile.files?.[0];
@@ -3520,6 +3805,7 @@ Cancel: keep editing without losing the changes.`);
   bindListFilter(elements.localActionProfileSearch, "localActionProfiles", renderLocalActionProfileOptions);
   bindListFilter(elements.shellPresetSearch, "commandPresets", renderShellPresetOptions);
   bindListFilter(elements.shellHistorySearch, "commandHistory", renderShellHistory);
+  bindListFilter(elements.workingSessionCatalogSearch, "workingSessions", renderWorkingSessionCatalog);
 
   browser.runtime.onMessage.addListener((message) => {
     if (message?.type === MESSAGE.PICKER_RESULT) {
