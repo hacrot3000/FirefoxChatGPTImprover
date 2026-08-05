@@ -508,6 +508,44 @@
 
   async function loadShellLogPage(descriptor, options = {}) {
     const requestEpoch = Number(options.requestEpoch || ++shellLogLoadEpoch);
+    if (!descriptor?.logId && descriptor?.runId) {
+      const resolvedResponse = await browser.runtime.sendMessage({
+        type: MESSAGE.READ_SHELL_LOG,
+        tabId: descriptor.tabId,
+        runId: descriptor.runId,
+        logId: null,
+        offset: Math.max(0, Number(options.offset) || 0),
+        maxBytes: SHELL_LOG_PAGE_BYTES,
+        fromEnd: Boolean(options.fromEnd)
+      });
+      if (resolvedResponse?.ok && resolvedResponse.logChunk?.logId) {
+        descriptor = { ...descriptor, logId: String(resolvedResponse.logChunk.logId) };
+        const chunk = resolvedResponse.logChunk;
+        if (requestEpoch !== shellLogLoadEpoch || Number(descriptor.tabId) !== Number(shellLogState.tabId)) return null;
+        shellLogState = {
+          ...shellLogState,
+          tabId: descriptor.tabId,
+          logId: descriptor.logId,
+          runId: descriptor.runId || null,
+          offset: Number(chunk.offset) || 0,
+          nextOffset: Number(chunk.nextOffset) || 0,
+          totalBytes: Number(chunk.totalBytes) || 0,
+          eof: Boolean(chunk.eof),
+          text: decodeLogChunk(chunk.dataBase64),
+          pageOffsets: [Number(chunk.offset) || 0],
+          pageIndex: 0
+        };
+        elements.shellLogViewer.value = shellLogState.text;
+        elements.shellLogViewer.scrollTop = options.fromEnd ? elements.shellLogViewer.scrollHeight : 0;
+        elements.shellLogPageInfo.textContent = `Recovered legacy log · Bytes ${shellLogState.offset.toLocaleString()}–${shellLogState.nextOffset.toLocaleString()} of ${shellLogState.totalBytes.toLocaleString()} (${formatByteCount(shellLogState.totalBytes)}).`;
+        elements.shellLogFirstButton.disabled = shellLogState.offset <= 0;
+        elements.shellLogPreviousButton.disabled = true;
+        elements.shellLogNextButton.disabled = shellLogState.eof;
+        elements.shellLogLastButton.disabled = shellLogState.eof;
+        elements.deleteShellLogButton.disabled = false;
+        return shellLogState;
+      }
+    }
     if (!descriptor?.logId) {
       const currentInline = descriptor?.runId === selectedShellRun()?.runId
         ? inlineShellOutputText(selectedShellRun())
@@ -529,7 +567,7 @@
       };
       elements.shellLogViewer.value = currentInline || "No stdout or stderr has been received yet.";
       elements.shellLogViewer.scrollTop = elements.shellLogViewer.scrollHeight;
-      elements.shellLogPageInfo.textContent = "Showing all output received by the add-on. Reinstall Native Host 0.10.0 or newer for the complete file-backed log.";
+      elements.shellLogPageInfo.textContent = "Showing all output received by the add-on. Reinstall Native Host 0.11.0 or newer for restart-safe relocation receipts and legacy log discovery.";
       elements.shellLogFirstButton.disabled = true;
       elements.shellLogPreviousButton.disabled = true;
       elements.shellLogNextButton.disabled = true;
@@ -686,13 +724,13 @@
     const native = dashboard.nativeHost || {};
     const run = selectedShellRun();
     const nativeVersionParts = String(native.hostVersion || "0.0.0").split(".").map((part) => Number(part) || 0);
-    const nativeNeedsUpdate = Boolean(native.connected) && (nativeVersionParts[0] < 0 || (nativeVersionParts[0] === 0 && nativeVersionParts[1] < 10));
+    const nativeNeedsUpdate = Boolean(native.connected) && (nativeVersionParts[0] < 0 || (nativeVersionParts[0] === 0 && nativeVersionParts[1] < 11));
     elements.nativeHostStatus.dataset.state = nativeNeedsUpdate ? "error" : (native.connected ? "online" : (native.lastError ? "error" : "offline"));
     elements.nativeHostStatus.textContent = native.connected
       ? `Native ${native.hostVersion || "online"}${nativeNeedsUpdate ? " · update required" : ""}`
       : (native.lastError ? "Native error" : "Native not checked");
     elements.nativeHostStatus.title = nativeNeedsUpdate
-      ? "Reinstall Native Host 0.10.0 or newer from this repository to preserve and page the complete stdout/stderr log."
+      ? "Reinstall Native Host 0.11.0 or newer for restart-safe download relocation receipts, legacy log discovery and complete stdout/stderr paging."
       : (native.lastError || native.lastSeenAt || "");
     elements.shellRunStatus.textContent = run.error
       ? `${run.status}: ${run.error}`

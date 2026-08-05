@@ -12,7 +12,7 @@ const alertSource = read("extension/content/alert.js");
 const activation = read("extension/content/activation.js");
 const manifest = JSON.parse(read("extension/manifest.json"));
 
-assert.equal(manifest.version, "0.28.19");
+assert.ok(manifest.version.localeCompare("0.28.19", undefined, { numeric: true }) >= 0);
 assert.match(activation, /const RUNTIME_VERSION = 26/);
 assert.match(alertSource, /FCI_ALERT_ENGINE\?\.VERSION >= 10/);
 assert.match(alertSource, /VERSION: 10/);

@@ -1,5 +1,8 @@
 # FirefoxChatImprover — Kế hoạch triển khai
 
+> **Current implementation baseline:** Phase 28 v0.28.20. All historical phases below have been implemented. For the authoritative current feature and deployment status, see [`CURRENT_PROJECT_STATUS.md`](CURRENT_PROJECT_STATUS.md). The remainder of this file is retained as the original implementation roadmap.
+
+
 ## 1. Mục tiêu dự án
 
 FirefoxChatImprover là add-on Firefox dùng riêng để hỗ trợ thao tác trên một trang chat AI nội bộ và thực thi công cụ local theo yêu cầu của người dùng.

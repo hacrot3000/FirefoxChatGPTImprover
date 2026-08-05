@@ -37,7 +37,8 @@ for (const token of [
   "const activeInMemory = Boolean(sameCapture && [\"downloading\", \"moving\", \"completed\"].includes(inMemoryJob.status))",
   "if (session.sessionToken) job.sessionToken = session.sessionToken",
   "Number(job.tabId) !== Number(session.tabId)",
-  "Recovered an interrupted relocation without replaying it automatically"
+  "restoreArmedDownloadCapture", "resumeInterruptedDownloadMove",
+  "Replaying the persisted moveId through the Native Host idempotency receipt"
 ]) assert(background.includes(token), `Missing background contract: ${token}`);
 assert(background.includes("destinationDirectory: config.download.destinationDirectory"));
 assert(background.includes("conflictAction: config.download.conflictAction"));
@@ -47,4 +48,4 @@ const sidebar = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.js"),
 assert(sidebar.includes("MESSAGE.RETRY_DOWNLOAD_MOVE"));
 assert(sidebar.includes("!state.retryable"));
 assert(!background.includes("job.sessionToken === session.sessionToken"), "Legacy strict session-token gate must not return; same-tab jobs survive navigation token rollover");
-console.log("PASS: Phase 23 immutable per-download local-action snapshots, capture-bound same-tab attribution, session-token rollover recovery and explicit relocation retry contracts");
+console.log("PASS: Phase 23 immutable per-download local-action snapshots, capture-bound same-tab attribution, session-token rollover recovery and restart-resumable capture and idempotent relocation recovery contracts");

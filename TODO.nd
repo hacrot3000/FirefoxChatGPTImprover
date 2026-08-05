@@ -1,0 +1,95 @@
+Tôi đã rà soát source dựng đến **v0.28.19**, gồm:
+
+* 21 file extension.
+* 67 file test.
+* 64 tài liệu phase/project.
+* Syntax PASS: 77 JavaScript, 21 Python, 13 shell, 4 JSON, 1 SVG.
+* Toàn bộ regression Phase 04–28: **PASS**.
+
+Trong bảng dưới, **100%** nghĩa là đã có implementation và PASS tiêu chí kiểm thử hiện tại; không có nghĩa tuyệt đối không thể còn lỗi runtime trong tương lai.
+
+## 1. Các tính năng đã hoàn thiện 100%
+
+| Tên                                     | Mô tả                                                                                                              | Trạng thái                                            |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| Kích hoạt thủ công và nhiều tab độc lập | Mỗi tab có cấu hình, runtime, cycle, log, pause/resume/stop và trạng thái riêng.                                   | **Hoàn tất — 100%**                                   |
+| Configuration profile và tab override   | Profile dùng chung, snapshot riêng cho tab, duplicate/delete, import/export và migration schema.                   | **Hoàn tất — 100%**                                   |
+| URL profile routing                     | Chọn profile theo priority/specificity, preview kết quả, fallback và manual override.                              | **Hoàn tất — 100%**                                   |
+| Nhiều automation rule                   | Mỗi rule có monitor, target, baseline, pipeline và command action độc lập.                                         | **Hoàn tất — 100%**                                   |
+| Monitor element                         | CSS/ID/class/attribute selector, AND/OR condition, regex, visible/hidden và theo dõi node bị React thay thế.       | **Hoàn tất — 100%**                                   |
+| Stability window                        | Chống trigger giả do DOM chớp nhanh; timer được cô lập theo tab/rule.                                              | **Hoàn tất — 100%**                                   |
+| Element picker và selector test         | Chọn monitor/target/verify trực tiếp trên trang, sinh selector, đếm và highlight kết quả.                          | **Hoàn tất — 100%**                                   |
+| New-target baseline                     | Không click target cũ; chỉ xử lý target mới theo first/last/all/visible-enabled và fingerprint.                    | **Hoàn tất — 100%**                                   |
+| Dry-run và test click                   | Test/highlight không chạy action thật; test click có xác nhận.                                                     | **Hoàn tất — 100%**                                   |
+| Action pipeline                         | Delay trước/sau click, verify exists/not-exists/visible/hidden, timeout và cancellation.                           | **Hoàn tất — 100%**                                   |
+| AI alert/status                         | AI READY nhấp nháy hoặc tĩnh; Running chỉ dùng khi monitor đang waiting; badge/title/sidebar/notification đồng bộ. | **Hoàn tất — 100%**                                   |
+| Session recovery                        | Khôi phục session sau reload, navigation và background restart; reinject content runtime có version guard.         | **Hoàn tất — 100%**                                   |
+| Rule-triggered command                  | Chạy preset tại monitor-match, target-action hoặc verification-pass, bảo đảm một lần mỗi cycle/trigger.            | **Hoàn tất — 100%**                                   |
+| Command preset                          | Create/load/update/delete, bảo vệ draft chưa lưu, bỏ Direct command for this tab.                                  | **Hoàn tất — 100%**                                   |
+| Command history theo tab                | Lưu lịch sử có giới hạn, load lại và clear riêng từng tab.                                                         | **Hoàn tất — 100%**                                   |
+| Native Host shell trên Linux            | Chạy background hoặc terminal tương tác, stream stdout/stderr, stop đúng process của tab.                          | **Hoàn tất — 100% trong phạm vi Linux**               |
+| Local-action profile                    | Tách khỏi automation profile; hỗ trợ URL route, tab override, effective source và unsaved draft.                   | **Hoàn tất — 100%**                                   |
+| Managed download                        | Capture trước click, tải không hiện Save As, staging, relocate, conflict handling và retry.                        | **Hoàn tất — 100% trong luồng bình thường**           |
+| Immutable download job                  | Destination và command được đóng băng lúc click, không bị thay đổi bởi chỉnh sửa profile sau đó.                   | **Hoàn tất — 100%**                                   |
+| Shell sau download                      | Disabled/manual/automatic, `FCI_DOWNLOAD_PATH`, automatic fallback và chống chạy trùng.                            | **Hoàn tất — 100%**                                   |
+| Command status theo tab                 | Icon đang chạy và hoàn thành-chưa-xem không ghi đè trạng thái AI.                                                  | **Hoàn tất — 100%**                                   |
+| Full command log                        | Log file đầy đủ, paging, refresh, copy selection/page/all và delete.                                               | **Hoàn tất — 100% cho command mới**                   |
+| Log fallback sau restart                | Lưu output gần nhất và metadata để vẫn mở được khi Native Host log tạm thời không đọc được.                        | **Hoàn tất — 100% cho command từ phiên bản hiện tại** |
+| Settings snapshots                      | Tối đa 20 snapshot, backup trước thao tác phá hủy, restore và delete.                                              | **Hoàn tất — 100%**                                   |
+| Working session                         | Chọn các tab cần lưu, export và import để khôi phục tập tab/cấu hình làm việc.                                     | **Hoàn tất — 100%**                                   |
+| Support bundle                          | Xuất ZIP đã loại command, cwd, shell output, token và phần nhạy cảm của URL.                                       | **Hoàn tất — 100%**                                   |
+| Runtime guard và diagnostics            | Chặn lỗi bootstrap làm sidebar chết, lưu diagnostics có giới hạn và hỗ trợ retry/reload.                           | **Hoàn tất — 100%**                                   |
+| Installation guide                      | Hướng dẫn Patch Tool và cài/cập nhật/gỡ Native Host Linux ngay trong sidebar.                                      | **Hoàn tất — 100% trong phạm vi Linux**               |
+| Build và release tooling                | Bump version, lint/build, checksum, signing helper, update manifest và rollback.                                   | **Hoàn tất — 100% ở mức công cụ**                     |
+| Source integrity và regression          | Quét cú pháp toàn source, phát hiện output terminal lọt vào code và test Phase 04–28.                              | **Hoàn tất — 100% theo test hiện tại**                |
+
+## 2. Các tính năng đang dở dang
+
+| Tên                                            | Phần đã có và phần còn thiếu                                                                                                                                             | Ước lượng | Trạng thái                          |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------: | ----------------------------------- |
+| Recovery managed download khi restart đột ngột | Download đã được Firefox nhận có thể khôi phục. Nhưng capture đang `armed` bị restart phải trigger lại; relocation đang `moving` cần retry thủ công để tránh move trùng. |   **85%** | Dở dang nhưng fail-safe             |
+| Khôi phục log command cũ                       | Command mới có full log và persisted fallback. Command chạy trước v0.28.16 mà file Native Host đã mất chỉ còn metadata/return code.                                      |   **90%** | Thiếu backward compatibility đầy đủ |
+| Kênh cập nhật XPI thực tế                      | Có tool signing, checksum, update manifest và rollback; chưa có credentials, HTTPS endpoint và quy trình vận hành được cấu hình trong repo.                              |   **75%** | Tooling xong, deployment chưa xong  |
+| Tương thích Firefox Android                    | Build không lỗi, nhưng manifest cảnh báo `strict_min_version: 140` thấp hơn Android 142 là phiên bản bắt đầu hỗ trợ `data_collection_permissions`.                       |   **80%** | Không ảnh hưởng Firefox Desktop     |
+| Tài liệu trạng thái hợp nhất                   | Có nhiều tài liệu phase, nhưng `PROJECT_IMPLEMENTATION_PLAN.md` vẫn chứa phần lịch sử “Phase hiện tại: Phase 00”; README chưa phải bảng trạng thái đầy đủ.               |   **75%** | Nội dung có nhưng phân tán          |
+
+## 3. Các tính năng cần có nhưng chưa thực hiện
+
+| Tên                                      | Lý do cần có                                                                                                                                                                                                                               | Nguồn yêu cầu                                                   | Trạng thái              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- | ----------------------- |
+| Native Host cho Windows                  | Code hiện chỉ có Linux installer, đường dẫn Linux, signal/process control Linux và terminal launcher Linux. Cần PowerShell/Windows installer, đăng ký Native Messaging Host, xử lý path và process tree trên Windows.                      | **Bạn đích thân yêu cầu trước đây về sử dụng/cài trên Windows** | **Chưa thực hiện — 0%** |
+| Chính sách tự dọn file log               | Full log hiện chỉ bị xóa khi người dùng bấm Delete. Chạy lâu dài có thể làm thư mục log tăng không giới hạn. Cần quota theo tổng dung lượng, tuổi file hoặc số run.                                                                        | **Tôi tự bổ sung vì cần thiết cho vận hành lâu dài**            | **Chưa thực hiện — 0%** |
+| Test E2E trên Firefox thật               | Test hiện rất mạnh ở contract/unit/VM/Native Host, nhưng chưa tự động mở Firefox thật để test activation, SPA navigation, download, relocate, command, đổi tab, badge và title. Các race condition trước đây chỉ xuất hiện ở runtime thật. | **Tôi tự bổ sung vì cần thiết để ngăn regression runtime**      | **Chưa thực hiện — 0%** |
+| Ma trận kiểm thử nhiều phiên bản Firefox | Chưa tự chạy trên nhiều bản Firefox Desktop/Android để phát hiện API/manifest khác nhau. Cảnh báo Android hiện tại là ví dụ cụ thể.                                                                                                        | **Tôi tự bổ sung vì cần thiết nếu phát hành rộng**              | **Chưa thực hiện — 0%** |
+
+## 4. Các tính năng nên có nhưng chưa thực hiện
+
+| Tên                                           | Lợi ích                                                                                      | Nguồn yêu cầu                                             | Trạng thái     |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------- |
+| Native Host cho macOS                         | Mở rộng command/download relocation sang macOS.                                              | **Tôi tự đề xuất**                                        | Chưa thực hiện |
+| Search/filter tab, profile, preset và history | Sidebar dễ sử dụng hơn khi số lượng mục tăng lớn.                                            | **Tôi tự đề xuất**                                        | Chưa thực hiện |
+| Danh sách working session có tên              | Lưu nhiều bộ session ngay trong extension thay vì phải quản lý nhiều file export.            | **Tôi tự đề xuất**                                        | Chưa thực hiện |
+| Âm báo tùy chọn                               | Có tín hiệu âm thanh ngoài title, badge và desktop notification.                             | **Tôi tự đề xuất; cũng từng nằm trong kế hoạch tùy chọn** | Chưa thực hiện |
+| Auto-activate theo URL, mặc định tắt          | Tự kích hoạt trang tin cậy đã allowlist, nhưng vẫn cần permission và tùy chọn bật rõ ràng.   | **Tôi tự đề xuất; từng nằm trong kế hoạch tương lai**     | Chưa thực hiện |
+| Keyboard shortcuts                            | Activate, pause, stop, mở sidebar hoặc full log nhanh hơn.                                   | **Tôi tự đề xuất**                                        | Chưa thực hiện |
+| Dashboard thống kê theo rule                  | Thống kê match, click, verify result, return code và thời gian trung bình để chẩn đoán rule. | **Tôi tự đề xuất**                                        | Chưa thực hiện |
+| Nén/export log theo từng run                  | Lưu trữ log cũ gọn hơn và hỗ trợ gửi một run cụ thể để phân tích.                            | **Tôi tự đề xuất**                                        | Chưa thực hiện |
+| Chromium port                                 | Tái sử dụng engine trên Chrome/Edge với manifest và Native Host registration riêng.          | **Tôi tự đề xuất; từng nằm trong kế hoạch tùy chọn**      | Chưa thực hiện |
+| Accessibility audit đầy đủ                    | Kiểm tra focus order, screen reader, contrast và element picker chỉ bằng bàn phím.           | **Tôi tự đề xuất**                                        | Chưa thực hiện |
+
+## Đánh giá tổng thể
+
+* **Luồng sử dụng chính trên Firefox Desktop/Linux:** khoảng **97% sẵn sàng cho sử dụng riêng hằng ngày**.
+* **Các chức năng bạn đã trực tiếp yêu cầu trong phạm vi Linux:** đã triển khai và PASS regression hiện tại.
+* Ba rủi ro kỹ thuật lớn nhất còn lại:
+
+  1. Chưa có E2E Firefox thật.
+  2. File command log chưa có chính sách tự dọn.
+  3. Native Host vẫn chỉ hỗ trợ Linux.
+
+Báo cáo đầy đủ có thể lưu lại làm baseline cho Phase tiếp theo:
+
+[Download Feature Audit v0.28.19](sandbox:/mnt/data/FIREFOX_CHAT_IMPROVER_FEATURE_AUDIT_V0_28_19_20260805.md)
+
+Căn cứ kiểm tra: [manifest v0.28.19](sandbox:/mnt/data/fci_phase28_v02819_dev/extension/manifest.json) và [test runner Phase 04–28](sandbox:/mnt/data/fci_phase28_v02819_dev/tools/test_firefox_addon.sh).
+

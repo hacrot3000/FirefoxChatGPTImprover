@@ -8,6 +8,7 @@
   // Phase 28 v0.28.14: tab-bound shell log viewer and persistent command notices.
   // Phase 28 v0.28.15: active-tab viewed notices clear to idle and AI status regains priority.
   // Phase 28 v0.28.16: command notices never suppress AI state; missing native logs use a persisted per-run fallback.
+  // Phase 28 v0.28.20: restart-resumable captures, idempotent moves and legacy log recovery.
 
   const { MESSAGE, MODE, CONFIG_MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
@@ -223,6 +224,10 @@
       localActionProfileId: null,
       localActionRevision: 0,
       configSnapshot: null,
+      ruleId: null,
+      cycle: 0,
+      pageUrl: null,
+      pageOrigin: null,
       status: "idle",
       armedAt: null,
       expiresAt: null,
@@ -235,6 +240,9 @@
       size: null,
       moveId: null,
       moveAttempt: 0,
+      moveRequestedAt: null,
+      moveRecoveredAt: null,
+      recoveryAttempts: 0,
       retryable: false,
       completionId: null,
       completionReason: null,
@@ -273,8 +281,13 @@
       localActionProfileId: source.localActionProfileId ? String(source.localActionProfileId) : null,
       localActionRevision: Math.max(0, Number(source.localActionRevision) || 0),
       configSnapshot,
+      ruleId: source.ruleId ? String(source.ruleId) : null,
+      cycle: Math.max(0, Number(source.cycle) || 0),
+      pageUrl: source.pageUrl ? String(source.pageUrl) : null,
+      pageOrigin: source.pageOrigin ? String(source.pageOrigin) : null,
       downloadId: Number.isInteger(source.downloadId) ? source.downloadId : null,
       moveAttempt: Math.max(0, Number(source.moveAttempt) || 0),
+      recoveryAttempts: Math.max(0, Number(source.recoveryAttempts) || 0),
       retryable: Boolean(source.retryable),
       showCompletionDialog: Boolean(source.showCompletionDialog),
       executeShellAfterMove: Boolean(source.executeShellAfterMove),
@@ -386,6 +399,10 @@
       localActionProfileId: session.localActionProfileId,
       localActionRevision: Number(session.localActionRevision || 0),
       configSnapshot,
+      ruleId: capture.ruleId,
+      cycle: capture.cycle,
+      pageUrl: capture.url,
+      pageOrigin: capture.origin,
       status: "armed",
       armedAt: Settings.nowIso(),
       expiresAt: new Date(capture.expiresAtMs).toISOString(),
@@ -579,6 +596,7 @@
     job.destinationDirectory = config.download.destinationDirectory;
     job.moveId = moveId;
     job.moveAttempt = Math.max(0, Number(job.moveAttempt) || 0) + 1;
+    job.moveRequestedAt = Settings.nowIso();
     job.retryable = false;
     job.destinationPath = null;
     job.size = null;
@@ -985,6 +1003,138 @@
     return result;
   }
 
+  function restoreArmedDownloadCapture(session, job) {
+    const expiresAtMs = Date.parse(String(job.expiresAt || ""));
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
+      job.status = "expired";
+      job.retryable = false;
+      job.error = "The restored download capture window expired before Firefox could resume it.";
+      job.completedAt = Settings.nowIso();
+      return false;
+    }
+    const config = jobExecutionConfig(job);
+    if (!job.captureId || !config.download.enabled) {
+      job.status = "error";
+      job.retryable = false;
+      job.error = "The persisted download capture is incomplete and cannot be restored safely.";
+      job.completedAt = Settings.nowIso();
+      return false;
+    }
+    const pageUrl = String(job.pageUrl || session.url || "");
+    let origin = String(job.pageOrigin || "");
+    if (!origin) {
+      try { origin = new URL(pageUrl).origin; } catch (_error) { origin = ""; }
+    }
+    downloadCaptures.set(Number(session.tabId), {
+      captureId: job.captureId,
+      tabId: Number(session.tabId),
+      sessionToken: session.sessionToken,
+      ruleId: job.ruleId || null,
+      cycle: Math.max(0, Number(job.cycle) || 0),
+      url: pageUrl,
+      origin,
+      localActionProfileId: job.localActionProfileId,
+      localActionRevision: job.localActionRevision,
+      config: LocalActions.createExecutionSnapshot(config),
+      armedAtMs: Date.parse(String(job.armedAt || "")) || Date.now(),
+      expiresAtMs,
+      claimed: false,
+      restored: true
+    });
+    job.sessionToken = session.sessionToken;
+    job.recoveryNote = "The managed download capture was restored after background restart.";
+    job.error = null;
+    return true;
+  }
+
+  async function resumeInterruptedDownloadMove(session, job) {
+    const tabId = Number(session.tabId);
+    if (!job.moveId || !job.sourcePath || !job.destinationDirectory) {
+      job.status = "error";
+      job.retryable = Boolean(job.sourcePath);
+      job.error = "The interrupted relocation is missing persisted transaction fields.";
+      job.completedAt = Settings.nowIso();
+      return false;
+    }
+    job.recoveryAttempts = Math.max(0, Number(job.recoveryAttempts) || 0) + 1;
+    job.recoveryNote = "Replaying the persisted moveId through the Native Host idempotency receipt.";
+    appendLog(session, "debug", "download-move-recovery-request", "Resuming interrupted relocation with the original moveId.", {
+      moveId: job.moveId,
+      sourcePath: job.sourcePath,
+      destinationDirectory: job.destinationDirectory,
+      recoveryAttempt: job.recoveryAttempts
+    });
+    downloadMoveToTab.set(job.moveId, tabId);
+    try {
+      const config = jobExecutionConfig(job);
+      const response = await nativeRequest("move_download", {
+        moveId: job.moveId,
+        tabId,
+        sourcePath: job.sourcePath,
+        destinationDirectory: job.destinationDirectory,
+        conflictAction: config.download.conflictAction
+      }, 20000, job.moveId);
+      if (job.status !== "completed") await handleNativeDownloadMessage(response);
+      job.moveRecoveredAt = Settings.nowIso();
+      return job.status === "completed";
+    } catch (error) {
+      downloadMoveToTab.delete(job.moveId);
+      job.status = "error";
+      job.error = `Automatic relocation recovery failed: ${error instanceof Error ? error.message : String(error)}`;
+      job.retryable = Boolean(job.sourcePath) && !/source.*does not exist|neither the relocation source/i.test(job.error);
+      job.completedAt = Settings.nowIso();
+      job.recoveryNote = "Install Native Host 0.11.0 or newer for idempotent relocation recovery; manual retry remains available when the staging file exists.";
+      appendLog(session, "user", "download-move-recovery-error", job.error, { moveId: job.moveId });
+      return false;
+    }
+  }
+
+  function ownedShellRunId(session, run, runId) {
+    if (!runId) return false;
+    if (run?.runId === runId) return true;
+    return Array.isArray(session?.shellHistory) && session.shellHistory.some((entry) => entry.runId === runId);
+  }
+
+  async function resolveLegacyShellLog(session, runId) {
+    const normalizedRunId = String(runId || "");
+    if (!session || !ownedShellRunId(session, shellRunForTab(session.tabId), normalizedRunId)) return null;
+    let resolved;
+    try {
+      resolved = await nativeRequest("resolve_log", { runId: normalizedRunId });
+    } catch (_error) {
+      return null;
+    }
+    if (!resolved?.exists || !resolved.logId) return null;
+    const logId = String(resolved.logId);
+    const logBytes = Math.max(0, Number(resolved.logBytes) || 0);
+    const run = shellRunForTab(session.tabId);
+    if (run.runId === normalizedRunId) {
+      run.logId = logId;
+      run.logBytes = logBytes;
+    }
+    session.shellHistory = normalizeShellHistory(session.shellHistory, 100).map((entry) =>
+      entry.runId === normalizedRunId ? { ...entry, logId, logBytes } : entry
+    );
+    const notice = normalizeShellNotice(session.shellNotice, session.tabId);
+    if (notice.runId === normalizedRunId) {
+      session.shellNotice = normalizeShellNotice({ ...notice, logId, logBytes }, session.tabId);
+    }
+    await persistSession(session);
+    return { logId, logBytes };
+  }
+
+  async function recoverLegacyShellLogs(session) {
+    const runIds = new Set();
+    const notice = normalizeShellNotice(session.shellNotice, session.tabId);
+    if (notice.runId && !notice.logId) runIds.add(notice.runId);
+    for (const entry of normalizeShellHistory(session.shellHistory, 100)) {
+      if (entry.runId && !entry.logId) runIds.add(entry.runId);
+    }
+    for (const runId of [...runIds].slice(0, 20)) {
+      await resolveLegacyShellLog(session, runId);
+    }
+  }
+
   async function recoverDownloadJob(session) {
     const tabId = Number(session?.tabId);
     if (!Number.isInteger(tabId) || !session?.downloadJob) return;
@@ -1001,18 +1151,10 @@
       downloadMoveToTab.set(job.downloadId, tabId);
     }
     if (job.status === "armed") {
-      job.status = "error";
-      job.retryable = false;
-      job.error = "The download capture window was interrupted by a background restart; trigger the target again.";
-      job.completedAt = Settings.nowIso();
+      restoreArmedDownloadCapture(session, job);
     } else if (job.status === "moving") {
-      // A move may already have completed while the background was unavailable.
-      // Never issue a duplicate move automatically; expose a deliberate retry.
-      job.status = "error";
-      job.retryable = Boolean(job.sourcePath);
-      job.error = "Download relocation was interrupted. Use Retry relocation after checking the destination.";
-      job.recoveryNote = "Recovered an interrupted relocation without replaying it automatically.";
-      job.completedAt = Settings.nowIso();
+      await resumeInterruptedDownloadMove(session, job);
+      if (job.status === "completed") return;
     } else if (job.status === "downloading" && Number.isInteger(job.downloadId)) {
       const results = await browser.downloads.search({ id: job.downloadId }).catch(() => []);
       const item = results[0];
@@ -1587,9 +1729,15 @@
     const tabId = Number(message.tabId);
     const session = sessions.get(tabId);
     const run = shellRunForTab(tabId);
-    const logId = String(message.logId || "");
-    if (!session || !ownedShellLog(session, run, logId)) {
-      throw new Error("The requested shell log does not belong to this tab session.");
+    let logId = String(message.logId || "");
+    const runId = String(message.runId || "");
+    if (!session) throw new Error("This tab is not activated.");
+    if (!logId && runId) {
+      const resolved = await resolveLegacyShellLog(session, runId);
+      logId = String(resolved?.logId || "");
+    }
+    if (!logId || !ownedShellLog(session, run, logId)) {
+      throw new Error("The requested shell log does not belong to this tab session or is no longer recoverable.");
     }
     const chunk = await nativeRequest("read_log", {
       logId,
@@ -2211,6 +2359,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     recovered.localActionRevision = Math.max(1, Number(recovered.localActionRevision || 1));
     sessions.set(tab.id, recovered);
     try {
+      await recoverLegacyShellLogs(recovered);
       await recoverDownloadJob(recovered);
       await reattachSession(recovered, store, "background-startup");
       await syncShellNoticeToContent(recovered);

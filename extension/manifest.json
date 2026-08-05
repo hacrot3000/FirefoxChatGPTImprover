@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.28.19",
-  "description": "Private Firefox sidebar helper with cumulative runtime-22 rescue, forced alert-controller upgrades, AI-primary page-title status, per-tab command indicators, persisted command-log fallback, reliable managed downloads and restart-safe dashboard recovery.",
+  "version": "0.28.20",
+  "description": "Private Firefox sidebar helper with restart-resumable managed downloads, idempotent relocation receipts, legacy command-log recovery, Android-compatible manifest metadata, deployment-ready self-hosted updates and consolidated project status.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-assistant@duongtc.local",
-      "strict_min_version": "140.0",
+      "strict_min_version": "142.0",
       "data_collection_permissions": {
         "required": [
           "none"

@@ -50,12 +50,12 @@ with tempfile.TemporaryDirectory() as tmp:
         version=version,
         xpi_url=f"https://updates.example.invalid/firefox-chat-ai-assistant-{version}.xpi",
         sha256=checksum,
-        strict_min_version="140.0",
+        strict_min_version="142.0",
     )
     entry = update_manifest["addons"][addon_id]["updates"][0]
     assert entry["version"] == version
     assert entry["update_hash"] == f"sha256:{checksum}"
-    assert entry["applications"]["gecko"]["strict_min_version"] == "140.0"
+    assert entry["applications"]["gecko"]["strict_min_version"] == "142.0"
 
 metadata = release.release_metadata(
     manifest=manifest,

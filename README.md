@@ -591,3 +591,13 @@ Updates stale Phase 23/25 contracts, restores repeatable `--overwrite` builds, v
 - Alert engine 10 and content runtime 26 replace v0.28.18 title controllers.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02819_END -->
 
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02820_BEGIN -->
+## Phase 28 v0.28.20 — completed in-progress recovery and deployment work
+
+- Restores still-valid managed-download captures after background restart.
+- Replays interrupted relocations safely through Native Host 0.11.0 idempotent move receipts.
+- Recovers historical file-backed logs from their `runId` when `logId` was not persisted.
+- Adds guarded self-hosted update-channel preparation, verification, enable and disable tooling.
+- Raises Firefox minimum version to 142 for Android-compatible data-collection manifest metadata.
+- Uses `document/CURRENT_PROJECT_STATUS.md` as the canonical implementation-status document.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE28_V02820_END -->

@@ -25,13 +25,14 @@ from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Callable
 
 HOST_NAME = "com.duongtc.firefox_chat_assistant"
-HOST_VERSION = "0.10.0"
+HOST_VERSION = "0.11.0"
 MAX_MESSAGE_BYTES = 1024 * 1024
 MAX_COMMAND_CHARS = 32768
 MAX_ENVIRONMENT_ITEMS = 32
 MAX_ENVIRONMENT_VALUE_CHARS = 8192
 MAX_OUTPUT_CHUNK_CHARS = 65536
 MAX_LOG_READ_BYTES = 256 * 1024
+MOVE_RECEIPT_SCHEMA = 1
 STOP_GRACE_SECONDS = 3.0
 
 
@@ -167,8 +168,6 @@ def validate_move_download_request(message: dict[str, Any]) -> tuple[str, int, P
     download_root = _xdg_download_directory()
     if not _is_relative_to(source, download_root):
         raise ValueError(f"The source file is outside the Firefox download directory: {download_root}")
-    if not source.exists() or not source.is_file():
-        raise ValueError("The downloaded source file does not exist.")
     destination_directory.mkdir(parents=True, exist_ok=True)
     if not destination_directory.is_dir():
         raise ValueError("The download destination is not a directory.")
@@ -178,30 +177,147 @@ def validate_move_download_request(message: dict[str, Any]) -> tuple[str, int, P
     return move_id, tab_id, source, destination_directory.resolve(), conflict_action
 
 
-def move_download(message: dict[str, Any]) -> dict[str, Any]:
-    _require_non_root()
-    move_id, tab_id, source, destination_directory, conflict_action = validate_move_download_request(message)
-    destination = destination_directory / source.name
-    if destination.exists():
-        if conflict_action == "fail":
-            raise ValueError(f"The destination file already exists: {destination}")
-        if conflict_action == "overwrite":
-            if destination.is_dir():
-                raise ValueError("The destination path is a directory.")
-            destination.unlink()
-        else:
-            destination = _unique_destination(destination)
-    shutil.move(str(source), str(destination))
+def _move_receipt_directory() -> Path:
+    root = Path(os.environ.get("XDG_STATE_HOME") or (Path.home() / ".local" / "state"))
+    directory = root / "firefox-chat-ai-assistant" / "moves"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory.resolve()
+
+
+def _move_receipt_path(move_id: str) -> Path:
+    digest = hashlib.sha256(move_id.encode("utf-8")).hexdigest()
+    return _move_receipt_directory() / f"{digest}.json"
+
+
+def _write_json_atomic(path: Path, value: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    temporary.write_text(json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
+def _load_move_receipt(move_id: str) -> dict[str, Any] | None:
+    path = _move_receipt_path(move_id)
+    if not path.is_file():
+        return None
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"The relocation receipt is unreadable: {exc}") from exc
+    if not isinstance(value, dict) or value.get("schemaVersion") != MOVE_RECEIPT_SCHEMA:
+        raise ValueError("The relocation receipt schema is invalid.")
+    return value
+
+
+def _move_response(message: dict[str, Any], receipt: dict[str, Any], *, recovered: bool) -> dict[str, Any]:
+    destination = Path(str(receipt["destinationPath"]))
+    if not destination.is_file():
+        raise ValueError("The relocation receipt exists, but its destination file is missing.")
     return {
         "event": "download_moved",
         "requestId": message.get("requestId"),
-        "moveId": move_id,
-        "tabId": tab_id,
-        "sourcePath": str(source),
+        "moveId": receipt["moveId"],
+        "tabId": receipt["tabId"],
+        "sourcePath": receipt["sourcePath"],
         "destinationPath": str(destination),
         "filename": destination.name,
         "size": destination.stat().st_size,
+        "recovered": recovered,
+        "receiptState": receipt.get("state", "complete"),
     }
+
+
+def _assert_receipt_matches(
+    receipt: dict[str, Any], *, move_id: str, tab_id: int, source: Path,
+    destination_directory: Path, conflict_action: str
+) -> None:
+    expected = {
+        "moveId": move_id,
+        "tabId": tab_id,
+        "sourcePath": str(source),
+        "destinationDirectory": str(destination_directory),
+        "conflictAction": conflict_action,
+    }
+    for key, value in expected.items():
+        if receipt.get(key) != value:
+            raise ValueError(f"The relocation replay does not match its persisted receipt: {key}")
+
+
+def move_download(message: dict[str, Any]) -> dict[str, Any]:
+    """Move one download exactly once, even if the extension retries after restart.
+
+    The pending receipt is written before the filesystem move. A replay with the
+    same moveId either completes the pending move or returns the already moved
+    destination. This closes the old crash window between shutil.move() and the
+    Native Messaging response.
+    """
+    _require_non_root()
+    move_id, tab_id, source, destination_directory, conflict_action = validate_move_download_request(message)
+    receipt_path = _move_receipt_path(move_id)
+    receipt = _load_move_receipt(move_id)
+    if receipt is not None:
+        try:
+            _assert_receipt_matches(
+                receipt, move_id=move_id, tab_id=tab_id, source=source,
+                destination_directory=destination_directory, conflict_action=conflict_action
+            )
+        except ValueError:
+            # Test/dev workflows may reuse a human-readable moveId after both
+            # sides of an old transaction have been deleted. A live receipt is
+            # never reusable, but a completely orphaned receipt may be retired.
+            old_destination = Path(str(receipt.get("destinationPath") or ""))
+            old_source = Path(str(receipt.get("sourcePath") or ""))
+            if old_destination.exists() or old_source.exists():
+                raise
+            receipt_path.unlink(missing_ok=True)
+            receipt = None
+    if receipt is not None:
+        destination = Path(str(receipt["destinationPath"]))
+        if destination.is_file() and not source.exists():
+            if receipt.get("state") != "complete":
+                receipt = {**receipt, "state": "complete", "completedAt": time.time()}
+                _write_json_atomic(receipt_path, receipt)
+            return _move_response(message, receipt, recovered=True)
+        if receipt.get("state") == "complete" and destination.is_file():
+            return _move_response(message, receipt, recovered=True)
+    else:
+        if not source.exists() or not source.is_file():
+            raise ValueError("The downloaded source file does not exist and no relocation receipt can recover it.")
+        destination = destination_directory / source.name
+        if destination.exists():
+            if conflict_action == "fail":
+                raise ValueError(f"The destination file already exists: {destination}")
+            if conflict_action == "overwrite":
+                if destination.is_dir():
+                    raise ValueError("The destination path is a directory.")
+                destination.unlink()
+            else:
+                destination = _unique_destination(destination)
+        receipt = {
+            "schemaVersion": MOVE_RECEIPT_SCHEMA,
+            "state": "pending",
+            "moveId": move_id,
+            "tabId": tab_id,
+            "sourcePath": str(source),
+            "destinationDirectory": str(destination_directory),
+            "destinationPath": str(destination),
+            "conflictAction": conflict_action,
+            "createdAt": time.time(),
+        }
+        _write_json_atomic(receipt_path, receipt)
+
+    destination = Path(str(receipt["destinationPath"]))
+    if not source.exists() or not source.is_file():
+        if destination.is_file():
+            receipt = {**receipt, "state": "complete", "completedAt": time.time()}
+            _write_json_atomic(receipt_path, receipt)
+            return _move_response(message, receipt, recovered=True)
+        raise ValueError("Neither the relocation source nor the recorded destination exists.")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(source), str(destination))
+    receipt = {**receipt, "state": "complete", "completedAt": time.time()}
+    _write_json_atomic(receipt_path, receipt)
+    return _move_response(message, receipt, recovered=False)
 
 
 def _log_directory() -> Path:
@@ -276,6 +392,23 @@ def delete_log_file(message: dict[str, Any]) -> dict[str, Any]:
         "event": "log_deleted",
         "requestId": message.get("requestId"),
         "logId": log_id,
+    }
+
+
+def resolve_log_for_run(message: dict[str, Any]) -> dict[str, Any]:
+    run_id = str(message.get("runId") or "").strip()
+    if not run_id or len(run_id) > 160:
+        raise ValueError("The run ID is invalid.")
+    log_id = _log_id_for_run(run_id)
+    path = _log_path(log_id)
+    exists = path.is_file()
+    return {
+        "event": "log_resolved",
+        "requestId": message.get("requestId"),
+        "runId": run_id,
+        "logId": log_id if exists else None,
+        "logBytes": path.stat().st_size if exists else 0,
+        "exists": exists,
     }
 
 
@@ -606,6 +739,8 @@ def run_host(reader: BinaryIO = sys.stdin.buffer, writer: MessageWriter | None =
                     output.send(move_download(message))
                 elif action == "read_log":
                     output.send(read_log_chunk(message))
+                elif action == "resolve_log":
+                    output.send(resolve_log_for_run(message))
                 elif action == "delete_log":
                     output.send(delete_log_file(message))
                 else:
