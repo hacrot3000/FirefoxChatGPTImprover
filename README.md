@@ -650,3 +650,9 @@ Windows Native Host support is available through `native-host/install_native_hos
 - Adds per-tab custom titles that survive reload/navigation and remain the base title for AI READY/Running indicators.
 - Native Host remains 0.13.0 and does not need reinstalling.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE29_V0290_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE30_V0300_BEGIN -->
+## Phase 30 v0.30.0 — sidebar search/filter
+
+Adds non-destructive search/filter controls for tabs, configuration/monitor/target/local-action profiles, global command presets and per-tab command history. Current selections remain available outside the active query, and filter text is stored only as sidebar UI state. Native Host remains 0.13.0.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE30_V0300_END -->

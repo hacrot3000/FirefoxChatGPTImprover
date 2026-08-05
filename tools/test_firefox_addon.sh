@@ -85,6 +85,7 @@ python3 tests/test_phase28_v02824_real_firefox_e2e_matrix.py
 python3 tests/test_phase28_v02825_windows_native_host.py
 python3 tests/test_phase25_native_download_environment.py
 node tests/test_phase29_v0290_component_profiles_custom_titles.js
+node tests/test_phase30_v0300_sidebar_search_filters.js
 
 if [ "${FCI_RUN_FIREFOX_E2E:-0}" = "1" ]; then
   python3 tools/run_firefox_e2e.py ${FCI_FIREFOX_E2E_ARGS:-}
@@ -106,5 +107,5 @@ elif [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-29 v0.29.0 full regression, reusable monitor/target profiles, typed JSON import/export, persistent custom tab titles, source syntax, Linux/Windows Native Host runtime, real-Firefox E2E tooling and protected command-log retention.
+printf 'PASS: FirefoxChatImprover Phase 04-30 v0.30.0 full regression, non-destructive search/filter for tabs, all profile libraries, command presets and per-tab command history, persistent custom tab titles, source syntax, Linux/Windows Native Host runtime, real-Firefox E2E tooling and protected command-log retention.
 '

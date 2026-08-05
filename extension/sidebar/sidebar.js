@@ -19,20 +19,20 @@
   const $ = (selector) => document.querySelector(selector);
   const elements = {
     body: document.body,
-    statusPill: $("#statusPill"), commandStatusIcon: $("#commandStatusIcon"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
+    statusPill: $("#statusPill"), commandStatusIcon: $("#commandStatusIcon"), tabSearch: $("#tabSearch"), tabSearchResult: $("#tabSearchResult"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
     modeText: $("#modeText"), configModeText: $("#configModeText"), profileText: $("#profileText"), tabUrl: $("#tabUrl"), commandNoticeText: $("#commandNoticeText"),
     monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), ruleCountText: $("#ruleCountText"), matchedRuleCountText: $("#matchedRuleCountText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"), customTabTitle: $("#customTabTitle"), saveCustomTabTitleButton: $("#saveCustomTabTitleButton"), clearCustomTabTitleButton: $("#clearCustomTabTitleButton"),
-    profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
+    profileSearch: $("#profileSearch"), profileSearchResult: $("#profileSearchResult"), profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     ruleSelect: $("#ruleSelect"), ruleName: $("#ruleName"), ruleEnabled: $("#ruleEnabled"), newRuleButton: $("#newRuleButton"), duplicateRuleButton: $("#duplicateRuleButton"), deleteRuleButton: $("#deleteRuleButton"), ruleRuntimeSummary: $("#ruleRuntimeSummary"), ruleRuntimeBadge: $("#ruleRuntimeBadge"), ruleCommandEnabled: $("#ruleCommandEnabled"), ruleCommandPreset: $("#ruleCommandPreset"), ruleCommandTrigger: $("#ruleCommandTrigger"), ruleCommandAllowDryRun: $("#ruleCommandAllowDryRun"), ruleCommandStatus: $("#ruleCommandStatus"),
     autoProfileByUrl: $("#autoProfileByUrl"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), urlRoutingResult: $("#urlRoutingResult"),
-    monitorProfileSelect: $("#monitorProfileSelect"), monitorProfileName: $("#monitorProfileName"), applyMonitorProfileButton: $("#applyMonitorProfileButton"), newMonitorProfileButton: $("#newMonitorProfileButton"), saveMonitorProfileButton: $("#saveMonitorProfileButton"), deleteMonitorProfileButton: $("#deleteMonitorProfileButton"), monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
-    targetProfileSelect: $("#targetProfileSelect"), targetProfileName: $("#targetProfileName"), applyTargetProfileButton: $("#applyTargetProfileButton"), newTargetProfileButton: $("#newTargetProfileButton"), saveTargetProfileButton: $("#saveTargetProfileButton"), deleteTargetProfileButton: $("#deleteTargetProfileButton"), targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
+    monitorProfileSearch: $("#monitorProfileSearch"), monitorProfileSearchResult: $("#monitorProfileSearchResult"), monitorProfileSelect: $("#monitorProfileSelect"), monitorProfileName: $("#monitorProfileName"), applyMonitorProfileButton: $("#applyMonitorProfileButton"), newMonitorProfileButton: $("#newMonitorProfileButton"), saveMonitorProfileButton: $("#saveMonitorProfileButton"), deleteMonitorProfileButton: $("#deleteMonitorProfileButton"), monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
+    targetProfileSearch: $("#targetProfileSearch"), targetProfileSearchResult: $("#targetProfileSearchResult"), targetProfileSelect: $("#targetProfileSelect"), targetProfileName: $("#targetProfileName"), applyTargetProfileButton: $("#applyTargetProfileButton"), newTargetProfileButton: $("#newTargetProfileButton"), saveTargetProfileButton: $("#saveTargetProfileButton"), deleteTargetProfileButton: $("#deleteTargetProfileButton"), targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), exportSupportBundleButton: $("#exportSupportBundleButton"), clearLogsButton: $("#clearLogsButton"),
-    localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), downloadShellExecutionMode: $("#downloadShellExecutionMode"), openShellLogAfterExecution: $("#openShellLogAfterExecution"), downloadStateSummary: $("#downloadStateSummary"), downloadShellStateSummary: $("#downloadShellStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
-    shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
-    workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
+    localActionProfileSearch: $("#localActionProfileSearch"), localActionProfileSearchResult: $("#localActionProfileSearchResult"), localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), downloadShellExecutionMode: $("#downloadShellExecutionMode"), openShellLogAfterExecution: $("#openShellLogAfterExecution"), downloadStateSummary: $("#downloadStateSummary"), downloadShellStateSummary: $("#downloadShellStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
+    shellPresetSearch: $("#shellPresetSearch"), shellPresetSearchResult: $("#shellPresetSearchResult"), shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
+    workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySearch: $("#shellHistorySearch"), shellHistorySearchResult: $("#shellHistorySearchResult"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"), nativeLogRetentionEnabled: $("#nativeLogRetentionEnabled"), nativeLogMaxAgeDays: $("#nativeLogMaxAgeDays"), nativeLogMaxTotalMiB: $("#nativeLogMaxTotalMiB"), nativeLogMaxFiles: $("#nativeLogMaxFiles"), nativeLogCleanupOnStartup: $("#nativeLogCleanupOnStartup"), nativeLogCleanupAfterCommand: $("#nativeLogCleanupAfterCommand"), saveNativeLogRetentionButton: $("#saveNativeLogRetentionButton"), runNativeLogCleanupButton: $("#runNativeLogCleanupButton"), nativeLogCleanupStatus: $("#nativeLogCleanupStatus"),
     shellLogDialog: $("#shellLogDialog"), shellLogDialogTitle: $("#shellLogDialogTitle"), shellLogMetadata: $("#shellLogMetadata"), shellLogViewer: $("#shellLogViewer"), shellLogPageInfo: $("#shellLogPageInfo"), closeShellLogDialogButton: $("#closeShellLogDialogButton"), shellLogFirstButton: $("#shellLogFirstButton"), shellLogPreviousButton: $("#shellLogPreviousButton"), shellLogNextButton: $("#shellLogNextButton"), shellLogLastButton: $("#shellLogLastButton"), copyShellLogSelectionButton: $("#copyShellLogSelectionButton"), copyShellLogPageButton: $("#copyShellLogPageButton"), copyShellLogAllButton: $("#copyShellLogAllButton"), refreshShellLogButton: $("#refreshShellLogButton"), deleteShellLogButton: $("#deleteShellLogButton"),
     saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), exportConfigurationProfilesButton: $("#exportConfigurationProfilesButton"), importConfigurationProfilesButton: $("#importConfigurationProfilesButton"), exportMonitorProfilesButton: $("#exportMonitorProfilesButton"), importMonitorProfilesButton: $("#importMonitorProfilesButton"), exportTargetProfilesButton: $("#exportTargetProfilesButton"), importTargetProfilesButton: $("#importTargetProfilesButton"), exportLocalActionProfilesButton: $("#exportLocalActionProfilesButton"), importLocalActionProfilesButton: $("#importLocalActionProfilesButton"), profileImportFile: $("#profileImportFile"), saveWorkingSessionButton: $("#saveWorkingSessionButton"), importWorkingSessionButton: $("#importWorkingSessionButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), importWorkingSessionFile: $("#importWorkingSessionFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), messageBox: $("#messageBox")
@@ -71,6 +71,15 @@
   let activeTabRefreshSerial = 0;
   let collapsedGroups = {};
   let autoProfileByUrl = true;
+  let listFilters = {
+    tabs: "",
+    configurationProfiles: "",
+    monitorProfiles: "",
+    targetProfiles: "",
+    localActionProfiles: "",
+    commandPresets: "",
+    commandHistory: ""
+  };
   const manualProfileSelectionByTab = new Map();
   const pendingPickerResults = new Map();
   const lastShownDownloadCaptureByTab = new Map();
@@ -276,7 +285,8 @@
         collapsedGroups: { ...collapsedGroups },
         autoProfileByUrl,
         selectedMonitorProfileId,
-        selectedTargetProfileId
+        selectedTargetProfileId,
+        listFilters: { ...listFilters }
       }
     });
   }
@@ -317,7 +327,24 @@
     autoProfileByUrl = storedUi.autoProfileByUrl !== false;
     selectedMonitorProfileId = typeof storedUi.selectedMonitorProfileId === "string" ? storedUi.selectedMonitorProfileId : null;
     selectedTargetProfileId = typeof storedUi.selectedTargetProfileId === "string" ? storedUi.selectedTargetProfileId : null;
+    const storedFilters = storedUi.listFilters && typeof storedUi.listFilters === "object" ? storedUi.listFilters : {};
+    listFilters = {
+      tabs: String(storedFilters.tabs || ""),
+      configurationProfiles: String(storedFilters.configurationProfiles || ""),
+      monitorProfiles: String(storedFilters.monitorProfiles || ""),
+      targetProfiles: String(storedFilters.targetProfiles || ""),
+      localActionProfiles: String(storedFilters.localActionProfiles || ""),
+      commandPresets: String(storedFilters.commandPresets || ""),
+      commandHistory: String(storedFilters.commandHistory || "")
+    };
     elements.autoProfileByUrl.checked = autoProfileByUrl;
+    elements.tabSearch.value = listFilters.tabs;
+    elements.profileSearch.value = listFilters.configurationProfiles;
+    elements.monitorProfileSearch.value = listFilters.monitorProfiles;
+    elements.targetProfileSearch.value = listFilters.targetProfiles;
+    elements.localActionProfileSearch.value = listFilters.localActionProfiles;
+    elements.shellPresetSearch.value = listFilters.commandPresets;
+    elements.shellHistorySearch.value = listFilters.commandHistory;
 
     for (const section of document.querySelectorAll("section.card[data-group-id]")) {
       const directChildren = [...section.children];
@@ -432,6 +459,40 @@
     return ["starting", "running", "terminal", "stopping"].includes(run?.status);
   }
 
+  function normalizeFilter(value) {
+    return String(value || "").trim().toLocaleLowerCase();
+  }
+
+  function filterMatches(query, ...parts) {
+    const needle = normalizeFilter(query);
+    if (!needle) return true;
+    return parts.flat(Infinity).filter((part) => part !== null && part !== undefined)
+      .map((part) => String(part).toLocaleLowerCase())
+      .some((part) => part.includes(needle));
+  }
+
+  function filteredWithSelection(items, query, selectedId, searchable) {
+    const needle = normalizeFilter(query);
+    const matches = needle ? items.filter((item) => searchable(item, needle)) : [...items];
+    const selected = items.find((item) => String(item.id) === String(selectedId)) || null;
+    const selectedKept = Boolean(selected && !matches.some((item) => String(item.id) === String(selected.id)));
+    return {
+      items: selectedKept ? [selected, ...matches] : matches,
+      matchCount: matches.length,
+      totalCount: items.length,
+      selectedKept
+    };
+  }
+
+  function renderFilterResult(element, state) {
+    if (!element) return;
+    const active = Boolean(state.query);
+    element.dataset.state = active ? (state.matchCount ? "active" : "empty") : "idle";
+    element.textContent = !active
+      ? `${state.totalCount} item${state.totalCount === 1 ? "" : "s"}`
+      : `${state.matchCount} of ${state.totalCount} match${state.matchCount === 1 ? "" : "es"}${state.selectedKept ? " · current selection kept" : ""}`;
+  }
+
   function selectedShellPreset() {
     return shellPresetsDraft.find((preset) => preset.id === selectedShellPresetId) || null;
   }
@@ -441,18 +502,29 @@
   }
 
   function renderShellPresetOptions() {
+    const result = filteredWithSelection(
+      shellPresetsDraft,
+      listFilters.commandPresets,
+      selectedShellPresetId,
+      (preset) => filterMatches(listFilters.commandPresets, preset.name, preset.id, preset.command, preset.workingDirectory, preset.mode, preset.enabled ? "enabled" : "disabled")
+    );
     const empty = document.createElement("option");
     empty.value = "";
-    empty.textContent = shellPresetsDraft.length ? "Select a command preset" : "No command presets yet";
-    const options = shellPresetsDraft.map((preset) => {
+    empty.textContent = shellPresetsDraft.length
+      ? (result.matchCount ? "Select a command preset" : "No command preset matches")
+      : "No command presets yet";
+    const options = result.items.map((preset) => {
       const option = document.createElement("option");
       option.value = preset.id;
+      const kept = result.selectedKept && String(preset.id) === String(selectedShellPresetId) ? " (selected; outside filter)" : "";
       option.textContent = preset.name;
+      if (kept) option.textContent += kept;
       return option;
     });
     elements.shellPresetSelect.replaceChildren(empty, ...options);
     if (!shellPresetsDraft.some((preset) => preset.id === selectedShellPresetId)) selectedShellPresetId = "";
     elements.shellPresetSelect.value = selectedShellPresetId;
+    renderFilterResult(elements.shellPresetSearchResult, { ...result, query: listFilters.commandPresets });
     const preset = selectedShellPreset();
     elements.loadShellPresetButton.textContent = "Apply to this tab";
     elements.newShellPresetButton.textContent = "New preset";
@@ -472,20 +544,32 @@
   function renderShellHistory() {
     const selectedHistoryId = elements.shellHistorySelect.value;
     const history = Array.isArray(selectedSession()?.shellHistory) ? selectedSession().shellHistory : [];
+    const result = filteredWithSelection(
+      history,
+      listFilters.commandHistory,
+      selectedHistoryId,
+      (entry) => filterMatches(
+        listFilters.commandHistory,
+        entry.id, entry.command, entry.presetName, entry.status, entry.workingDirectory, entry.cwd,
+        entry.mode, entry.returnCode, entry.error, entry.startedAt, entry.endedAt
+      )
+    );
     const empty = document.createElement("option");
     empty.value = "";
-    empty.textContent = history.length ? "Select a recent command" : "No command history";
-    const options = history.map((entry) => {
+    empty.textContent = history.length
+      ? (result.matchCount ? "Select a recent command" : "No command history matches")
+      : "No command history";
+    const options = result.items.map((entry) => {
       const option = document.createElement("option");
       option.value = entry.id;
       const when = entry.startedAt ? new Date(entry.startedAt).toLocaleTimeString() : "";
-      option.textContent = `${when} · ${entry.presetName || entry.command || "Command"} · ${entry.status || "requested"}`;
+      const kept = result.selectedKept && String(entry.id) === String(selectedHistoryId) ? " · selected outside filter" : "";
+      option.textContent = `${when} · ${entry.presetName || entry.command || "Command"} · ${entry.status || "requested"}${kept}`;
       return option;
     });
     elements.shellHistorySelect.replaceChildren(empty, ...options);
-    if (history.some((entry) => entry.id === selectedHistoryId)) {
-      elements.shellHistorySelect.value = selectedHistoryId;
-    }
+    if (history.some((entry) => entry.id === selectedHistoryId)) elements.shellHistorySelect.value = selectedHistoryId;
+    renderFilterResult(elements.shellHistorySearchResult, { ...result, query: listFilters.commandHistory });
     elements.loadShellHistoryButton.disabled = busy || history.length === 0;
     elements.clearShellHistoryButton.disabled = busy || history.length === 0;
   }
@@ -1246,11 +1330,24 @@
     if (!store.profiles.some((profile) => profile.id === selectedLocalActionProfileId)) {
       selectedLocalActionProfileId = session?.localActionProfileId || routed.profileId || store.defaultProfileId;
     }
-    elements.localActionProfileSelect.replaceChildren(...store.profiles.map((profile) => {
+    const result = filteredWithSelection(
+      store.profiles,
+      listFilters.localActionProfiles,
+      selectedLocalActionProfileId,
+      (profile) => filterMatches(
+        listFilters.localActionProfiles,
+        profile.id, profile.name, profile.config?.routing?.urlPatterns,
+        profile.config?.download?.destinationDirectory,
+        profile.config?.shell?.workingDirectory, profile.config?.shell?.command
+      )
+    );
+    elements.localActionProfileSelect.replaceChildren(...result.items.map((profile) => {
       const suffix = profile.id === store.defaultProfileId ? " (default)" : "";
-      return new Option(`${profile.name}${suffix}`, profile.id);
+      const kept = result.selectedKept && String(profile.id) === String(selectedLocalActionProfileId) ? " (selected; outside filter)" : "";
+      return new Option(`${profile.name}${suffix}${kept}`, profile.id);
     }));
     elements.localActionProfileSelect.value = selectedLocalActionProfileId || "";
+    renderFilterResult(elements.localActionProfileSearchResult, { ...result, query: listFilters.localActionProfiles });
     const profile = localActionProfileById(selectedLocalActionProfileId);
     elements.localActionProfileName.value = profile?.name || "";
     if (elements.localActionModeStatus) {
@@ -1334,63 +1431,95 @@
 
   function renderComponentProfileOptions() {
     const monitorProfiles = Array.isArray(dashboard.store?.monitorProfiles) ? dashboard.store.monitorProfiles : [];
-    elements.monitorProfileSelect.replaceChildren();
-    for (const profile of monitorProfiles) {
-      const suffix = profile.id === dashboard.store.defaultMonitorProfileId ? " (default)" : "";
-      elements.monitorProfileSelect.add(new Option(`${profile.name}${suffix}`, profile.id));
-    }
     selectedMonitorProfileId = monitorProfiles.some((profile) => profile.id === selectedMonitorProfileId)
       ? selectedMonitorProfileId
       : (dashboard.store.defaultMonitorProfileId || monitorProfiles[0]?.id || null);
+    const monitorResult = filteredWithSelection(
+      monitorProfiles,
+      listFilters.monitorProfiles,
+      selectedMonitorProfileId,
+      (profile) => filterMatches(listFilters.monitorProfiles, profile.id, profile.name, profile.monitor?.selector?.tag, profile.monitor?.selector?.kind, profile.monitor?.selector?.value, profile.monitor?.selector?.attributeName, profile.monitor?.visibilityTransition, profile.monitor?.conditions?.map((condition) => [condition.attribute, condition.operator, condition.value]))
+    );
+    elements.monitorProfileSelect.replaceChildren(...monitorResult.items.map((profile) => {
+      const suffix = profile.id === dashboard.store.defaultMonitorProfileId ? " (default)" : "";
+      const kept = monitorResult.selectedKept && String(profile.id) === String(selectedMonitorProfileId) ? " (selected; outside filter)" : "";
+      return new Option(`${profile.name}${suffix}${kept}`, profile.id);
+    }));
     elements.monitorProfileSelect.value = selectedMonitorProfileId || "";
     elements.monitorProfileName.value = monitorProfileById(selectedMonitorProfileId)?.name || "";
+    renderFilterResult(elements.monitorProfileSearchResult, { ...monitorResult, query: listFilters.monitorProfiles });
 
     const targetProfiles = Array.isArray(dashboard.store?.targetProfiles) ? dashboard.store.targetProfiles : [];
-    elements.targetProfileSelect.replaceChildren();
-    for (const profile of targetProfiles) {
-      const suffix = profile.id === dashboard.store.defaultTargetProfileId ? " (default)" : "";
-      elements.targetProfileSelect.add(new Option(`${profile.name}${suffix}`, profile.id));
-    }
     selectedTargetProfileId = targetProfiles.some((profile) => profile.id === selectedTargetProfileId)
       ? selectedTargetProfileId
       : (dashboard.store.defaultTargetProfileId || targetProfiles[0]?.id || null);
+    const targetResult = filteredWithSelection(
+      targetProfiles,
+      listFilters.targetProfiles,
+      selectedTargetProfileId,
+      (profile) => filterMatches(listFilters.targetProfiles, profile.id, profile.name, profile.target?.selector?.tag, profile.target?.selector?.kind, profile.target?.selector?.value, profile.target?.selector?.attributeName, profile.target?.clickStrategy, profile.target?.pipeline?.verifySelector?.tag, profile.target?.pipeline?.verifySelector?.kind, profile.target?.pipeline?.verifySelector?.value, profile.target?.pipeline?.verifyExpectation)
+    );
+    elements.targetProfileSelect.replaceChildren(...targetResult.items.map((profile) => {
+      const suffix = profile.id === dashboard.store.defaultTargetProfileId ? " (default)" : "";
+      const kept = targetResult.selectedKept && String(profile.id) === String(selectedTargetProfileId) ? " (selected; outside filter)" : "";
+      return new Option(`${profile.name}${suffix}${kept}`, profile.id);
+    }));
     elements.targetProfileSelect.value = selectedTargetProfileId || "";
     elements.targetProfileName.value = targetProfileById(selectedTargetProfileId)?.name || "";
+    renderFilterResult(elements.targetProfileSearchResult, { ...targetResult, query: listFilters.targetProfiles });
   }
 
   function renderSelectors(preferredTabId = null) {
     const oldTab = selectedTabId;
-    elements.tabSelect.replaceChildren();
     const current = dashboard.currentTab;
     const currentSession = sessionById(current.tabId);
+    const tabItems = [];
     if (Number.isInteger(current.tabId) && !currentSession) {
-      const option = new Option(`[Current tab] ${current.title || current.url || current.tabId}`, String(current.tabId));
-      option.dataset.inactive = "true";
-      elements.tabSelect.add(option);
+      tabItems.push({
+        id: current.tabId,
+        title: current.title || current.url || String(current.tabId),
+        url: current.url || "",
+        mode: "inactive",
+        current: true,
+        inactive: true,
+        shellNotice: ""
+      });
     }
     for (const session of dashboard.sessions) {
-      const marker = `${session.tabId === current.tabId ? "★ " : ""}${shellNoticeMarker(session)}`;
-      elements.tabSelect.add(new Option(`${marker}[${session.mode}] ${session.title || session.url || session.tabId}`, String(session.tabId)));
+      tabItems.push({
+        id: session.tabId,
+        title: session.customTitle || session.title || session.url || String(session.tabId),
+        pageTitle: session.pageTitle || session.title || "",
+        url: session.url || "",
+        mode: session.mode || "inactive",
+        current: session.tabId === current.tabId,
+        inactive: false,
+        shellNotice: session.shellNotice?.status || "idle",
+        session
+      });
     }
-    const validIds = [...elements.tabSelect.options].map((option) => Number(option.value));
-    const preferred = preferredTabId === null || preferredTabId === undefined
-      ? null
-      : Number(preferredTabId);
-    selectedTabId = preferred !== null && validIds.includes(preferred)
+    const allIds = tabItems.map((item) => Number(item.id));
+    const preferred = preferredTabId === null || preferredTabId === undefined ? null : Number(preferredTabId);
+    selectedTabId = preferred !== null && allIds.includes(preferred)
       ? preferred
-      : (validIds.includes(Number(oldTab))
-        ? Number(oldTab)
-        : (Number.isInteger(current.tabId) ? current.tabId : validIds[0] || null));
-    if (selectedTabId !== null) {
-      elements.tabSelect.value = String(selectedTabId);
-    }
+      : (allIds.includes(Number(oldTab)) ? Number(oldTab) : (Number.isInteger(current.tabId) ? current.tabId : allIds[0] || null));
+    const tabResult = filteredWithSelection(
+      tabItems,
+      listFilters.tabs,
+      selectedTabId,
+      (item) => filterMatches(listFilters.tabs, item.id, item.title, item.pageTitle, item.url, item.mode, item.current ? "current" : "", item.shellNotice)
+    );
+    elements.tabSelect.replaceChildren(...tabResult.items.map((item) => {
+      const marker = item.inactive ? "[Current tab] " : `${item.current ? "★ " : ""}${item.session ? shellNoticeMarker(item.session) : ""}[${item.mode}] `;
+      const kept = tabResult.selectedKept && Number(item.id) === Number(selectedTabId) ? " (selected; outside filter)" : "";
+      const option = new Option(`${marker}${item.title}${kept}`, String(item.id));
+      if (item.inactive) option.dataset.inactive = "true";
+      return option;
+    }));
+    if (selectedTabId !== null) elements.tabSelect.value = String(selectedTabId);
+    renderFilterResult(elements.tabSearchResult, { ...tabResult, query: listFilters.tabs });
 
     const oldProfile = selectedProfileId;
-    elements.profileSelect.replaceChildren();
-    for (const profile of dashboard.store.profiles) {
-      const suffix = profile.id === dashboard.store.defaultProfileId ? " (default)" : "";
-      elements.profileSelect.add(new Option(`${profile.name}${suffix}`, profile.id));
-    }
     const session = selectedSession();
     const manualProfileId = manualProfileSelectionByTab.get(Number(selectedTabId));
     const routedProfileId = autoProfileByUrl && !session
@@ -1400,7 +1529,19 @@
       (dashboard.store.profiles.some((profile) => profile.id === manualProfileId) ? manualProfileId : null) ||
       (dashboard.store.profiles.some((profile) => profile.id === routedProfileId) ? routedProfileId : null) ||
       (dashboard.store.profiles.some((profile) => profile.id === oldProfile) ? oldProfile : dashboard.store.defaultProfileId);
+    const profileResult = filteredWithSelection(
+      dashboard.store.profiles,
+      listFilters.configurationProfiles,
+      selectedProfileId,
+      (profile) => filterMatches(listFilters.configurationProfiles, profile.id, profile.name, profile.config?.activation?.urlPatterns, profile.config?.rules?.map((rule) => [rule.name, rule.monitor?.selector?.value, rule.target?.selector?.value, rule.target?.pipeline?.verifySelector?.value]))
+    );
+    elements.profileSelect.replaceChildren(...profileResult.items.map((profile) => {
+      const suffix = profile.id === dashboard.store.defaultProfileId ? " (default)" : "";
+      const kept = profileResult.selectedKept && String(profile.id) === String(selectedProfileId) ? " (selected; outside filter)" : "";
+      return new Option(`${profile.name}${suffix}${kept}`, profile.id);
+    }));
     elements.profileSelect.value = selectedProfileId;
+    renderFilterResult(elements.profileSearchResult, { ...profileResult, query: listFilters.configurationProfiles });
     renderComponentProfileOptions();
     const localStore = dashboard.localActionStore || LocalActions.defaultStore();
     const routedLocal = LocalActions.routeProfile(localStore, session?.url || dashboard.currentTab?.url || "");
@@ -3354,6 +3495,31 @@ Cancel: keep editing without losing the changes.`);
       void request(MESSAGE.DELETE_SETTINGS_SNAPSHOT, { snapshotId }, "Settings snapshot deleted.");
     }
   });
+
+
+  function bindListFilter(input, key, render) {
+    input.addEventListener("input", () => {
+      listFilters[key] = input.value;
+      render();
+      void persistSidebarUi();
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && input.value) {
+        input.value = "";
+        listFilters[key] = "";
+        render();
+        void persistSidebarUi();
+      }
+    });
+  }
+
+  bindListFilter(elements.tabSearch, "tabs", () => renderSelectors(selectedTabId));
+  bindListFilter(elements.profileSearch, "configurationProfiles", () => renderSelectors(selectedTabId));
+  bindListFilter(elements.monitorProfileSearch, "monitorProfiles", renderComponentProfileOptions);
+  bindListFilter(elements.targetProfileSearch, "targetProfiles", renderComponentProfileOptions);
+  bindListFilter(elements.localActionProfileSearch, "localActionProfiles", renderLocalActionProfileOptions);
+  bindListFilter(elements.shellPresetSearch, "commandPresets", renderShellPresetOptions);
+  bindListFilter(elements.shellHistorySearch, "commandHistory", renderShellHistory);
 
   browser.runtime.onMessage.addListener((message) => {
     if (message?.type === MESSAGE.PICKER_RESULT) {

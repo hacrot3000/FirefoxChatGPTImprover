@@ -169,5 +169,5 @@ controller.apply(alertConfig, {
 assert.equal(document.title, "⠋ Naruto server patch");
 
 const manifest = JSON.parse(read("extension/manifest.json"));
-assert.equal(manifest.version, "0.29.0");
+assert.ok(/^0\.(?:29|[3-9]\d)\./.test(manifest.version), `Expected Phase 29+ manifest version, found ${manifest.version}`);
 console.log("PASS: Phase 29 v0.29.0 reusable monitor/target profiles, per-type JSON bundles and reload-persistent custom tab titles");

@@ -35,6 +35,11 @@
           </details>
         </div>
       </div>
+      <label class="filter-field">
+        Find tab
+        <input id="tabSearch" type="search" autocomplete="off" placeholder="Title, URL, status, or tab ID">
+        <small id="tabSearchResult" class="filter-result" aria-live="polite"></small>
+      </label>
       <label>
         Selected tab
         <select id="tabSelect"></select>
@@ -135,6 +140,11 @@
 
     <section class="card" data-group-id="profiles" aria-labelledby="profileHeading">
       <h2 id="profileHeading">Configuration profiles</h2>
+      <label class="filter-field">
+        Find configuration profile
+        <input id="profileSearch" type="search" autocomplete="off" placeholder="Name, URL pattern, or profile ID">
+        <small id="profileSearchResult" class="filter-result" aria-live="polite"></small>
+      </label>
       <label>
         Profile
         <select id="profileSelect"></select>
@@ -229,6 +239,7 @@
     <section class="card" data-group-id="monitor" aria-labelledby="monitorHeading">
       <h2 id="monitorHeading">Monitor element</h2>
       <div class="component-profile-panel">
+        <label class="filter-field">Find monitor profile<input id="monitorProfileSearch" type="search" autocomplete="off" placeholder="Name, selector, or profile ID"><small id="monitorProfileSearchResult" class="filter-result" aria-live="polite"></small></label>
         <label>Monitor profile<select id="monitorProfileSelect"></select></label>
         <label>Profile name<input id="monitorProfileName" type="text" autocomplete="off"></label>
         <div class="button-grid four">
@@ -313,6 +324,7 @@
         </div>
       </div>
       <div class="component-profile-panel">
+        <label class="filter-field">Find target profile<input id="targetProfileSearch" type="search" autocomplete="off" placeholder="Name, selector, or profile ID"><small id="targetProfileSearchResult" class="filter-result" aria-live="polite"></small></label>
         <label>Target profile<select id="targetProfileSelect"></select></label>
         <label>Profile name<input id="targetProfileName" type="text" autocomplete="off"></label>
         <div class="button-grid four">
@@ -489,6 +501,7 @@
         </div>
       </div>
       <output id="localActionSourceSummary" class="selector-test-result" data-state="idle">Effective source is not available.</output>
+      <label class="filter-field">Find local-action profile<input id="localActionProfileSearch" type="search" autocomplete="off" placeholder="Name, destination, command, URL pattern, or profile ID"><small id="localActionProfileSearchResult" class="filter-result" aria-live="polite"></small></label>
       <div class="selector-grid compact-fields">
         <label>Profile<select id="localActionProfileSelect"></select></label>
         <label>Profile name<input id="localActionProfileName" type="text" autocomplete="off"></label>
@@ -530,6 +543,7 @@
         </div>
       </div>
       <div class="shell-preset-panel">
+        <label class="filter-field">Find command preset<input id="shellPresetSearch" type="search" autocomplete="off" placeholder="Name, command, working directory, or mode"><small id="shellPresetSearchResult" class="filter-result" aria-live="polite"></small></label>
         <div class="selector-grid compact-fields">
           <label>Command preset<select id="shellPresetSelect"><option value="">Custom command</option></select></label>
         </div>
@@ -549,6 +563,7 @@
           <option value="background">Run in background and capture output</option>
         </select></label>
       <label class="check-row"><input id="confirmBeforeRun" type="checkbox">Confirm before running</label>
+      <label class="filter-field">Find command history<input id="shellHistorySearch" type="search" autocomplete="off" placeholder="Command, preset, status, directory, return code, or date"><small id="shellHistorySearchResult" class="filter-result" aria-live="polite"></small></label>
       <div class="selector-grid compact-fields">
         <label>Recent command<select id="shellHistorySelect"><option value="">No command history</option></select></label>
         <label>History limit<input id="shellHistoryLimit" type="number" min="1" max="100" step="1"></label>

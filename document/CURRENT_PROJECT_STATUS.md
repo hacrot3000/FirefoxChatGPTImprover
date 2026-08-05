@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 29 v0.29.0
+**Current baseline:** Phase 30 v0.30.0
 **Primary supported environment:** Firefox Desktop on Linux and Windows  
 **Native Host:** 0.13.0
 
@@ -62,3 +62,5 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\tools\test_native_host_windows.ps1
 python .\tools\run_firefox_e2e.py --require-native
 ```
+
+| Sidebar search/filter | Complete | Non-destructive filters cover tabs, configuration/monitor/target/local-action profiles, global command presets and per-tab command history while preserving the current selection and drafts. |
