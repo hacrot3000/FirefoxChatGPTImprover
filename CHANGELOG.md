@@ -8,11 +8,42 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 
 ### In progress
 
-- Opt-in automatic activation for explicitly trusted URL patterns, disabled by default.
+- Per-rule statistics dashboard for match, click, verification, command-result and timing diagnostics.
 
 ### Deferred
 
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
+
+## [0.34.0] - 2026-08-06
+
+### Added
+
+- Firefox-managed keyboard shortcuts for opening the sidebar, toggling the current tab, acknowledging an alert and running the configured target action.
+- Optional unassigned commands for opening the current tab command log and stopping the current tab.
+- A sidebar Keyboard shortcuts group that displays the effective Firefox assignment, highlights unassigned/conflicting commands, opens Manage Extension Shortcuts and resets manifest defaults.
+- Tab-bound shortcut action delivery so command-log requests and error messages are consumed by the correct sidebar/tab context.
+
+### Safety
+
+- Shortcut handlers always resolve the currently active tab and never reuse a stale sidebar selection.
+- Permission failures open the sidebar with an actionable error instead of silently requesting host permission.
+- Only four commands receive suggested defaults; optional commands remain unassigned to reduce Firefox shortcut conflicts.
+
+## [0.33.0] - 2026-08-05
+
+### Added
+
+- Per-configuration-profile opt-in automatic activation for explicitly trusted HTTP/HTTPS URL patterns.
+- A user-gesture **Grant auto-activation access** flow that requests only the configured host origins and saves the profile before scanning.
+- Startup, completed-navigation, profile-save and manual open-tab scans using one guarded decision path.
+- Live auto-activation eligibility and last-decision status in the URL activation group.
+
+### Safety
+
+- Automatic activation remains disabled by default.
+- URL routing, explicit allowlist matching and Firefox host permission are mandatory.
+- Universal host patterns are rejected.
+- Active or paused tabs are never switched automatically, duplicate concurrent activation is blocked, and URL/profile routing is rechecked immediately before injection.
 
 ## [0.32.0] - 2026-08-05
 

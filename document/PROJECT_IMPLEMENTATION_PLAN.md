@@ -558,3 +558,28 @@ Completed in v0.31.0: persistent named catalog, search, create/update/rename/dup
 - The sidebar provides a Test sound preview without requiring Native Host.
 
 **Next approved task:** opt-in automatic activation for explicitly trusted URL patterns.
+
+### Phase 33 — Opt-in automatic activation for trusted URLs
+
+**Status:** Complete in v0.33.0.
+
+- Automatic activation is disabled by default and configured per configuration profile.
+- URL routing, `Require the URL to match the allowlist`, explicit HTTP/HTTPS hosts and Firefox permission are mandatory.
+- The permission request is initiated only by the user from the sidebar.
+- Startup, completed navigation, profile saves and manual scans share one guarded activation path.
+- Active or paused tabs are never switched automatically.
+- Concurrent duplicate activation is prevented by a tab/URL/profile signature, and routing is rechecked immediately before content-script injection.
+
+**Next approved task:** keyboard shortcuts for common tab and shell-log actions.
+
+## Phase 34 — Firefox-managed keyboard shortcuts (v0.34.0)
+
+**Status:** Complete.
+
+- Added manifest commands for sidebar, active-tab lifecycle, alert acknowledgement, target action, command-log access and stop.
+- Uses `browser.commands` as the source of truth for assignments and conflicts.
+- Sidebar displays current assignments and links to Firefox shortcut management.
+- Shortcut actions resolve the current active tab and keep pending sidebar actions correlated by tab/action ID.
+- Native Host for macOS remains deferred.
+
+**Next:** Per-rule statistics dashboard.

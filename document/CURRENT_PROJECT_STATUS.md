@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 32 v0.32.0
+**Current baseline:** Phase 34 v0.34.0
 **Primary supported environment:** Firefox Desktop on Linux and Windows  
 **Native Host:** 0.13.0
 
@@ -11,7 +11,7 @@
 | Multi-tab monitor and target automation | Complete | Independent tab/rule state, stability windows, baseline-only target action and recovery. |
 | AI READY / Running status | Complete | `matched` remains AI READY; only `waiting` displays Running; optional bounded sound alerts are available per profile/tab and default to off. |
 | Persistent custom tab titles | Complete | User-defined per-tab names survive reload/navigation/background restart, preserve the original page title and remain compatible with AI READY/Running decorations. |
-| Configuration, URL routing and tab overrides | Complete | Includes protected drafts, snapshots, working sessions, reusable Monitor/Target component profiles and typed per-profile JSON import/export. |
+| Configuration, URL routing and tab overrides | Complete | Includes protected drafts, snapshots, reusable Monitor/Target component profiles, typed per-profile JSON import/export and opt-in trusted-URL auto-activation with explicit permission gating. |
 | Command presets and rule-triggered commands | Complete | Includes per-tab execution, status, stop and history. |
 | Managed downloads | Complete | Capture, no-dialog restart, immutable snapshot, relocation, retry and post-download command. |
 | Restart recovery for managed downloads | Complete | Armed captures resume while valid; moves replay by idempotent receipt. |
@@ -54,7 +54,7 @@ A log file deleted before v0.28.20 cannot be reconstructed from metadata. Existi
 
 ## Required implementation status
 
-No required implementation tasks remain from the v0.28.19 feature audit. The recommended-feature sequence is active; Phase 32 delivered optional bounded sound alerts, and the next approved item is opt-in automatic activation for trusted URL patterns. Native Host for macOS remains deferred by project decision.
+No required implementation tasks remain from the v0.28.19 feature audit. The recommended-feature sequence is active; Phase 34 delivered Firefox-managed keyboard shortcuts, and the next approved item is the per-rule statistics dashboard. Native Host for macOS remains deferred by project decision.
 
 Windows runtime validation can be run on a Windows machine with:
 

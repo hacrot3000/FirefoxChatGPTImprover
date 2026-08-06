@@ -138,6 +138,33 @@
       </div>
     </section>
 
+
+    <section class="card" data-group-id="keyboard-shortcuts" aria-labelledby="keyboardShortcutsHeading">
+      <div class="section-title-row">
+        <h2 id="keyboardShortcutsHeading">Keyboard shortcuts</h2>
+        <div class="group-heading-actions" role="group" aria-label="Keyboard shortcut actions">
+          <button id="refreshShortcutsButton" type="button" class="compact icon-button" aria-label="Refresh keyboard shortcuts" title="Refresh keyboard shortcuts">↻</button>
+          <details class="help-menu heading-help-menu">
+            <summary aria-label="Keyboard shortcuts help" title="Help">?</summary>
+            <div class="help-popover" role="tooltip">Firefox owns shortcut assignment and conflict resolution. Unassigned commands stay available in Manage Extension Shortcuts. Shortcut actions always use the currently active tab.</div>
+          </details>
+        </div>
+      </div>
+      <dl class="details shortcut-details">
+        <div class="details-wide"><dt>Open sidebar</dt><dd id="shortcutOpenSidebar" class="shortcut-value">Not assigned</dd></div>
+        <div class="details-wide"><dt>Activate / pause / resume</dt><dd id="shortcutToggleCurrentTab" class="shortcut-value">Not assigned</dd></div>
+        <div class="details-wide"><dt>Acknowledge alert</dt><dd id="shortcutAcknowledgeAlert" class="shortcut-value">Not assigned</dd></div>
+        <div class="details-wide"><dt>Run target action</dt><dd id="shortcutRunTargetAction" class="shortcut-value">Not assigned</dd></div>
+        <div class="details-wide"><dt>Open command log</dt><dd id="shortcutOpenCommandLog" class="shortcut-value">Not assigned</dd></div>
+        <div class="details-wide"><dt>Stop current tab</dt><dd id="shortcutStopCurrentTab" class="shortcut-value">Not assigned</dd></div>
+      </dl>
+      <div class="button-grid">
+        <button id="manageShortcutsButton" type="button" class="primary">Manage shortcuts in Firefox</button>
+        <button id="resetShortcutsButton" type="button">Reset to defaults</button>
+      </div>
+      <output id="shortcutStatus" class="selector-test-result" aria-live="polite"></output>
+    </section>
+
     <section class="card" data-group-id="working-sessions" aria-labelledby="workingSessionsHeading">
       <h2 id="workingSessionsHeading">Saved working sessions</h2>
       <label class="filter-field">
@@ -210,6 +237,10 @@
         <input id="autoProfileByUrl" type="checkbox">
         Automatically select a matching profile when activating an inactive tab
       </label>
+      <label class="check-row auto-activation-opt-in">
+        <input id="autoActivateMatchingUrls" type="checkbox">
+        Automatically activate matching pages for this profile (opt-in)
+      </label>
       <div class="two-column compact-fields">
         <label class="check-row">
           <input id="routingEnabled" type="checkbox">
@@ -230,11 +261,14 @@
       <div class="button-grid routing-actions">
         <button id="testUrlRoutingButton" type="button">Test current URL</button>
         <button id="useRoutedProfileButton" type="button">Use matching profile</button>
+        <button id="grantAutoActivationAccessButton" type="button">Grant auto-activation access</button>
+        <button id="runAutoActivationScanButton" type="button">Activate matching open tabs</button>
       </div>
       <output id="urlRoutingResult" class="selector-test-result routing-result"></output>
+      <output id="autoActivationResult" class="selector-test-result routing-result" aria-live="polite">Automatic activation is disabled for this profile.</output>
       <details class="help-menu">
         <summary aria-label="URL profile routing help" title="Help">?</summary>
-        <div class="help-popover">Higher-priority profiles are selected first. If priorities are equal, the more specific pattern wins. Active tabs never switch profiles automatically.</div>
+        <div class="help-popover">Higher-priority profiles are selected first. If priorities are equal, the more specific pattern wins. Automatic activation is disabled by default, requires an explicit HTTP/HTTPS allowlist and Firefox host permission, and never switches an already-active tab to another profile.</div>
       </details>
     </section>
 

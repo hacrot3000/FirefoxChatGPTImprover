@@ -1,11 +1,11 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 17) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 18) {
     return;
   }
 
-  const SCHEMA_VERSION = 17;
+  const SCHEMA_VERSION = 18;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
@@ -221,7 +221,8 @@
         requireUrlMatch: false,
         urlPatterns: [],
         routingEnabled: true,
-        routingPriority: 0
+        routingPriority: 0,
+        autoActivate: false
       },
       activeRuleId: rule.id,
       rules: [rule],
@@ -465,7 +466,8 @@
         requireUrlMatch: safeBoolean(activation.requireUrlMatch, false),
         urlPatterns: [...new Set(patterns.map((item) => safeString(item).trim()).filter(Boolean))],
         routingEnabled: safeBoolean(activation.routingEnabled, true),
-        routingPriority: safeInteger(activation.routingPriority, 0, -1000, 1000)
+        routingPriority: safeInteger(activation.routingPriority, 0, -1000, 1000),
+        autoActivate: safeBoolean(activation.autoActivate, false)
       },
       activeRuleId: activeRule.id,
       rules,
@@ -715,6 +717,27 @@
     return matchingUrlPatterns(config, url).length > 0;
   }
 
+  function trustedAutoActivationPattern(rawPattern) {
+    const pattern = safeString(rawPattern).trim();
+    const match = /^(https?):\/\/([^/]+)(?:\/.*)?$/i.exec(pattern);
+    if (!match) return null;
+    const scheme = match[1].toLowerCase();
+    const host = match[2].toLowerCase();
+    if (!host || host === "*" || host === "*.*") return null;
+    const wildcardIndex = host.indexOf("*");
+    if (wildcardIndex >= 0 && !host.startsWith("*.") ) return null;
+    if ((host.match(/\*/g) || []).length > 1) return null;
+    return { pattern, scheme, host, permissionOrigin: `${scheme}://${host}/*` };
+  }
+
+  function autoActivationPermissionOrigins(rawConfig) {
+    const activation = normalizeConfig(rawConfig).activation;
+    return [...new Set(activation.urlPatterns
+      .map(trustedAutoActivationPattern)
+      .filter(Boolean)
+      .map((entry) => entry.permissionOrigin))];
+  }
+
   function patternSpecificity(pattern) {
     const text = safeString(pattern);
     const literalLength = text.replaceAll("*", "").length;
@@ -756,6 +779,47 @@
     return candidates;
   }
 
+  function autoActivationRouteCandidates(rawStore, url) {
+    const store = normalizeStore(rawStore);
+    return profileRouteCandidates(store, url).filter((candidate) => {
+      const profile = profileById(store, candidate.profileId);
+      const activation = normalizeConfig(profile?.config).activation;
+      if (!activation.autoActivate || !activation.requireUrlMatch || !activation.routingEnabled) return false;
+      const trustedPatterns = new Set(activation.urlPatterns
+        .map(trustedAutoActivationPattern)
+        .filter(Boolean)
+        .map((entry) => entry.pattern));
+      const matchedPatterns = candidate.matchedPatterns.filter((pattern) => trustedPatterns.has(pattern));
+      if (!matchedPatterns.length) return false;
+      const ranked = matchedPatterns
+        .map((pattern) => ({ pattern, specificity: patternSpecificity(pattern) }))
+        .sort((left, right) => right.specificity - left.specificity || left.pattern.localeCompare(right.pattern));
+      candidate.bestPattern = ranked[0].pattern;
+      candidate.specificity = ranked[0].specificity;
+      candidate.matchedPatterns = ranked.map((item) => item.pattern);
+      return true;
+    }).sort((left, right) =>
+      right.priority - left.priority ||
+      right.specificity - left.specificity ||
+      left.profileIndex - right.profileIndex
+    );
+  }
+
+  function routeAutoActivation(rawStore, url) {
+    const store = normalizeStore(rawStore);
+    const candidates = autoActivationRouteCandidates(store, url);
+    const profile = candidates.length ? profileById(store, candidates[0].profileId) : null;
+    return {
+      url: safeString(url),
+      matched: Boolean(profile),
+      usedFallback: false,
+      profileId: profile?.id || null,
+      profileName: profile?.name || null,
+      profile,
+      candidates
+    };
+  }
+
   function routeProfile(rawStore, url, options = {}) {
     const store = normalizeStore(rawStore);
     const candidates = profileRouteCandidates(store, url);
@@ -778,6 +842,25 @@
   function validateConfig(raw) {
     const config = normalizeConfig(raw);
     const errors = [];
+
+    if (config.activation.autoActivate) {
+      if (!config.activation.routingEnabled) {
+        errors.push("Automatic URL activation requires URL routing to be enabled for this profile.");
+      }
+      if (!config.activation.requireUrlMatch) {
+        errors.push("Automatic URL activation requires ‘Require the URL to match the allowlist’.");
+      }
+      if (!config.activation.urlPatterns.length) {
+        errors.push("Automatic URL activation requires at least one explicit HTTP or HTTPS URL pattern.");
+      }
+      const invalidPatterns = config.activation.urlPatterns.filter((pattern) => !trustedAutoActivationPattern(pattern));
+      if (invalidPatterns.length) {
+        errors.push(`Automatic URL activation accepts only explicit HTTP/HTTPS hosts; invalid pattern(s): ${invalidPatterns.join(", ")}`);
+      }
+      if (!autoActivationPermissionOrigins(config).length) {
+        errors.push("Automatic URL activation has no grantable Firefox host permission origin.");
+      }
+    }
 
     for (const rule of config.rules) {
       const labelPrefix = `Rule “${rule.name}”`;
@@ -915,7 +998,11 @@
       profileById,
       selectorToCss,
       matchingUrlPatterns,
+      trustedAutoActivationPattern,
+      autoActivationPermissionOrigins,
       profileRouteCandidates,
+      autoActivationRouteCandidates,
+      routeAutoActivation,
       routeProfile,
       urlAllowed,
       validateConfig,

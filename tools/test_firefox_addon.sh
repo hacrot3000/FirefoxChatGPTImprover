@@ -92,6 +92,10 @@ node tests/test_phase31_v0310_saved_working_session_catalog.js
 
 node tests/test_phase32_v0320_optional_sound_alert.js
 
+node tests/test_phase33_v0330_opt_in_url_auto_activation.js
+
+node tests/test_phase34_v0340_keyboard_shortcuts.js
+
 if [ "${FCI_RUN_FIREFOX_E2E:-0}" = "1" ]; then
   python3 tools/run_firefox_e2e.py ${FCI_FIREFOX_E2E_ARGS:-}
 else
@@ -112,5 +116,5 @@ elif [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-32 v0.32.0 full regression, optional sound alerts with bounded per-cycle playback, named saved working-session catalog, non-destructive search/filter, persistent custom tab titles, source syntax, Linux/Windows Native Host runtime, real-Firefox E2E tooling and protected command-log retention.
+printf 'PASS: FirefoxChatImprover Phase 04-34 v0.34.0 full regression, opt-in trusted URL auto-activation, optional sound alerts, named saved working-session catalog, non-destructive search/filter, persistent custom tab titles, source syntax, Linux/Windows Native Host runtime, real-Firefox E2E tooling and protected command-log retention.
 '

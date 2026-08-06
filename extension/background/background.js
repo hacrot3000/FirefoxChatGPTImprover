@@ -47,6 +47,10 @@
   const runToTab = new Map();
   const shellBroadcastTimers = new Map();
   const runtimeBroadcastTimers = new Map();
+  const autoActivationInFlight = new Map();
+  const autoActivationAudit = new Map();
+  let autoActivationScanTimer = null;
+  let pendingShortcutAction = null;
   const pendingNativeRequests = new Map();
   let nativePort = null;
   let nativeState = {
@@ -57,6 +61,14 @@
     lastSeenAt: null,
     logStore: null
   };
+
+  const KEYBOARD_COMMAND = Object.freeze({
+    TOGGLE_CURRENT_TAB: "fci-toggle-current-tab",
+    ACKNOWLEDGE_CURRENT_ALERT: "fci-acknowledge-current-alert",
+    RUN_CURRENT_TARGET_ACTION: "fci-run-current-target-action",
+    OPEN_CURRENT_COMMAND_LOG: "fci-open-current-command-log",
+    STOP_CURRENT_TAB: "fci-stop-current-tab"
+  });
 
   function emptyShellRun(tabId) {
     return {
@@ -3123,6 +3135,106 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return clone(session.runtime);
   }
 
+  function autoActivationDecision(tab, status, detail = {}) {
+    const value = {
+      tabId: Number(tab?.id),
+      url: String(tab?.url || ""),
+      title: String(tab?.title || ""),
+      status,
+      reason: String(detail.reason || ""),
+      profileId: detail.profileId || null,
+      profileName: detail.profileName || null,
+      matchedPattern: detail.matchedPattern || null,
+      source: detail.source || null,
+      signature: detail.signature || null,
+      at: Settings.nowIso()
+    };
+    if (Number.isInteger(value.tabId)) autoActivationAudit.set(value.tabId, value);
+    return value;
+  }
+
+  async function attemptAutoActivation(tab, reason = "tab-complete") {
+    if (!Number.isInteger(tab?.id) || !isSupportedUrl(tab?.url)) return { status: "unsupported" };
+    if (sessions.has(tab.id)) {
+      return autoActivationDecision(tab, "skipped", { reason: "tab-already-active", source: reason });
+    }
+    const store = await loadStore();
+    const routing = Settings.routeAutoActivation(store, tab.url);
+    if (!routing.matched || !routing.profileId) {
+      return autoActivationDecision(tab, "not-matched", { reason: "no-opt-in-profile-match", source: reason });
+    }
+    const candidate = routing.candidates[0] || {};
+    const signature = `${tab.id}|${tab.url}|${routing.profileId}`;
+    if (autoActivationInFlight.get(tab.id) === signature) {
+      return autoActivationDecision(tab, "skipped", { reason: "activation-already-in-flight", source: reason, profileId: routing.profileId, profileName: routing.profileName, matchedPattern: candidate.bestPattern, signature });
+    }
+    autoActivationInFlight.set(tab.id, signature);
+    try {
+      if (!(await hasHostPermission(tab.url))) {
+        return autoActivationDecision(tab, "permission-required", {
+          reason: "Firefox host permission has not been granted for this URL.", source: reason,
+          profileId: routing.profileId, profileName: routing.profileName, matchedPattern: candidate.bestPattern, signature
+        });
+      }
+      const freshTab = await browser.tabs.get(tab.id);
+      const freshRouting = Settings.routeAutoActivation(await loadStore(), freshTab.url || "");
+      if (freshTab.url !== tab.url || freshRouting.profileId !== routing.profileId) {
+        return autoActivationDecision(freshTab, "stale", { reason: "tab-url-or-profile-changed-before-activation", source: reason, signature });
+      }
+      await activateTab(freshTab, "url-auto", routing.profileId);
+      const session = sessions.get(freshTab.id);
+      if (session) {
+        appendLog(session, "user", "auto-activated", `Tab automatically activated by URL profile “${routing.profileName}”.`, {
+          reason, profileId: routing.profileId, matchedPattern: candidate.bestPattern, signature
+        });
+        await persistSession(session);
+      }
+      const decision = autoActivationDecision(freshTab, "activated", {
+        reason, source: "url-auto", profileId: routing.profileId, profileName: routing.profileName,
+        matchedPattern: candidate.bestPattern, signature
+      });
+      await broadcast("auto-activated", freshTab.id);
+      return decision;
+    } catch (error) {
+      const decision = autoActivationDecision(tab, "error", {
+        reason: error instanceof Error ? error.message : String(error), source: reason,
+        profileId: routing.profileId, profileName: routing.profileName, matchedPattern: candidate.bestPattern, signature
+      });
+      await broadcast("auto-activation-error", tab.id);
+      return decision;
+    } finally {
+      if (autoActivationInFlight.get(tab.id) === signature) autoActivationInFlight.delete(tab.id);
+    }
+  }
+
+  async function scanAutoActivationTabs(reason = "manual-scan", onlyTabId = null) {
+    const hasSpecificTab = onlyTabId !== null && onlyTabId !== undefined && Number.isInteger(Number(onlyTabId));
+    const tabs = hasSpecificTab
+      ? [await browser.tabs.get(Number(onlyTabId))]
+      : await browser.tabs.query({});
+    const report = { scanned: 0, activated: 0, permissionRequired: 0, skipped: 0, notMatched: 0, errors: 0, decisions: [] };
+    for (const tab of tabs) {
+      if (!Number.isInteger(tab?.id) || !isSupportedUrl(tab?.url)) continue;
+      report.scanned += 1;
+      const decision = await attemptAutoActivation(tab, reason);
+      report.decisions.push(decision);
+      if (decision.status === "activated") report.activated += 1;
+      else if (decision.status === "permission-required") report.permissionRequired += 1;
+      else if (decision.status === "not-matched") report.notMatched += 1;
+      else if (decision.status === "error") report.errors += 1;
+      else report.skipped += 1;
+    }
+    return report;
+  }
+
+  function scheduleAutoActivationScan(reason, delayMs = 120) {
+    if (autoActivationScanTimer) clearTimeout(autoActivationScanTimer);
+    autoActivationScanTimer = setTimeout(() => {
+      autoActivationScanTimer = null;
+      void scanAutoActivationTabs(reason).catch((error) => console.error("FirefoxChatImprover: automatic activation scan failed", error));
+    }, Math.max(0, Number(delayMs) || 0));
+  }
+
   async function activateTab(tab, source, requestedProfileId = null) {
     if (!Number.isInteger(tab?.id)) {
       throw new Error("Could not determine the current tab.");
@@ -3182,7 +3294,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       appendLog(session, "user", "activated", `Tab activated by ${source}.`, {
         url: tab.url,
         profileId: profile.id,
-        profileRouting: requestedProfileId ? "manual" : (routing?.matched ? "url-match" : "default-fallback"),
+        profileRouting: source === "url-auto" ? "auto-url-match" : (requestedProfileId ? "manual" : (routing?.matched ? "url-match" : "default-fallback")),
         matchedPattern: routing?.candidates?.[0]?.bestPattern || null,
         localActionProfileId: session.localActionProfileId,
         localActionRouting: localRouting.matched ? "url-match" : "default-fallback",
@@ -3661,6 +3773,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     assertPersistedConfig(incoming.config, persistedProfile.config, "Save profile");
     await updateProfileSessions(incoming.id, saved);
     await broadcast("profile-saved");
+    scheduleAutoActivationScan("profile-saved", 80);
     return saved;
   }
 
@@ -3814,6 +3927,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         version: manifest.version,
         manifestVersion: manifest.manifest_version,
         protocolVersion: globalThis.FCI_PROTOCOL.VERSION,
+      keyboardCommands,
+      pendingShortcutAction: clone(pendingShortcutAction),
         settingsSchemaVersion: Settings.SCHEMA_VERSION
       },
       environment: SupportBundle.sanitizeValue({ platform, browser: browserInfo }),
@@ -4132,9 +4247,96 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return report;
   }
 
+  function shortcutAction(action, tabId, command, message = "") {
+    pendingShortcutAction = {
+      id: `shortcut-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      action: String(action || "message"),
+      tabId: Number.isInteger(Number(tabId)) ? Number(tabId) : null,
+      command: String(command || ""),
+      message: String(message || ""),
+      createdAt: Settings.nowIso()
+    };
+    return clone(pendingShortcutAction);
+  }
+
+  async function keyboardCommandsDashboard() {
+    if (!browser.commands?.getAll) return [];
+    try {
+      const commands = await browser.commands.getAll();
+      return commands.map((item) => ({
+        name: String(item?.name || ""),
+        description: String(item?.description || ""),
+        shortcut: String(item?.shortcut || ""),
+        assigned: Boolean(String(item?.shortcut || "").trim())
+      }));
+    } catch (error) {
+      return [{ name: "", description: "Keyboard shortcut status unavailable", shortcut: "", assigned: false, error: error instanceof Error ? error.message : String(error) }];
+    }
+  }
+
+  async function acknowledgeAlertByShortcut(tabId) {
+    const session = sessions.get(tabId);
+    if (!session) throw new Error("This tab is not activated.");
+    await ensureInteractiveTab(tabId);
+    const response = await browser.tabs.sendMessage(tabId, { type: MESSAGE.CONTENT_ACKNOWLEDGE_ALERT });
+    if (!response?.ok) throw new Error(response?.error || "Could not acknowledge the current alert.");
+    if (response.runtime) session.runtime = { ...session.runtime, ...response.runtime };
+    session.updatedAt = Settings.nowIso();
+    appendLog(session, "user", "alert-acknowledged-shortcut", "Alert acknowledged from a keyboard shortcut.");
+    const store = await loadStore();
+    await persistSession(session);
+    await clearNotification(tabId);
+    await updateBadge(session, store);
+    await broadcast("keyboard-shortcut-alert-acknowledged", tabId);
+    return true;
+  }
+
+  async function handleKeyboardCommand(command) {
+    const tab = await currentTab();
+    if (!Number.isInteger(tab?.id)) throw new Error("Could not determine the current tab.");
+    const tabId = tab.id;
+    const session = sessions.get(tabId);
+    switch (command) {
+      case KEYBOARD_COMMAND.TOGGLE_CURRENT_TAB:
+        if (!session) return activateTab(tab, "keyboard-shortcut");
+        if (session.mode === MODE.PAUSED) return resumeTab(tabId);
+        if (session.mode === MODE.ACTIVE) return pauseTab(tabId);
+        await stopTab(tabId, tab);
+        return activateTab(tab, "keyboard-shortcut");
+      case KEYBOARD_COMMAND.ACKNOWLEDGE_CURRENT_ALERT:
+        return acknowledgeAlertByShortcut(tabId);
+      case KEYBOARD_COMMAND.RUN_CURRENT_TARGET_ACTION: {
+        if (!session) throw new Error("Activate this tab before running its target action.");
+        const store = await loadStore();
+        return testTargetAction(tabId, sessionConfig(session, store), true);
+      }
+      case KEYBOARD_COMMAND.OPEN_CURRENT_COMMAND_LOG:
+        shortcutAction("open-shell-log", tabId, command, "Open the current tab command log.");
+        await browser.sidebarAction.open();
+        await broadcast("keyboard-shortcut-open-command-log", tabId);
+        return true;
+      case KEYBOARD_COMMAND.STOP_CURRENT_TAB:
+        if (!session) throw new Error("This tab is not activated.");
+        return stopTab(tabId, tab);
+      default:
+        return false;
+    }
+  }
+
+  async function handleKeyboardCommandFailure(command, error) {
+    const tab = await currentTab().catch(() => null);
+    const tabId = Number.isInteger(tab?.id) ? tab.id : null;
+    const message = error instanceof Error ? error.message : String(error);
+    if (Number.isInteger(tabId)) await applyBadge(tabId, "!", "#cf222e").catch(() => {});
+    shortcutAction("message", tabId, command, message);
+    try { await browser.sidebarAction.open(); } catch (_error) {}
+    await broadcast("keyboard-shortcut-error", tabId);
+    console.error(`FirefoxChatImprover: keyboard command ${command} failed`, error);
+  }
+
   async function dashboard() {
     await recoverAll();
-    const [store, localActionStore, workingSessionCatalog] = await Promise.all([loadStore(), loadLocalActionStore(), loadWorkingSessionCatalog()]);
+    const [store, localActionStore, workingSessionCatalog, keyboardCommands] = await Promise.all([loadStore(), loadLocalActionStore(), loadWorkingSessionCatalog(), keyboardCommandsDashboard()]);
     const snapshotCollection = await loadSnapshotCollection();
     const tab = await currentTab();
     const currentTabMeta = await tabMetaWithCustomTitle(tab);
@@ -4142,9 +4344,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       .map((session) => publicSession(session, store, localActionStore))
       .sort((left, right) => left.tabId - right.tabId);
     const routingPreview = Settings.routeProfile(store, tab?.url || "");
+    const autoActivationPreview = Settings.routeAutoActivation(store, tab?.url || "");
     const localActionRoutingPreview = LocalActions.routeProfile(localActionStore, tab?.url || "");
     return {
       protocolVersion: globalThis.FCI_PROTOCOL.VERSION,
+      keyboardCommands,
+      pendingShortcutAction: clone(pendingShortcutAction),
       currentTab: currentTabMeta,
       sessions: publicSessions,
       store,
@@ -4154,6 +4359,17 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         profileId: localActionRoutingPreview.profileId,
         profileName: localActionRoutingPreview.profileName,
         candidates: localActionRoutingPreview.candidates
+      },
+      autoActivation: {
+        current: Number.isInteger(tab?.id) ? clone(autoActivationAudit.get(tab.id) || null) : null,
+        preview: {
+          url: autoActivationPreview.url,
+          matched: autoActivationPreview.matched,
+          profileId: autoActivationPreview.profileId,
+          profileName: autoActivationPreview.profileName,
+          candidates: autoActivationPreview.candidates
+        },
+        recent: [...autoActivationAudit.values()].slice(-20).map((item) => clone(item))
       },
       routingPreview: {
         url: routingPreview.url,
@@ -4215,6 +4431,10 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         case MESSAGE.GET_DASHBOARD:
           return { ok: true, dashboard: await dashboard() };
 
+        case MESSAGE.ACK_SHORTCUT_ACTION:
+          if (!message.actionId || pendingShortcutAction?.id === String(message.actionId)) pendingShortcutAction = null;
+          return { ok: true, dashboard: await dashboard() };
+
         case MESSAGE.ACTIVATE_CURRENT: {
           const requestedTabId = Number(message.tabId);
           const tab = Number.isInteger(requestedTabId)
@@ -4222,6 +4442,14 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
             : await currentTab();
           await activateTab(tab, "sidebar", message.profileId || null);
           return { ok: true, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.RUN_AUTO_ACTIVATION_SCAN: {
+          const report = await scanAutoActivationTabs(
+            message.reason || "sidebar-scan",
+            Number.isInteger(Number(message.tabId)) ? Number(message.tabId) : null
+          );
+          return { ok: true, report, dashboard: await dashboard() };
         }
 
         case MESSAGE.PAUSE_TAB:
@@ -4524,6 +4752,17 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     }
   }
 
+  if (browser.commands?.onCommand) {
+    browser.commands.onCommand.addListener((command) => {
+      void handleKeyboardCommand(command).catch((error) => handleKeyboardCommandFailure(command, error));
+    });
+  }
+  if (browser.commands?.onChanged) {
+    browser.commands.onChanged.addListener(() => {
+      void broadcast("keyboard-shortcuts-changed");
+    });
+  }
+
   browser.action.onClicked.addListener((tab) => {
     void browser.sidebarAction.open().catch((error) => {
       console.error("FirefoxChatImprover: cannot open sidebar", error);
@@ -4539,7 +4778,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
   const requestTypes = new Set([
     MESSAGE.GET_DASHBOARD,
+    MESSAGE.ACK_SHORTCUT_ACTION,
     MESSAGE.ACTIVATE_CURRENT,
+    MESSAGE.RUN_AUTO_ACTIVATION_SCAN,
     MESSAGE.PAUSE_TAB,
     MESSAGE.RESUME_TAB,
     MESSAGE.STOP_TAB,
@@ -4604,7 +4845,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
   const SIDEBAR_REQUEST_TYPES = new Set([
     MESSAGE.GET_DASHBOARD,
+    MESSAGE.ACK_SHORTCUT_ACTION,
     MESSAGE.ACTIVATE_CURRENT,
+    MESSAGE.RUN_AUTO_ACTIVATION_SCAN,
     MESSAGE.PAUSE_TAB,
     MESSAGE.RESUME_TAB,
     MESSAGE.STOP_TAB,
@@ -4721,6 +4964,11 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
   browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     const session = sessions.get(tabId);
     if (!session) {
+      if (changeInfo.status === "complete") {
+        void attemptAutoActivation(tab, "tab-complete").catch((error) => {
+          console.error("FirefoxChatImprover: automatic URL activation failed", error);
+        });
+      }
       return;
     }
 
@@ -4806,7 +5054,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       .catch(() => broadcast("active-tab-changed", activeInfo.tabId));
   });
 
-  browser.tabs.onRemoved.addListener((tabId) => { volatileLocalActionDrafts.delete(Number(tabId));
+  browser.tabs.onRemoved.addListener((tabId) => { volatileLocalActionDrafts.delete(Number(tabId)); autoActivationInFlight.delete(Number(tabId)); autoActivationAudit.delete(Number(tabId));
     const shellRun = shellRuns.get(tabId);
     if (shellRun?.runId && ["starting", "running", "terminal", "stopping"].includes(shellRun.status)) {
       try {
@@ -4855,6 +5103,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
   void recoverAll()
     .then(() => restoreAllCustomTabTitles())
+    .then(() => scanAutoActivationTabs("background-startup"))
     .then(() => scheduleNativeLogCleanup("startup", 2500))
     .catch((error) => {
       console.error("FirefoxChatImprover: startup session recovery failed", error);

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.32.0",
-  "description": "Firefox ChatAI Assistant with independent tab automation, reusable profiles, persistent custom titles, optional audible alerts, managed downloads, Linux/Windows Native Host commands, and searchable tabs, profiles, presets, history, and saved sessions.",
+  "version": "0.34.0",
+  "description": "Firefox ChatAI Assistant with independent tab automation, reusable profiles, persistent custom titles, optional sound alerts, trusted-URL auto-activation, keyboard shortcuts, managed downloads, Linux/Windows Native Host commands, and searchable tabs, profiles, presets, history, and saved sessions.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-assistant@duongtc.local",
@@ -60,5 +60,41 @@
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none';"
+  },
+  "commands": {
+    "_execute_sidebar_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Open Firefox ChatAI Assistant sidebar"
+    },
+    "fci-toggle-current-tab": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+U",
+        "mac": "Command+Shift+U"
+      },
+      "description": "Activate, pause, or resume the current tab"
+    },
+    "fci-acknowledge-current-alert": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Acknowledge the current tab alert"
+    },
+    "fci-run-current-target-action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
+      "description": "Run the configured target action in the current tab"
+    },
+    "fci-open-current-command-log": {
+      "description": "Open the current tab command log in the sidebar"
+    },
+    "fci-stop-current-tab": {
+      "description": "Stop Firefox ChatAI Assistant in the current tab"
+    }
   }
 }

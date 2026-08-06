@@ -52,8 +52,8 @@ const Protocol = context.FCI_PROTOCOL;
 const Sound = context.FCI_ALERT_SOUND;
 const Alert = context.FCI_ALERT_ENGINE;
 
-assert.equal(Settings.SCHEMA_VERSION, 17);
-assert.equal(Protocol.VERSION, 21);
+assert(Settings.SCHEMA_VERSION >= 17);
+assert(Protocol.VERSION >= 21);
 assert.equal(Alert.VERSION, 12);
 assert.equal(Sound.VERSION, 1);
 

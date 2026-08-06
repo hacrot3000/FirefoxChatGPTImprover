@@ -2,9 +2,9 @@
 
 <!-- FCI_PROJECT_STATUS_SCHEMA: 1 -->
 
-- Current add-on version: **0.32.0**
+- Current add-on version: **0.34.0**
 - Native Host version: **0.13.0**
-- Status updated: **2026-08-05**
+- Status updated: **2026-08-06**
 - Required-feature backlog: **completed**
 - Recommended-feature backlog: **in progress**
 
@@ -15,11 +15,12 @@ This file is the release-facing feature inventory. Every feature patch must upda
 | Area | Capability | Progress | Release state |
 | --- | --- | ---: | --- |
 | Multi-tab runtime | Independent activation, pause/resume/stop, cycles, logs, alert state and local actions per tab | **100%** | Released |
-| Configuration management | Configuration profiles, URL routing, tab override, migration, recovery snapshots and typed import/export | **100%** | Released |
+| Configuration management | Configuration profiles, URL routing, opt-in trusted-URL automatic activation, tab override, migration, recovery snapshots and typed import/export | **100%** | Auto-activation completed in v0.33.0 |
 | Monitor and target profiles | Reusable Monitor element and New target element profile libraries with typed JSON import/export | **100%** | Released in v0.29.0 |
 | Automation engine | Multiple rules, monitor conditions, stability window, new-target baseline, picker, selector tests and action pipeline | **100%** | Released |
 | Alerts and titles | AI READY/running indicators, desktop notification, optional bounded sound alerts, badge/title lifecycle and persistent custom tab names | **100%** | Sound alerts completed in v0.32.0 |
 | Sidebar scale | Search/filter for tabs, all profile libraries, command presets and command history | **100%** | Released in v0.30.0 |
+| Keyboard shortcuts | Firefox-managed shortcuts for sidebar, tab lifecycle, alert acknowledgement, target action and command-log access | **100%** | Released in v0.34.0 |
 | Working sessions | Export/import current tabs plus a searchable named catalog with update, rename, duplicate, delete, typed JSON backup and controlled subset restore | **100%** | Released in v0.31.0 |
 | Managed downloads | Dialog-free capture, immutable per-tab jobs, relocation receipts, restart recovery and correlated Native Host responses | **100%** | Released |
 | Shell execution | Manual/automatic execution, reusable presets, full stdout/stderr, per-tab history, recovery and stop semantics | **100%** | Released |
@@ -31,16 +32,14 @@ This file is the release-facing feature inventory. Every feature patch must upda
 
 | Feature | Scope | Progress | Current work |
 | --- | --- | ---: | --- |
-| Opt-in auto-activation by URL | Automatically activate trusted allowlisted pages while remaining disabled by default and preserving per-tab isolation | **10%** | Safety model and explicit allowlist behavior prepared for the next phase |
+| Per-rule statistics dashboard | Match/click/verify/return-code counts and timing diagnostics | **10%** | Runtime counter model and dashboard scope prepared for the next phase |
 ## Planned features
 
 | Priority | Feature | Expected value | Progress |
 | ---: | --- | --- | ---: |
-| 1 | Keyboard shortcuts | Faster activate, pause, stop, sidebar and full-log access | **0%** |
-| 2 | Per-rule statistics dashboard | Match/click/verify/return-code counts and timing diagnostics | **0%** |
-| 3 | Compressed per-run log export | Archive and share one command run with metadata and complete logs | **0%** |
-| 4 | Chromium port | Reuse the engine on Chrome/Edge with platform-specific manifest and Native Host registration | **0%** |
-| 5 | Full accessibility audit | Focus order, screen reader, contrast and keyboard-only picker flow | **0%** |
+| 1 | Compressed per-run log export | Archive and share one command run with metadata and complete logs | **0%** |
+| 2 | Chromium port | Reuse the engine on Chrome/Edge with platform-specific manifest and Native Host registration | **0%** |
+| 3 | Full accessibility audit | Focus order, screen reader, contrast and keyboard-only picker flow | **0%** |
 ## Deferred
 
 | Feature | State | Reason |

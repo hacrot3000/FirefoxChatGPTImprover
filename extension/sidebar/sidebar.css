@@ -688,3 +688,7 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 #workingSessionCatalogDescription { resize: vertical; min-height: 48px; }
 #workingSessionCatalogResult[data-state="error"] { color: var(--danger); }
 #workingSessionCatalogResult[data-state="success"] { color: var(--active); }
+
+/* Phase 34 keyboard shortcut status */
+.shortcut-value { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
+.shortcut-value[data-state="missing"] { color: var(--paused); font-family: inherit; font-style: italic; }

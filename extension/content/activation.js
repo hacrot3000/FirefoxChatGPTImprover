@@ -462,6 +462,11 @@
         return Promise.resolve(setMode(MODE.INACTIVE));
       case MESSAGE.CONTENT_STATUS:
         return Promise.resolve(snapshot());
+      case MESSAGE.CONTENT_ACKNOWLEDGE_ALERT: {
+        const result = alertController.acknowledge("keyboard-shortcut");
+        applyDocumentMarker();
+        return Promise.resolve({ ok: true, result, runtime: snapshot().runtime });
+      }
       case MESSAGE.CONTENT_TEST_SELECTOR:
         try {
           return Promise.resolve({

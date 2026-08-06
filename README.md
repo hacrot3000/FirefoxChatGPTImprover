@@ -683,3 +683,18 @@ Release tasks validate both files and use them to generate GitHub Release notes 
 - Plays at most once per alert cycle, stops pending repeats when dismissed and does not replay an already-restored cycle.
 - Includes a Test sound preview and keeps Native Host unchanged at 0.13.0.
 <!-- FIREFOX_CHAT_IMPROVER_PHASE32_V0320_END -->
+
+<!-- FIREFOX_CHAT_IMPROVER_PHASE33_V0330_BEGIN -->
+## Phase 33 v0.33.0 — opt-in trusted URL auto-activation
+
+- Adds profile-level automatic activation for explicit HTTP/HTTPS allowlists; it remains disabled by default.
+- Firefox site access is requested only from the **Grant auto-activation access** user action.
+- Startup and navigation scans never change an already-active or paused tab and revalidate the URL/profile immediately before activation.
+- Native Host remains unchanged at 0.13.0.
+<!-- FIREFOX_CHAT_IMPROVER_PHASE33_V0330_END -->
+
+<!-- FCI_PHASE34_KEYBOARD_SHORTCUTS_BEGIN -->
+## Keyboard shortcuts (v0.34.0)
+
+Firefox-managed shortcuts are available for opening the sidebar, toggling the active tab, acknowledging alerts and running the configured target action. Open **Keyboard shortcuts** in the sidebar to inspect effective assignments, resolve conflicts in Firefox and reset defaults. Optional log/stop commands are intentionally unassigned by default.
+<!-- FCI_PHASE34_KEYBOARD_SHORTCUTS_END -->

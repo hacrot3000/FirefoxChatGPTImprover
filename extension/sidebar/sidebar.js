@@ -26,7 +26,7 @@
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"), customTabTitle: $("#customTabTitle"), saveCustomTabTitleButton: $("#saveCustomTabTitleButton"), clearCustomTabTitleButton: $("#clearCustomTabTitleButton"),
     profileSearch: $("#profileSearch"), profileSearchResult: $("#profileSearchResult"), profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     ruleSelect: $("#ruleSelect"), ruleName: $("#ruleName"), ruleEnabled: $("#ruleEnabled"), newRuleButton: $("#newRuleButton"), duplicateRuleButton: $("#duplicateRuleButton"), deleteRuleButton: $("#deleteRuleButton"), ruleRuntimeSummary: $("#ruleRuntimeSummary"), ruleRuntimeBadge: $("#ruleRuntimeBadge"), ruleCommandEnabled: $("#ruleCommandEnabled"), ruleCommandPreset: $("#ruleCommandPreset"), ruleCommandTrigger: $("#ruleCommandTrigger"), ruleCommandAllowDryRun: $("#ruleCommandAllowDryRun"), ruleCommandStatus: $("#ruleCommandStatus"),
-    autoProfileByUrl: $("#autoProfileByUrl"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), urlRoutingResult: $("#urlRoutingResult"),
+    autoProfileByUrl: $("#autoProfileByUrl"), autoActivateMatchingUrls: $("#autoActivateMatchingUrls"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), grantAutoActivationAccessButton: $("#grantAutoActivationAccessButton"), runAutoActivationScanButton: $("#runAutoActivationScanButton"), urlRoutingResult: $("#urlRoutingResult"), autoActivationResult: $("#autoActivationResult"),
     monitorProfileSearch: $("#monitorProfileSearch"), monitorProfileSearchResult: $("#monitorProfileSearchResult"), monitorProfileSelect: $("#monitorProfileSelect"), monitorProfileName: $("#monitorProfileName"), applyMonitorProfileButton: $("#applyMonitorProfileButton"), newMonitorProfileButton: $("#newMonitorProfileButton"), saveMonitorProfileButton: $("#saveMonitorProfileButton"), deleteMonitorProfileButton: $("#deleteMonitorProfileButton"), monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
     targetProfileSearch: $("#targetProfileSearch"), targetProfileSearchResult: $("#targetProfileSearchResult"), targetProfileSelect: $("#targetProfileSelect"), targetProfileName: $("#targetProfileName"), applyTargetProfileButton: $("#applyTargetProfileButton"), newTargetProfileButton: $("#newTargetProfileButton"), saveTargetProfileButton: $("#saveTargetProfileButton"), deleteTargetProfileButton: $("#deleteTargetProfileButton"), targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), soundAlertEnabled: $("#soundAlertEnabled"), soundAlertSettings: $("#soundAlertSettings"), soundAlertTone: $("#soundAlertTone"), soundAlertVolume: $("#soundAlertVolume"), soundAlertRepeatCount: $("#soundAlertRepeatCount"), soundAlertRepeatIntervalMs: $("#soundAlertRepeatIntervalMs"), testSoundAlertButton: $("#testSoundAlertButton"), soundAlertTestResult: $("#soundAlertTestResult"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
@@ -37,7 +37,7 @@
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"), nativeLogRetentionEnabled: $("#nativeLogRetentionEnabled"), nativeLogMaxAgeDays: $("#nativeLogMaxAgeDays"), nativeLogMaxTotalMiB: $("#nativeLogMaxTotalMiB"), nativeLogMaxFiles: $("#nativeLogMaxFiles"), nativeLogCleanupOnStartup: $("#nativeLogCleanupOnStartup"), nativeLogCleanupAfterCommand: $("#nativeLogCleanupAfterCommand"), saveNativeLogRetentionButton: $("#saveNativeLogRetentionButton"), runNativeLogCleanupButton: $("#runNativeLogCleanupButton"), nativeLogCleanupStatus: $("#nativeLogCleanupStatus"),
     shellLogDialog: $("#shellLogDialog"), shellLogDialogTitle: $("#shellLogDialogTitle"), shellLogMetadata: $("#shellLogMetadata"), shellLogViewer: $("#shellLogViewer"), shellLogPageInfo: $("#shellLogPageInfo"), closeShellLogDialogButton: $("#closeShellLogDialogButton"), shellLogFirstButton: $("#shellLogFirstButton"), shellLogPreviousButton: $("#shellLogPreviousButton"), shellLogNextButton: $("#shellLogNextButton"), shellLogLastButton: $("#shellLogLastButton"), copyShellLogSelectionButton: $("#copyShellLogSelectionButton"), copyShellLogPageButton: $("#copyShellLogPageButton"), copyShellLogAllButton: $("#copyShellLogAllButton"), refreshShellLogButton: $("#refreshShellLogButton"), deleteShellLogButton: $("#deleteShellLogButton"),
     workingSessionCatalogSearch: $("#workingSessionCatalogSearch"), workingSessionCatalogSearchResult: $("#workingSessionCatalogSearchResult"), workingSessionCatalogSelect: $("#workingSessionCatalogSelect"), workingSessionCatalogName: $("#workingSessionCatalogName"), workingSessionCatalogDescription: $("#workingSessionCatalogDescription"), workingSessionCatalogTabCount: $("#workingSessionCatalogTabCount"), workingSessionCatalogUpdatedAt: $("#workingSessionCatalogUpdatedAt"), workingSessionCatalogLastRestoredAt: $("#workingSessionCatalogLastRestoredAt"), newWorkingSessionEntryButton: $("#newWorkingSessionEntryButton"), updateWorkingSessionEntryButton: $("#updateWorkingSessionEntryButton"), restoreWorkingSessionEntryButton: $("#restoreWorkingSessionEntryButton"), renameWorkingSessionEntryButton: $("#renameWorkingSessionEntryButton"), duplicateWorkingSessionEntryButton: $("#duplicateWorkingSessionEntryButton"), deleteWorkingSessionEntryButton: $("#deleteWorkingSessionEntryButton"), exportWorkingSessionEntryButton: $("#exportWorkingSessionEntryButton"), importWorkingSessionEntryButton: $("#importWorkingSessionEntryButton"), exportWorkingSessionCatalogButton: $("#exportWorkingSessionCatalogButton"), importWorkingSessionCatalogButton: $("#importWorkingSessionCatalogButton"), importWorkingSessionEntryFile: $("#importWorkingSessionEntryFile"), importWorkingSessionCatalogFile: $("#importWorkingSessionCatalogFile"), workingSessionCatalogResult: $("#workingSessionCatalogResult"),
-    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), exportConfigurationProfilesButton: $("#exportConfigurationProfilesButton"), importConfigurationProfilesButton: $("#importConfigurationProfilesButton"), exportMonitorProfilesButton: $("#exportMonitorProfilesButton"), importMonitorProfilesButton: $("#importMonitorProfilesButton"), exportTargetProfilesButton: $("#exportTargetProfilesButton"), importTargetProfilesButton: $("#importTargetProfilesButton"), exportLocalActionProfilesButton: $("#exportLocalActionProfilesButton"), importLocalActionProfilesButton: $("#importLocalActionProfilesButton"), profileImportFile: $("#profileImportFile"), saveWorkingSessionButton: $("#saveWorkingSessionButton"), importWorkingSessionButton: $("#importWorkingSessionButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), importWorkingSessionFile: $("#importWorkingSessionFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), messageBox: $("#messageBox")
+    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), exportConfigurationProfilesButton: $("#exportConfigurationProfilesButton"), importConfigurationProfilesButton: $("#importConfigurationProfilesButton"), exportMonitorProfilesButton: $("#exportMonitorProfilesButton"), importMonitorProfilesButton: $("#importMonitorProfilesButton"), exportTargetProfilesButton: $("#exportTargetProfilesButton"), importTargetProfilesButton: $("#importTargetProfilesButton"), exportLocalActionProfilesButton: $("#exportLocalActionProfilesButton"), importLocalActionProfilesButton: $("#importLocalActionProfilesButton"), profileImportFile: $("#profileImportFile"), saveWorkingSessionButton: $("#saveWorkingSessionButton"), importWorkingSessionButton: $("#importWorkingSessionButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), importWorkingSessionFile: $("#importWorkingSessionFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), shortcutOpenSidebar: $("#shortcutOpenSidebar"), shortcutToggleCurrentTab: $("#shortcutToggleCurrentTab"), shortcutAcknowledgeAlert: $("#shortcutAcknowledgeAlert"), shortcutRunTargetAction: $("#shortcutRunTargetAction"), shortcutOpenCommandLog: $("#shortcutOpenCommandLog"), shortcutStopCurrentTab: $("#shortcutStopCurrentTab"), refreshShortcutsButton: $("#refreshShortcutsButton"), manageShortcutsButton: $("#manageShortcutsButton"), resetShortcutsButton: $("#resetShortcutsButton"), shortcutStatus: $("#shortcutStatus"), messageBox: $("#messageBox")
   };
 
   const modeLabels = {
@@ -46,7 +46,7 @@
     [MODE.PAUSED]: "Paused",
     [MODE.ERROR]: "Error"
   };
-  let dashboard = { currentTab: {}, sessions: [], store: Settings.defaultStore(), localActionStore: LocalActions.defaultStore(), workingSessionCatalog: WorkingSession.catalogSummary(WorkingSession.defaultCatalog()), nativeHost: { connected: false, runs: [], downloads: [] } };
+  let dashboard = { currentTab: {}, sessions: [], store: Settings.defaultStore(), localActionStore: LocalActions.defaultStore(), workingSessionCatalog: WorkingSession.catalogSummary(WorkingSession.defaultCatalog()), keyboardCommands: [], pendingShortcutAction: null, nativeHost: { connected: false, runs: [], downloads: [] } };
   let selectedTabId = null;
   let selectedProfileId = null;
   let selectedMonitorProfileId = null;
@@ -115,6 +115,7 @@
   let pendingWorkingSessionEntryId = null;
   let selectedWorkingSessionEntryId = null;
   let workingSessionEditorEntryId = null;
+  let lastHandledShortcutActionId = null;
 
   function showMessage(text = "", level = "info") {
     elements.messageBox.textContent = text;
@@ -1170,6 +1171,7 @@
     selectedRuleId = value.activeRuleId;
     elements.routingEnabled.checked = value.activation.routingEnabled;
     elements.routingPriority.value = String(value.activation.routingPriority);
+    elements.autoActivateMatchingUrls.checked = value.activation.autoActivate;
     elements.requireUrlMatch.checked = value.activation.requireUrlMatch;
     elements.urlPatterns.value = value.activation.urlPatterns.join("\n");
     renderRuleOptions();
@@ -1279,6 +1281,7 @@
       activation: {
         routingEnabled: elements.routingEnabled.checked,
         routingPriority: Number(elements.routingPriority.value),
+        autoActivate: elements.autoActivateMatchingUrls.checked,
         requireUrlMatch: elements.requireUrlMatch.checked,
         urlPatterns: elements.urlPatterns.value.split(/\r?\n/)
       },
@@ -1462,6 +1465,42 @@
     return Settings.routeProfile(draftStore, url);
   }
 
+  function autoActivationRoutingForSelectedUrl(includeDraft = false) {
+    const currentIsSelected = Number(dashboard.currentTab?.tabId) === Number(selectedTabId);
+    const session = selectedSession();
+    const url = session?.url || (currentIsSelected ? dashboard.currentTab?.url : "") || "";
+    if (!includeDraft || !selectedProfileId) return Settings.routeAutoActivation(dashboard.store, url);
+    const draftStore = Settings.clone(dashboard.store);
+    const draftProfile = Settings.profileById(draftStore, selectedProfileId);
+    if (draftProfile) draftProfile.config = readConfig();
+    return Settings.routeAutoActivation(draftStore, url);
+  }
+
+  function renderAutoActivationStatus(includeDraft = false) {
+    const config = includeDraft ? readConfig() : (profileById(selectedProfileId)?.config || Settings.defaultConfig());
+    const origins = Settings.autoActivationPermissionOrigins(config);
+    const routing = autoActivationRoutingForSelectedUrl(includeDraft);
+    const audit = dashboard.autoActivation?.current || null;
+    if (!config.activation.autoActivate) {
+      elements.autoActivationResult.dataset.state = "none";
+      elements.autoActivationResult.textContent = "Automatic activation is disabled for this profile.";
+      return { config, origins, routing };
+    }
+    if (!origins.length) {
+      elements.autoActivationResult.dataset.state = "error";
+      elements.autoActivationResult.textContent = "Add an explicit HTTP/HTTPS allowlist before granting access.";
+      return { config, origins, routing };
+    }
+    const auditText = audit?.status
+      ? ` Last decision: ${audit.status}${audit.reason ? ` — ${audit.reason}` : ""}.`
+      : "";
+    elements.autoActivationResult.dataset.state = routing.matched ? "match" : "fallback";
+    elements.autoActivationResult.textContent = routing.matched
+      ? `This URL is eligible for automatic activation with “${routing.profileName}”. Permission origin(s): ${origins.join(", ")}.${auditText}`
+      : `Automatic activation is enabled for this profile, but the selected URL is not currently matched. Permission origin(s): ${origins.join(", ")}.${auditText}`;
+    return { config, origins, routing };
+  }
+
   function renderUrlRoutingPreview(includeDraft = false) {
     const routing = routingForSelectedUrl(includeDraft);
     const candidates = routing.candidates || [];
@@ -1480,6 +1519,7 @@
         ? `No profile matched the URL; falling back to “${routing.profileName}”.`
         : "No profile matched the URL.";
     }
+    renderAutoActivationStatus(includeDraft);
     return routing;
   }
 
@@ -1782,6 +1822,75 @@
     elements.createSettingsSnapshotButton.disabled = busy;
   }
 
+  const KEYBOARD_COMMAND_VIEW = Object.freeze({
+    _execute_sidebar_action: elements.shortcutOpenSidebar,
+    "fci-toggle-current-tab": elements.shortcutToggleCurrentTab,
+    "fci-acknowledge-current-alert": elements.shortcutAcknowledgeAlert,
+    "fci-run-current-target-action": elements.shortcutRunTargetAction,
+    "fci-open-current-command-log": elements.shortcutOpenCommandLog,
+    "fci-stop-current-tab": elements.shortcutStopCurrentTab
+  });
+
+  function renderKeyboardShortcuts() {
+    const commands = Array.isArray(dashboard.keyboardCommands) ? dashboard.keyboardCommands : [];
+    const byName = new Map(commands.map((item) => [item.name, item]));
+    let missing = 0;
+    for (const [name, output] of Object.entries(KEYBOARD_COMMAND_VIEW)) {
+      const item = byName.get(name);
+      const shortcut = String(item?.shortcut || "").trim();
+      output.textContent = shortcut || "Not assigned";
+      output.dataset.state = shortcut ? "assigned" : "missing";
+      output.title = item?.description || name;
+      if (!shortcut) missing += 1;
+    }
+    elements.shortcutStatus.textContent = missing
+      ? `${missing} command(s) are unassigned. Firefox may have cleared a conflicting shortcut.`
+      : "All keyboard commands are assigned.";
+    elements.shortcutStatus.dataset.state = missing ? "warning" : "success";
+    elements.resetShortcutsButton.disabled = busy || !browser.commands?.reset;
+    elements.manageShortcutsButton.disabled = busy || !browser.commands?.openShortcutSettings;
+  }
+
+  async function consumePendingShortcutAction() {
+    const action = dashboard.pendingShortcutAction;
+    if (!action?.id || action.id === lastHandledShortcutActionId) return;
+    lastHandledShortcutActionId = action.id;
+    try {
+      if (Number.isInteger(Number(action.tabId)) && Number(action.tabId) !== Number(selectedTabId)) {
+        await refreshForActiveTab(Number(action.tabId));
+      }
+      if (action.action === "open-shell-log") {
+        const descriptor = selectedShellLogDescriptor();
+        if (descriptor) await openShellLogDialog(descriptor, true);
+        else showMessage("No command log is available for the current tab.", "error");
+      } else if (action.action === "message") {
+        showMessage(action.message || "The keyboard shortcut could not be completed.", "error");
+      }
+    } finally {
+      const response = await browser.runtime.sendMessage({ type: MESSAGE.ACK_SHORTCUT_ACTION, actionId: action.id });
+      if (response?.ok) dashboard = response.dashboard || dashboard;
+    }
+  }
+
+  async function manageKeyboardShortcuts() {
+    if (!browser.commands?.openShortcutSettings) throw new Error("This Firefox version cannot open extension shortcut settings.");
+    await browser.commands.openShortcutSettings();
+  }
+
+  async function resetKeyboardShortcuts() {
+    if (!browser.commands?.reset) throw new Error("This Firefox version cannot reset extension shortcuts.");
+    const commands = Array.isArray(dashboard.keyboardCommands) ? dashboard.keyboardCommands : [];
+    for (const item of commands) {
+      if (!item?.name) continue;
+      try { await browser.commands.reset(item.name); } catch (_error) {}
+    }
+    const response = await browser.runtime.sendMessage({ type: MESSAGE.GET_DASHBOARD });
+    if (!response?.ok) throw new Error(response?.error || "Could not refresh keyboard shortcuts.");
+    dashboard = response.dashboard;
+    renderKeyboardShortcuts();
+    showMessage("Keyboard shortcuts reset to the manifest defaults. Unassigned optional commands remain available in Firefox settings.", "success");
+  }
+
   function renderDetails(loadForm = true) {
     const session = selectedSession();
     const currentIsSelected = Number(dashboard.currentTab.tabId) === Number(selectedTabId);
@@ -1888,6 +1997,9 @@
     elements.assignProfileButton.disabled = busy || !session;
     elements.testUrlRoutingButton.disabled = busy || !currentIsSelected;
     elements.useRoutedProfileButton.disabled = busy || !currentIsSelected;
+    const autoActivationPreview = renderAutoActivationStatus();
+    elements.grantAutoActivationAccessButton.disabled = busy || !autoActivationPreview.config.activation.autoActivate || !autoActivationPreview.origins.length;
+    elements.runAutoActivationScanButton.disabled = busy || !autoActivationPreview.config.activation.autoActivate;
     elements.autoProfileByUrl.checked = autoProfileByUrl;
     elements.saveTabButton.disabled = busy || !session;
     elements.resetTabButton.disabled = busy || !session || session.configMode !== CONFIG_MODE.TAB;
@@ -1915,6 +2027,7 @@
     renderUrlRoutingPreview();
     renderRuleRuntimeSummary();
     renderSettingsSnapshots();
+    renderKeyboardShortcuts();
     renderWorkingSessionCatalog();
 
     const profile = profileById(selectedProfileId);
@@ -1950,6 +2063,7 @@
       snapshotIds: (Array.isArray(data.settingsSnapshots) ? data.settingsSnapshots : []).map((snapshot) => snapshot.id),
       workingSessionEntries: (Array.isArray(data.workingSessionCatalog?.entries) ? data.workingSessionCatalog.entries : []).map((entry) => [entry.id, entry.name, entry.updatedAt, entry.lastRestoredAt, entry.tabCount])
     });
+    queueMicrotask(() => void consumePendingShortcutAction().catch((error) => showMessage(error instanceof Error ? error.message : String(error), "error")));
   }
 
   function renderRuntimeDashboard(nextDashboard) {
@@ -3034,6 +3148,67 @@ ${run.command || ""}`)) {
     writeConfig(profile?.config || Settings.defaultConfig());
     showMessage(`Selected profile “${routing.profileName}” by URL.`, "success");
   });
+  elements.autoActivateMatchingUrls.addEventListener("change", () => {
+    if (elements.autoActivateMatchingUrls.checked) {
+      elements.routingEnabled.checked = true;
+      elements.requireUrlMatch.checked = true;
+    }
+    renderAutoActivationStatus(true);
+  });
+  elements.grantAutoActivationAccessButton.addEventListener("click", () => {
+    const preview = renderAutoActivationStatus(true);
+    const validation = Settings.validateConfig(preview.config);
+    const profile = profileById(selectedProfileId);
+    if (!profile || !validation.ok || !preview.config.activation.autoActivate || !preview.origins.length) {
+      showMessage(validation.ok
+        ? "Enable automatic activation and add an explicit HTTP/HTTPS allowlist first."
+        : validation.errors.join("\n"), "error");
+      return;
+    }
+    // permissions.request must be called directly from this user click. Persist the
+    // profile immediately after Firefox grants access, then scan the selected tab.
+    const permissionRequest = browser.permissions.request({ origins: preview.origins });
+    setBusy(true);
+    showMessage(`Requesting automatic-activation access for ${preview.origins.join(", ")}`);
+    void permissionRequest.then(async (granted) => {
+      if (!granted) throw new Error("Firefox did not grant the requested automatic-activation site access.");
+      const saved = await browser.runtime.sendMessage({
+        type: MESSAGE.SAVE_PROFILE,
+        profile: { ...profile, name: elements.profileName.value.trim() || profile.name, config: validation.config }
+      });
+      if (!saved?.ok) throw new Error(saved?.error || "Could not save the auto-activation profile.");
+      dashboard = saved.dashboard || dashboard;
+      const response = await browser.runtime.sendMessage({ type: MESSAGE.RUN_AUTO_ACTIVATION_SCAN, tabId: selectedTabId, reason: "permission-granted" });
+      if (!response?.ok) throw new Error(response?.error || "Could not scan the selected tab for automatic activation.");
+      if (response.dashboard) render(response.dashboard, true, selectedTabId);
+      showMessage(`Permission granted and profile saved. ${response.report?.activated || 0} matching tab(s) activated.`, "success");
+    }).catch((error) => showMessage(error instanceof Error ? error.message : String(error), "error"))
+      .finally(() => setBusy(false));
+  });
+  elements.runAutoActivationScanButton.addEventListener("click", () => {
+    const preview = renderAutoActivationStatus(true);
+    const validation = Settings.validateConfig(preview.config);
+    const profile = profileById(selectedProfileId);
+    if (!profile || !validation.ok) {
+      showMessage(validation.ok ? "Select a profile first." : validation.errors.join("\n"), "error");
+      return;
+    }
+    setBusy(true);
+    void browser.runtime.sendMessage({
+      type: MESSAGE.SAVE_PROFILE,
+      profile: { ...profile, name: elements.profileName.value.trim() || profile.name, config: validation.config }
+    }).then((saved) => {
+      if (!saved?.ok) throw new Error(saved?.error || "Could not save the auto-activation profile.");
+      dashboard = saved.dashboard || dashboard;
+      return browser.runtime.sendMessage({ type: MESSAGE.RUN_AUTO_ACTIVATION_SCAN, reason: "sidebar-manual-scan" });
+    }).then((response) => {
+      if (!response?.ok) throw new Error(response?.error || "Could not scan open tabs.");
+      if (response.dashboard) render(response.dashboard, true, selectedTabId);
+      const report = response.report || {};
+      showMessage(`Automatic activation scan: ${report.activated || 0} activated, ${report.permissionRequired || 0} need permission, ${report.skipped || 0} skipped.`, report.activated ? "success" : "info");
+    }).catch((error) => showMessage(error instanceof Error ? error.message : String(error), "error"))
+      .finally(() => setBusy(false));
+  });
   elements.addConditionButton.addEventListener("click", () => addConditionRow());
   elements.monitorPickerButton.addEventListener("click", () => toggleElementPicker("monitor"));
   elements.monitorTestButton.addEventListener("click", () => testSelector("monitor"));
@@ -3593,6 +3768,9 @@ Cancel: keep editing without losing the changes.`);
       if (response?.ok && elements.shellLogDialog.open) elements.shellLogDialog.close();
     });
   });
+  elements.refreshShortcutsButton.addEventListener("click", () => void request(MESSAGE.GET_DASHBOARD));
+  elements.manageShortcutsButton.addEventListener("click", () => void manageKeyboardShortcuts().catch((error) => showMessage(error instanceof Error ? error.message : String(error), "error")));
+  elements.resetShortcutsButton.addEventListener("click", () => void resetKeyboardShortcuts().catch((error) => showMessage(error instanceof Error ? error.message : String(error), "error")));
   elements.refreshButton.addEventListener("click", () => void request(MESSAGE.GET_DASHBOARD));
   elements.tabPrimaryQuickButton.addEventListener("click", runPrimaryTabAction);
   elements.tabStopQuickButton.addEventListener("click", () => void request(MESSAGE.STOP_TAB, { tabId: selectedTabId }, "Tab stopped."));
