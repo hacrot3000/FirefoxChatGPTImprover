@@ -727,3 +727,76 @@ Bundled defaults are intentionally separated into `extension/shared/prompt_templ
 
 Prompt filling never follows a stale sidebar selection: the background verifies that the requested tab is still the active displayed tab before injecting the page helper. Native Host remains **0.13.0** and does not need to be reinstalled.
 <!-- FCI_PHASE37_PROMPT_TEMPLATES_END -->
+
+<!-- FCI_PHASE38_CHROMIUM_PORT_BEGIN -->
+## Chromium, Chrome and Edge build (v0.38.0)
+
+Phase 38 keeps the Firefox package intact and adds a dedicated Chromium Manifest V3 build using the same automation engine and sidebar UI. Build an unpacked directory and deterministic ZIP with:
+
+```bash
+./tools/build_chromium_addon.sh --browser chromium --overwrite
+./tools/build_chromium_addon.sh --browser chrome --overwrite
+./tools/build_chromium_addon.sh --browser edge --overwrite
+```
+
+Artifacts are written to `releases/chromium/<browser>/<current-version>/`. The generated manifest uses a service worker and Chromium Side Panel, removes Firefox-only keys, maps the open-sidebar shortcut to `fci-open-side-panel`, and generates PNG icons. `extension/shared/browser_compat.js` provides the Promise-message, tab-session, shortcut-settings and side-panel adapters required by the shared source.
+
+For a local unpacked build, the stable extension ID is `aganahagmocgjhcglbjdeidlpecdhgfj`. Register Native Host 0.13.0 on Linux with:
+
+```bash
+./native-host/install_chromium_native_host.sh --browser chromium
+# or: --browser chrome / --browser edge / --browser all
+```
+
+A store listing can assign another ID; pass it with `--extension-id <id>`. For an isolated development browser profile, run `FCI_CHROMIUM_BROWSER=chromium ./tools/run_chromium_addon_dev.sh` and optionally set `FCI_CHROMIUM_BIN`.
+
+Details: `document/PHASE_38_V0_38_0_CHROMIUM_PORT.md`.
+<!-- FCI_PHASE38_CHROMIUM_PORT_END -->
+
+
+
+<!-- FCI_PHASE39_ACCESSIBILITY_BEGIN -->
+## Accessibility audit (v0.39.0)
+
+The sidebar now exposes a keyboard-visible **Skip to main controls** link, consistent focus rings, labelled dialogs, live status/error announcements and busy-state semantics. CSS respects reduced-motion, increased-contrast and operating-system forced-colour preferences. Repeated profile import/export controls have unique accessible names.
+
+The page element picker can be completed without a pointer: start the picker, use **Tab** or **Shift+Tab** to move through focusable page elements, press **Enter** or **Space** to select the focused element, or press **Escape** to cancel. Pointer hover/click remains supported.
+
+These changes apply to both Firefox and Chromium builds. Protocol remains **25** and Native Host remains **0.13.0**.
+<!-- FCI_PHASE39_ACCESSIBILITY_END -->
+
+
+<!-- FCI_PHASE40_STOPPED_TAB_LOCAL_ACTION_BINDING_BEGIN -->
+## Stopped-tab Local action profile binding (v0.39.1)
+
+`Apply to tab` is available for the currently displayed tab even when automation is stopped. The selected Local action profile is stored as an explicit tab-scoped binding, shown again after sidebar refresh, and used on the next activation instead of silently reverting to the default profile. Active-tab assignments use the same binding, so an explicit profile remains selected across later Stop/Start cycles.
+
+The binding stores only the profile ID in browser tab-session storage. Editing the profile continues to update the configuration used by the bound tab. Deleting a bound profile safely replaces the stale binding with the current URL-routed or default Local action profile. Protocol remains **25** and Native Host remains **0.13.0**.
+<!-- FCI_PHASE40_STOPPED_TAB_LOCAL_ACTION_BINDING_END -->
+
+
+### Local action binding source and reset
+
+Version 0.39.2 shows whether a tab uses an explicit Local action binding, a URL-routed profile or the default profile. Use **Use URL/default** to remove an explicit binding on either a stopped or active tab. The routed/default profile is applied immediately and remains effective on the next Start.
+<!-- FCI_PHASE42_RELEASE_STATUS_CONSISTENCY_BEGIN -->
+## Release-candidate status consistency (v0.39.3)
+
+The required and recommended feature backlogs are now closed consistently across `PROJECT_STATUS.md`, `CURRENT_PROJECT_STATUS.md`, the implementation plan, changelog and release tests. The build fails its focused Phase 42 regression if the manifest version, release documents or final regression summary become stale relative to one another.
+
+No additional implementation item is scheduled. Native Host for macOS remains explicitly deferred; future work starts from a focused bug report or an explicit new feature request. Protocol remains **26** and Native Host remains **0.13.0**.
+<!-- FCI_PHASE42_RELEASE_STATUS_CONSISTENCY_END -->
+<!-- FCI_PHASE43_SEPARATE_CONFIGURATION_SESSION_IO_BEGIN -->
+## Configuration and working-session data separation (v0.39.4)
+
+`Import/export configuration` handles configuration data only. It no longer contains the legacy working-session save/import buttons, and its full-store actions are labelled **Export all configuration** and **Import all configuration**.
+
+All working-session operations remain in `Saved working sessions`: save or update current tabs, restore a selected session, import/export one session, and import/export the complete saved-session catalog. The configuration store and saved-session catalog continue to use separate storage keys and separate JSON formats.
+<!-- FCI_PHASE43_SEPARATE_CONFIGURATION_SESSION_IO_END -->
+
+<!-- FCI_PHASE44_STOP_START_TAB_CONFIG_BEGIN -->
+## Stop/Start preserves each tab configuration (v0.39.5)
+
+Pressing **Stop** ends the tab's automation runtime but no longer discards its configuration. While the tab remains open, the add-on keeps a tab-scoped snapshot containing the selected configuration profile, tab-specific override, current monitor/target editor draft, Local action profile/override and Local action working draft. Pressing **Start** restores that snapshot instead of loading the default profile.
+
+Runtime-only data intentionally starts clean: monitor baselines, alert state, activity logs and per-rule statistics are not treated as configuration. Selecting a different configuration profile while the tab is stopped intentionally replaces the preserved snapshot on the next Start.
+<!-- FCI_PHASE44_STOP_START_TAB_CONFIG_END -->

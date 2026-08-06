@@ -102,6 +102,21 @@ node tests/test_phase36_v0360_compressed_per_run_log_export.js
 
 node tests/test_phase37_v0370_prompt_templates.js
 
+node tests/test_phase38_v0380_browser_compat.js
+python3 tests/test_phase38_v0380_chromium_build.py
+
+node tests/test_phase39_v0390_accessibility_audit.js
+
+node tests/test_phase40_v0391_stopped_tab_local_action_binding.js
+
+node tests/test_phase41_v0392_local_action_binding_controls.js
+
+python3 tests/test_phase42_v0393_release_status_consistency.py
+
+node tests/test_phase43_v0394_configuration_session_io_separation.js
+
+node tests/test_phase44_v0395_stop_start_tab_config_persistence.js
+
 if [ "${FCI_RUN_FIREFOX_E2E:-0}" = "1" ]; then
   python3 tools/run_firefox_e2e.py ${FCI_FIREFOX_E2E_ARGS:-}
 else
@@ -122,5 +137,4 @@ elif [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf 'PASS: FirefoxChatImprover Phase 04-37 v0.37.0 prompt templates, compressed per-run command-log ZIP export, per-rule statistics dashboard, full regression, opt-in trusted URL auto-activation, optional sound alerts, named saved working-session catalog, non-destructive search/filter, persistent custom tab titles, source syntax, Linux/Windows Native Host runtime, real-Firefox E2E tooling and protected command-log retention.
-'
+printf '%s\n' 'PASS: FirefoxChatImprover Phase 04-44 v0.39.5 preserves complete per-tab configuration across Stop/Start, separates configuration/session import-export scopes, maintains release-status consistency, Local action binding controls, accessibility, Chromium/Chrome/Edge packaging, prompt templates, command-log export, per-rule statistics, full regression, trusted URL auto-activation, saved working sessions, custom tab titles, Linux/Windows Native Host runtime and protected command-log retention.'

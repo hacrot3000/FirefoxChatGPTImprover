@@ -1,6 +1,6 @@
 # FirefoxChatImprover — Kế hoạch triển khai
 
-> **Current implementation baseline:** Phase 28 v0.28.24. All historical phases below have been implemented. For the authoritative current feature and deployment status, see [`CURRENT_PROJECT_STATUS.md`](CURRENT_PROJECT_STATUS.md). The remainder of this file is retained as the original implementation roadmap.
+> **Current implementation baseline:** Phase 44 v0.39.5.
 
 
 ## 1. Mục tiêu dự án
@@ -622,4 +622,93 @@ Completed in v0.31.0: persistent named catalog, search, create/update/rename/dup
 - Filling is active-tab-bound and rejects unsupported/internal pages or stale sidebar tab selection.
 - Native Host remains v0.13.0.
 
-**Next:** Chromium port for Chrome and Edge.
+## Phase 38 — Chromium port for Chrome and Edge (v0.38.0)
+
+**Status:** Complete.
+
+- Added a deterministic Chromium/Chrome/Edge MV3 build without changing the Firefox release package.
+- Added a single service-worker loader, Chromium Side Panel manifest conversion and generated PNG icons.
+- Added a compatibility layer for Promise message listeners, tab-scoped session values, side-panel opening, shortcut settings and support-bundle browser metadata.
+- Added a stable public manifest key for local unpacked ID consistency plus an explicit extension-ID override for store builds.
+- Added separate Linux Native Host registration manifests using `allowed_origins` for Chromium, Chrome and Edge.
+- Removed unsupported Chromium MV3 `webRequestBlocking` while preserving the download-event fallback.
+- Native Host remains v0.13.0.
+
+**Next:** Full accessibility audit.
+
+
+## Phase 39 — Full accessibility audit (v0.39.0)
+
+**Status:** Complete.
+
+- Added a keyboard-visible skip link and deterministic main-content focus target.
+- Added visible focus indicators across native controls, links, disclosures and generated group toggles.
+- Added status/alert live-region semantics, busy-state announcements and labelled/described dialogs.
+- Added reduced-motion, increased-contrast and forced-colour CSS adaptations.
+- Added keyboard-only element picking with Tab/Shift+Tab navigation, Enter/Space selection and Escape cancellation/focus restoration.
+- Added regression coverage for accessible names, focus, live regions, display preferences and keyboard picker behavior.
+- Protocol remains 25; Native Host remains 0.13.0.
+
+**Next:** Recommended-feature backlog complete; Native Host for macOS remains deferred.
+
+
+## Phase 40 — Stopped-tab Local action binding hotfix (v0.39.1)
+
+Status: **Complete**
+
+- Enable `Apply to tab` for the currently displayed stopped tab.
+- Persist explicit Local action profile bindings in browser tab-session storage.
+- Prefer the explicit binding during activation before URL routing/default fallback.
+- Keep the selected binding visible after sidebar refresh and across Stop/Start cycles.
+- Rebind stale tab assignments when a Local action profile is deleted.
+- Add focused regression coverage for the inactive-tab apply and activation path.
+
+
+## Phase 41 — Local action binding source and clear control (v0.39.2)
+
+Status: **Complete**
+
+- Restore the effective Local action source summary for stopped and active tabs.
+- Distinguish explicit tab binding, URL-routed profile and default fallback.
+- Add `Use URL/default` to remove an explicit binding without requiring activation.
+- Re-resolve and persist the active tab profile immediately when clearing a binding.
+- Add focused regression coverage for stopped-tab and active-session clear behavior.
+
+## Phase 42 — Release-candidate status consistency (v0.39.3)
+
+**Status:** Complete.
+
+- Marked both required and recommended feature backlogs complete in the release-facing inventory.
+- Removed stale “next task” wording after the Chromium port and accessibility audit were completed.
+- Added a focused release-status consistency regression covering manifest, changelog, current status, implementation plan and test-runner version.
+- Kept Native Host for macOS explicitly deferred rather than silently treating it as planned work.
+- Protocol remains 26; Native Host remains 0.13.0.
+
+**Next:** No scheduled implementation item; accept focused bug reports or an explicit new feature request.
+
+## Phase 43 — Separate configuration and working-session I/O (v0.39.4)
+
+**Status:** Complete.
+
+- Removed the duplicate legacy working-session controls from the configuration import/export card.
+- Clarified full-store actions as configuration-only import/export.
+- Kept all named-session and session/catalog JSON operations in `Saved working sessions`.
+- Added a regression proving the configuration JSON schema excludes the saved-session catalog and the two UI groups do not cross-own controls.
+- Protocol remains 26; Native Host remains 0.13.0.
+
+## Phase 44 — Preserve tab configuration across Stop/Start (v0.39.5)
+
+### Mục tiêu
+
+- `Stop` chỉ kết thúc runtime automation, không làm tab quay về default configuration.
+- Lưu snapshot theo `tabId` bằng `browser.sessions` để tồn tại qua sidebar/background reload trong khi tab còn mở.
+- Giữ profile binding, tab override, monitor/target editor draft, Local action profile/override và working draft.
+- Không khôi phục monitor baseline, alert, logs, statistics hoặc trạng thái command đang chạy như một runtime session mới.
+
+### Tiêu chí nghiệm thu
+
+- Stop rồi Start trên cùng tab khôi phục đúng fingerprint cấu hình trước Stop.
+- Sidebar của tab đang stopped vẫn hiển thị cấu hình đã giữ, không hiển thị default.
+- Profile bị chỉnh trong lúc tab stopped không âm thầm đổi cấu hình đã đóng băng; snapshot chuyển thành tab override khi cần.
+- Người dùng chọn profile khác khi tab stopped thì lựa chọn mới được ưu tiên.
+- Regression Phase 04–44 PASS.

@@ -75,8 +75,8 @@ Trong bảng dưới, **100%** nghĩa là đã có implementation và PASS tiêu
 | Dashboard thống kê theo rule                  | Thống kê match, click, verify result, return code và thời gian trung bình để chẩn đoán rule. | **Tôi tự đề xuất**                                        | **Hoàn tất — 100% (v0.35.0)** |
 | Mẫu prompt gợi ý và tùy chỉnh                 | Copy hoặc điền nhanh prompt vào ô nhập cuối cùng của tab hiện tại; cho phép lưu mẫu riêng.   | **Bạn yêu cầu trực tiếp**                                 | **Hoàn tất — 100% (v0.37.0)** |
 | Nén/export log theo từng run                  | Lưu trữ log cũ gọn hơn và hỗ trợ gửi một run cụ thể để phân tích.                            | **Tôi tự đề xuất**                                        | **Hoàn tất — 100% (v0.36.0)** |
-| Chromium port                                 | Tái sử dụng engine trên Chrome/Edge với manifest và Native Host registration riêng.          | **Tôi tự đề xuất; từng nằm trong kế hoạch tùy chọn**      | Chưa thực hiện |
-| Accessibility audit đầy đủ                    | Kiểm tra focus order, screen reader, contrast và element picker chỉ bằng bàn phím.           | **Tôi tự đề xuất**                                        | Chưa thực hiện |
+| Chromium port                                 | Tái sử dụng engine trên Chrome/Edge với manifest và Native Host registration riêng.          | **Tôi tự đề xuất; từng nằm trong kế hoạch tùy chọn**      | **Hoàn tất — 100% (v0.38.0)** |
+| Accessibility audit đầy đủ                    | Kiểm tra focus order, screen reader, contrast và element picker chỉ bằng bàn phím.           | **Tôi tự đề xuất**                                        | **Hoàn tất — 100% (v0.39.0)** |
 
 ## Đánh giá tổng thể
 

@@ -8,13 +8,109 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 
 ### Planned
 
-- Chromium port for Chrome and Edge.
-- Full accessibility audit for focus order, screen readers, contrast and keyboard-only element picking.
+- No additional recommended feature is scheduled after the completed accessibility audit.
 
 ### Deferred
 
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
+
+## [0.39.5] - 2026-08-06
+
+### Fixed
+
+- `Stop` now stores a tab-scoped configuration snapshot instead of discarding the tab's selected profile and overrides.
+- The next `Start` restores saved tab configuration, unsaved monitor/target editor drafts, Local action tab overrides and Local action working drafts.
+- Stopped tabs keep their previous configuration visible in the sidebar rather than immediately displaying the default profile.
+- Runtime-only state such as monitor baselines, alerts, logs and per-rule statistics still resets on Stop.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.39.4] - 2026-08-06
+
+### Changed
+
+- Removed the legacy `Save working session` and `Import working session` controls from the configuration import/export group.
+- Renamed the whole-store actions to `Export all configuration` and `Import all configuration` to reflect their actual data scope.
+- Kept named-session save, restore, JSON import/export and catalog backup exclusively in `Saved working sessions`.
+- Added regression coverage proving that configuration JSON excludes the separately stored saved-working-session catalog.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.39.3] - 2026-08-06
+
+### Release consistency
+
+- Marked the required and recommended feature backlogs complete across release-facing status documents.
+- Removed stale guidance that still named the already-completed accessibility audit as the next task.
+- Added a release-status consistency regression that checks manifest, changelog, project status, current status, implementation plan and test-runner version together.
+- Kept Native Host for macOS explicitly deferred.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.39.2] - 2026-08-06
+
+### Added
+
+- Accurate Local action source summary for explicit tab bindings, URL-routed profiles and default fallback.
+- A `Use URL/default` action that clears an explicit Local action profile binding on stopped or active tabs.
+
+### Fixed
+
+- Active sessions are no longer labeled as explicitly bound merely because they have an effective Local action profile.
+- Clearing a binding immediately updates the active session and preserves the routed/default choice across refresh and Start.
+
+## [0.39.1] - 2026-08-06
+
+### Fixed
+
+- `Apply to tab` for Local action profiles is now available while the selected current tab is stopped.
+- An explicit Local action profile selection is stored as a tab-scoped binding and survives Start/Stop transitions and sidebar refreshes.
+- Starting a stopped tab now prefers its explicit Local action binding instead of falling back to the default or URL-routed profile.
+- Deleted Local action profiles safely rebind affected stopped tabs to the current routed/default profile.
+
+### Compatibility
+
+- Protocol remains 25 and Native Host remains 0.13.0.
+
+
+## [0.39.0] - 2026-08-06
+
+### Accessibility
+
+- Added a keyboard-visible skip link and a stable main-content focus target for the long sidebar.
+- Added consistent high-visibility focus rings, unique accessible names for repeated profile transfer controls, live status semantics, busy-state announcements and explicit dialog labels/descriptions.
+- Added reduced-motion, increased-contrast and forced-colour adaptations without changing normal visual operation.
+- Completed keyboard-only element picking: Tab and Shift+Tab move through page controls, Enter or Space selects the focused element, and Escape cancels while restoring the previous page focus.
+- Added an assertive, screen-reader-visible picker instruction/status surface and retained mouse/pointer selection.
+
+### Compatibility
+
+- Firefox and Chromium packages share the accessibility changes.
+- Protocol remains 25 and Native Host remains 0.13.0.
+
+## [0.38.0] - 2026-08-06
+
+### Added
+
+- A dedicated Manifest V3 build for Chromium, Google Chrome and Microsoft Edge using the shared Firefox automation engine.
+- Chromium Side Panel integration and a single service-worker entry point with ordered shared-script loading.
+- A cross-browser API compatibility layer for Promise message responses, tab-scoped session values, side-panel opening, shortcut settings and browser metadata.
+- Deterministic unpacked and ZIP artifacts with generated PNG icons, stable local extension ID, checksums and release metadata.
+- Separate Linux Native Host registration for Chromium, Chrome and Edge using `allowed_origins` and an overridable store extension ID.
+- Development launch tooling for isolated Chromium profiles.
+
+### Compatibility
+
+- Firefox continues to use its native background scripts, sidebar and `browser` namespace.
+- Chromium packages remove unsupported Firefox manifest keys and normal-MV3 `webRequestBlocking`; managed downloads retain the browser-download event fallback.
+- Native Host remains 0.13.0.
 
 ## [0.37.0] - 2026-08-06
 

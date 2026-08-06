@@ -1,254 +1,339 @@
 {
-    "version": "2.0.0",
-    "_comment": "FirefoxChatImprover build tasks. Release builds validate PROJECT_STATUS.md and CHANGELOG.md, generate rich release notes, and publish documentation assets together with the add-on artifact.",
-    "tasks": [
-        {
-            "label": "Patchs: Run Python Patch",
-            "type": "shell",
-            "command": "./tools/run_python_patches.sh",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "Patchs: Run Python Patch + Test",
-            "type": "shell",
-            "command": "./tools/run_python_patches.sh && ./tools/test_firefox_addon.sh",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "Firefox Add-on: Build",
-            "type": "shell",
-            "command": "./tools/build_firefox_addon.sh",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "Git: Add, Commit and Push",
-            "type": "shell",
-            "command": "./tools/git_commit_push.sh",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "Zip staged changes",
-            "type": "shell",
-            "command": "./zip_staged_changes.sh",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "Firefox Add-on: Setup Dev Environment",
-            "type": "shell",
-            "command": "./tools/setup_firefox_addon_dev.sh",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "Firefox Add-on: Run Dev (Auto Reload)",
-            "type": "shell",
-            "command": "./tools/run_firefox_addon_dev.sh",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "runOptions": {
-                "instanceLimit": 1
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            }
-        },
-        {
-            "label": "Firefox Add-on: Lint",
-            "type": "shell",
-            "command": "./tools/lint_firefox_addon.sh",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "Firefox Add-on: Check Release Documentation",
-            "detail": "Xác nhận PROJECT_STATUS.md và CHANGELOG.md khớp version hiện tại trước khi release",
-            "type": "shell",
-            "command": "python3 tools/release_documentation.py --check",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared",
-                "clear": true
-            }
-        },
-        {
-            "label": "Firefox Add-on: Build Release",
-            "detail": "Kiểm tra PROJECT_STATUS.md + CHANGELOG.md, chạy tests/lint, tạo artifact và rich release notes trong dist/releases/<version>/ (chỉ local)",
-            "type": "shell",
-            "command": "./tools/build_firefox_addon.sh",
-            "args": [
-                "--overwrite"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared",
-                "clear": true
-            }
-        },
-        {
-            "label": "Firefox Add-on: Build Release + Publish to GitHub",
-            "detail": "Kiểm tra PROJECT_STATUS.md + CHANGELOG.md, chạy tests/lint, build, tạo GitHub Release với changelog, feature status và upload đầy đủ release assets",
-            "type": "shell",
-            "command": "./tools/build_firefox_addon.sh",
-            "args": [
-                "--overwrite",
-                "--publish"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared",
-                "clear": true
-            }
-        },
-        {
-            "label": "Firefox Add-on: Publish Release (Tag + Push)",
-            "detail": "Build rich release docs/artifact → commit → tạo annotated tag v<version> → push → GitHub Release + documentation assets",
-            "type": "shell",
-            "command": "./tools/release_publish.sh",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": false
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared",
-                "clear": true
-            }
-        }
-    ]
+  "version": "2.0.0",
+  "_comment": "FirefoxChatImprover build tasks. Release builds validate PROJECT_STATUS.md and CHANGELOG.md, generate rich release notes, and publish documentation assets together with the add-on artifact.",
+  "tasks": [
+    {
+      "label": "Patchs: Run Python Patch",
+      "type": "shell",
+      "command": "./tools/run_python_patches.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Patchs: Run Python Patch + Test",
+      "type": "shell",
+      "command": "./tools/run_python_patches.sh && ./tools/test_firefox_addon.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Firefox Add-on: Build",
+      "type": "shell",
+      "command": "./tools/build_firefox_addon.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Git: Add, Commit and Push",
+      "type": "shell",
+      "command": "./tools/git_commit_push.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Zip staged changes",
+      "type": "shell",
+      "command": "./zip_staged_changes.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Firefox Add-on: Setup Dev Environment",
+      "type": "shell",
+      "command": "./tools/setup_firefox_addon_dev.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Firefox Add-on: Run Dev (Auto Reload)",
+      "type": "shell",
+      "command": "./tools/run_firefox_addon_dev.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "Firefox Add-on: Lint",
+      "type": "shell",
+      "command": "./tools/lint_firefox_addon.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Firefox Add-on: Check Release Documentation",
+      "detail": "Xác nhận PROJECT_STATUS.md và CHANGELOG.md khớp version hiện tại trước khi release",
+      "type": "shell",
+      "command": "python3 tools/release_documentation.py --check",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Firefox Add-on: Build Release",
+      "detail": "Kiểm tra PROJECT_STATUS.md + CHANGELOG.md, chạy tests/lint, tạo artifact và rich release notes trong dist/releases/<version>/ (chỉ local)",
+      "type": "shell",
+      "command": "./tools/build_firefox_addon.sh",
+      "args": [
+        "--overwrite"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Firefox Add-on: Build Release + Publish to GitHub",
+      "detail": "Kiểm tra PROJECT_STATUS.md + CHANGELOG.md, chạy tests/lint, build, tạo GitHub Release với changelog, feature status và upload đầy đủ release assets",
+      "type": "shell",
+      "command": "./tools/build_firefox_addon.sh",
+      "args": [
+        "--overwrite",
+        "--publish"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Firefox Add-on: Publish Release (Tag + Push)",
+      "detail": "Build rich release docs/artifact → commit → tạo annotated tag v<version> → push → GitHub Release + documentation assets",
+      "type": "shell",
+      "command": "./tools/release_publish.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "type": "shell",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "label": "Git: Add interactive",
+      "detail": "Hỏi có stage toàn bộ thay đổi của file đã track hay không; sau đó mở menu chọn nhiều file chưa track để add, các file không chọn được bỏ qua.",
+      "command": "python3 \"${workspaceFolder}/vscode_tasks_menu.py\" --action git-add --workspace \"${workspaceFolder}\"",
+      "menuAction": "git_add"
+    },
+    {
+      "type": "shell",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "label": "Git: Commit interactive",
+      "detail": "Nhập commit message và commit phần đã stage. Khi chạy từ menu, các message đã dùng được giữ tạm trong phiên để chọn lại; thoát menu thì lịch sử mất.",
+      "command": "python3 \"${workspaceFolder}/vscode_tasks_menu.py\" --action git-commit --workspace \"${workspaceFolder}\"",
+      "menuAction": "git_commit"
+    },
+    {
+      "type": "shell",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "label": "Git: Push",
+      "detail": "Push branch hiện tại lên upstream; nếu branch chưa có upstream thì cho chọn remote và thiết lập upstream bằng git push -u.",
+      "command": "python3 \"${workspaceFolder}/vscode_tasks_menu.py\" --action git-push --workspace \"${workspaceFolder}\"",
+      "menuAction": "git_push"
+    },
+    {
+      "type": "shell",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "label": "Git: Switch branch",
+      "detail": "Cho chọn local branch hoặc remote branch bằng menu nhiều cột, sau đó switch hoặc tạo local tracking branch tương ứng.",
+      "command": "python3 \"${workspaceFolder}/vscode_tasks_menu.py\" --action git-switch --workspace \"${workspaceFolder}\"",
+      "menuAction": "git_switch"
+    },
+    {
+      "type": "shell",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "label": "Git: Zip staged changes",
+      "detail": "Tạo ZIP trực tiếp bằng vscode_tasks_menu.py từ đúng nội dung đang stage trong Git, kèm staged.diff và manifest; không cần thư mục tools hoặc script phụ trợ.",
+      "command": "python3 \"${workspaceFolder}/vscode_tasks_menu.py\" --action zip-staged --workspace \"${workspaceFolder}\"",
+      "menuAction": "zip_staged"
+    }
+  ]
 }

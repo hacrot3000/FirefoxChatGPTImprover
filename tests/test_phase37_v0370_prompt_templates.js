@@ -51,12 +51,12 @@ function storageMock() {
   await assert.rejects(() => Templates.deleteCustom(context.browser, "builtin-create-complete-handoff"), /cannot be deleted/);
 
   const manifest = JSON.parse(read("extension/manifest.json"));
-  assert.equal(manifest.version, "0.37.0");
+  assert.ok(Number(manifest.version.split(".")[1]) >= 37, "prompt templates must remain available after v0.37.0");
   assert(manifest.background.scripts.includes("shared/prompt_templates.js"));
   const protocolContext = vm.createContext({});
   protocolContext.globalThis = protocolContext;
   vm.runInContext(read("extension/shared/protocol.js"), protocolContext);
-  assert.equal(protocolContext.FCI_PROTOCOL.VERSION, 25);
+  assert(protocolContext.FCI_PROTOCOL.VERSION >= 25);
   for (const message of ["SAVE_PROMPT_TEMPLATE", "DELETE_PROMPT_TEMPLATE", "FILL_PROMPT_TEMPLATE", "CONTENT_FILL_PROMPT"]) {
     assert(protocolContext.FCI_PROTOCOL.MESSAGE[message], message);
   }
@@ -70,6 +70,10 @@ function storageMock() {
 
   const background = read("extension/background/background.js");
   for (const marker of [
+    "globalThis.FCI_PROMPT_TEMPLATES || null",
+    "PROMPT_TEMPLATE_LIBRARY_FALLBACK",
+    "PromptTemplates?.loadStore",
+    "PROMPT_TEMPLATE_MAX_LENGTH_FALLBACK",
     "PromptTemplates.upsertCustom",
     "promptTemplates,",
     "PromptTemplates.deleteCustom",

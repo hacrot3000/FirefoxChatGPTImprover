@@ -9,17 +9,18 @@
 </head>
 
 <body data-mode="inactive" data-alert="inactive">
+  <a class="skip-link" href="#mainContent">Skip to main controls</a>
   <header class="app-header">
     <div>
       <p class="eyebrow">Firefox ChatAI Assistant</p>
     </div>
     <div class="header-status-cluster">
       <span id="commandStatusIcon" class="command-status-icon" data-state="idle" hidden aria-live="polite"></span>
-      <span id="statusPill" class="status-pill">Inactive</span>
+      <span id="statusPill" class="status-pill" role="status" aria-live="polite" aria-atomic="true">Inactive</span>
     </div>
   </header>
 
-  <main>
+  <main id="mainContent" tabindex="-1">
     <section class="card" data-group-id="tabs" aria-labelledby="tabsHeading">
       <div class="section-title-row">
         <h2 id="tabsHeading">Tabs and sessions</h2>
@@ -159,7 +160,7 @@
         <div class="details-wide"><dt>Stop current tab</dt><dd id="shortcutStopCurrentTab" class="shortcut-value">Not assigned</dd></div>
       </dl>
       <div class="button-grid">
-        <button id="manageShortcutsButton" type="button" class="primary">Manage shortcuts in Firefox</button>
+        <button id="manageShortcutsButton" type="button" class="primary">Manage shortcuts in browser</button>
         <button id="resetShortcutsButton" type="button">Reset to defaults</button>
       </div>
       <output id="shortcutStatus" class="selector-test-result" aria-live="polite"></output>
@@ -238,7 +239,7 @@
       </div>
       <input id="importWorkingSessionEntryFile" type="file" accept="application/json,.json" hidden>
       <input id="importWorkingSessionCatalogFile" type="file" accept="application/json,.json" hidden>
-      <output id="workingSessionCatalogResult" class="inline-result" aria-live="polite">Saved sessions are stored locally in the extension and may also be exported as JSON.</output>
+      <output id="workingSessionCatalogResult" class="inline-result" aria-live="polite">This section manages working-session data only. Saved sessions are stored locally and may also be exported as JSON.</output>
     </section>
 
     <section class="card" data-group-id="profiles" aria-labelledby="profileHeading">
@@ -297,7 +298,7 @@
         <button id="grantAutoActivationAccessButton" type="button">Grant auto-activation access</button>
         <button id="runAutoActivationScanButton" type="button">Activate matching open tabs</button>
       </div>
-      <output id="urlRoutingResult" class="selector-test-result routing-result"></output>
+      <output id="urlRoutingResult" class="selector-test-result routing-result" aria-live="polite"></output>
       <output id="autoActivationResult" class="selector-test-result routing-result" aria-live="polite">Automatic activation is disabled for this profile.</output>
       <details class="help-menu">
         <summary aria-label="URL profile routing help" title="Help">?</summary>
@@ -531,7 +532,7 @@
           <button id="verifyPickerButton" type="button">Pick verify element</button>
           <button id="verifyTestButton" type="button">Test verification</button>
         </div>
-        <output id="verifyTestResult" class="selector-test-result"></output>
+        <output id="verifyTestResult" class="selector-test-result" aria-live="polite"></output>
         <div class="selector-grid">
           <label>Verification expectation<select id="verifyExpectation">
               <option value="exists">Element exists</option>
@@ -574,8 +575,8 @@
         </select></label>
       <label class="check-row"><input id="openShellLogAfterExecution" type="checkbox">Open the complete console automatically when the command finishes</label>
       <small class="inline-result">Download-triggered commands always run in background mode. The verified destination is supplied through <code>FCI_DOWNLOAD_PATH</code>; the complete stdout/stderr transcript is stored on disk and remains reopenable.</small>
-      <output id="downloadStateSummary" class="selector-test-result">No managed download for this tab.</output>
-      <output id="downloadShellStateSummary" class="selector-test-result">No download shell command for this tab.</output>
+      <output id="downloadStateSummary" class="selector-test-result" aria-live="polite">No managed download for this tab.</output>
+      <output id="downloadShellStateSummary" class="selector-test-result" aria-live="polite">No download shell command for this tab.</output>
       <div class="button-grid managed-download-actions">
         <button id="retryDownloadMoveButton" type="button" disabled>Retry move to saved destination</button>
       </div>
@@ -661,6 +662,7 @@
       </div>
       <div class="button-grid">
         <button id="assignLocalActionProfileButton" type="button">Apply to tab</button>
+        <button id="clearLocalActionProfileBindingButton" type="button">Use URL/default</button>
         <button id="newLocalActionProfileButton" type="button">New profile</button>
         <button id="saveLocalActionProfileButton" type="button" class="primary">Save profile</button>
         <button id="deleteLocalActionProfileButton" type="button" class="danger">Delete profile</button>
@@ -739,7 +741,7 @@
             <button id="saveNativeLogRetentionButton" type="button">Save retention</button>
             <button id="runNativeLogCleanupButton" type="button">Clean now</button>
           </div>
-          <output id="nativeLogCleanupStatus" class="selector-test-result" data-state="idle">Log-store status has not been checked.</output>
+          <output id="nativeLogCleanupStatus" class="selector-test-result" data-state="idle" aria-live="polite">Log-store status has not been checked.</output>
           <small class="inline-result">Running and completed-unread logs are protected. Older viewed logs are deleted by age first, then oldest-first until file-count and total-size limits are met.</small>
         </div>
       </details>
@@ -826,23 +828,21 @@ cd C:\absolute\path\to\FirefoxChatImprover
 
     <section class="card" data-group-id="save" aria-labelledby="saveHeading">
       <h2 id="saveHeading">Import/export configuration</h2>
+      <p class="inline-result">Configuration data only. Working-session data is managed separately in Saved working sessions.</p>
       <div class="button-grid">
         <button id="saveProfileButton" type="button" class="primary">Save to profile</button>
         <button id="saveTabButton" type="button">Save for this tab</button>
         <button id="resetTabButton" type="button">Use profile for tab</button>
-        <button id="exportButton" type="button">Export all settings</button>
-        <button id="importButton" type="button">Import all settings</button>
-        <button id="saveWorkingSessionButton" type="button">Save working session</button>
-        <button id="importWorkingSessionButton" type="button">Import working session</button>
+        <button id="exportButton" type="button">Export all configuration</button>
+        <button id="importButton" type="button">Import all configuration</button>
         <button id="clearHighlightsButton" type="button">Clear highlights</button>
         <input id="importFile" type="file" accept="application/json,.json" hidden>
-        <input id="importWorkingSessionFile" type="file" accept="application/json,.json" hidden>
       </div>
       <div class="profile-io-list" aria-label="Profile import and export">
-        <div class="profile-io-row"><strong>Configuration profiles</strong><button id="exportConfigurationProfilesButton" type="button">Export</button><button id="importConfigurationProfilesButton" type="button">Import</button></div>
-        <div class="profile-io-row"><strong>Monitor profiles</strong><button id="exportMonitorProfilesButton" type="button">Export</button><button id="importMonitorProfilesButton" type="button">Import</button></div>
-        <div class="profile-io-row"><strong>Target profiles</strong><button id="exportTargetProfilesButton" type="button">Export</button><button id="importTargetProfilesButton" type="button">Import</button></div>
-        <div class="profile-io-row"><strong>Local action profiles</strong><button id="exportLocalActionProfilesButton" type="button">Export</button><button id="importLocalActionProfilesButton" type="button">Import</button></div>
+        <div class="profile-io-row"><strong>Configuration profiles</strong><button id="exportConfigurationProfilesButton" type="button" aria-label="Export configuration profiles">Export</button><button id="importConfigurationProfilesButton" type="button" aria-label="Import configuration profiles">Import</button></div>
+        <div class="profile-io-row"><strong>Monitor profiles</strong><button id="exportMonitorProfilesButton" type="button" aria-label="Export monitor profiles">Export</button><button id="importMonitorProfilesButton" type="button" aria-label="Import monitor profiles">Import</button></div>
+        <div class="profile-io-row"><strong>Target profiles</strong><button id="exportTargetProfilesButton" type="button" aria-label="Export target profiles">Export</button><button id="importTargetProfilesButton" type="button" aria-label="Import target profiles">Import</button></div>
+        <div class="profile-io-row"><strong>Local action profiles</strong><button id="exportLocalActionProfilesButton" type="button" aria-label="Export local action profiles">Export</button><button id="importLocalActionProfilesButton" type="button" aria-label="Import local action profiles">Import</button></div>
         <input id="profileImportFile" type="file" accept="application/json,.json" hidden>
       </div>
       <div class="settings-snapshot-row">
@@ -856,13 +856,13 @@ cd C:\absolute\path\to\FirefoxChatImprover
           <button id="restoreSettingsSnapshotButton" type="button">Restore</button>
           <button id="deleteSettingsSnapshotButton" type="button" class="danger">Delete</button>
         </div>
-        <small id="settingsSnapshotInfo" class="inline-result">Automatic snapshots are created before profile save/delete and settings import.</small>
+        <small id="settingsSnapshotInfo" class="inline-result">Automatic snapshots are created before profile save/delete and configuration import.</small>
       </div>
     </section>
 
-    <output id="messageBox" class="message-box" aria-live="polite"></output>
+    <output id="messageBox" class="message-box" role="status" aria-live="polite" aria-atomic="true"></output>
 
-    <dialog id="shellLogDialog" class="shell-log-dialog">
+    <dialog id="shellLogDialog" class="shell-log-dialog" aria-labelledby="shellLogDialogTitle" aria-describedby="shellLogMetadata">
       <form method="dialog" class="dialog-panel shell-log-panel">
         <div class="dialog-title-row">
           <div>
@@ -872,7 +872,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
           <button id="closeShellLogDialogButton" type="submit" value="cancel" class="compact icon-button" aria-label="Close log viewer" title="Close">×</button>
         </div>
         <textarea id="shellLogViewer" class="shell-log-viewer" readonly spellcheck="false" aria-label="Command log page"></textarea>
-        <output id="shellLogPageInfo" class="selector-test-result">No log loaded.</output>
+        <output id="shellLogPageInfo" class="selector-test-result" role="status" aria-live="polite" aria-atomic="true">No log loaded.</output>
         <div class="button-grid shell-log-navigation">
           <button id="shellLogFirstButton" type="button">First page</button>
           <button id="shellLogPreviousButton" type="button">Previous</button>
@@ -890,7 +890,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
       </form>
     </dialog>
 
-    <dialog id="workingSessionDialog" class="working-session-dialog">
+    <dialog id="workingSessionDialog" class="working-session-dialog" aria-labelledby="workingSessionDialogTitle" aria-describedby="workingSessionDialogDescription">
       <form method="dialog" class="working-session-panel">
         <header class="working-session-header">
           <div>
@@ -899,7 +899,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
           </div>
           <button id="closeWorkingSessionDialogButton" type="submit" class="compact icon-button" aria-label="Close">×</button>
         </header>
-        <div id="workingSessionTabList" class="working-session-tab-list"></div>
+        <div id="workingSessionTabList" class="working-session-tab-list" role="group" aria-label="Tabs included in the working session"></div>
         <output id="workingSessionResult" class="selector-test-result" aria-live="polite"></output>
         <div class="button-grid working-session-actions">
           <button id="cancelWorkingSessionButton" type="submit">Cancel</button>
@@ -908,14 +908,14 @@ cd C:\absolute\path\to\FirefoxChatImprover
       </form>
     </dialog>
 
-    <dialog id="downloadCompletionDialog" class="working-session-dialog download-completion-dialog">
+    <dialog id="downloadCompletionDialog" class="working-session-dialog download-completion-dialog" aria-labelledby="downloadCompletionDialogTitle" aria-describedby="downloadCompletionMessage">
       <form method="dialog" class="working-session-panel">
         <header class="working-session-header">
           <div>
-            <h2>Download completed</h2>
+            <h2 id="downloadCompletionDialogTitle">Download completed</h2>
             <p id="downloadCompletionMessage">The file was moved successfully.</p>
           </div>
-          <button type="submit" class="compact icon-button" aria-label="Close">×</button>
+          <button type="submit" class="compact icon-button" aria-label="Close download completion">×</button>
         </header>
         <label>Destination<textarea id="downloadCompletionPath" readonly spellcheck="false" rows="3"></textarea></label>
         <div class="button-grid">
@@ -946,6 +946,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
     </div>
   </template>
 
+  <script src="../shared/browser_compat.js"></script>
   <script src="../shared/sidebar_runtime_guard.js"></script>
   <script src="../shared/protocol.js"></script>
   <script src="../shared/settings.js"></script>

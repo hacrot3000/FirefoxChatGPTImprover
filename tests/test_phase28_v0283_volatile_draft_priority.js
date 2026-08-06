@@ -21,7 +21,19 @@ assert.match(sidebar, /elements\.localActionDraftStatus\.textContent = ""/);
 assert.match(sidebar, /Unsaved tab-only working edits/);
 assert.match(sidebar, /elements\.localActionDraftStatus\.hidden = !dirty/);
 assert.match(sidebar, /elements\.localActionModeStatus\.hidden = true/);
-assert.match(sidebar, /elements\.localActionSourceSummary\.hidden = true/);
+// Phase 41 keeps the effective source summary visible so users can tell
+// whether the tab uses an explicit binding, URL routing, or the default profile.
+const phase41OrNewer = manifestParts[0] > 0 || manifestParts[1] > 39 || (manifestParts[1] === 39 && manifestParts[2] >= 2);
+if (phase41OrNewer) {
+  assert.match(sidebar, /elements\.localActionSourceSummary\.hidden = false/);
+  assert.doesNotMatch(sidebar, /elements\.localActionSourceSummary\.hidden = true/);
+  assert.match(sidebar, /const sourceLabel = effectiveBinding === "explicit-tab"/);
+  assert.match(sidebar, /"URL-routed profile"/);
+  assert.match(sidebar, /"Default profile"/);
+  assert.match(sidebar, /Selected but not applied:/);
+} else {
+  assert.match(sidebar, /elements\.localActionSourceSummary\.hidden = true/);
+}
 assert.doesNotMatch(sidebar, /textContent = localActionDraftDirty \? "Unsaved" : "Saved"/);
 
 assert.match(sidebar, /volatile: true/);

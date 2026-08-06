@@ -1,7 +1,7 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 37 v0.37.0
-**Primary supported environment:** Firefox Desktop on Linux and Windows  
+**Current baseline:** Phase 44 v0.39.5
+**Primary supported environment:** Firefox Desktop plus Chromium/Chrome/Edge packages; Native Host registration is provided for Linux Chromium browsers  
 **Native Host:** 0.13.0
 
 ## Completed production scope
@@ -18,15 +18,17 @@
 | Full command logs | Complete | File-backed paging, persisted fallback and legacy `runId` discovery. |
 | Per-run compressed log export | Complete | ZIP export of the selected run with complete transcript, typed metadata, README, DEFLATE and explicit fallback completeness. |
 | Prompt templates | Complete | Two built-ins in a dedicated config file, clipboard copy, last-input filling in the active tab and locally stored custom templates. |
+| Chromium port | Complete | MV3 service worker, Side Panel, browser API adapters, deterministic Chrome/Edge build, PNG icons and separate Linux Native Host registration. |
 | Native Host Linux | Complete | Version 0.13.0; shell execution, scoped stop, bounded log retention and transaction receipts. |
 | Native Host Windows | Complete | PowerShell install/uninstall, dual registry-view registration, PowerShell/cmd execution, process-tree stop, Windows state/download paths and integration-test script. |
 | Firefox build/release tooling | Complete | Lint, build, checksum, signing helper, rollback and guarded update channel management. |
 | Firefox Android manifest validation | Complete | Minimum Firefox 142 removes unsupported-key warning. |
+| Stop/Start tab configuration continuity | Complete | Stop stores a per-tab snapshot of the selected profile, tab override, current automation draft and Local action working state; Start restores it without falling back to default. Runtime/log/statistics state intentionally resets. |
 | Tab-bound local-action working snapshots | Complete | Unsaved destination/command edits survive background recovery; stale cross-tab autosync is rejected by tab/session/URL/revision context. |
 | Real Firefox E2E and version matrix | Complete | Opt-in runner covers tabs, title, badge, DOM action, navigation and optional Native Host download/shell; matrix emits JSON/Markdown per Firefox binary. |
 | Named saved working-session catalog | Complete | Multiple locally stored named sessions with search, update, rename, duplicate, delete, per-session/catalog JSON backup and controlled subset restore. |
 | Per-rule statistics dashboard | Complete | Session-isolated counts for match/click/verify/automatic-command outcomes, return-code frequencies, average target/pipeline timings, JSON export and reset. |
-| Source integrity and regression | Complete | Phase 04–37 contracts, syntax audits, Native Host tests and opt-in real-Firefox E2E/version-matrix tooling. |
+| Source integrity and regression | Complete | Phase 04–44 contracts, syntax audits, Native Host tests, release-status, configuration/session scope and Stop/Start continuity gates, plus opt-in real-Firefox E2E/version-matrix tooling. |
 
 ## Operator-provided deployment inputs
 
@@ -57,7 +59,7 @@ A log file deleted before v0.28.20 cannot be reconstructed from metadata. Existi
 
 ## Required implementation status
 
-No required implementation tasks remain from the v0.28.19 feature audit. Phase 37 inserted the user-prioritized prompt-template workflow before the planned Chromium port. The next approved item remains the Chromium port. Native Host for macOS remains deferred by project decision.
+No required implementation tasks remain from the v0.28.19 feature audit. No required or recommended implementation tasks remain overall. No recommended implementation tasks remain either. The approved Chromium port and full accessibility audit are complete. Native Host for macOS remains deferred by project decision.
 
 Windows runtime validation can be run on a Windows machine with:
 
@@ -68,3 +70,47 @@ python .\tools\run_firefox_e2e.py --require-native
 ```
 
 | Sidebar search/filter | Complete | Non-destructive filters cover tabs, configuration/monitor/target/local-action profiles, global command presets and per-tab command history while preserving the current selection and drafts. |
+
+
+
+
+
+## Phase 44 v0.39.5
+
+- Stop persists a dedicated `browser.sessions` snapshot for the current tab before deleting its active runtime session.
+- Start restores the prior configuration profile, tab-specific config or current editor draft, plus Local action profile/override/working draft.
+- The stopped tab remains visible with its preserved config in the sidebar; choosing another profile while stopped intentionally replaces the snapshot.
+- Monitor runtime, target baseline, alerts, activity logs and per-rule statistics remain session-scoped and restart cleanly.
+
+## Phase 43 v0.39.4
+
+- Separated configuration transfer controls from working-session controls.
+- Removed duplicate legacy session save/import buttons from the configuration card.
+- Confirmed configuration JSON excludes the independently stored saved-session catalog.
+- Protocol remains 26; Native Host remains 0.13.0.
+
+## Phase 42 v0.39.3
+
+- Closed the required and recommended feature backlogs consistently across release-facing documents.
+- Removed stale guidance that still described the completed accessibility audit as the next task.
+- Added regression coverage that rejects stale version/status/backlog metadata before release.
+- Protocol remains 26; Native Host remains 0.13.0.
+
+## Phase 41 v0.39.2
+
+- Local action source summary distinguishes explicit tab binding, URL routing and default fallback.
+- `Use URL/default` removes an explicit binding while the tab is stopped or active.
+- Clearing a binding immediately resolves and persists the routed/default profile for an active session.
+- Protocol is 26; Native Host remains 0.13.0.
+
+## Phase 40 v0.39.1
+
+- Local action `Apply to tab` works while the current tab is stopped.
+- Explicit tab bindings persist in tab-session storage and are preferred on activation.
+- A bound profile remains selected across refresh and Stop/Start cycles.
+- Deleting a bound profile safely replaces stale tab bindings.
+- Protocol remains 25; Native Host remains 0.13.0.
+
+## Phase 39 v0.39.0
+
+Full accessibility audit completed: focus order, screen-reader semantics, contrast/motion preferences and keyboard-only picker flow. Protocol 25 and Native Host 0.13.0 remain unchanged.

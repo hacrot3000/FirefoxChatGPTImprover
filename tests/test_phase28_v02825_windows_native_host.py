@@ -111,7 +111,14 @@ assert "install_native_host.ps1" in integration and "uninstall_native_host.ps1" 
 
 manifest = json.loads((ROOT / "extension" / "manifest.json").read_text(encoding="utf-8"))
 assert tuple(map(int, manifest["version"].split("."))) >= (0, 28, 25)
-assert "Windows Native Host" in manifest["description"]
+description = str(manifest.get("description", ""))
+is_extension_manifest = manifest.get("manifest_version") == 3
+is_phase38_multibrowser_description = (
+    is_extension_manifest
+    and "Chromium" in description
+    and "Native Host actions" in description
+)
+assert "Windows Native Host" in description or is_phase38_multibrowser_description
 
 status = (ROOT / "document" / "CURRENT_PROJECT_STATUS.md").read_text(encoding="utf-8")
 assert "Native Host Windows | Complete" in status

@@ -8,6 +8,7 @@
   const AlertSound = globalThis.FCI_ALERT_SOUND;
   // Phase 28 v0.28.3: volatile editor drafts are highest-priority runtime state.
   // Phase 28 v0.28.23: bind draft autosync to the originating tab/session and persist its working snapshot.
+  // Phase 44 v0.39.5: Stop sends the current editor drafts so Start restores the same tab configuration.
   // Phase 28 v0.28.1: prompt-created presets and unrestricted direct execution.
   const RuntimeGuard = globalThis.FCI_SIDEBAR_RUNTIME_GUARD;
   const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
@@ -34,13 +35,13 @@
     targetProfileSearch: $("#targetProfileSearch"), targetProfileSearchResult: $("#targetProfileSearchResult"), targetProfileSelect: $("#targetProfileSelect"), targetProfileName: $("#targetProfileName"), applyTargetProfileButton: $("#applyTargetProfileButton"), newTargetProfileButton: $("#newTargetProfileButton"), saveTargetProfileButton: $("#saveTargetProfileButton"), deleteTargetProfileButton: $("#deleteTargetProfileButton"), targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), soundAlertEnabled: $("#soundAlertEnabled"), soundAlertSettings: $("#soundAlertSettings"), soundAlertTone: $("#soundAlertTone"), soundAlertVolume: $("#soundAlertVolume"), soundAlertRepeatCount: $("#soundAlertRepeatCount"), soundAlertRepeatIntervalMs: $("#soundAlertRepeatIntervalMs"), testSoundAlertButton: $("#testSoundAlertButton"), soundAlertTestResult: $("#soundAlertTestResult"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), exportSupportBundleButton: $("#exportSupportBundleButton"), clearLogsButton: $("#clearLogsButton"),
-    localActionProfileSearch: $("#localActionProfileSearch"), localActionProfileSearchResult: $("#localActionProfileSearchResult"), localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), downloadShellExecutionMode: $("#downloadShellExecutionMode"), openShellLogAfterExecution: $("#openShellLogAfterExecution"), downloadStateSummary: $("#downloadStateSummary"), downloadShellStateSummary: $("#downloadShellStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
+    localActionProfileSearch: $("#localActionProfileSearch"), localActionProfileSearchResult: $("#localActionProfileSearchResult"), localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), clearLocalActionProfileBindingButton: $("#clearLocalActionProfileBindingButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), downloadShellExecutionMode: $("#downloadShellExecutionMode"), openShellLogAfterExecution: $("#openShellLogAfterExecution"), downloadStateSummary: $("#downloadStateSummary"), downloadShellStateSummary: $("#downloadShellStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
     shellPresetSearch: $("#shellPresetSearch"), shellPresetSearchResult: $("#shellPresetSearchResult"), shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySearch: $("#shellHistorySearch"), shellHistorySearchResult: $("#shellHistorySearchResult"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"), nativeLogRetentionEnabled: $("#nativeLogRetentionEnabled"), nativeLogMaxAgeDays: $("#nativeLogMaxAgeDays"), nativeLogMaxTotalMiB: $("#nativeLogMaxTotalMiB"), nativeLogMaxFiles: $("#nativeLogMaxFiles"), nativeLogCleanupOnStartup: $("#nativeLogCleanupOnStartup"), nativeLogCleanupAfterCommand: $("#nativeLogCleanupAfterCommand"), saveNativeLogRetentionButton: $("#saveNativeLogRetentionButton"), runNativeLogCleanupButton: $("#runNativeLogCleanupButton"), nativeLogCleanupStatus: $("#nativeLogCleanupStatus"),
     shellLogDialog: $("#shellLogDialog"), shellLogDialogTitle: $("#shellLogDialogTitle"), shellLogMetadata: $("#shellLogMetadata"), shellLogViewer: $("#shellLogViewer"), shellLogPageInfo: $("#shellLogPageInfo"), closeShellLogDialogButton: $("#closeShellLogDialogButton"), shellLogFirstButton: $("#shellLogFirstButton"), shellLogPreviousButton: $("#shellLogPreviousButton"), shellLogNextButton: $("#shellLogNextButton"), shellLogLastButton: $("#shellLogLastButton"), copyShellLogSelectionButton: $("#copyShellLogSelectionButton"), copyShellLogPageButton: $("#copyShellLogPageButton"), copyShellLogAllButton: $("#copyShellLogAllButton"), exportShellLogArchiveButton: $("#exportShellLogArchiveButton"), refreshShellLogButton: $("#refreshShellLogButton"), deleteShellLogButton: $("#deleteShellLogButton"),
     workingSessionCatalogSearch: $("#workingSessionCatalogSearch"), workingSessionCatalogSearchResult: $("#workingSessionCatalogSearchResult"), workingSessionCatalogSelect: $("#workingSessionCatalogSelect"), workingSessionCatalogName: $("#workingSessionCatalogName"), workingSessionCatalogDescription: $("#workingSessionCatalogDescription"), workingSessionCatalogTabCount: $("#workingSessionCatalogTabCount"), workingSessionCatalogUpdatedAt: $("#workingSessionCatalogUpdatedAt"), workingSessionCatalogLastRestoredAt: $("#workingSessionCatalogLastRestoredAt"), newWorkingSessionEntryButton: $("#newWorkingSessionEntryButton"), updateWorkingSessionEntryButton: $("#updateWorkingSessionEntryButton"), restoreWorkingSessionEntryButton: $("#restoreWorkingSessionEntryButton"), renameWorkingSessionEntryButton: $("#renameWorkingSessionEntryButton"), duplicateWorkingSessionEntryButton: $("#duplicateWorkingSessionEntryButton"), deleteWorkingSessionEntryButton: $("#deleteWorkingSessionEntryButton"), exportWorkingSessionEntryButton: $("#exportWorkingSessionEntryButton"), importWorkingSessionEntryButton: $("#importWorkingSessionEntryButton"), exportWorkingSessionCatalogButton: $("#exportWorkingSessionCatalogButton"), importWorkingSessionCatalogButton: $("#importWorkingSessionCatalogButton"), importWorkingSessionEntryFile: $("#importWorkingSessionEntryFile"), importWorkingSessionCatalogFile: $("#importWorkingSessionCatalogFile"), workingSessionCatalogResult: $("#workingSessionCatalogResult"),
-    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), exportConfigurationProfilesButton: $("#exportConfigurationProfilesButton"), importConfigurationProfilesButton: $("#importConfigurationProfilesButton"), exportMonitorProfilesButton: $("#exportMonitorProfilesButton"), importMonitorProfilesButton: $("#importMonitorProfilesButton"), exportTargetProfilesButton: $("#exportTargetProfilesButton"), importTargetProfilesButton: $("#importTargetProfilesButton"), exportLocalActionProfilesButton: $("#exportLocalActionProfilesButton"), importLocalActionProfilesButton: $("#importLocalActionProfilesButton"), profileImportFile: $("#profileImportFile"), saveWorkingSessionButton: $("#saveWorkingSessionButton"), importWorkingSessionButton: $("#importWorkingSessionButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), importWorkingSessionFile: $("#importWorkingSessionFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), shortcutOpenSidebar: $("#shortcutOpenSidebar"), shortcutToggleCurrentTab: $("#shortcutToggleCurrentTab"), shortcutAcknowledgeAlert: $("#shortcutAcknowledgeAlert"), shortcutRunTargetAction: $("#shortcutRunTargetAction"), shortcutOpenCommandLog: $("#shortcutOpenCommandLog"), shortcutStopCurrentTab: $("#shortcutStopCurrentTab"), refreshShortcutsButton: $("#refreshShortcutsButton"), manageShortcutsButton: $("#manageShortcutsButton"), resetShortcutsButton: $("#resetShortcutsButton"), shortcutStatus: $("#shortcutStatus"), messageBox: $("#messageBox")
+    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), exportConfigurationProfilesButton: $("#exportConfigurationProfilesButton"), importConfigurationProfilesButton: $("#importConfigurationProfilesButton"), exportMonitorProfilesButton: $("#exportMonitorProfilesButton"), importMonitorProfilesButton: $("#importMonitorProfilesButton"), exportTargetProfilesButton: $("#exportTargetProfilesButton"), importTargetProfilesButton: $("#importTargetProfilesButton"), exportLocalActionProfilesButton: $("#exportLocalActionProfilesButton"), importLocalActionProfilesButton: $("#importLocalActionProfilesButton"), profileImportFile: $("#profileImportFile"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), shortcutOpenSidebar: $("#shortcutOpenSidebar"), shortcutToggleCurrentTab: $("#shortcutToggleCurrentTab"), shortcutAcknowledgeAlert: $("#shortcutAcknowledgeAlert"), shortcutRunTargetAction: $("#shortcutRunTargetAction"), shortcutOpenCommandLog: $("#shortcutOpenCommandLog"), shortcutStopCurrentTab: $("#shortcutStopCurrentTab"), refreshShortcutsButton: $("#refreshShortcutsButton"), manageShortcutsButton: $("#manageShortcutsButton"), resetShortcutsButton: $("#resetShortcutsButton"), shortcutStatus: $("#shortcutStatus"), messageBox: $("#messageBox")
   };
 
   const modeLabels = {
@@ -128,6 +129,10 @@
   function showMessage(text = "", level = "info") {
     elements.messageBox.textContent = text;
     elements.messageBox.dataset.level = level;
+    const isError = level === "error";
+    elements.messageBox.setAttribute("role", isError ? "alert" : "status");
+    elements.messageBox.setAttribute("aria-live", isError ? "assertive" : "polite");
+    elements.messageBox.setAttribute("aria-atomic", "true");
   }
 
   function promptTemplateLibrary() {
@@ -966,6 +971,7 @@
     elements.shellLogMetadata.textContent = `Tab ${descriptor.tabId}${descriptor.runId ? ` · Run ${descriptor.runId}` : ""}`;
     elements.shellLogViewer.value = descriptor.logId ? "Loading stored log…" : "Loading received output…";
     if (!elements.shellLogDialog.open) elements.shellLogDialog.showModal();
+    elements.shellLogViewer.focus();
     let displayed = false;
     try {
       const loaded = await loadShellLogPage(descriptor, { fromEnd, requestEpoch });
@@ -1685,8 +1691,11 @@
     const store = dashboard.localActionStore || LocalActions.defaultStore();
     const session = selectedSession();
     const routed = LocalActions.routeProfile(store, session?.url || dashboard.currentTab?.url || "");
+    const currentTabBindingId = Number(dashboard.currentTab?.tabId) === Number(selectedTabId)
+      ? dashboard.currentTab?.localActionProfileId
+      : null;
     if (!store.profiles.some((profile) => profile.id === selectedLocalActionProfileId)) {
-      selectedLocalActionProfileId = session?.localActionProfileId || routed.profileId || store.defaultProfileId;
+      selectedLocalActionProfileId = session?.localActionProfileId || currentTabBindingId || routed.profileId || store.defaultProfileId;
     }
     const result = filteredWithSelection(
       store.profiles,
@@ -1712,11 +1721,29 @@
       elements.localActionModeStatus.hidden = true;
       elements.localActionModeStatus.textContent = "";
     }
+    const currentTabSelected = Number(dashboard.currentTab?.tabId) === Number(selectedTabId);
+    const effectiveBinding = session?.localActionProfileBinding || (currentTabSelected ? dashboard.currentTab?.localActionProfileBinding : null) || "default";
+    const effectiveProfileId = session?.localActionProfileId || (currentTabSelected ? dashboard.currentTab?.localActionProfileId : null) || routed.profileId || store.defaultProfileId;
+    const effectiveProfile = localActionProfileById(effectiveProfileId);
+    const sourceLabel = effectiveBinding === "explicit-tab"
+      ? "Explicit tab binding"
+      : (effectiveBinding === "url-route" ? "URL-routed profile" : "Default profile");
     if (elements.localActionSourceSummary) {
-      elements.localActionSourceSummary.hidden = true;
-      elements.localActionSourceSummary.textContent = "";
+      elements.localActionSourceSummary.hidden = false;
+      elements.localActionSourceSummary.dataset.state = effectiveBinding === "explicit-tab" ? "ok" : "idle";
+      const selectedDiffers = profile && effectiveProfile && profile.id !== effectiveProfile.id;
+      elements.localActionSourceSummary.textContent = `${sourceLabel}: ${effectiveProfile?.name || "Profile unavailable"}${selectedDiffers ? ` · Selected but not applied: ${profile.name}` : ""}`;
     }
-    elements.assignLocalActionProfileButton.disabled = busy || !session;
+    const selectedTabExists = Boolean(session) || currentTabSelected;
+    const hasExplicitBinding = effectiveBinding === "explicit-tab";
+    elements.assignLocalActionProfileButton.disabled = busy || !selectedTabExists || !profile;
+    elements.assignLocalActionProfileButton.title = session
+      ? "Apply this local-action profile to the active tab session."
+      : (selectedTabExists ? "Bind this local-action profile now; it will be used when the tab is activated." : "Select an available tab first.");
+    elements.clearLocalActionProfileBindingButton.disabled = busy || !selectedTabExists || !hasExplicitBinding;
+    elements.clearLocalActionProfileBindingButton.title = hasExplicitBinding
+      ? "Remove the explicit tab binding and use URL routing or the default Local action profile."
+      : "This tab is already using URL routing or the default Local action profile.";
     elements.saveTabLocalActionsButton.disabled = busy || !session;
     elements.resetTabLocalActionsButton.disabled = busy || !session || session.localActionConfigMode !== CONFIG_MODE.TAB;
     elements.deleteLocalActionProfileButton.disabled = busy || store.profiles.length <= 1;
@@ -1748,6 +1775,7 @@
         : "The managed download was moved successfully.";
       elements.downloadCompletionPath.value = state.destinationPath;
       if (!elements.downloadCompletionDialog.open) elements.downloadCompletionDialog.showModal();
+      (shellAvailability.ready ? elements.executeShellAfterDownloadButton : elements.acknowledgeDownloadButton).focus();
     }
   }
 
@@ -1990,12 +2018,16 @@
 
     const oldProfile = selectedProfileId;
     const session = selectedSession();
+    const stoppedConfig = !session && Number(dashboard.currentTab?.tabId) === Number(selectedTabId)
+      ? dashboard.currentTab?.stoppedConfig
+      : null;
     const manualProfileId = manualProfileSelectionByTab.get(Number(selectedTabId));
     const routedProfileId = autoProfileByUrl && !session
       ? Settings.routeProfile(dashboard.store, dashboard.currentTab?.url || "").profileId
       : null;
     selectedProfileId = session?.profileId ||
       (dashboard.store.profiles.some((profile) => profile.id === manualProfileId) ? manualProfileId : null) ||
+      (dashboard.store.profiles.some((profile) => profile.id === stoppedConfig?.profileId) ? stoppedConfig.profileId : null) ||
       (dashboard.store.profiles.some((profile) => profile.id === routedProfileId) ? routedProfileId : null) ||
       (dashboard.store.profiles.some((profile) => profile.id === oldProfile) ? oldProfile : dashboard.store.defaultProfileId);
     const profileResult = filteredWithSelection(
@@ -2014,7 +2046,12 @@
     renderComponentProfileOptions();
     const localStore = dashboard.localActionStore || LocalActions.defaultStore();
     const routedLocal = LocalActions.routeProfile(localStore, session?.url || dashboard.currentTab?.url || "");
+    const currentTabBindingId = Number(dashboard.currentTab?.tabId) === Number(selectedTabId)
+      ? dashboard.currentTab?.localActionProfileId
+      : null;
     selectedLocalActionProfileId = session?.localActionProfileId ||
+      (localStore.profiles.some((profile) => profile.id === currentTabBindingId) ? currentTabBindingId : null) ||
+      (localStore.profiles.some((profile) => profile.id === stoppedConfig?.localActionProfileId) ? stoppedConfig.localActionProfileId : null) ||
       (localStore.profiles.some((profile) => profile.id === selectedLocalActionProfileId) ? selectedLocalActionProfileId : null) ||
       routedLocal.profileId || localStore.defaultProfileId;
   }
@@ -2304,7 +2341,7 @@
       if (!shortcut) missing += 1;
     }
     elements.shortcutStatus.textContent = missing
-      ? `${missing} command(s) are unassigned. Firefox may have cleared a conflicting shortcut.`
+      ? `${missing} command(s) are unassigned. The browser may have cleared a conflicting shortcut.`
       : "All keyboard commands are assigned.";
     elements.shortcutStatus.dataset.state = missing ? "warning" : "success";
     elements.resetShortcutsButton.disabled = busy || !browser.commands?.reset;
@@ -2333,12 +2370,12 @@
   }
 
   async function manageKeyboardShortcuts() {
-    if (!browser.commands?.openShortcutSettings) throw new Error("This Firefox version cannot open extension shortcut settings.");
+    if (!browser.commands?.openShortcutSettings) throw new Error("This browser cannot open extension shortcut settings automatically.");
     await browser.commands.openShortcutSettings();
   }
 
   async function resetKeyboardShortcuts() {
-    if (!browser.commands?.reset) throw new Error("This Firefox version cannot reset extension shortcuts.");
+    if (!browser.commands?.reset) throw new Error("This browser cannot reset extension shortcuts.");
     const commands = Array.isArray(dashboard.keyboardCommands) ? dashboard.keyboardCommands : [];
     for (const item of commands) {
       if (!item?.name) continue;
@@ -2354,6 +2391,7 @@
   function renderDetails(loadForm = true) {
     const session = selectedSession();
     const currentIsSelected = Number(dashboard.currentTab.tabId) === Number(selectedTabId);
+    const stoppedConfig = !session && currentIsSelected ? dashboard.currentTab?.stoppedConfig : null;
     const mode = session?.mode || MODE.INACTIVE;
     const runtime = session?.runtime || {};
     elements.body.dataset.mode = mode;
@@ -2379,8 +2417,10 @@
       ? ` · ${recoveryState}`
       : "";
     elements.modeText.textContent = `${modeLabels[mode] || mode}${recoverySuffix}`;
-    elements.configModeText.textContent = session?.configMode === CONFIG_MODE.TAB ? "Tab-specific" : (session ? "Profile-based" : "No session");
-    elements.profileText.textContent = session?.profileName || profileById(selectedProfileId)?.name || "—";
+    elements.configModeText.textContent = session?.configMode === CONFIG_MODE.TAB
+      ? "Tab-specific"
+      : (session ? "Profile-based" : (stoppedConfig ? (stoppedConfig.configMode === CONFIG_MODE.TAB ? "Stopped · tab-specific" : "Stopped · profile-based") : "No session"));
+    elements.profileText.textContent = session?.profileName || profileById(stoppedConfig?.profileId || selectedProfileId)?.name || "—";
     const pendingState = runtime.pendingMonitorState;
     const remainingMs = pendingState && runtime.stabilityDueAt
       ? Math.max(0, new Date(runtime.stabilityDueAt).getTime() - Date.now())
@@ -2495,9 +2535,9 @@
     if (loadForm) {
       elements.profileName.value = profile?.name || "";
       elements.customTabTitle.value = String(tabMetadata?.customTitle || "");
-      writeConfig(session?.effectiveConfig || profile?.config || Settings.defaultConfig());
+      writeConfig(session?.effectiveConfig || stoppedConfig?.effectiveConfig || profile?.config || Settings.defaultConfig());
       const localProfile = localActionProfileById(selectedLocalActionProfileId);
-      writeLocalActionConfig(session?.effectiveLocalActions || localProfile?.config || LocalActions.defaultConfig());
+      writeLocalActionConfig(session?.effectiveLocalActions || stoppedConfig?.effectiveLocalActions || localProfile?.config || LocalActions.defaultConfig());
     }
   }
 
@@ -2634,7 +2674,11 @@
         tabId: activationTabId,
         profileId: (autoProfileByUrl && !manualProfileSelectionByTab.has(Number(activationTabId)))
           ? null
-          : selectedProfileId
+          : selectedProfileId,
+        restoreStoppedConfig: Boolean(
+          dashboard.currentTab?.stoppedConfig &&
+          !manualProfileSelectionByTab.has(Number(activationTabId))
+        )
       });
       if (!response) {
         throw new Error("The background script did not respond.");
@@ -2651,6 +2695,15 @@
     }).finally(() => {
       setBusy(false);
     });
+  }
+
+  function stopSelectedTab() {
+    const session = selectedSession();
+    const drafts = session ? {
+      config: readConfig(),
+      localActions: readLocalActionConfig()
+    } : null;
+    void request(MESSAGE.STOP_TAB, { tabId: selectedTabId, drafts }, "Tab stopped; its configuration will be restored on Start.");
   }
 
   function toggleElementPicker(kind) {
@@ -3359,6 +3412,7 @@ ${run.command || ""}`)) {
 
   function setBusy(value) {
     busy = Boolean(value);
+    document.querySelector("main")?.setAttribute("aria-busy", busy ? "true" : "false");
     renderDetails(false);
     elements.refreshButton.disabled = busy;
     elements.saveProfileButton.disabled = busy;
@@ -3531,8 +3585,13 @@ ${run.command || ""}`)) {
     selectedTabId = nextTabId;
     syncOpenShellLogToSelectedTab();
     const session = selectedSession();
-    selectedProfileId = session?.profileId || dashboard.store.defaultProfileId;
+    const stoppedConfig = !session && Number(dashboard.currentTab?.tabId) === Number(selectedTabId)
+      ? dashboard.currentTab?.stoppedConfig
+      : null;
+    selectedProfileId = session?.profileId || stoppedConfig?.profileId || dashboard.store.defaultProfileId;
+    selectedLocalActionProfileId = session?.localActionProfileId || stoppedConfig?.localActionProfileId || selectedLocalActionProfileId;
     elements.profileSelect.value = selectedProfileId;
+    elements.localActionProfileSelect.value = selectedLocalActionProfileId || "";
     renderDetails(true);
     applyPendingPickerResult();
   });
@@ -3932,6 +3991,8 @@ ${run.command || ""}`)) {
     if (!elements.workingSessionDialog.open) {
       elements.workingSessionDialog.showModal();
     }
+    const firstTabChoice = elements.workingSessionTabList.querySelector('input[type="checkbox"]');
+    (firstTabChoice || elements.confirmWorkingSessionButton).focus();
   }
 
   async function openSaveWorkingSessionDialog(mode = "export", entryId = null) {
@@ -4087,9 +4148,22 @@ ${run.command || ""}`)) {
   });
   elements.assignLocalActionProfileButton.addEventListener("click", () => {
     if (!confirmDiscardLocalActionDraft("applying another profile to this tab")) return;
+    const inactive = !selectedSession();
     void request(MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE, {
       tabId: selectedTabId, profileId: selectedLocalActionProfileId
-    }, "Local-action profile applied to tab.");
+    }, inactive
+      ? "Local-action profile bound to this stopped tab and will be used on activation."
+      : "Local-action profile applied to tab.", { reloadForm: true, preferredTabId: selectedTabId });
+  });
+  elements.clearLocalActionProfileBindingButton.addEventListener("click", () => {
+    if (!confirmDiscardLocalActionDraft("removing the explicit Local action profile binding")) return;
+    const inactive = !selectedSession();
+    void request(MESSAGE.CLEAR_LOCAL_ACTION_PROFILE_BINDING, {
+      tabId: selectedTabId
+    }, inactive
+      ? "Explicit Local action binding removed; URL routing or the default profile will be used on activation."
+      : "Explicit Local action binding removed; the active tab now uses URL routing or the default profile.",
+    { reloadForm: true, preferredTabId: selectedTabId });
   });
   elements.newLocalActionProfileButton.addEventListener("click", () => {
     if (confirmDiscardLocalActionDraft("creating a new local-action profile")) createLocalActionProfile();
@@ -4239,11 +4313,11 @@ Cancel: keep editing without losing the changes.`);
   elements.resetShortcutsButton.addEventListener("click", () => void resetKeyboardShortcuts().catch((error) => showMessage(error instanceof Error ? error.message : String(error), "error")));
   elements.refreshButton.addEventListener("click", () => void request(MESSAGE.GET_DASHBOARD));
   elements.tabPrimaryQuickButton.addEventListener("click", runPrimaryTabAction);
-  elements.tabStopQuickButton.addEventListener("click", () => void request(MESSAGE.STOP_TAB, { tabId: selectedTabId }, "Tab stopped."));
+  elements.tabStopQuickButton.addEventListener("click", stopSelectedTab);
   elements.activateButton.addEventListener("click", activateCurrentTab);
   elements.pauseButton.addEventListener("click", () => void request(MESSAGE.PAUSE_TAB, { tabId: selectedTabId }, "Tab paused."));
   elements.resumeButton.addEventListener("click", () => void request(MESSAGE.RESUME_TAB, { tabId: selectedTabId }, "Tab resumed."));
-  elements.stopButton.addEventListener("click", () => void request(MESSAGE.STOP_TAB, { tabId: selectedTabId }, "Tab stopped."));
+  elements.stopButton.addEventListener("click", stopSelectedTab);
   elements.assignProfileButton.addEventListener("click", () => void request(MESSAGE.ASSIGN_PROFILE, { tabId: selectedTabId, profileId: selectedProfileId }, "Profile applied to tab."));
   elements.saveTabButton.addEventListener("click", () => void saveTabConfiguration());
   elements.resetTabButton.addEventListener("click", () => void request(MESSAGE.RESET_TAB_CONFIG, { tabId: selectedTabId }, "The tab now uses its profile configuration."));
@@ -4289,25 +4363,10 @@ Cancel: keep editing without losing the changes.`);
     if (!response?.text) return;
     downloadBlob(
       new Blob([response.text], { type: "application/json" }),
-      `firefox-chat-improver-settings-${new Date().toISOString().slice(0, 10)}.json`
+      `firefox-chat-improver-configuration-${new Date().toISOString().slice(0, 10)}.json`
     );
   });
-  elements.saveWorkingSessionButton.addEventListener("click", () => void openSaveWorkingSessionDialog());
-  elements.importWorkingSessionButton.addEventListener("click", () => elements.importWorkingSessionFile.click());
   elements.confirmWorkingSessionButton.addEventListener("click", () => void confirmWorkingSession());
-  elements.importWorkingSessionFile.addEventListener("change", async () => {
-    const file = elements.importWorkingSessionFile.files?.[0];
-    if (!file) return;
-    try {
-      pendingWorkingSessionBundle = WorkingSession.parse(await file.text());
-      const tabs = pendingWorkingSessionBundle.tabs.map((tab, index) => ({ ...tab, tabId: index, addOnActive: tab.addOnActive }));
-      renderWorkingSessionDialog(tabs, "import");
-    } catch (error) {
-      showMessage(error instanceof Error ? error.message : String(error), "error");
-    } finally {
-      elements.importWorkingSessionFile.value = "";
-    }
-  });
   elements.workingSessionCatalogSelect.addEventListener("change", () => {
     selectedWorkingSessionEntryId = elements.workingSessionCatalogSelect.value || null;
     workingSessionEditorEntryId = null;
@@ -4423,7 +4482,7 @@ Cancel: keep editing without losing the changes.`);
     const file = elements.importFile.files?.[0];
     if (!file) return;
     const text = await file.text();
-    await request(MESSAGE.IMPORT_SETTINGS, { text }, "Settings imported. The previous settings were saved as a recovery snapshot.");
+    await request(MESSAGE.IMPORT_SETTINGS, { text }, "Configuration imported. The previous configuration was saved as a recovery snapshot.");
     elements.importFile.value = "";
   });
   elements.exportConfigurationProfilesButton.addEventListener("click", () => void exportProfileType("configuration"));

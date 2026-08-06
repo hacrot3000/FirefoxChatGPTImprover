@@ -736,3 +736,87 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 @media (max-width: 360px) {
   .prompt-template-editor-actions { grid-template-columns: 1fr; }
 }
+
+/* Phase 39: WCAG-oriented focus, contrast, motion and forced-colour support. */
+.skip-link {
+  position: fixed;
+  z-index: 10000;
+  top: 6px;
+  left: 6px;
+  max-width: calc(100vw - 12px);
+  padding: 8px 10px;
+  transform: translateY(-160%);
+  border: 2px solid LinkText;
+  border-radius: 6px;
+  background: Canvas;
+  color: LinkText;
+  font-weight: 800;
+  text-decoration: none;
+}
+.skip-link:focus { transform: translateY(0); }
+
+:where(button, input, select, textarea, summary, a[href], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 3px solid LinkText;
+  outline-offset: 2px;
+}
+.help-menu summary:focus-visible,
+.group-toggle:focus-visible,
+.guide-link-button:focus-visible {
+  outline: 3px solid LinkText;
+  outline-offset: 2px;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select,
+textarea { min-height: 32px; }
+summary { min-height: 28px; }
+::placeholder { color: color-mix(in srgb, FieldText 72%, transparent); opacity: 1; }
+[aria-busy="true"] { cursor: progress; }
+dialog::backdrop { background: rgb(0 0 0 / .55); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --border: CanvasText;
+    --muted: CanvasText;
+  }
+  .card,
+  button,
+  input,
+  select,
+  textarea,
+  details,
+  .message-box { border-width: 2px; }
+  button:disabled { opacity: .7; }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --surface: Canvas;
+    --border: CanvasText;
+    --muted: CanvasText;
+    --active: LinkText;
+    --paused: MarkText;
+    --error: LinkText;
+  }
+  .status-pill::before,
+  .native-status::before,
+  #localActionDraftStatus.local-action-status-dot::before { forced-color-adjust: auto; }
+  .card,
+  .pipeline-panel,
+  .shell-preset-panel,
+  .rule-command-panel,
+  .component-profile-panel,
+  .message-box { background: Canvas; }
+  button.primary,
+  button.danger,
+  [data-state="matched"],
+  [data-state="error"] { border-color: CanvasText; }
+}

@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatAssistantElementPickerV1";
-  const VERSION = 2;
+  const VERSION = 3;
   const previous = globalThis[INSTANCE_KEY];
   if (previous?.VERSION >= VERSION) {
     return;
@@ -20,7 +20,8 @@
     current: null,
     startedAt: null,
     overlay: null,
-    label: null
+    label: null,
+    previousFocus: null
   };
 
   function cssEscape(value) {
@@ -168,14 +169,17 @@
       position: "fixed",
       zIndex: "2147483646",
       pointerEvents: "none",
-      border: "2px solid #a855f7",
+      border: "3px solid Highlight",
       borderRadius: "4px",
-      background: "rgba(168, 85, 247, 0.10)",
+      background: "rgba(0, 120, 215, 0.12)",
       boxShadow: "0 0 0 1px rgba(255,255,255,.85) inset",
       display: "none"
     });
     const label = document.createElement("div");
     label.setAttribute(UI_ATTRIBUTE, "label");
+    label.setAttribute("role", "status");
+    label.setAttribute("aria-live", "assertive");
+    label.setAttribute("aria-atomic", "true");
     Object.assign(label.style, {
       position: "fixed",
       zIndex: "2147483647",
@@ -183,8 +187,8 @@
       maxWidth: "min(520px, calc(100vw - 16px))",
       padding: "5px 8px",
       borderRadius: "5px",
-      background: "#6b21a8",
-      color: "white",
+      background: "Highlight",
+      color: "HighlightText",
       font: "12px/1.3 system-ui, sans-serif",
       boxShadow: "0 2px 10px rgba(0,0,0,.35)",
       display: "none"
@@ -232,6 +236,7 @@
     document.removeEventListener("pointerdown", onPointerDown, true);
     document.removeEventListener("click", onClick, true);
     document.removeEventListener("keydown", onKeyDown, true);
+    document.removeEventListener("focusin", onFocusIn, true);
     window.removeEventListener("scroll", onViewportChange, true);
     window.removeEventListener("resize", onViewportChange, true);
   }
@@ -257,7 +262,11 @@
     const kind = state.kind;
     removeListeners();
     cleanupUi();
-    state = { active: false, kind: null, current: null, startedAt: null, overlay: null, label: null };
+    const previousFocus = state.previousFocus;
+    state = { active: false, kind: null, current: null, startedAt: null, overlay: null, label: null, previousFocus: null };
+    if (payload.cancelled && previousFocus?.isConnected && typeof previousFocus.focus === "function") {
+      try { previousFocus.focus({ preventScroll: true }); } catch (_error) { previousFocus.focus(); }
+    }
     if (notify) {
       emit({ kind, ...payload });
     }
@@ -281,24 +290,44 @@
     event.stopImmediatePropagation();
   }
 
+  function selectElement(element) {
+    if (!state.active || !element || element.nodeType !== 1 || isPickerUi(element)) return false;
+    try {
+      const result = buildSelector(element, document);
+      finish({ cancelled: false, ...result, elementSummary: elementSummary(element), inputMethod: "keyboard-or-pointer" });
+      return true;
+    } catch (error) {
+      finish({ cancelled: true, reason: error instanceof Error ? error.message : String(error) });
+      return false;
+    }
+  }
+
   function onClick(event) {
     if (!state.active || isPickerUi(event.target)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    const element = state.current || event.target;
-    try {
-      const result = buildSelector(element, document);
-      finish({ cancelled: false, ...result, elementSummary: elementSummary(element) });
-    } catch (error) {
-      finish({ cancelled: true, reason: error instanceof Error ? error.message : String(error) });
-    }
+    selectElement(state.current || event.target);
+  }
+
+  function onFocusIn(event) {
+    if (!state.active || isPickerUi(event.target)) return;
+    updateUi(event.target);
   }
 
   function onKeyDown(event) {
-    if (event.key !== "Escape") return;
+    if (!state.active) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      cancel("escape");
+      return;
+    }
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const element = state.current || document.activeElement;
+    if (!element || element === document.body || element === document.documentElement || isPickerUi(element)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    cancel("escape");
+    selectElement(element);
   }
 
   function onViewportChange() {
@@ -314,16 +343,22 @@
     state.active = true;
     state.kind = kind;
     state.startedAt = new Date().toISOString();
+    state.previousFocus = document.activeElement?.nodeType === 1 ? document.activeElement : null;
     ensureUi();
     const kindLabel = kind === "monitor" ? "monitor element" : (kind === "verify" ? "verification element" : "target");
-    state.label.textContent = `Picking ${kindLabel}: hover and click, or press Esc to cancel`;
+    state.label.textContent = `Picking ${kindLabel}: use Tab or Shift+Tab to move, Enter or Space to select, mouse click to select, or Escape to cancel`;
     Object.assign(state.label.style, { display: "block", left: "8px", top: "8px" });
     document.addEventListener("pointermove", onPointerMove, true);
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("click", onClick, true);
     document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("focusin", onFocusIn, true);
     window.addEventListener("scroll", onViewportChange, true);
     window.addEventListener("resize", onViewportChange, true);
+    const active = document.activeElement;
+    if (active?.nodeType === 1 && active !== document.body && active !== document.documentElement && !isPickerUi(active)) {
+      updateUi(active);
+    }
     return snapshot();
   }
 

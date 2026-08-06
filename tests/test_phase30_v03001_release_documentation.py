@@ -19,6 +19,8 @@ assert documents.changelog_entry.strip()
 assert "Per-rule statistics" in documents.completed
 assert "Command-run log archives" in documents.completed
 assert "Prompt templates" in documents.completed
+assert "Chromium port" in documents.completed
+assert "Accessibility" in documents.completed
 assert "compressed per-run log export" not in documents.planned.lower()
 assert "keyboard shortcuts" in documents.completed.lower()
 assert "automatic activation" in documents.completed.lower()
