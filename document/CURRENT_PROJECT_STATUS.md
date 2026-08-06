@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 34 v0.34.0
+**Current baseline:** Phase 37 v0.37.0
 **Primary supported environment:** Firefox Desktop on Linux and Windows  
 **Native Host:** 0.13.0
 
@@ -16,6 +16,8 @@
 | Managed downloads | Complete | Capture, no-dialog restart, immutable snapshot, relocation, retry and post-download command. |
 | Restart recovery for managed downloads | Complete | Armed captures resume while valid; moves replay by idempotent receipt. |
 | Full command logs | Complete | File-backed paging, persisted fallback and legacy `runId` discovery. |
+| Per-run compressed log export | Complete | ZIP export of the selected run with complete transcript, typed metadata, README, DEFLATE and explicit fallback completeness. |
+| Prompt templates | Complete | Two built-ins in a dedicated config file, clipboard copy, last-input filling in the active tab and locally stored custom templates. |
 | Native Host Linux | Complete | Version 0.13.0; shell execution, scoped stop, bounded log retention and transaction receipts. |
 | Native Host Windows | Complete | PowerShell install/uninstall, dual registry-view registration, PowerShell/cmd execution, process-tree stop, Windows state/download paths and integration-test script. |
 | Firefox build/release tooling | Complete | Lint, build, checksum, signing helper, rollback and guarded update channel management. |
@@ -23,7 +25,8 @@
 | Tab-bound local-action working snapshots | Complete | Unsaved destination/command edits survive background recovery; stale cross-tab autosync is rejected by tab/session/URL/revision context. |
 | Real Firefox E2E and version matrix | Complete | Opt-in runner covers tabs, title, badge, DOM action, navigation and optional Native Host download/shell; matrix emits JSON/Markdown per Firefox binary. |
 | Named saved working-session catalog | Complete | Multiple locally stored named sessions with search, update, rename, duplicate, delete, per-session/catalog JSON backup and controlled subset restore. |
-| Source integrity and regression | Complete | Phase 04–28 plus v0.28.20 recovery/update, v0.28.21 Native-version UI, v0.28.22 log retention and v0.28.23 tab-bound local-action snapshot tests and v0.28.24 real-Firefox E2E/matrix tooling and v0.28.25 Windows Native Host contracts. |
+| Per-rule statistics dashboard | Complete | Session-isolated counts for match/click/verify/automatic-command outcomes, return-code frequencies, average target/pipeline timings, JSON export and reset. |
+| Source integrity and regression | Complete | Phase 04–37 contracts, syntax audits, Native Host tests and opt-in real-Firefox E2E/version-matrix tooling. |
 
 ## Operator-provided deployment inputs
 
@@ -54,7 +57,7 @@ A log file deleted before v0.28.20 cannot be reconstructed from metadata. Existi
 
 ## Required implementation status
 
-No required implementation tasks remain from the v0.28.19 feature audit. The recommended-feature sequence is active; Phase 34 delivered Firefox-managed keyboard shortcuts, and the next approved item is the per-rule statistics dashboard. Native Host for macOS remains deferred by project decision.
+No required implementation tasks remain from the v0.28.19 feature audit. Phase 37 inserted the user-prioritized prompt-template workflow before the planned Chromium port. The next approved item remains the Chromium port. Native Host for macOS remains deferred by project decision.
 
 Windows runtime validation can be run on a Windows machine with:
 

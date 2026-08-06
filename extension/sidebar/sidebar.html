@@ -165,6 +165,39 @@
       <output id="shortcutStatus" class="selector-test-result" aria-live="polite"></output>
     </section>
 
+
+    <section class="card" data-group-id="prompt-templates" aria-labelledby="promptTemplatesHeading">
+      <div class="section-title-row">
+        <h2 id="promptTemplatesHeading">Prompt templates</h2>
+        <details class="help-menu heading-help-menu">
+          <summary aria-label="Prompt templates help" title="Help">?</summary>
+          <div class="help-popover" role="tooltip">Choose a template, copy it, or fill the last visible writable textarea/text input in the current page. Built-in templates are configured in <code>extension/shared/prompt_templates.js</code>. Custom templates are stored locally in Firefox.</div>
+        </details>
+      </div>
+      <label>
+        Template
+        <select id="promptTemplateSelect"></select>
+      </label>
+      <label>
+        Template name
+        <input id="promptTemplateName" type="text" maxlength="120" autocomplete="off" placeholder="Custom template name">
+      </label>
+      <label>
+        Prompt text
+        <textarea id="promptTemplateText" rows="8" maxlength="30000" spellcheck="true" placeholder="Prompt text"></textarea>
+      </label>
+      <div class="button-grid prompt-template-primary-actions">
+        <button id="fillPromptTemplateButton" type="button" class="primary">Fill last page input</button>
+        <button id="copyPromptTemplateButton" type="button">Copy prompt</button>
+      </div>
+      <div class="button-grid prompt-template-editor-actions">
+        <button id="newPromptTemplateButton" type="button">New custom</button>
+        <button id="savePromptTemplateButton" type="button">Save custom</button>
+        <button id="deletePromptTemplateButton" type="button" class="danger">Delete custom</button>
+      </div>
+      <output id="promptTemplateStatus" class="selector-test-result" aria-live="polite"></output>
+    </section>
+
     <section class="card" data-group-id="working-sessions" aria-labelledby="workingSessionsHeading">
       <h2 id="workingSessionsHeading">Saved working sessions</h2>
       <label class="filter-field">
@@ -310,6 +343,32 @@
       <details class="help-menu">
         <summary aria-label="Automation rules help" title="Help">?</summary>
         <div class="help-popover">Each rule has its own monitor, target, baseline, cycle, pipeline, and optional command action. Automatic commands resolve an enabled preset in the background and never accept command text from the web page. A preset used automatically must have confirmation disabled.</div>
+      </details>
+    </section>
+
+
+    <section class="card" data-group-id="rule-statistics" aria-labelledby="ruleStatisticsHeading">
+      <h2 id="ruleStatisticsHeading">Rule statistics</h2>
+      <dl class="summary-grid rule-statistics-summary">
+        <div><dt>Rules</dt><dd id="statisticsRuleCount">—</dd></div>
+        <div><dt>Matches</dt><dd id="statisticsMatchCount">—</dd></div>
+        <div><dt>Clicks</dt><dd id="statisticsClickCount">—</dd></div>
+        <div><dt>Verify PASS / FAIL</dt><dd id="statisticsVerifyCount">—</dd></div>
+        <div><dt>Commands OK / failed</dt><dd id="statisticsCommandCount">—</dd></div>
+      </dl>
+      <div id="ruleStatisticsRows" class="rule-statistics-rows" role="list" aria-label="Per-rule statistics"></div>
+      <details class="rule-statistics-details">
+        <summary>Selected rule diagnostics</summary>
+        <output id="selectedRuleStatistics" class="selector-test-result" aria-live="polite">Select an activated tab to view statistics.</output>
+      </details>
+      <output id="ruleStatisticsStatus" class="selector-test-result" aria-live="polite">Statistics start when the tab is activated.</output>
+      <div class="button-grid rule-statistics-actions">
+        <button id="exportRuleStatisticsButton" type="button">Export current tab statistics</button>
+        <button id="resetRuleStatisticsButton" type="button" class="danger">Reset current tab statistics</button>
+      </div>
+      <details class="help-menu">
+        <summary aria-label="Rule statistics help" title="Help">?</summary>
+        <div class="help-popover">Statistics are isolated by activated tab session and rule. Matches count transitions into MATCHED; clicks and dry-runs count acted target elements; verification records pass, fail or skipped results; command results include return-code frequencies. Average target time measures MATCHED to target action, while average pipeline time measures pipeline start to a terminal result.</div>
       </details>
     </section>
 
@@ -824,6 +883,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
           <button id="copyShellLogSelectionButton" type="button">Copy selection</button>
           <button id="copyShellLogPageButton" type="button">Copy page</button>
           <button id="copyShellLogAllButton" type="button">Copy all</button>
+          <button id="exportShellLogArchiveButton" type="button">Export run ZIP</button>
           <button id="refreshShellLogButton" type="button">Refresh</button>
           <button id="deleteShellLogButton" type="button" class="danger">Delete stored log</button>
         </div>
@@ -895,6 +955,8 @@ cd C:\absolute\path\to\FirefoxChatImprover
   <script src="../shared/settings_snapshots.js"></script>
   <script src="../shared/working_session.js"></script>
   <script src="../shared/support_bundle.js"></script>
+  <script src="../shared/log_archive.js"></script>
+  <script src="../shared/prompt_templates.js"></script>
   <script src="sidebar.js"></script>
 </body>
 

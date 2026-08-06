@@ -16,7 +16,10 @@ current_version = manifest["version"]
 documents = module.load_release_documents(current_version)
 assert documents.version == current_version
 assert documents.changelog_entry.strip()
-assert "Per-rule statistics dashboard" in documents.in_progress or "Per-rule statistics dashboard" in documents.planned
+assert "Per-rule statistics" in documents.completed
+assert "Command-run log archives" in documents.completed
+assert "Prompt templates" in documents.completed
+assert "compressed per-run log export" not in documents.planned.lower()
 assert "keyboard shortcuts" in documents.completed.lower()
 assert "automatic activation" in documents.completed.lower()
 assert "Native Host for macOS" in documents.deferred

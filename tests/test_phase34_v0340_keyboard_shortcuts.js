@@ -6,7 +6,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const root = path.resolve(__dirname, "..");
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
-assert.equal(manifest.version, "0.34.0");
+assert.ok(Number(manifest.version.split(".")[1]) >= 34, "keyboard shortcuts must remain available after v0.34.0");
 const expected = [
   "_execute_sidebar_action",
   "fci-toggle-current-tab",
@@ -20,7 +20,7 @@ for (const name of expected.slice(0, 4)) assert(manifest.commands[name].suggeste
 for (const name of expected.slice(4)) assert(!manifest.commands[name].suggested_key, `${name} must remain unassigned by default`);
 const context = vm.createContext({ console }); context.globalThis = context;
 vm.runInContext(fs.readFileSync(path.join(root, "extension/shared/protocol.js"), "utf8"), context);
-assert.equal(context.FCI_PROTOCOL.VERSION, 23);
+assert.ok(context.FCI_PROTOCOL.VERSION >= 23);
 assert.equal(context.FCI_PROTOCOL.MESSAGE.ACK_SHORTCUT_ACTION, "FCI_ACK_SHORTCUT_ACTION");
 assert.equal(context.FCI_PROTOCOL.MESSAGE.CONTENT_ACKNOWLEDGE_ALERT, "FCI_CONTENT_ACKNOWLEDGE_ALERT");
 const background = fs.readFileSync(path.join(root, "extension/background/background.js"), "utf8");

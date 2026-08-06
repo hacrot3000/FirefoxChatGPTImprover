@@ -697,4 +697,33 @@ Release tasks validate both files and use them to generate GitHub Release notes 
 ## Keyboard shortcuts (v0.34.0)
 
 Firefox-managed shortcuts are available for opening the sidebar, toggling the active tab, acknowledging alerts and running the configured target action. Open **Keyboard shortcuts** in the sidebar to inspect effective assignments, resolve conflicts in Firefox and reset defaults. Optional log/stop commands are intentionally unassigned by default.
+
+## Per-rule statistics dashboard (v0.35.0)
+
+The **Rule statistics** sidebar group keeps independent counters for every rule in the selected activated tab session: MATCHED transitions, clicked/dry-run target elements, verification results, automatic-command success/failure and return-code frequencies. It also reports average MATCHED-to-target and pipeline durations. Statistics survive background recovery, can be exported as JSON, and can be reset without changing configuration or stopping automation.
 <!-- FCI_PHASE34_KEYBOARD_SHORTCUTS_END -->
+
+<!-- FCI_PHASE36_COMPRESSED_RUN_LOG_EXPORT_BEGIN -->
+## Compressed command-run log export (v0.36.0)
+
+Open a current or history entry with **Open full log**, then choose **Export run ZIP**. The archive contains:
+
+- `command.log` — the complete paged Native Host transcript for exactly that run;
+- `metadata.json` — tab/run identity, command source, preset/rule correlation, working directory, result, timestamps and completeness status;
+- `README.txt` — archive interpretation and sharing-safety notes.
+
+The export is bound to the tab ID, run ID and log ID captured when it starts. ZIP entries use DEFLATE when useful. If the original file-backed log is unavailable, the extension exports the persisted fallback and marks `completeTranscript: false` instead of presenting it as a complete transcript. Logs above 64 MiB require confirmation, and export is capped at 512 MiB to protect sidebar memory.
+
+Native Host remains **0.13.0** and does not need to be reinstalled.
+<!-- FCI_PHASE36_COMPRESSED_RUN_LOG_EXPORT_END -->
+
+
+<!-- FCI_PHASE37_PROMPT_TEMPLATES_BEGIN -->
+## Prompt templates (v0.37.0)
+
+The **Prompt templates** sidebar group provides two bundled workflow prompts and a local custom-template library. Select a template and use **Copy prompt**, or choose **Fill last page input** to replace the last visible writable textarea/text input in the currently displayed page. Compatible contenteditable textboxes are supported as a fallback for modern chat composers.
+
+Bundled defaults are intentionally separated into `extension/shared/prompt_templates.js`; edit `BUILTIN_TEMPLATES` there to change code-shipped templates. User-created templates are stored independently in Firefox local storage and can be created, updated or deleted without changing source code.
+
+Prompt filling never follows a stale sidebar selection: the background verifies that the requested tab is still the active displayed tab before injecting the page helper. Native Host remains **0.13.0** and does not need to be reinstalled.
+<!-- FCI_PHASE37_PROMPT_TEMPLATES_END -->

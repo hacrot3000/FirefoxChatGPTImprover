@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.34.0",
-  "description": "Firefox ChatAI Assistant with independent tab automation, reusable profiles, persistent custom titles, optional sound alerts, trusted-URL auto-activation, keyboard shortcuts, managed downloads, Linux/Windows Native Host commands, and searchable tabs, profiles, presets, history, and saved sessions.",
+  "version": "0.37.0",
+  "description": "Firefox ChatAI Assistant with independent tab automation, editable prompt templates, per-rule statistics, compressed per-run command-log export, reusable profiles, persistent custom titles, optional sound alerts, trusted-URL auto-activation, keyboard shortcuts, managed downloads, Linux/Windows Native Host commands, and searchable tabs, profiles, presets, history, and saved sessions.",
   "browser_specific_settings": {
     "gecko": {
       "id": "firefox-chat-assistant@duongtc.local",
@@ -46,6 +46,7 @@
       "shared/working_session.js",
       "shared/recovery.js",
       "shared/support_bundle.js",
+      "shared/prompt_templates.js",
       "background/background.js"
     ]
   },

@@ -583,3 +583,43 @@ Completed in v0.31.0: persistent named catalog, search, create/update/rename/dup
 - Native Host for macOS remains deferred.
 
 **Next:** Per-rule statistics dashboard.
+
+## Phase 35 — Per-rule statistics dashboard (v0.35.0)
+
+**Status:** Complete.
+
+- Statistics are isolated by activated tab session and rule ID.
+- MATCHED transitions, clicked/dry-run target elements, verification PASS/FAIL/skipped outcomes and automatic-command results are counted without duplicate recovery events.
+- Return-code frequencies, last-event timestamps, average MATCHED-to-target latency and average pipeline duration are shown in the sidebar.
+- The dashboard can export typed JSON or reset only the current tab statistics without changing configuration or stopping automation.
+- Private observer checkpoints persist with the tab session but are removed from public dashboard payloads.
+
+**Next:** Compressed/exportable command logs by individual run.
+
+
+## Phase 36 — Compressed per-run command-log export (v0.36.0)
+
+**Status:** Complete.
+
+- Added **Export run ZIP** to the Full command log dialog.
+- The export freezes the selected tab/run/log identity and reads the complete file-backed transcript through ownership-checked pages.
+- The ZIP contains `command.log`, `metadata.json` and `README.txt`; entries use DEFLATE whenever it reduces size.
+- Metadata records sidebar/history origin, command source, preset/rule correlation, working directory, status, return code, timestamps, byte count and completeness.
+- Missing Native Host files fall back to persisted per-run output and explicitly set `completeTranscript: false` with the failure reason.
+- Export warns above 64 MiB and rejects a complete transcript above 512 MiB to bound sidebar memory.
+- Native Host remains v0.13.0 because the existing paged read API is sufficient.
+
+## Phase 37 — Suggested and custom prompt templates (v0.37.0)
+
+**Status:** Complete.
+
+- Added a **Prompt templates** group to the sidebar.
+- Bundled defaults live in `extension/shared/prompt_templates.js`, separate from UI/background logic.
+- Ships the requested context-estimate/early-handoff and complete-ZIP-handoff prompts.
+- The selected prompt can be copied or inserted into the last visible writable prompt input in the currently displayed tab.
+- Native input setters plus bubbling/composed `input` and `change` events support framework-controlled fields.
+- User-created templates are stored locally and can be created, updated or deleted.
+- Filling is active-tab-bound and rejects unsupported/internal pages or stale sidebar tab selection.
+- Native Host remains v0.13.0.
+
+**Next:** Chromium port for Chrome and Edge.

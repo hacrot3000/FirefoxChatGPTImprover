@@ -12,6 +12,8 @@
   const RuntimeGuard = globalThis.FCI_SIDEBAR_RUNTIME_GUARD;
   const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
   const WorkingSession = globalThis.FCI_WORKING_SESSION;
+  const LogArchive = globalThis.FCI_LOG_ARCHIVE;
+  const PromptTemplates = globalThis.FCI_PROMPT_TEMPLATES;
   const SIDEBAR_UI_STORAGE_KEY = "firefoxChatImprover.sidebarUi.v1";
   const DEFAULT_COLLAPSED_GROUPS = Object.freeze({
     "installation-guide": true,
@@ -24,8 +26,9 @@
     modeText: $("#modeText"), configModeText: $("#configModeText"), profileText: $("#profileText"), tabUrl: $("#tabUrl"), commandNoticeText: $("#commandNoticeText"),
     monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), ruleCountText: $("#ruleCountText"), matchedRuleCountText: $("#matchedRuleCountText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"), customTabTitle: $("#customTabTitle"), saveCustomTabTitleButton: $("#saveCustomTabTitleButton"), clearCustomTabTitleButton: $("#clearCustomTabTitleButton"),
+    promptTemplateSelect: $("#promptTemplateSelect"), promptTemplateName: $("#promptTemplateName"), promptTemplateText: $("#promptTemplateText"), fillPromptTemplateButton: $("#fillPromptTemplateButton"), copyPromptTemplateButton: $("#copyPromptTemplateButton"), newPromptTemplateButton: $("#newPromptTemplateButton"), savePromptTemplateButton: $("#savePromptTemplateButton"), deletePromptTemplateButton: $("#deletePromptTemplateButton"), promptTemplateStatus: $("#promptTemplateStatus"),
     profileSearch: $("#profileSearch"), profileSearchResult: $("#profileSearchResult"), profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
-    ruleSelect: $("#ruleSelect"), ruleName: $("#ruleName"), ruleEnabled: $("#ruleEnabled"), newRuleButton: $("#newRuleButton"), duplicateRuleButton: $("#duplicateRuleButton"), deleteRuleButton: $("#deleteRuleButton"), ruleRuntimeSummary: $("#ruleRuntimeSummary"), ruleRuntimeBadge: $("#ruleRuntimeBadge"), ruleCommandEnabled: $("#ruleCommandEnabled"), ruleCommandPreset: $("#ruleCommandPreset"), ruleCommandTrigger: $("#ruleCommandTrigger"), ruleCommandAllowDryRun: $("#ruleCommandAllowDryRun"), ruleCommandStatus: $("#ruleCommandStatus"),
+    ruleSelect: $("#ruleSelect"), ruleName: $("#ruleName"), ruleEnabled: $("#ruleEnabled"), newRuleButton: $("#newRuleButton"), duplicateRuleButton: $("#duplicateRuleButton"), deleteRuleButton: $("#deleteRuleButton"), ruleRuntimeSummary: $("#ruleRuntimeSummary"), ruleRuntimeBadge: $("#ruleRuntimeBadge"), ruleCommandEnabled: $("#ruleCommandEnabled"), ruleCommandPreset: $("#ruleCommandPreset"), ruleCommandTrigger: $("#ruleCommandTrigger"), ruleCommandAllowDryRun: $("#ruleCommandAllowDryRun"), ruleCommandStatus: $("#ruleCommandStatus"), statisticsRuleCount: $("#statisticsRuleCount"), statisticsMatchCount: $("#statisticsMatchCount"), statisticsClickCount: $("#statisticsClickCount"), statisticsVerifyCount: $("#statisticsVerifyCount"), statisticsCommandCount: $("#statisticsCommandCount"), ruleStatisticsRows: $("#ruleStatisticsRows"), selectedRuleStatistics: $("#selectedRuleStatistics"), ruleStatisticsStatus: $("#ruleStatisticsStatus"), exportRuleStatisticsButton: $("#exportRuleStatisticsButton"), resetRuleStatisticsButton: $("#resetRuleStatisticsButton"),
     autoProfileByUrl: $("#autoProfileByUrl"), autoActivateMatchingUrls: $("#autoActivateMatchingUrls"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), grantAutoActivationAccessButton: $("#grantAutoActivationAccessButton"), runAutoActivationScanButton: $("#runAutoActivationScanButton"), urlRoutingResult: $("#urlRoutingResult"), autoActivationResult: $("#autoActivationResult"),
     monitorProfileSearch: $("#monitorProfileSearch"), monitorProfileSearchResult: $("#monitorProfileSearchResult"), monitorProfileSelect: $("#monitorProfileSelect"), monitorProfileName: $("#monitorProfileName"), applyMonitorProfileButton: $("#applyMonitorProfileButton"), newMonitorProfileButton: $("#newMonitorProfileButton"), saveMonitorProfileButton: $("#saveMonitorProfileButton"), deleteMonitorProfileButton: $("#deleteMonitorProfileButton"), monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
     targetProfileSearch: $("#targetProfileSearch"), targetProfileSearchResult: $("#targetProfileSearchResult"), targetProfileSelect: $("#targetProfileSelect"), targetProfileName: $("#targetProfileName"), applyTargetProfileButton: $("#applyTargetProfileButton"), newTargetProfileButton: $("#newTargetProfileButton"), saveTargetProfileButton: $("#saveTargetProfileButton"), deleteTargetProfileButton: $("#deleteTargetProfileButton"), targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
@@ -35,7 +38,7 @@
     shellPresetSearch: $("#shellPresetSearch"), shellPresetSearchResult: $("#shellPresetSearchResult"), shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySearch: $("#shellHistorySearch"), shellHistorySearchResult: $("#shellHistorySearchResult"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"), nativeLogRetentionEnabled: $("#nativeLogRetentionEnabled"), nativeLogMaxAgeDays: $("#nativeLogMaxAgeDays"), nativeLogMaxTotalMiB: $("#nativeLogMaxTotalMiB"), nativeLogMaxFiles: $("#nativeLogMaxFiles"), nativeLogCleanupOnStartup: $("#nativeLogCleanupOnStartup"), nativeLogCleanupAfterCommand: $("#nativeLogCleanupAfterCommand"), saveNativeLogRetentionButton: $("#saveNativeLogRetentionButton"), runNativeLogCleanupButton: $("#runNativeLogCleanupButton"), nativeLogCleanupStatus: $("#nativeLogCleanupStatus"),
-    shellLogDialog: $("#shellLogDialog"), shellLogDialogTitle: $("#shellLogDialogTitle"), shellLogMetadata: $("#shellLogMetadata"), shellLogViewer: $("#shellLogViewer"), shellLogPageInfo: $("#shellLogPageInfo"), closeShellLogDialogButton: $("#closeShellLogDialogButton"), shellLogFirstButton: $("#shellLogFirstButton"), shellLogPreviousButton: $("#shellLogPreviousButton"), shellLogNextButton: $("#shellLogNextButton"), shellLogLastButton: $("#shellLogLastButton"), copyShellLogSelectionButton: $("#copyShellLogSelectionButton"), copyShellLogPageButton: $("#copyShellLogPageButton"), copyShellLogAllButton: $("#copyShellLogAllButton"), refreshShellLogButton: $("#refreshShellLogButton"), deleteShellLogButton: $("#deleteShellLogButton"),
+    shellLogDialog: $("#shellLogDialog"), shellLogDialogTitle: $("#shellLogDialogTitle"), shellLogMetadata: $("#shellLogMetadata"), shellLogViewer: $("#shellLogViewer"), shellLogPageInfo: $("#shellLogPageInfo"), closeShellLogDialogButton: $("#closeShellLogDialogButton"), shellLogFirstButton: $("#shellLogFirstButton"), shellLogPreviousButton: $("#shellLogPreviousButton"), shellLogNextButton: $("#shellLogNextButton"), shellLogLastButton: $("#shellLogLastButton"), copyShellLogSelectionButton: $("#copyShellLogSelectionButton"), copyShellLogPageButton: $("#copyShellLogPageButton"), copyShellLogAllButton: $("#copyShellLogAllButton"), exportShellLogArchiveButton: $("#exportShellLogArchiveButton"), refreshShellLogButton: $("#refreshShellLogButton"), deleteShellLogButton: $("#deleteShellLogButton"),
     workingSessionCatalogSearch: $("#workingSessionCatalogSearch"), workingSessionCatalogSearchResult: $("#workingSessionCatalogSearchResult"), workingSessionCatalogSelect: $("#workingSessionCatalogSelect"), workingSessionCatalogName: $("#workingSessionCatalogName"), workingSessionCatalogDescription: $("#workingSessionCatalogDescription"), workingSessionCatalogTabCount: $("#workingSessionCatalogTabCount"), workingSessionCatalogUpdatedAt: $("#workingSessionCatalogUpdatedAt"), workingSessionCatalogLastRestoredAt: $("#workingSessionCatalogLastRestoredAt"), newWorkingSessionEntryButton: $("#newWorkingSessionEntryButton"), updateWorkingSessionEntryButton: $("#updateWorkingSessionEntryButton"), restoreWorkingSessionEntryButton: $("#restoreWorkingSessionEntryButton"), renameWorkingSessionEntryButton: $("#renameWorkingSessionEntryButton"), duplicateWorkingSessionEntryButton: $("#duplicateWorkingSessionEntryButton"), deleteWorkingSessionEntryButton: $("#deleteWorkingSessionEntryButton"), exportWorkingSessionEntryButton: $("#exportWorkingSessionEntryButton"), importWorkingSessionEntryButton: $("#importWorkingSessionEntryButton"), exportWorkingSessionCatalogButton: $("#exportWorkingSessionCatalogButton"), importWorkingSessionCatalogButton: $("#importWorkingSessionCatalogButton"), importWorkingSessionEntryFile: $("#importWorkingSessionEntryFile"), importWorkingSessionCatalogFile: $("#importWorkingSessionCatalogFile"), workingSessionCatalogResult: $("#workingSessionCatalogResult"),
     saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), exportConfigurationProfilesButton: $("#exportConfigurationProfilesButton"), importConfigurationProfilesButton: $("#importConfigurationProfilesButton"), exportMonitorProfilesButton: $("#exportMonitorProfilesButton"), importMonitorProfilesButton: $("#importMonitorProfilesButton"), exportTargetProfilesButton: $("#exportTargetProfilesButton"), importTargetProfilesButton: $("#importTargetProfilesButton"), exportLocalActionProfilesButton: $("#exportLocalActionProfilesButton"), importLocalActionProfilesButton: $("#importLocalActionProfilesButton"), profileImportFile: $("#profileImportFile"), saveWorkingSessionButton: $("#saveWorkingSessionButton"), importWorkingSessionButton: $("#importWorkingSessionButton"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), importWorkingSessionFile: $("#importWorkingSessionFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), shortcutOpenSidebar: $("#shortcutOpenSidebar"), shortcutToggleCurrentTab: $("#shortcutToggleCurrentTab"), shortcutAcknowledgeAlert: $("#shortcutAcknowledgeAlert"), shortcutRunTargetAction: $("#shortcutRunTargetAction"), shortcutOpenCommandLog: $("#shortcutOpenCommandLog"), shortcutStopCurrentTab: $("#shortcutStopCurrentTab"), refreshShortcutsButton: $("#refreshShortcutsButton"), manageShortcutsButton: $("#manageShortcutsButton"), resetShortcutsButton: $("#resetShortcutsButton"), shortcutStatus: $("#shortcutStatus"), messageBox: $("#messageBox")
   };
@@ -46,12 +49,14 @@
     [MODE.PAUSED]: "Paused",
     [MODE.ERROR]: "Error"
   };
-  let dashboard = { currentTab: {}, sessions: [], store: Settings.defaultStore(), localActionStore: LocalActions.defaultStore(), workingSessionCatalog: WorkingSession.catalogSummary(WorkingSession.defaultCatalog()), keyboardCommands: [], pendingShortcutAction: null, nativeHost: { connected: false, runs: [], downloads: [] } };
+  let dashboard = { currentTab: {}, sessions: [], store: Settings.defaultStore(), localActionStore: LocalActions.defaultStore(), workingSessionCatalog: WorkingSession.catalogSummary(WorkingSession.defaultCatalog()), keyboardCommands: [], promptTemplates: PromptTemplates.library(), pendingShortcutAction: null, nativeHost: { connected: false, runs: [], downloads: [] } };
   let selectedTabId = null;
   let selectedProfileId = null;
   let selectedMonitorProfileId = null;
   let selectedTargetProfileId = null;
   let selectedLocalActionProfileId = null;
+  let selectedPromptTemplateId = null;
+  let promptTemplateEditorMode = "selected";
   let pendingProfileImportType = null;
   let selectedRuleId = null;
   let formConfigDraft = Settings.defaultConfig();
@@ -90,8 +95,11 @@
   const autoOpenedShellRunIds = new Set();
   const lastShellStatusByTab = new Map();
   const SHELL_LOG_PAGE_BYTES = 256 * 1024;
-  let shellLogState = { tabId: null, logId: null, runId: null, offset: 0, nextOffset: 0, totalBytes: 0, eof: true, pageOffsets: [], pageIndex: -1, text: "", inlineText: "" };
+  const SHELL_LOG_EXPORT_WARNING_BYTES = 64 * 1024 * 1024;
+  const SHELL_LOG_EXPORT_MAX_BYTES = 512 * 1024 * 1024;
+  let shellLogState = { tabId: null, logId: null, runId: null, offset: 0, nextOffset: 0, totalBytes: 0, eof: true, pageOffsets: [], pageIndex: -1, text: "", inlineText: "", label: "", runMetadata: null, tabMetadata: null };
   let shellLogLoadEpoch = 0;
+  let shellLogExportBusy = false;
   const FORM_RELOAD_MESSAGE_TYPES = new Set([
     MESSAGE.GET_DASHBOARD, MESSAGE.ACTIVATE_CURRENT, MESSAGE.STOP_TAB,
     MESSAGE.ASSIGN_PROFILE, MESSAGE.SAVE_TAB_CONFIG, MESSAGE.RESET_TAB_CONFIG,
@@ -120,6 +128,114 @@
   function showMessage(text = "", level = "info") {
     elements.messageBox.textContent = text;
     elements.messageBox.dataset.level = level;
+  }
+
+  function promptTemplateLibrary() {
+    return dashboard.promptTemplates?.templates ? dashboard.promptTemplates : PromptTemplates.library();
+  }
+
+  function selectedPromptTemplate() {
+    const templates = promptTemplateLibrary().templates || [];
+    return templates.find((template) => template.id === selectedPromptTemplateId) || templates[0] || null;
+  }
+
+  function setPromptTemplateStatus(text = "", level = "info") {
+    elements.promptTemplateStatus.textContent = text;
+    elements.promptTemplateStatus.dataset.state = level;
+  }
+
+  function renderPromptTemplates(preferredId = null) {
+    const library = promptTemplateLibrary();
+    const templates = Array.isArray(library.templates) ? library.templates : [];
+    const requested = preferredId || selectedPromptTemplateId;
+    const selected = templates.find((template) => template.id === requested) || templates[0] || null;
+    selectedPromptTemplateId = selected?.id || null;
+    elements.promptTemplateSelect.replaceChildren(...templates.map((template) => {
+      const option = document.createElement("option");
+      option.value = template.id;
+      option.textContent = `${template.source === "built-in" ? "Built-in" : "Custom"} · ${template.name}`;
+      return option;
+    }));
+    elements.promptTemplateSelect.value = selectedPromptTemplateId || "";
+    if (promptTemplateEditorMode !== "new") {
+      elements.promptTemplateName.value = selected?.name || "";
+      elements.promptTemplateText.value = selected?.prompt || "";
+    }
+    const editable = promptTemplateEditorMode === "new" || selected?.editable === true;
+    elements.promptTemplateName.readOnly = !editable;
+    elements.promptTemplateText.readOnly = !editable;
+    elements.savePromptTemplateButton.disabled = !editable;
+    elements.deletePromptTemplateButton.disabled = !selected?.editable;
+    elements.fillPromptTemplateButton.disabled = !elements.promptTemplateText.value.trim() || !Number.isInteger(Number(selectedTabId));
+    elements.copyPromptTemplateButton.disabled = !elements.promptTemplateText.value.trim();
+    if (!elements.promptTemplateStatus.textContent) {
+      setPromptTemplateStatus(`${library.builtInCount || 0} built-in and ${library.customCount || 0} custom template(s). Click Fill to use the current page input.`);
+    }
+  }
+
+  function beginNewPromptTemplate() {
+    promptTemplateEditorMode = "new";
+    selectedPromptTemplateId = null;
+    elements.promptTemplateSelect.value = "";
+    elements.promptTemplateName.readOnly = false;
+    elements.promptTemplateText.readOnly = false;
+    elements.promptTemplateName.value = "";
+    elements.promptTemplateText.value = "";
+    elements.savePromptTemplateButton.disabled = false;
+    elements.deletePromptTemplateButton.disabled = true;
+    elements.promptTemplateName.focus();
+    setPromptTemplateStatus("Enter a name and prompt, then save the new custom template.");
+    void persistSidebarUi();
+  }
+
+  async function saveCurrentPromptTemplate() {
+    const existing = selectedPromptTemplate();
+    const template = {
+      id: promptTemplateEditorMode === "new" ? null : (existing?.editable ? existing.id : null),
+      name: elements.promptTemplateName.value,
+      prompt: elements.promptTemplateText.value
+    };
+    const response = await request(MESSAGE.SAVE_PROMPT_TEMPLATE, { template }, "Custom prompt template saved.");
+    if (!response) return;
+    dashboard.promptTemplates = response.promptTemplates || response.dashboard?.promptTemplates || dashboard.promptTemplates;
+    promptTemplateEditorMode = "selected";
+    selectedPromptTemplateId = response.template?.id || selectedPromptTemplateId;
+    setPromptTemplateStatus("Custom prompt template saved.", "success");
+    renderPromptTemplates(selectedPromptTemplateId);
+    void persistSidebarUi();
+  }
+
+  async function deleteCurrentPromptTemplate() {
+    const template = selectedPromptTemplate();
+    if (!template?.editable) return;
+    if (!confirm(`Delete custom prompt template “${template.name}”?`)) return;
+    const response = await request(MESSAGE.DELETE_PROMPT_TEMPLATE, { templateId: template.id }, "Custom prompt template deleted.");
+    if (!response) return;
+    dashboard.promptTemplates = response.promptTemplates || response.dashboard?.promptTemplates || dashboard.promptTemplates;
+    promptTemplateEditorMode = "selected";
+    selectedPromptTemplateId = null;
+    setPromptTemplateStatus("Custom prompt template deleted.", "success");
+    renderPromptTemplates();
+    void persistSidebarUi();
+  }
+
+  async function copyCurrentPromptTemplate() {
+    const text = elements.promptTemplateText.value;
+    if (!text.trim()) return;
+    await navigator.clipboard.writeText(text);
+    setPromptTemplateStatus("Prompt copied to the clipboard.", "success");
+  }
+
+  async function fillCurrentPromptTemplate() {
+    const response = await request(MESSAGE.FILL_PROMPT_TEMPLATE, {
+      tabId: selectedTabId,
+      templateId: selectedPromptTemplateId,
+      text: elements.promptTemplateText.value
+    });
+    if (!response) return;
+    const result = response.result || {};
+    const label = result.contentEditable ? "contenteditable textbox" : `${result.tagName || "input"}${result.inputType ? `[type=${result.inputType}]` : ""}`;
+    setPromptTemplateStatus(`Prompt filled into the last writable ${label}; ${result.candidateCount || 1} candidate(s) found.`, "success");
   }
 
   function localActionProfileScope(rawConfig) {
@@ -299,6 +415,7 @@
         selectedMonitorProfileId,
         selectedTargetProfileId,
         selectedWorkingSessionEntryId,
+        selectedPromptTemplateId,
         listFilters: { ...listFilters }
       }
     });
@@ -341,6 +458,7 @@
     selectedMonitorProfileId = typeof storedUi.selectedMonitorProfileId === "string" ? storedUi.selectedMonitorProfileId : null;
     selectedTargetProfileId = typeof storedUi.selectedTargetProfileId === "string" ? storedUi.selectedTargetProfileId : null;
     selectedWorkingSessionEntryId = typeof storedUi.selectedWorkingSessionEntryId === "string" ? storedUi.selectedWorkingSessionEntryId : null;
+    selectedPromptTemplateId = typeof storedUi.selectedPromptTemplateId === "string" ? storedUi.selectedPromptTemplateId : null;
     const storedFilters = storedUi.listFilters && typeof storedUi.listFilters === "object" ? storedUi.listFilters : {};
     listFilters = {
       tabs: String(storedFilters.tabs || ""),
@@ -620,6 +738,44 @@
     return `${lines.join("\n")}\n`;
   }
 
+  function commandRunArchiveMetadata(record, kind) {
+    const source = record && typeof record === "object" ? record : {};
+    return {
+      kind,
+      tabId: Number(selectedTabId),
+      runId: source.runId ? String(source.runId) : null,
+      historyId: source.historyId || source.id ? String(source.historyId || source.id) : null,
+      status: String(source.status || "unknown"),
+      source: String(source.source || "sidebar"),
+      mode: String(source.mode || "background"),
+      presetId: source.presetId ? String(source.presetId) : null,
+      presetName: source.presetName ? String(source.presetName) : null,
+      ruleId: source.ruleId ? String(source.ruleId) : null,
+      ruleName: source.ruleName ? String(source.ruleName) : null,
+      trigger: source.trigger ? String(source.trigger) : null,
+      cycle: Number.isInteger(Number(source.cycle)) ? Number(source.cycle) : null,
+      workingDirectory: String(source.workingDirectory || source.cwd || ""),
+      command: String(source.command || ""),
+      startedAt: source.startedAt ? String(source.startedAt) : null,
+      endedAt: source.endedAt ? String(source.endedAt) : null,
+      returnCode: Number.isInteger(source.returnCode) ? source.returnCode : null,
+      error: source.error ? String(source.error) : null,
+      pid: Number.isInteger(source.pid) ? source.pid : null,
+      logId: source.logId ? String(source.logId) : null,
+      logBytes: Math.max(0, Number(source.logBytes) || 0)
+    };
+  }
+
+  function selectedCommandTabArchiveMetadata() {
+    const session = selectedSession();
+    const current = dashboard.currentTab || {};
+    return {
+      tabId: Number(selectedTabId),
+      title: String(session?.customTitle || session?.pageTitle || (Number(current.tabId) === Number(selectedTabId) ? current.title : "") || ""),
+      url: String(session?.url || (Number(current.tabId) === Number(selectedTabId) ? current.url : "") || "")
+    };
+  }
+
   function selectedShellLogDescriptor() {
     const run = selectedShellRun();
     const inlineText = inlineShellOutputText(run);
@@ -630,7 +786,9 @@
         runId: run.runId,
         logBytes: Number(run.logBytes) || 0,
         inlineText,
-        label: run.presetName || run.command || "Current command"
+        label: run.presetName || run.command || "Current command",
+        runMetadata: commandRunArchiveMetadata(run, "current-run"),
+        tabMetadata: selectedCommandTabArchiveMetadata()
       };
     }
     const history = Array.isArray(selectedSession()?.shellHistory) ? selectedSession().shellHistory : [];
@@ -642,15 +800,21 @@
       runId: entry.runId || null,
       logBytes: Number(entry.logBytes) || 0,
       inlineText: shellHistoryFallbackText(entry),
-      label: entry.presetName || entry.command || "Command history"
+      label: entry.presetName || entry.command || "Command history",
+      runMetadata: commandRunArchiveMetadata(entry, "history-entry"),
+      tabMetadata: selectedCommandTabArchiveMetadata()
     } : null;
   }
 
-  function decodeLogChunk(base64Value) {
+  function decodeLogChunkBytes(base64Value) {
     const binary = atob(String(base64Value || ""));
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-    return new TextDecoder().decode(bytes);
+    return bytes;
+  }
+
+  function decodeLogChunk(base64Value) {
+    return new TextDecoder().decode(decodeLogChunkBytes(base64Value));
   }
 
   function formatByteCount(value) {
@@ -796,7 +960,8 @@
       showMessage("No stored shell log is available for this tab.", "error");
       return;
     }
-    shellLogState = { tabId: descriptor.tabId, logId: descriptor.logId || null, runId: descriptor.runId || null, offset: 0, nextOffset: 0, totalBytes: descriptor.logBytes || 0, eof: false, pageOffsets: [], pageIndex: -1, text: "", inlineText: String(descriptor.inlineText || "") };
+    shellLogState = { tabId: descriptor.tabId, logId: descriptor.logId || null, runId: descriptor.runId || null, offset: 0, nextOffset: 0, totalBytes: descriptor.logBytes || 0, eof: false, pageOffsets: [], pageIndex: -1, text: "", inlineText: String(descriptor.inlineText || ""), label: String(descriptor.label || "Command run"), runMetadata: descriptor.runMetadata ? Settings.clone(descriptor.runMetadata) : null, tabMetadata: descriptor.tabMetadata ? Settings.clone(descriptor.tabMetadata) : null };
+    elements.exportShellLogArchiveButton.disabled = shellLogExportBusy;
     elements.shellLogDialogTitle.textContent = descriptor.label || "Full command log";
     elements.shellLogMetadata.textContent = `Tab ${descriptor.tabId}${descriptor.runId ? ` · Run ${descriptor.runId}` : ""}`;
     elements.shellLogViewer.value = descriptor.logId ? "Loading stored log…" : "Loading received output…";
@@ -838,7 +1003,8 @@
     const descriptor = selectedShellLogDescriptor();
     if (!descriptor) {
       elements.shellLogDialog.close();
-      shellLogState = { tabId: selectedTabId, logId: null, runId: null, offset: 0, nextOffset: 0, totalBytes: 0, eof: true, pageOffsets: [], pageIndex: -1, text: "", inlineText: "" };
+      shellLogState = { tabId: selectedTabId, logId: null, runId: null, offset: 0, nextOffset: 0, totalBytes: 0, eof: true, pageOffsets: [], pageIndex: -1, text: "", inlineText: "", label: "", runMetadata: null, tabMetadata: null };
+      elements.exportShellLogArchiveButton.disabled = true;
       showMessage(`Tab ${selectedTabId} has no command log to display.`, "info");
       return;
     }
@@ -872,6 +1038,141 @@
     }
     await copyTextValue(parts.join(""), "Full command log copied.");
     elements.shellLogPageInfo.textContent = `Copied ${formatByteCount(shellLogState.totalBytes)} from the complete stored log.`;
+  }
+
+
+  function archiveRunDescriptor() {
+    return {
+      tabId: Number(shellLogState.tabId),
+      logId: shellLogState.logId || null,
+      runId: shellLogState.runId || null,
+      logBytes: Math.max(0, Number(shellLogState.totalBytes || shellLogState.logBytes) || 0),
+      inlineText: String(shellLogState.inlineText || shellLogState.text || ""),
+      label: String(shellLogState.label || "Command run"),
+      runMetadata: shellLogState.runMetadata ? Settings.clone(shellLogState.runMetadata) : null,
+      tabMetadata: shellLogState.tabMetadata ? Settings.clone(shellLogState.tabMetadata) : null
+    };
+  }
+
+  async function readCompleteShellLog(descriptor, onProgress = () => {}) {
+    if (!descriptor?.logId) {
+      const fallback = String(descriptor?.inlineText || "");
+      if (!fallback) throw new Error("This command run has no stored log or persisted fallback output.");
+      const bytes = new TextEncoder().encode(fallback);
+      onProgress(bytes.byteLength, bytes.byteLength);
+      return { bytes, completeTranscript: false, source: "persisted-fallback", logId: null, totalBytes: bytes.byteLength };
+    }
+    const expectedBytes = Math.max(0, Number(descriptor.logBytes) || 0);
+    if (expectedBytes > SHELL_LOG_EXPORT_MAX_BYTES) {
+      throw new Error(`This log is ${formatByteCount(expectedBytes)}. Per-run ZIP export is limited to ${formatByteCount(SHELL_LOG_EXPORT_MAX_BYTES)} to protect sidebar memory.`);
+    }
+    const chunks = [];
+    let offset = 0;
+    let totalBytes = expectedBytes;
+    while (true) {
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.READ_SHELL_LOG,
+        tabId: descriptor.tabId,
+        logId: descriptor.logId,
+        runId: descriptor.runId || null,
+        offset,
+        maxBytes: SHELL_LOG_PAGE_BYTES
+      });
+      if (!response?.ok) throw new Error(response?.error || "Could not read the complete stored shell log.");
+      const chunk = response.logChunk || {};
+      const bytes = decodeLogChunkBytes(chunk.dataBase64);
+      chunks.push(bytes);
+      totalBytes = Math.max(totalBytes, Number(chunk.totalBytes) || 0);
+      const nextOffset = Number(chunk.nextOffset);
+      onProgress(Number.isFinite(nextOffset) ? nextOffset : offset + bytes.byteLength, totalBytes);
+      if (chunk.eof) break;
+      if (!Number.isFinite(nextOffset) || nextOffset <= offset) throw new Error("The Native Host returned a non-progressing shell-log page.");
+      offset = nextOffset;
+      if (offset > SHELL_LOG_EXPORT_MAX_BYTES || totalBytes > SHELL_LOG_EXPORT_MAX_BYTES) {
+        throw new Error(`This log exceeds the ${formatByteCount(SHELL_LOG_EXPORT_MAX_BYTES)} per-run ZIP export limit.`);
+      }
+    }
+    const joined = LogArchive.concatBytes(chunks);
+    return { bytes: joined, completeTranscript: true, source: "native-complete-log", logId: descriptor.logId, totalBytes: joined.byteLength };
+  }
+
+  function commandRunArchiveReadme(metadata) {
+    const completeness = metadata.log.completeTranscript
+      ? "command.log contains the complete Native Host transcript captured for this run."
+      : "command.log contains the persisted fallback available to the add-on; the original complete Native Host transcript was unavailable.";
+    return [
+      "Firefox ChatAI Assistant — command run archive",
+      "",
+      completeness,
+      "metadata.json records the selected tab/run identity and command result at export time.",
+      "The archive may contain commands, paths, output, URLs, or other sensitive information. Review it before sharing.",
+      "",
+      `Exported: ${metadata.exportedAt}`,
+      `Run ID: ${metadata.run.runId || "unknown"}`,
+      `Status: ${metadata.run.status || "unknown"}`,
+      `Log source: ${metadata.log.source}`,
+      ""
+    ].join("\n");
+  }
+
+  async function exportShellLogArchive() {
+    if (shellLogExportBusy) return;
+    const descriptor = archiveRunDescriptor();
+    if (!Number.isInteger(descriptor.tabId)) {
+      showMessage("Open a command log before exporting its run archive.", "error");
+      return;
+    }
+    if (descriptor.logBytes > SHELL_LOG_EXPORT_WARNING_BYTES && !confirm(`This command log is ${formatByteCount(descriptor.logBytes)}. Creating a ZIP may temporarily use additional memory. Continue?`)) return;
+    shellLogExportBusy = true;
+    elements.exportShellLogArchiveButton.disabled = true;
+    const originalInfo = elements.shellLogPageInfo.textContent;
+    try {
+      const log = await readCompleteShellLog(descriptor, (loaded, total) => {
+        elements.shellLogPageInfo.textContent = `Reading complete run log for ZIP: ${formatByteCount(loaded)} / ${formatByteCount(total || loaded)}…`;
+      }).catch(async (error) => {
+        const fallback = String(descriptor.inlineText || "");
+        if (!fallback) throw error;
+        const bytes = new TextEncoder().encode(fallback);
+        return { bytes, completeTranscript: false, source: "persisted-fallback", logId: descriptor.logId || null, totalBytes: bytes.byteLength, fallbackReason: error instanceof Error ? error.message : String(error) };
+      });
+      const exportedAt = new Date().toISOString();
+      const metadata = {
+        schema: "firefox-chat-assistant.command-run-archive",
+        schemaVersion: 1,
+        exportedAt,
+        extension: { version: "0.36.0", protocolVersion: Number(dashboard.protocolVersion) || null },
+        tab: { ...(descriptor.tabMetadata || {}), tabId: descriptor.tabId },
+        run: { ...(descriptor.runMetadata || {}), tabId: descriptor.tabId, runId: descriptor.runId || descriptor.runMetadata?.runId || null },
+        log: {
+          source: log.source,
+          completeTranscript: Boolean(log.completeTranscript),
+          originalLogId: log.logId,
+          transcriptBytes: log.totalBytes,
+          fallbackReason: log.fallbackReason || null,
+          archiveEntry: "command.log"
+        }
+      };
+      elements.shellLogPageInfo.textContent = "Compressing command.log and metadata.json…";
+      const metadataText = `${JSON.stringify(metadata, null, 2)}\n`;
+      const archiveBytes = await LogArchive.buildZip([
+        { name: "command.log", data: log.bytes },
+        { name: "metadata.json", data: metadataText },
+        { name: "README.txt", data: commandRunArchiveReadme(metadata) }
+      ], { modifiedAt: new Date(exportedAt) });
+      const stamp = exportedAt.replace(/[:.]/g, "-");
+      const runStem = LogArchive.safeDownloadStem(descriptor.runId || descriptor.label || `tab-${descriptor.tabId}`);
+      downloadBlob(new Blob([archiveBytes], { type: "application/zip" }), `firefox-chat-assistant-command-run-${runStem}-${stamp}.zip`);
+      elements.shellLogPageInfo.textContent = `Exported ${formatByteCount(log.totalBytes)} transcript as a ${formatByteCount(archiveBytes.byteLength)} ZIP${log.completeTranscript ? "." : " using the persisted fallback."}`;
+      showMessage(log.completeTranscript ? "Complete command-run ZIP exported." : "Command-run ZIP exported from the persisted fallback because the complete stored log was unavailable.", log.completeTranscript ? "success" : "info");
+    } catch (error) {
+      elements.shellLogPageInfo.textContent = originalInfo;
+      const message = error instanceof Error ? error.message : String(error);
+      RuntimeGuard?.report("shell-log-export", error, { fatal: false });
+      showMessage(`Could not export command-run ZIP: ${message}`, "error");
+    } finally {
+      shellLogExportBusy = false;
+      elements.exportShellLogArchiveButton.disabled = !Number.isInteger(shellLogState.tabId);
+    }
   }
 
   function readNativeLogRetentionForm() {
@@ -1798,6 +2099,165 @@
       : "Automatic command is disabled for this rule.";
   }
 
+
+
+  function formatStatisticsDuration(milliseconds, count) {
+    if (!count) return "—";
+    const value = Math.max(0, Number(milliseconds) || 0) / Math.max(1, Number(count) || 1);
+    if (value < 1000) return `${Math.round(value)} ms`;
+    if (value < 60000) return `${(value / 1000).toFixed(value < 10000 ? 1 : 0)} s`;
+    return `${(value / 60000).toFixed(1)} min`;
+  }
+
+  function normalizedRuleStatistics(session, rule) {
+    const source = session?.ruleStatistics?.[rule.id] || {};
+    const count = (key) => Math.max(0, Number(source[key]) || 0);
+    return {
+      ruleId: rule.id,
+      ruleName: rule.name,
+      startedAt: source.startedAt || session?.statisticsStartedAt || session?.activatedAt || null,
+      updatedAt: source.updatedAt || null,
+      matchCount: count("matchCount"),
+      clickCount: count("clickCount"),
+      dryRunCount: count("dryRunCount"),
+      verifyPassCount: count("verifyPassCount"),
+      verifyFailCount: count("verifyFailCount"),
+      verifySkippedCount: count("verifySkippedCount"),
+      commandSuccessCount: count("commandSuccessCount"),
+      commandFailureCount: count("commandFailureCount"),
+      returnCodeCounts: source.returnCodeCounts && typeof source.returnCodeCounts === "object" ? source.returnCodeCounts : {},
+      lastReturnCode: Number.isInteger(source.lastReturnCode) ? source.lastReturnCode : null,
+      targetLatencyCount: count("targetLatencyCount"),
+      totalTargetLatencyMs: count("totalTargetLatencyMs"),
+      pipelineDurationCount: count("pipelineDurationCount"),
+      totalPipelineDurationMs: count("totalPipelineDurationMs"),
+      lastMatchedAt: source.lastMatchedAt || null,
+      lastTargetAt: source.lastTargetAt || null,
+      lastVerifyAt: source.lastVerifyAt || null,
+      lastCommandAt: source.lastCommandAt || null,
+      lastEventAt: source.lastEventAt || null
+    };
+  }
+
+  function returnCodeStatisticsText(statistics) {
+    const entries = Object.entries(statistics.returnCodeCounts || {})
+      .sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true }))
+      .map(([code, count]) => `${code}×${count}`);
+    return entries.length ? entries.join(", ") : "none";
+  }
+
+  function renderRuleStatistics() {
+    const session = selectedSession();
+    const config = Settings.normalizeConfig(session?.effectiveConfig || profileById(selectedProfileId)?.config || Settings.defaultConfig());
+    const rules = Array.isArray(config.rules) ? config.rules : [];
+    const statistics = rules.map((rule) => ({ rule, value: normalizedRuleStatistics(session, rule) }));
+    const totals = statistics.reduce((result, entry) => {
+      for (const key of ["matchCount", "clickCount", "dryRunCount", "verifyPassCount", "verifyFailCount", "verifySkippedCount", "commandSuccessCount", "commandFailureCount"]) {
+        result[key] += entry.value[key];
+      }
+      return result;
+    }, { matchCount: 0, clickCount: 0, dryRunCount: 0, verifyPassCount: 0, verifyFailCount: 0, verifySkippedCount: 0, commandSuccessCount: 0, commandFailureCount: 0 });
+
+    elements.statisticsRuleCount.textContent = session ? String(rules.length) : "—";
+    elements.statisticsMatchCount.textContent = session ? String(totals.matchCount) : "—";
+    elements.statisticsClickCount.textContent = session ? `${totals.clickCount} / dry ${totals.dryRunCount}` : "—";
+    elements.statisticsVerifyCount.textContent = session ? `${totals.verifyPassCount} / ${totals.verifyFailCount}${totals.verifySkippedCount ? ` / skip ${totals.verifySkippedCount}` : ""}` : "—";
+    elements.statisticsCommandCount.textContent = session ? `${totals.commandSuccessCount} / ${totals.commandFailureCount}` : "—";
+    elements.ruleStatisticsRows.replaceChildren();
+
+    if (!session) {
+      const empty = document.createElement("p");
+      empty.className = "empty-log";
+      empty.textContent = "Activate a tab to collect rule statistics.";
+      elements.ruleStatisticsRows.append(empty);
+      elements.selectedRuleStatistics.textContent = "No activated tab session is selected.";
+      elements.ruleStatisticsStatus.textContent = "Statistics start when the tab is activated.";
+      elements.ruleStatisticsStatus.dataset.state = "empty";
+      elements.exportRuleStatisticsButton.disabled = true;
+      elements.resetRuleStatisticsButton.disabled = true;
+      return;
+    }
+
+    for (const { rule, value } of statistics) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "rule-statistics-row";
+      row.dataset.ruleId = rule.id;
+      row.dataset.selected = String(rule.id === selectedRuleId);
+      row.dataset.enabled = String(Boolean(rule.enabled));
+      row.setAttribute("role", "listitem");
+      row.title = `Select ${rule.name} in the rule editor`;
+      const heading = document.createElement("span");
+      heading.className = "rule-statistics-row-heading";
+      const name = document.createElement("span");
+      name.textContent = rule.name;
+      const state = document.createElement("small");
+      state.textContent = rule.enabled ? (session.runtime?.ruleRuntimes?.[rule.id]?.monitorState || "idle") : "disabled";
+      heading.append(name, state);
+      const metrics = document.createElement("span");
+      metrics.className = "rule-statistics-metrics";
+      for (const text of [
+        `Match ${value.matchCount}`,
+        `Click ${value.clickCount}`,
+        `Dry ${value.dryRunCount}`,
+        `Verify ${value.verifyPassCount}/${value.verifyFailCount}`,
+        `Cmd ${value.commandSuccessCount}/${value.commandFailureCount}`,
+        `Avg ${formatStatisticsDuration(value.totalPipelineDurationMs, value.pipelineDurationCount)}`
+      ]) {
+        const metric = document.createElement("span");
+        metric.textContent = text;
+        metrics.append(metric);
+      }
+      row.append(heading, metrics);
+      row.addEventListener("click", () => selectRuleForEditing(rule.id));
+      elements.ruleStatisticsRows.append(row);
+    }
+
+    const selected = statistics.find((entry) => entry.rule.id === selectedRuleId) || statistics[0] || null;
+    if (selected) {
+      const value = selected.value;
+      elements.selectedRuleStatistics.textContent = `${selected.rule.name}: matches ${value.matchCount}; clicks ${value.clickCount}; dry-runs ${value.dryRunCount}; verify PASS ${value.verifyPassCount}, FAIL ${value.verifyFailCount}, skipped ${value.verifySkippedCount}; commands OK ${value.commandSuccessCount}, failed ${value.commandFailureCount}; return codes ${returnCodeStatisticsText(value)}; average MATCHED→target ${formatStatisticsDuration(value.totalTargetLatencyMs, value.targetLatencyCount)}; average pipeline ${formatStatisticsDuration(value.totalPipelineDurationMs, value.pipelineDurationCount)}; last event ${value.lastEventAt ? new Date(value.lastEventAt).toLocaleString() : "none"}.`;
+    } else {
+      elements.selectedRuleStatistics.textContent = "No configured rule is available.";
+    }
+    const startedAt = session.statisticsStartedAt || session.activatedAt;
+    elements.ruleStatisticsStatus.textContent = `Tab ${session.tabId}; collecting since ${startedAt ? new Date(startedAt).toLocaleString() : "activation"}. Statistics persist across background recovery and are cleared when this tab session stops.`;
+    elements.ruleStatisticsStatus.dataset.state = "active";
+    elements.exportRuleStatisticsButton.disabled = busy || !rules.length;
+    elements.resetRuleStatisticsButton.disabled = busy;
+  }
+
+  function exportRuleStatistics() {
+    const session = selectedSession();
+    if (!session) {
+      showMessage("Activate a tab before exporting rule statistics.", "error");
+      return;
+    }
+    const config = Settings.normalizeConfig(session.effectiveConfig || Settings.defaultConfig());
+    const payload = {
+      type: "firefox-chat-improver-rule-statistics",
+      schema: 1,
+      exportedAt: new Date().toISOString(),
+      tab: { tabId: session.tabId, title: session.customTitle || session.title || "", url: session.url || "", sessionToken: session.sessionToken || null },
+      statisticsStartedAt: session.statisticsStartedAt || session.activatedAt || null,
+      rules: config.rules.map((rule) => ({ ...normalizedRuleStatistics(session, rule), enabled: Boolean(rule.enabled) }))
+    };
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    downloadBlob(new Blob([JSON.stringify(payload, null, 2) + "\n"], { type: "application/json" }), `firefox-chat-assistant-rule-statistics-tab-${session.tabId}-${stamp}.json`);
+    showMessage(`Exported statistics for ${payload.rules.length} rule(s) in tab ${session.tabId}.`, "success");
+  }
+
+  async function resetRuleStatistics() {
+    const session = selectedSession();
+    if (!session) {
+      showMessage("Activate a tab before resetting rule statistics.", "error");
+      return;
+    }
+    if (!confirm(`Reset all per-rule statistics for tab ${session.tabId}?\n\nThis does not change the rules or stop automation.`)) return;
+    const response = await request(MESSAGE.RESET_RULE_STATISTICS, { tabId: session.tabId });
+    if (response?.ok) showMessage(`Rule statistics for tab ${session.tabId} were reset.`, "success");
+  }
+
   function renderSettingsSnapshots() {
     const snapshots = Array.isArray(dashboard.settingsSnapshots) ? dashboard.settingsSnapshots : [];
     const previous = elements.settingsSnapshotSelect.value;
@@ -2026,6 +2486,7 @@
     renderDownloadState();
     renderUrlRoutingPreview();
     renderRuleRuntimeSummary();
+    renderRuleStatistics();
     renderSettingsSnapshots();
     renderKeyboardShortcuts();
     renderWorkingSessionCatalog();
@@ -2091,6 +2552,7 @@
     }
     renderSelectors(preferredTabId);
     renderDetails(loadForm);
+    renderPromptTemplates();
   }
 
   async function refreshDashboardPassive() {
@@ -2963,6 +3425,7 @@ ${run.command || ""}`)) {
     renderRuleOptions();
     writeRuleFields(rule);
     renderRuleRuntimeSummary();
+    renderRuleStatistics();
   }
 
   function addRule(duplicate = false) {
@@ -3762,6 +4225,7 @@ Cancel: keep editing without losing the changes.`);
   });
   elements.copyShellLogPageButton.addEventListener("click", () => void copyTextValue(elements.shellLogViewer.value, "Current log page copied.").catch((error) => showMessage(error.message, "error")));
   elements.copyShellLogAllButton.addEventListener("click", () => void copyAllShellLog().catch((error) => showMessage(error.message, "error")));
+  elements.exportShellLogArchiveButton.addEventListener("click", () => void exportShellLogArchive());
   elements.deleteShellLogButton.addEventListener("click", () => {
     if (!shellLogState.logId || !confirm("Delete this stored command log from disk?")) return;
     void request(MESSAGE.DELETE_SHELL_LOG, { tabId: shellLogState.tabId, logId: shellLogState.logId }, "Stored command log deleted.").then((response) => {
@@ -3769,6 +4233,8 @@ Cancel: keep editing without losing the changes.`);
     });
   });
   elements.refreshShortcutsButton.addEventListener("click", () => void request(MESSAGE.GET_DASHBOARD));
+  elements.exportRuleStatisticsButton.addEventListener("click", exportRuleStatistics);
+  elements.resetRuleStatisticsButton.addEventListener("click", () => void resetRuleStatistics());
   elements.manageShortcutsButton.addEventListener("click", () => void manageKeyboardShortcuts().catch((error) => showMessage(error instanceof Error ? error.message : String(error), "error")));
   elements.resetShortcutsButton.addEventListener("click", () => void resetKeyboardShortcuts().catch((error) => showMessage(error instanceof Error ? error.message : String(error), "error")));
   elements.refreshButton.addEventListener("click", () => void request(MESSAGE.GET_DASHBOARD));
@@ -4005,6 +4471,27 @@ Cancel: keep editing without losing the changes.`);
     }
   });
 
+
+  elements.promptTemplateSelect.addEventListener("change", () => {
+    promptTemplateEditorMode = "selected";
+    selectedPromptTemplateId = elements.promptTemplateSelect.value || null;
+    setPromptTemplateStatus();
+    renderPromptTemplates(selectedPromptTemplateId);
+    void persistSidebarUi();
+  });
+  elements.newPromptTemplateButton.addEventListener("click", beginNewPromptTemplate);
+  elements.savePromptTemplateButton.addEventListener("click", () => void saveCurrentPromptTemplate());
+  elements.deletePromptTemplateButton.addEventListener("click", () => void deleteCurrentPromptTemplate());
+  elements.copyPromptTemplateButton.addEventListener("click", () => void copyCurrentPromptTemplate().catch((error) => setPromptTemplateStatus(error instanceof Error ? error.message : String(error), "error")));
+  elements.fillPromptTemplateButton.addEventListener("click", () => void fillCurrentPromptTemplate());
+  elements.promptTemplateName.addEventListener("input", () => {
+    elements.savePromptTemplateButton.disabled = false;
+  });
+  elements.promptTemplateText.addEventListener("input", () => {
+    elements.savePromptTemplateButton.disabled = false;
+    elements.fillPromptTemplateButton.disabled = !elements.promptTemplateText.value.trim();
+    elements.copyPromptTemplateButton.disabled = !elements.promptTemplateText.value.trim();
+  });
 
   function bindListFilter(input, key, render) {
     input.addEventListener("input", () => {

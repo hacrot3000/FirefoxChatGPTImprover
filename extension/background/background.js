@@ -19,6 +19,7 @@
   const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
   const WorkingSession = globalThis.FCI_WORKING_SESSION;
   const LocalActions = globalThis.FCI_LOCAL_ACTIONS;
+  const PromptTemplates = globalThis.FCI_PROMPT_TEMPLATES;
   const TAB_SESSION_KEY = "firefoxChatImprover.tabSession.v2";
   const TAB_CUSTOM_TITLE_KEY = "firefoxChatImprover.customTabTitle.v1";
   const sessions = new Map();
@@ -1507,6 +1508,7 @@
         }
       }
       if (run.source === "automation") {
+        recordRuleCommandStatistics(session, run, event);
         const failed = event === "error" || (event === "exited" && Number(run.returnCode || 0) !== 0);
         session.runtime = {
           ...session.runtime,
@@ -2335,11 +2337,220 @@
       profileName: profileName(session, store),
       effectiveConfig: sessionConfig(session, store)
     };
+    publicValue.ruleStatistics = normalizeRuleStatisticsMap(session.ruleStatistics, session.statisticsStartedAt || session.activatedAt);
+    delete publicValue.ruleStatisticsObserver;
     if (localStore) {
       publicValue.localActionProfileName = localActionProfileName(session, localStore);
       publicValue.effectiveLocalActions = sessionLocalActionConfig(session, localStore);
     }
     return publicValue;
+  }
+
+
+  const RULE_STATISTICS_SCHEMA = 1;
+  const TERMINAL_PIPELINE_STATES = new Set(["completed", "dry-run-complete", "verified", "verify-failed", "failed"]);
+
+  function emptyRuleStatistics(ruleId = "", ruleName = "", startedAt = null) {
+    return {
+      schema: RULE_STATISTICS_SCHEMA,
+      ruleId: String(ruleId || ""),
+      ruleName: String(ruleName || ruleId || "Rule"),
+      startedAt: startedAt || Settings.nowIso(),
+      updatedAt: null,
+      matchCount: 0,
+      clickCount: 0,
+      dryRunCount: 0,
+      verifyPassCount: 0,
+      verifyFailCount: 0,
+      verifySkippedCount: 0,
+      commandSuccessCount: 0,
+      commandFailureCount: 0,
+      returnCodeCounts: {},
+      lastReturnCode: null,
+      targetLatencyCount: 0,
+      totalTargetLatencyMs: 0,
+      pipelineDurationCount: 0,
+      totalPipelineDurationMs: 0,
+      lastMatchedAt: null,
+      lastTargetAt: null,
+      lastVerifyAt: null,
+      lastCommandAt: null,
+      lastEventAt: null
+    };
+  }
+
+  function normalizeRuleStatisticsEntry(raw, ruleId = "", ruleName = "", startedAt = null) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const value = emptyRuleStatistics(ruleId || source.ruleId, ruleName || source.ruleName, source.startedAt || startedAt);
+    const counters = [
+      "matchCount", "clickCount", "dryRunCount", "verifyPassCount", "verifyFailCount", "verifySkippedCount",
+      "commandSuccessCount", "commandFailureCount", "targetLatencyCount", "totalTargetLatencyMs",
+      "pipelineDurationCount", "totalPipelineDurationMs"
+    ];
+    for (const key of counters) value[key] = Math.max(0, Number(source[key]) || 0);
+    const returnCodes = source.returnCodeCounts && typeof source.returnCodeCounts === "object" ? source.returnCodeCounts : {};
+    value.returnCodeCounts = Object.fromEntries(Object.entries(returnCodes)
+      .filter(([key, count]) => String(key).length <= 32 && Number(count) > 0)
+      .map(([key, count]) => [String(key), Math.max(0, Number(count) || 0)]));
+    value.lastReturnCode = Number.isInteger(source.lastReturnCode) ? source.lastReturnCode : null;
+    for (const key of ["updatedAt", "lastMatchedAt", "lastTargetAt", "lastVerifyAt", "lastCommandAt", "lastEventAt"]) {
+      value[key] = source[key] ? String(source[key]) : null;
+    }
+    return value;
+  }
+
+  function normalizeRuleStatisticsMap(raw, startedAt = null) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    return Object.fromEntries(Object.entries(source)
+      .filter(([ruleId, value]) => ruleId && value && typeof value === "object")
+      .map(([ruleId, value]) => [String(ruleId), normalizeRuleStatisticsEntry(value, ruleId, value.ruleName, startedAt)]));
+  }
+
+  function emptyRuleStatisticsObserver(runtime = null) {
+    const source = runtime && typeof runtime === "object" ? runtime : {};
+    return {
+      monitorState: String(source.monitorState || "idle"),
+      cycle: Math.max(0, Number(source.cycle) || 0),
+      clickedCount: Math.max(0, Number(source.clickedCount) || 0),
+      dryRunCount: Math.max(0, Number(source.dryRunCount) || 0),
+      pipelineState: String(source.pipelineState || "idle"),
+      lastTargetAction: source.lastTargetAction ? String(source.lastTargetAction) : null,
+      commandRunIds: []
+    };
+  }
+
+  function normalizeRuleStatisticsObserverMap(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    return Object.fromEntries(Object.entries(source).map(([ruleId, value]) => {
+      const observer = emptyRuleStatisticsObserver(value);
+      observer.commandRunIds = Array.isArray(value?.commandRunIds) ? value.commandRunIds.map(String).slice(-50) : [];
+      return [String(ruleId), observer];
+    }));
+  }
+
+  function ruleStatisticsElapsedMs(start, end) {
+    const left = Date.parse(String(start || ""));
+    const right = Date.parse(String(end || ""));
+    return Number.isFinite(left) && Number.isFinite(right) && right >= left ? right - left : null;
+  }
+
+  function ensureRuleStatistics(session, ruleId, ruleName, eventAt) {
+    session.statisticsStartedAt = session.statisticsStartedAt || session.activatedAt || eventAt || Settings.nowIso();
+    session.ruleStatistics = normalizeRuleStatisticsMap(session.ruleStatistics, session.statisticsStartedAt);
+    const current = session.ruleStatistics[ruleId] || emptyRuleStatistics(ruleId, ruleName, session.statisticsStartedAt);
+    current.ruleName = String(ruleName || current.ruleName || ruleId);
+    session.ruleStatistics[ruleId] = current;
+    return current;
+  }
+
+  function updateRuleStatistics(session, previousRuntime, currentRuntime) {
+    const currentRules = currentRuntime?.ruleRuntimes && typeof currentRuntime.ruleRuntimes === "object"
+      ? currentRuntime.ruleRuntimes : {};
+    const previousRules = previousRuntime?.ruleRuntimes && typeof previousRuntime.ruleRuntimes === "object"
+      ? previousRuntime.ruleRuntimes : {};
+    session.ruleStatisticsObserver = normalizeRuleStatisticsObserverMap(session.ruleStatisticsObserver);
+    for (const [ruleId, current] of Object.entries(currentRules)) {
+      if (!current || typeof current !== "object") continue;
+      const eventAt = String(current.lastEventAt || currentRuntime?.lastEventAt || Settings.nowIso());
+      const statistics = ensureRuleStatistics(session, ruleId, current.ruleName, eventAt);
+      const observer = session.ruleStatisticsObserver[ruleId] || emptyRuleStatisticsObserver(previousRules[ruleId]);
+      let changed = false;
+
+      if (current.monitorState === MONITOR_STATE.MATCHED && observer.monitorState !== MONITOR_STATE.MATCHED) {
+        statistics.matchCount += 1;
+        statistics.lastMatchedAt = eventAt;
+        changed = true;
+      }
+
+      const cycle = Math.max(0, Number(current.cycle) || 0);
+      const clickedCount = Math.max(0, Number(current.clickedCount) || 0);
+      const dryRunCount = Math.max(0, Number(current.dryRunCount) || 0);
+      const sameOrNewerCycle = cycle >= observer.cycle;
+      const clickDelta = sameOrNewerCycle
+        ? Math.max(0, cycle === observer.cycle ? clickedCount - observer.clickedCount : clickedCount)
+        : 0;
+      const dryRunDelta = sameOrNewerCycle
+        ? Math.max(0, cycle === observer.cycle ? dryRunCount - observer.dryRunCount : dryRunCount)
+        : 0;
+      if (clickDelta || dryRunDelta) {
+        statistics.clickCount += clickDelta;
+        statistics.dryRunCount += dryRunDelta;
+        statistics.lastTargetAt = String(current.lastTargetAt || eventAt);
+        const latency = ruleStatisticsElapsedMs(statistics.lastMatchedAt, statistics.lastTargetAt);
+        if (latency !== null) {
+          statistics.targetLatencyCount += 1;
+          statistics.totalTargetLatencyMs += latency;
+        }
+        changed = true;
+      }
+
+      const pipelineState = String(current.pipelineState || "idle");
+      if (pipelineState !== observer.pipelineState && TERMINAL_PIPELINE_STATES.has(pipelineState)) {
+        const verifyResult = current.verifyResult && typeof current.verifyResult === "object" ? current.verifyResult : null;
+        if (verifyResult?.skipped) statistics.verifySkippedCount += 1;
+        else if (verifyResult?.passed === true) statistics.verifyPassCount += 1;
+        else if (verifyResult?.passed === false || pipelineState === "verify-failed") statistics.verifyFailCount += 1;
+        if (verifyResult || pipelineState === "verify-failed" || pipelineState === "verified") {
+          statistics.lastVerifyAt = eventAt;
+        }
+        const duration = ruleStatisticsElapsedMs(current.pipelineStartedAt, eventAt);
+        if (duration !== null) {
+          statistics.pipelineDurationCount += 1;
+          statistics.totalPipelineDurationMs += duration;
+        }
+        changed = true;
+      }
+
+      observer.monitorState = String(current.monitorState || "idle");
+      observer.cycle = cycle;
+      observer.clickedCount = clickedCount;
+      observer.dryRunCount = dryRunCount;
+      observer.pipelineState = pipelineState;
+      observer.lastTargetAction = current.lastTargetAction ? String(current.lastTargetAction) : null;
+      session.ruleStatisticsObserver[ruleId] = observer;
+      if (changed) {
+        statistics.updatedAt = eventAt;
+        statistics.lastEventAt = eventAt;
+      }
+    }
+  }
+
+  function recordRuleCommandStatistics(session, run, event) {
+    if (!session || run?.source !== "automation" || !run.ruleId || !["exited", "error"].includes(event)) return;
+    session.ruleStatisticsObserver = normalizeRuleStatisticsObserverMap(session.ruleStatisticsObserver);
+    const ruleId = String(run.ruleId);
+    const observer = session.ruleStatisticsObserver[ruleId] || emptyRuleStatisticsObserver();
+    const runKey = String(run.runId || `${ruleId}:${run.cycle ?? ""}:${run.startedAt || ""}`);
+    if (observer.commandRunIds.includes(runKey)) return;
+    observer.commandRunIds.push(runKey);
+    observer.commandRunIds = observer.commandRunIds.slice(-50);
+    session.ruleStatisticsObserver[ruleId] = observer;
+
+    const eventAt = String(run.endedAt || Settings.nowIso());
+    const statistics = ensureRuleStatistics(session, ruleId, run.ruleName, eventAt);
+    const successful = event === "exited" && Number(run.returnCode) === 0;
+    if (successful) statistics.commandSuccessCount += 1;
+    else statistics.commandFailureCount += 1;
+    const key = event === "error" || !Number.isInteger(run.returnCode) ? "error" : String(run.returnCode);
+    statistics.returnCodeCounts[key] = Math.max(0, Number(statistics.returnCodeCounts[key]) || 0) + 1;
+    statistics.lastReturnCode = Number.isInteger(run.returnCode) ? run.returnCode : null;
+    statistics.lastCommandAt = eventAt;
+    statistics.lastEventAt = eventAt;
+    statistics.updatedAt = eventAt;
+  }
+
+  async function resetRuleStatistics(tabId) {
+    const session = sessions.get(tabId);
+    if (!session) throw new Error("This tab is not activated.");
+    const now = Settings.nowIso();
+    session.statisticsStartedAt = now;
+    session.ruleStatistics = {};
+    session.ruleStatisticsObserver = Object.fromEntries(Object.entries(session.runtime?.ruleRuntimes || {})
+      .map(([ruleId, runtime]) => [ruleId, emptyRuleStatisticsObserver(runtime)]));
+    appendLog(session, "user", "rule-statistics-reset", "Per-rule statistics were reset for this tab session.");
+    await persistSession(session);
+    await broadcast("rule-statistics-reset", tabId);
+    return clone(session.ruleStatistics);
   }
 
   function newRuntime() {
@@ -2440,6 +2651,9 @@
       localActionWorkingConfig: null,
       localActionWorkingContext: null,
       runtime: newRuntime(),
+      statisticsStartedAt: now,
+      ruleStatistics: {},
+      ruleStatisticsObserver: {},
       logs: { user: [], debug: [] },
       downloadJob: emptyDownloadState(tab.id),
       shellHistory: [],
@@ -2727,6 +2941,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       customTitle: stored.customTitle || "",
       sessionToken: stored.sessionToken || Settings.makeId("session"),
       runtime: { ...newRuntime(), ...(stored.runtime || {}) },
+      statisticsStartedAt: stored.statisticsStartedAt || stored.activatedAt || Settings.nowIso(),
+      ruleStatistics: normalizeRuleStatisticsMap(stored.ruleStatistics, stored.statisticsStartedAt || stored.activatedAt),
+      ruleStatisticsObserver: normalizeRuleStatisticsObserverMap(stored.ruleStatisticsObserver),
       logs: normalizeLogs(stored.logs),
       downloadJob: normalizeDownloadState(stored.downloadJob, tab.id),
       shellHistory: normalizeShellHistory(stored.shellHistory, 100),
@@ -3068,6 +3285,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     delete incoming.commandRequest;
     session.runtime = { ...session.runtime, ...incoming };
     session.updatedAt = session.runtime.lastEventAt || Settings.nowIso();
+    updateRuleStatistics(session, previous, session.runtime);
 
     if (previous.monitorState !== session.runtime.monitorState) {
       appendLog(
@@ -4334,9 +4552,59 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     console.error(`FirefoxChatImprover: keyboard command ${command} failed`, error);
   }
 
+  async function promptTemplateLibrary() {
+    const store = await PromptTemplates.loadStore(browser);
+    return PromptTemplates.library(store);
+  }
+
+  async function savePromptTemplate(rawTemplate, sender) {
+    assertSidebarSender(sender);
+    const result = await PromptTemplates.upsertCustom(browser, rawTemplate);
+    await broadcast("prompt-template-library-changed");
+    return result;
+  }
+
+  async function deletePromptTemplate(templateId, sender) {
+    assertSidebarSender(sender);
+    const result = await PromptTemplates.deleteCustom(browser, templateId);
+    await broadcast("prompt-template-library-changed");
+    return result;
+  }
+
+  async function fillPromptTemplate(tabId, rawText, sender) {
+    assertSidebarSender(sender);
+    const numericTabId = Number(tabId);
+    if (!Number.isInteger(numericTabId)) throw new Error("The selected tab has no valid tab ID.");
+    const text = String(rawText || "");
+    if (!text.trim()) throw new Error("Prompt text is empty.");
+    if (text.length > PromptTemplates.MAX_PROMPT_LENGTH) throw new Error("Prompt text is too long.");
+    const [tab, active] = await Promise.all([browser.tabs.get(numericTabId), currentTab()]);
+    if (!Number.isInteger(active?.id) || active.id !== numericTabId) {
+      throw new Error("Prompt filling is allowed only in the currently displayed tab.");
+    }
+    if (!isSupportedUrl(tab.url)) {
+      throw new Error("Prompt filling is allowed only on normal HTTP or HTTPS pages.");
+    }
+    try {
+      await browser.scripting.executeScript({
+        target: { tabId: numericTabId },
+        files: ["shared/protocol.js", "content/prompt_fill.js"]
+      });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new Error(`Firefox could not access this page to fill the prompt. Grant site access or activate the tab first. ${detail}`);
+    }
+    const response = await browser.tabs.sendMessage(numericTabId, {
+      type: MESSAGE.CONTENT_FILL_PROMPT,
+      payload: { text }
+    });
+    if (!response?.ok) throw new Error(response?.error || "Could not fill a prompt input in the current page.");
+    return response.result;
+  }
+
   async function dashboard() {
     await recoverAll();
-    const [store, localActionStore, workingSessionCatalog, keyboardCommands] = await Promise.all([loadStore(), loadLocalActionStore(), loadWorkingSessionCatalog(), keyboardCommandsDashboard()]);
+    const [store, localActionStore, workingSessionCatalog, keyboardCommands, promptTemplates] = await Promise.all([loadStore(), loadLocalActionStore(), loadWorkingSessionCatalog(), keyboardCommandsDashboard(), promptTemplateLibrary()]);
     const snapshotCollection = await loadSnapshotCollection();
     const tab = await currentTab();
     const currentTabMeta = await tabMetaWithCustomTitle(tab);
@@ -4349,6 +4617,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return {
       protocolVersion: globalThis.FCI_PROTOCOL.VERSION,
       keyboardCommands,
+      promptTemplates,
       pendingShortcutAction: clone(pendingShortcutAction),
       currentTab: currentTabMeta,
       sessions: publicSessions,
@@ -4693,6 +4962,24 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         case MESSAGE.CLEAR_SESSION_LOGS:
           await clearSessionLogs(Number(message.tabId));
           return { ok: true, dashboard: await dashboard() };
+
+        case MESSAGE.RESET_RULE_STATISTICS:
+          assertSidebarSender(sender);
+          await resetRuleStatistics(Number(message.tabId));
+          return { ok: true, dashboard: await dashboard() };
+
+        case MESSAGE.SAVE_PROMPT_TEMPLATE: {
+          const result = await savePromptTemplate(message.template, sender);
+          return { ok: true, template: result.template, promptTemplates: result.library, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.DELETE_PROMPT_TEMPLATE: {
+          const result = await deletePromptTemplate(message.templateId, sender);
+          return { ok: true, deletedId: result.deletedId, promptTemplates: result.library, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.FILL_PROMPT_TEMPLATE:
+          return { ok: true, result: await fillPromptTemplate(Number(message.tabId), message.text, sender) };
 
         case MESSAGE.GET_NATIVE_STATUS:
           return { ok: true, nativeHost: await checkNativeStatus(sender), dashboard: await dashboard() };

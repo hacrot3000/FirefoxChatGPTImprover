@@ -2,7 +2,7 @@
 
 <!-- FCI_PROJECT_STATUS_SCHEMA: 1 -->
 
-- Current add-on version: **0.34.0**
+- Current add-on version: **0.37.0**
 - Native Host version: **0.13.0**
 - Status updated: **2026-08-06**
 - Required-feature backlog: **completed**
@@ -21,6 +21,9 @@ This file is the release-facing feature inventory. Every feature patch must upda
 | Alerts and titles | AI READY/running indicators, desktop notification, optional bounded sound alerts, badge/title lifecycle and persistent custom tab names | **100%** | Sound alerts completed in v0.32.0 |
 | Sidebar scale | Search/filter for tabs, all profile libraries, command presets and command history | **100%** | Released in v0.30.0 |
 | Keyboard shortcuts | Firefox-managed shortcuts for sidebar, tab lifecycle, alert acknowledgement, target action and command-log access | **100%** | Released in v0.34.0 |
+| Per-rule statistics | Session-isolated match/click/verify/command counts, return-code frequencies, timing diagnostics, JSON export and reset | **100%** | Released in v0.35.0 |
+| Command-run log archives | Per-run ZIP with complete paged transcript, metadata, README, DEFLATE compression and explicit fallback completeness | **100%** | Released in v0.36.0 |
+| Prompt templates | Two code-configured built-ins, clipboard copy, active-tab last-input filling and locally stored user-defined templates | **100%** | Released in v0.37.0 |
 | Working sessions | Export/import current tabs plus a searchable named catalog with update, rename, duplicate, delete, typed JSON backup and controlled subset restore | **100%** | Released in v0.31.0 |
 | Managed downloads | Dialog-free capture, immutable per-tab jobs, relocation receipts, restart recovery and correlated Native Host responses | **100%** | Released |
 | Shell execution | Manual/automatic execution, reusable presets, full stdout/stderr, per-tab history, recovery and stop semantics | **100%** | Released |
@@ -30,16 +33,14 @@ This file is the release-facing feature inventory. Every feature patch must upda
 
 ## In progress
 
-| Feature | Scope | Progress | Current work |
-| --- | --- | ---: | --- |
-| Per-rule statistics dashboard | Match/click/verify/return-code counts and timing diagnostics | **10%** | Runtime counter model and dashboard scope prepared for the next phase |
+No recommended feature is partially implemented. The next item is the Chromium port.
+
 ## Planned features
 
 | Priority | Feature | Expected value | Progress |
 | ---: | --- | --- | ---: |
-| 1 | Compressed per-run log export | Archive and share one command run with metadata and complete logs | **0%** |
-| 2 | Chromium port | Reuse the engine on Chrome/Edge with platform-specific manifest and Native Host registration | **0%** |
-| 3 | Full accessibility audit | Focus order, screen reader, contrast and keyboard-only picker flow | **0%** |
+| 1 | Chromium port | Reuse the engine on Chrome/Edge with platform-specific manifest and Native Host registration | **0%** |
+| 2 | Full accessibility audit | Focus order, screen reader, contrast and keyboard-only picker flow | **0%** |
 ## Deferred
 
 | Feature | State | Reason |

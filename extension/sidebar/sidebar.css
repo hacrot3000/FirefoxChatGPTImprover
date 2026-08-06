@@ -692,3 +692,47 @@ body[data-alert="active"] .status-pill::before { background: var(--error); }
 /* Phase 34 keyboard shortcut status */
 .shortcut-value { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
 .shortcut-value[data-state="missing"] { color: var(--paused); font-family: inherit; font-style: italic; }
+
+
+/* Phase 35 per-rule statistics dashboard */
+.rule-statistics-summary { margin-bottom: 8px; }
+.rule-statistics-rows { display: grid; gap: 6px; margin: 8px 0; }
+.rule-statistics-row {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: Canvas;
+  color: CanvasText;
+  text-align: left;
+}
+.rule-statistics-row:hover,
+.rule-statistics-row:focus-visible { border-color: LinkText; }
+.rule-statistics-row[data-selected="true"] { border-color: var(--active); box-shadow: inset 3px 0 0 var(--active); }
+.rule-statistics-row[data-enabled="false"] { opacity: .68; }
+.rule-statistics-row-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 700; }
+.rule-statistics-row-heading small { color: var(--muted); font-weight: 500; }
+.rule-statistics-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; font-size: 10px; font-variant-numeric: tabular-nums; }
+.rule-statistics-metrics span { padding: 3px 4px; overflow: hidden; border-radius: 4px; background: color-mix(in srgb, CanvasText 6%, Canvas); text-overflow: ellipsis; white-space: nowrap; }
+.rule-statistics-details { margin-top: 8px; }
+.rule-statistics-details > summary { cursor: pointer; font-size: 11px; font-weight: 700; }
+.rule-statistics-actions { margin-top: 8px; }
+#ruleStatisticsStatus[data-state="empty"] { color: var(--muted); }
+#ruleStatisticsStatus[data-state="active"] { color: var(--active); }
+
+
+/* Phase 37: bundled and user-defined prompt templates. */
+.card[data-group-id="prompt-templates"] textarea {
+  min-height: 150px;
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+}
+.prompt-template-primary-actions { margin-bottom: 7px; }
+.prompt-template-editor-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.card[data-group-id="prompt-templates"] #promptTemplateStatus[data-state="success"] { color: var(--active); }
+.card[data-group-id="prompt-templates"] #promptTemplateStatus[data-state="error"] { color: var(--error); }
+@media (max-width: 360px) {
+  .prompt-template-editor-actions { grid-template-columns: 1fr; }
+}

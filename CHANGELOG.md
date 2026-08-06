@@ -6,13 +6,63 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 
 ## [Unreleased]
 
-### In progress
+### Planned
 
-- Per-rule statistics dashboard for match, click, verification, command-result and timing diagnostics.
+- Chromium port for Chrome and Edge.
+- Full accessibility audit for focus order, screen readers, contrast and keyboard-only element picking.
 
 ### Deferred
 
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
+
+
+## [0.37.0] - 2026-08-06
+
+### Added
+
+- A **Prompt templates** sidebar group with two bundled Vietnamese workflow prompts.
+- One-click filling of the last visible writable textarea, text/search input, or compatible contenteditable textbox in the currently displayed page.
+- Clipboard copy for the selected prompt template.
+- Locally stored custom prompt templates with create, update and delete actions.
+- `extension/shared/prompt_templates.js` as the dedicated, easy-to-edit built-in template configuration file.
+
+### Reliability and safety
+
+- Prompt filling is bound to the currently displayed tab and rejects stale sidebar tab selection.
+- Native value setters plus `input` and `change` events keep React/framework-controlled inputs synchronized.
+- Built-in templates remain read-only; custom templates are validated, size-bounded and isolated in Firefox local storage.
+- Native Host remains 0.13.0 and does not need to be reinstalled.
+
+## [0.36.0] - 2026-08-06
+
+### Added
+
+- **Export run ZIP** in the Full command log dialog for the currently displayed command run.
+- A standard ZIP archive containing `command.log`, `metadata.json` and `README.txt`.
+- Complete transcript collection through the existing tab-owned paged Native Host log API.
+- Run metadata for command source, preset/rule correlation, working directory, status, return code, timestamps and log completeness.
+
+### Reliability and safety
+
+- ZIP entries use DEFLATE when compression reduces size and preserve exact UTF-8 transcript bytes.
+- The selected tab ID, run ID and log ID are frozen when export starts, so changing sidebar selection cannot redirect an in-progress export.
+- If the complete Native Host file is unavailable, the archive uses the persisted per-run fallback and records `completeTranscript: false` plus the failure reason.
+- Large-log confirmation and a 512 MiB per-run memory guard protect the sidebar from accidental unbounded allocation.
+- Archives explicitly warn that commands, paths, output and URLs may contain sensitive information.
+
+## [0.35.0] - 2026-08-06
+
+### Added
+
+- A per-rule statistics dashboard isolated by activated tab session.
+- Counts for monitor MATCHED transitions, clicked and dry-run target elements, verification PASS/FAIL/skipped results, automatic command success/failure and return-code frequencies.
+- Average MATCHED-to-target latency and target-pipeline duration with last-event timestamps.
+- JSON export and explicit reset for the current tab without changing rules or stopping automation.
+
+### Reliability
+
+- Statistics observer checkpoints persist with the tab session across background recovery and prevent duplicate counting.
+- Command completion is correlated by rule and run ID; private observer state is never exposed in the dashboard payload.
 
 ## [0.34.0] - 2026-08-06
 
