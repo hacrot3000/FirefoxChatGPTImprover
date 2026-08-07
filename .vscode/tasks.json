@@ -263,7 +263,7 @@
         "panel": "shared"
       },
       "label": "Git: Add interactive",
-      "detail": "Hỏi có stage toàn bộ thay đổi của file đã track hay không; sau đó mở menu chọn nhiều file chưa track để add, các file không chọn được bỏ qua.",
+      "detail": "Hỏi stage file đã track và cho chọn nhiều file chưa track; sau khi chọn xong mặc định hỏi commit, rồi sau commit thành công mặc định hỏi push.",
       "command": "python3 \"${workspaceFolder}/vscode_tasks_menu.py\" --action git-add --workspace \"${workspaceFolder}\"",
       "menuAction": "git_add"
     },
@@ -280,7 +280,7 @@
         "panel": "shared"
       },
       "label": "Git: Commit interactive",
-      "detail": "Nhập commit message và commit phần đã stage. Khi chạy từ menu, các message đã dùng được giữ tạm trong phiên để chọn lại; thoát menu thì lịch sử mất.",
+      "detail": "Nhập commit message và commit phần đã stage; sau commit thành công mặc định hỏi push. Message cũ được giữ tạm trong phiên menu và mất khi thoát.",
       "command": "python3 \"${workspaceFolder}/vscode_tasks_menu.py\" --action git-commit --workspace \"${workspaceFolder}\"",
       "menuAction": "git_commit"
     },
