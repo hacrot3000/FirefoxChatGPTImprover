@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 49 v0.40.0
+**Current baseline:** Phase 64 v0.41.5
 **Primary supported environment:** Firefox Desktop plus Chromium/Chrome/Edge packages; Native Host registration is provided for Linux Chromium browsers  
 **Native Host:** 0.13.0
 
@@ -28,7 +28,7 @@
 | Real Firefox E2E and version matrix | Complete | Opt-in runner covers tabs, title, badge, DOM action, navigation and optional Native Host download/shell; matrix emits JSON/Markdown per Firefox binary. |
 | Named saved working-session catalog | Complete | Multiple locally stored named sessions with search, update, rename, duplicate, delete, per-session/catalog JSON backup and controlled subset restore. |
 | Per-rule statistics dashboard | Complete | Session-isolated counts for match/click/verify/automatic-command outcomes, return-code frequencies, average target/pipeline timings, JSON export and reset. |
-| Source integrity and regression | Complete | Phase 04–49 contracts, syntax audits, Native Host tests, release-status, configuration/session scope and Stop/Start continuity gates, plus opt-in real-Firefox E2E/version-matrix tooling. |
+| Source integrity and regression | Complete | Phase 04–64 contracts, syntax audits, Native Host tests, release-status, configuration/session scope and Stop/Start continuity gates, plus opt-in real-Firefox E2E/version-matrix tooling. |
 
 ## Operator-provided deployment inputs
 
@@ -74,6 +74,98 @@ python .\tools\run_firefox_e2e.py --require-native
 
 
 
+
+## Phase 64 v0.41.5 — Manual-preferred snapshot compaction
+
+- Recovery-history normalization now uses the same Manual-over-automatic intent rule as Phase 63 add-time deduplication.
+- A newer automatic snapshot can no longer erase an older Manual recovery point with the same semantic fingerprint during browser/background reload.
+- When duplicates have the same class, the newest snapshot is retained.
+- Semantic fingerprint rules and the bounded 20-snapshot retention policy remain unchanged.
+
+## Phase 63 v0.41.4 — Manual snapshot promotion
+
+- Manual snapshot intent is no longer lost when the same semantic configuration already exists as an automatic safety snapshot.
+- The matching automatic entry is replaced by the Manual snapshot while keeping only one fingerprint-equivalent recovery point.
+- Later automatic duplicates cannot demote the Manual entry.
+- Phase 62 semantic fingerprinting and the existing bounded 20-snapshot retention policy remain unchanged.
+
+## Phase 62 v0.41.3 — Semantic recovery snapshot deduplication
+
+Full-configuration snapshot identity now excludes revision and created/updated timestamps while retaining every behaviorally meaningful profile, default, rule, Local action, preset, prompt and sidebar preference. Existing duplicate full snapshots are compacted on load and the newest semantic copy is retained.
+
+## Phase 61 v0.41.2 — Atomic full configuration commit
+
+Full configuration import/restore now writes the five reusable/global configuration stores on one storage commit boundary. If the provider rejects the write, the previous coherent payload is restored on a best-effort basis before the error is surfaced. Runtime caches are not advanced before storage succeeds.
+
+## Phase 60 v0.41.1 — Configuration import preview and confirmation
+
+- Selecting a configuration file is now read-only until preview/validation succeeds and the user explicitly confirms the import.
+- Preview distinguishes full all-configuration bundles from legacy Automation-only JSON and reports the libraries that will be replaced.
+- The existing pre-import recovery snapshot remains the final safeguard immediately before mutation.
+
+## Phase 59 v0.41.0 — Configuration scope return contract
+
+- Full configuration import/restore now propagates `scope`, Automation preservation and Local action preservation through the background message response.
+- The sidebar can therefore distinguish full bundles from legacy Automation-only files and reload itself only for the full scope.
+- Imported/restored sidebar visibility, command presets and prompt templates become visible immediately without reloading monitored web tabs.
+
+## Phase 58 v0.40.9 — Complete configuration backup
+
+- **Export all configuration** now matches its label: it includes Automation/Monitor/Target profiles, Local action profiles, global command presets, custom prompt templates and sidebar visibility preferences.
+- Working sessions, runtime logs, active download/shell jobs, recovery-history and tab-ID editor selection remain outside configuration scope.
+- Recovery snapshots created from v0.40.9 onward use the same full scope; legacy Automation-only snapshots remain restorable.
+- Import/restore preserves active and stopped tabs when Automation or Local action library values differ.
+
+## Phase 57 v0.40.8 — Safe configuration restore
+
+- Full Automation configuration import and recovery-snapshot restore no longer reconfigure active tabs implicitly.
+- Active/stopped tabs whose referenced profile is missing or changed keep their prior effective values as tab overrides.
+- Imported/restored profile libraries remain available for explicit assignment to a tab later.
+
+## Phase 56 v0.40.7
+
+- Working-session restore is now strictly session-scoped and never mutates global Automation or Local action profile libraries.
+- Exact matching saved profiles are reused; missing or changed profiles fall back to per-tab effective-configuration snapshots.
+- The working-session JSON format remains backward compatible at version 4.
+
+## Phase 55 v0.40.6
+
+- Standardized profile action labels across all four profile libraries.
+- Removed the redundant Automation Duplicate button; Save as new profile now covers the natural copy/create workflow.
+- Manual profile creation and rename reject case-insensitive duplicate names.
+- Tab and rule assignment/reset actions now describe their actual effect explicitly.
+
+## Phase 54 v0.40.5
+
+- Monitor and Target profile libraries now provide explicit **Set as default** controls.
+- Changing a component default changes only the initial library selection; it never modifies the current rule or running tabs.
+- Default component profiles must be reassigned before deletion instead of silently falling back to the first profile.
+- Profile renaming remains compact: edit **Profile name** and choose **Save current values**.
+
+## Phase 53 v0.40.4
+
+- Automation and Local action profile libraries expose explicit **Set as default** controls.
+- Changing a default affects future fallback only; active sessions, stopped snapshots, drafts and jobs remain unchanged.
+- A default profile must be replaced deliberately before it can be deleted.
+
+## Phase 52 v0.40.3
+
+- Typed profile-bundle imports are non-destructive by default.
+- Existing IDs and local defaults are preserved; identical entries are skipped.
+- ID/name conflicts are imported as fresh, clearly named copies.
+- Running tabs, Local action drafts and frozen download/shell jobs do not change merely because a bundle was imported.
+
+## Phase 51 v0.40.2
+
+- Monitor/Target profile library operations preserve the complete Automation rule draft instead of reloading the applied/default profile.
+- New component profiles are created from current values and stay selected; save/delete/import refresh only the library controls.
+- Applying a component profile to the current rule remains explicit through `Apply to rule`.
+
+## Phase 50 v0.40.1
+
+- Saving a shared Local action profile captures any valid per-tab working draft before the profile revision changes.
+- Each preserved destination/working-directory/command draft is restored with a fresh tab/session/profile/revision context after the save.
+- Tabs without a draft continue to resolve the newly saved shared profile; no unnecessary tab override is created.
 
 ## Phase 49 v0.40.0
 

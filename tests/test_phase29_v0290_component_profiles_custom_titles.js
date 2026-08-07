@@ -43,9 +43,14 @@ const targetProfile = Settings.createTargetProfile("Patch download", legacyConfi
 const monitorBundle = Settings.buildProfileBundle("monitor", [monitorProfile], { defaultProfileId: monitorProfile.id });
 const monitorParsed = Settings.parseProfileBundle(JSON.stringify(monitorBundle), "monitor");
 assert.equal(monitorParsed.profileType, "monitor");
+assert.equal(monitorBundle.defaultProfileId, monitorProfile.id);
+assert.equal(monitorParsed.defaultProfileId, monitorProfile.id);
 assert.equal(monitorParsed.profiles[0].monitor.selector.value, "button[data-ready]");
 const targetBundle = Settings.buildProfileBundle("target", [targetProfile], { defaultProfileId: targetProfile.id });
-assert.equal(Settings.parseProfileBundle(JSON.stringify(targetBundle), "target").profiles[0].target.selector.value, "a[data-download]");
+const targetParsed = Settings.parseProfileBundle(JSON.stringify(targetBundle), "target");
+assert.equal(targetBundle.defaultProfileId, targetProfile.id);
+assert.equal(targetParsed.defaultProfileId, targetProfile.id);
+assert.equal(targetParsed.profiles[0].target.selector.value, "a[data-download]");
 assert.throws(
   () => Settings.parseProfileBundle(JSON.stringify(monitorBundle), "target"),
   /contains monitor profiles, not target profiles/
@@ -98,7 +103,8 @@ for (const token of [
   "TAB_CUSTOM_TITLE_KEY", "browser.sessions.setTabValue", "browser.sessions.getTabValue",
   "applyPlainCustomTitle", "restoreAllCustomTabTitles", "tab-custom-title-restored", "createComponentProfile",
   "saveComponentProfile", "deleteComponentProfile", "exportProfileBundle", "importProfileBundle",
-  "before_component_profile_save", "before_component_profile_delete", "bundle.defaultProfileId"
+  "before_component_profile_save", "before_component_profile_delete",
+  "Settings.buildProfileBundle(type, store.profiles, { defaultProfileId: store.defaultProfileId })"
 ]) assert(background.includes(token), token);
 assert(background.includes("__fciCustomTabTitleLockV1"));
 assert(background.includes("MutationObserver"));

@@ -92,6 +92,6 @@ assert(sidebarHtml.includes('id="createSettingsSnapshotButton"'));
 assert(sidebarHtml.includes('id="restoreSettingsSnapshotButton"'));
 assert(sidebarHtml.includes('id="deleteSettingsSnapshotButton"'));
 assert(sidebarSource.includes("renderSettingsSnapshots"));
-assert(sidebarSource.includes("Current settings will be snapshotted first"));
+assert(sidebarSource.includes("Current configuration will be snapshotted first"));
 
 console.log("PASS: Phase 19 bounded settings snapshots, automatic pre-change backups and sidebar restore/delete contract");

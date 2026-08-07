@@ -15,6 +15,215 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
+## [0.41.5] - 2026-08-07
+
+### Fixed
+
+- Recovery-history normalization now preserves a Manual recovery point when an older Manual and newer automatic snapshot represent the same semantic configuration.
+- Existing duplicate semantic snapshots are compacted with Manual-over-automatic priority; among snapshots of the same class, the newest entry is retained.
+
+### Compatibility
+
+- Phase 62 semantic fingerprints, Phase 63 add-time Manual promotion and the bounded `MAX_SNAPSHOTS = 20` policy remain unchanged.
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.41.4] - 2026-08-07
+
+### Fixed
+
+- A deliberate Manual recovery snapshot now replaces an identical automatic safety snapshot instead of being silently deduplicated away.
+- Promotion keeps one semantic-fingerprint entry, records the Manual label/time/id and never lets a later automatic duplicate demote that Manual recovery point.
+
+### Compatibility
+
+- Phase 62 semantic snapshot fingerprinting and the existing bounded `MAX_SNAPSHOTS = 20` policy remain unchanged.
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.41.3] - 2026-08-07
+
+### Fixed
+
+- Full-configuration recovery snapshots now ignore revision and created/updated timestamp metadata when deciding whether two snapshots represent the same reusable configuration.
+- Existing duplicate full snapshots created by the older volatile fingerprint are compacted on load, keeping the newest copy.
+
+### Safety
+
+- Profile IDs, names, defaults, routing, automation rules, Local action values, command presets, prompt text and sidebar preferences remain part of snapshot identity; only non-behavioral metadata is excluded.
+
+### Compatibility
+
+- Legacy Automation-only snapshots remain supported. Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.41.2] - 2026-08-07
+
+### Fixed
+
+- Full configuration import and full recovery-snapshot restore no longer write Automation, Local action, command-preset, prompt-template and sidebar-preference stores in separate sequential commits.
+- A failed multi-key configuration commit now attempts to restore the previous coherent global configuration payload before returning an error.
+
+### Safety
+
+- Automation and Local action runtime caches advance only after storage succeeds; active/stopped-tab safe-detach reconciliation still runs after a successful commit.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.41.1] - 2026-08-07
+
+### Added
+
+- Read-only configuration import preview with explicit scope and library counts before any storage mutation.
+- Explicit confirmation after preview for both full configuration bundles and legacy Automation-only files.
+
+### Safety
+
+- Selecting an invalid, unsupported or unintended configuration file no longer starts an import; the mutating request is sent only after successful preview and user confirmation.
+- Recovery snapshots continue to be created immediately before the confirmed import.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.41.0] - 2026-08-07
+
+### Fixed
+
+- Full configuration import and full-scope recovery restore now return their scope and tab-preservation report through the background message boundary instead of silently discarding them.
+- The sidebar now correctly reloads after all-configuration import/restore so imported visibility, command presets and prompt templates become active immediately without reloading web tabs.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.40.9] - 2026-08-07
+
+### Added
+
+- **Export all configuration** now creates a complete configuration bundle containing Automation/Monitor/Target profiles, Local action profiles, global command presets, custom prompt templates and sidebar visibility preferences.
+- Recovery snapshots created by v0.40.9+ use the same complete configuration scope and show that scope in the sidebar.
+
+### Changed
+
+- Full configuration import/restore preserves active and explicitly stopped tabs when either Automation or Local action library values differ.
+- Working sessions, runtime logs, download/shell jobs, recovery-history itself and tab-ID editor state remain excluded from configuration bundles.
+- Legacy pre-v0.40.9 Automation-only exports and recovery snapshots remain importable/restorable and are labelled explicitly as legacy scope.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.40.8] - 2026-08-07
+
+### Fixed
+
+- Importing the full Automation configuration no longer pushes changed/imported profile values into tabs that are already open.
+- Restoring a recovery settings snapshot preserves the effective Automation values of active and explicitly stopped tabs when their referenced profile is missing or differs in the restored library.
+- Affected tabs are safely detached to tab overrides while the imported/restored library remains available for explicit future assignment.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.40.7] - 2026-08-07
+
+### Fixed
+
+- Restoring a saved working session no longer creates or changes global Automation or Local action profiles.
+- When a saved profile is missing or has changed, the saved effective configuration is restored as a tab override instead of importing a new profile into the library.
+- Working-session restore no longer creates a settings recovery snapshot because it no longer mutates global settings.
+
+### Compatibility
+
+- Working-session JSON remains version 4. Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.40.6] - 2026-08-07
+
+### Changed
+
+- Profile actions now use the same wording across Automation, Monitor, Target and Local action libraries: **Save as new profile**, **Save changes**, **Make default** and **Delete profile**.
+- The redundant Automation **Duplicate** action was removed because **Save as new profile** already creates a selected copy from the current form values.
+- Tab/rule actions now state their effect explicitly, including **Assign selected to tab**, **Apply selected to rule**, **Clear tab assignment** and **Remove tab override**.
+
+### Fixed
+
+- Manual create and rename operations reject duplicate profile names case-insensitively across all four profile libraries, preventing indistinguishable selector entries.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.40.5] - 2026-08-07
+
+### Added
+
+- Explicit **Set as default** controls for Monitor and Target profile libraries.
+- Inline guidance that profile names are changed by editing **Profile name** and choosing **Save current values**.
+
+### Changed
+
+- Default Monitor/Target profiles must be reassigned deliberately before deletion; deleting a default no longer silently picks the first remaining profile.
+- Changing a component-library default never modifies the current Automation rule or any active tab.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.40.4] - 2026-08-07
+
+### Added
+
+- Explicit **Set as default** actions for Automation and Local action profiles.
+- Changing a default affects only future fallback selection and never mutates open or stopped tabs.
+
+### Changed
+
+- Default profiles cannot be deleted until another profile is explicitly selected as default.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.40.3] - 2026-08-07
+
+### Fixed
+
+- Typed Automation, Monitor, Target and Local action profile imports no longer overwrite existing profiles that share an ID.
+- ID conflicts are imported as new copies, name conflicts receive an `(imported)` suffix, and identical profiles are skipped.
+- Importing a profile bundle no longer changes the local default profile or mutates running tabs, Local action drafts or frozen download/shell jobs.
+
+### Changed
+
+- The import result now reports added, skipped, ID-conflict-copy and renamed counts.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.40.2] - 2026-08-07
+
+### Fixed
+
+- Creating, saving, deleting or importing Monitor/Target profiles no longer reloads the Automation form or discards unsaved rule edits.
+- Newly created component profiles remain selected, while deleting one selects a valid fallback without changing the current rule draft.
+- Monitor and Target profile controls now use the same “Save current as new / Save current values” wording as the other profile editors.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.40.1] - 2026-08-07
+
+### Fixed
+
+- Saving a shared Local action profile no longer deletes unsaved working-directory, command or download values from other tabs using that profile.
+- Per-tab Local action drafts are rebased to the profile's new revision so they remain valid after the shared profile is saved.
+- Tabs without a working draft continue to use the newly saved profile normally.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
 ## [0.40.0] - 2026-08-07
 
 ### Fixed

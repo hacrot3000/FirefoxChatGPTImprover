@@ -10,4 +10,4 @@ The Save configuration group can list every open HTTP/HTTPS tab. Active add-on t
 
 ## Import working session
 
-Import is a two-step user action. The file is parsed first, then the user presses **Open and restore tabs** so Firefox can request the required site permissions directly from a user gesture. Tabs are opened, profiles are merged without overwriting a different existing profile, and active/paused add-on sessions are restored with a fresh runtime baseline.
+Import is a two-step user action. The file is parsed first, then the user presses **Open and restore tabs** so Firefox can request the required site permissions directly from a user gesture. Tabs are opened and active/paused add-on sessions are restored with a fresh runtime baseline. Since v0.40.7, restore never adds or modifies global Automation/Local action profiles: if the exact saved profile still exists it is reused; otherwise the saved effective configuration is restored as a tab override.

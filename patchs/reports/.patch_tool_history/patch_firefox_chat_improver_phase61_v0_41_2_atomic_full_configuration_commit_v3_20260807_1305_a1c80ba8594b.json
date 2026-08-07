@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "patch_key": "patch_firefox_chat_improver_phase61_v0_41_2_atomic_full_configuration_commit_v3_20260807_1305",
+  "updated_at": "2026-08-07T13:42:25+07:00",
+  "last_run": {
+    "at": "2026-08-07T13:42:25+07:00",
+    "status": "FAIL",
+    "mode": "APPLY",
+    "delta_status": "FIRST_FAILURE",
+    "root_causes": [
+      {
+        "code": "PTV-ANCHOR-001",
+        "kind": "log",
+        "file": "",
+        "line": 0,
+        "message": "[FAIL] PatchError: extension/manifest.json: expected v0.41.1 or v0.41.2, found 0.41.3",
+        "evidence": "[FAIL] PatchError: extension/manifest.json: expected v0.41.1 or v0.41.2, found 0.41.3",
+        "fingerprint": "252504da9076c057085e"
+      }
+    ]
+  },
+  "last_failure": {
+    "at": "2026-08-07T13:42:25+07:00",
+    "resolved_at": "",
+    "root_causes": [
+      {
+        "code": "PTV-ANCHOR-001",
+        "kind": "log",
+        "file": "",
+        "line": 0,
+        "message": "[FAIL] PatchError: extension/manifest.json: expected v0.41.1 or v0.41.2, found 0.41.3",
+        "evidence": "[FAIL] PatchError: extension/manifest.json: expected v0.41.1 or v0.41.2, found 0.41.3",
+        "fingerprint": "252504da9076c057085e"
+      }
+    ],
+    "validation_profiles": [],
+    "error": "Stopping package after failed patch: patchs/patch_firefox_chat_improver_phase61_v0_41_2_atomic_full_configuration_commit_v3_20260807_1305.zip::patch_firefox_chat_improver_phase61_v0_41_2_atomic_full_configuration_commit_v3_20260807_1305.py"
+  }
+}

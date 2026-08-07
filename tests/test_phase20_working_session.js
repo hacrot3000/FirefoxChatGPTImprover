@@ -31,7 +31,9 @@ const sidebar = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.js"),
 const html = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.html"), "utf8");
 for (const name of ["LIST_WORKING_SESSION_TABS", "EXPORT_WORKING_SESSION", "IMPORT_WORKING_SESSION"]) assert(protocol.includes(name));
 assert(background.includes("async function importWorkingSession"));
-assert(background.includes("before_working_session_import"));
+assert(background.includes("workingSessionAutomationRestorePlan"));
+assert(background.includes("workingSessionLocalActionRestorePlan"));
+assert(!background.includes("before_working_session_import"));
 assert(sidebar.includes("commitSelectedShellPresetDraft"));
 assert(sidebar.includes("assertSavedConfig"));
 assert(html.includes('id="workingSessionDialog"'));

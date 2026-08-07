@@ -1,12 +1,13 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS_SNAPSHOTS?.VERSION >= 1) {
+  if (globalThis.FCI_SETTINGS_SNAPSHOTS?.VERSION >= 5) {
     return;
   }
 
   const Settings = globalThis.FCI_SETTINGS;
-  const VERSION = 1;
+  const ConfigurationBundle = globalThis.FCI_CONFIGURATION_BUNDLE || null;
+  const VERSION = 5;
   const STORAGE_KEY = "firefoxChatImprover.settingsSnapshots.v1";
   const MAX_SNAPSHOTS = 20;
 
@@ -44,47 +45,105 @@
 
   function makeSnapshot(rawStore, reason = "manual", label = "Manual snapshot", options = {}) {
     const store = Settings.normalizeStore(rawStore);
+    const configurationBundle = options.configurationBundle && ConfigurationBundle
+      ? ConfigurationBundle.normalizeBundle(options.configurationBundle)
+      : null;
     return {
       id: safeString(options.id).trim() || makeId(options.now),
       createdAt: safeString(options.createdAt).trim() || new Date(options.now || Date.now()).toISOString(),
       reason: safeString(reason, "manual").trim() || "manual",
       label: safeString(label, "Settings snapshot").trim() || "Settings snapshot",
-      fingerprint: storeFingerprint(store),
-      store
+      scope: configurationBundle ? "all-configuration" : "legacy-automation-only",
+      fingerprint: configurationBundle && ConfigurationBundle
+        ? ConfigurationBundle.fingerprint(configurationBundle)
+        : storeFingerprint(store),
+      store,
+      configurationBundle
     };
   }
 
   function normalizeSnapshot(raw, index = 0) {
     const source = raw && typeof raw === "object" ? raw : {};
-    const store = Settings.normalizeStore(source.store);
+    let configurationBundle = null;
+    if (source.configurationBundle && ConfigurationBundle) {
+      try {
+        configurationBundle = ConfigurationBundle.normalizeBundle(source.configurationBundle);
+      } catch (_error) {
+        configurationBundle = null;
+      }
+    }
+    const store = configurationBundle
+      ? Settings.normalizeStore(configurationBundle.automationStore)
+      : Settings.normalizeStore(source.store);
     const createdAt = safeString(source.createdAt).trim() || new Date(0).toISOString();
     return {
       id: safeString(source.id).trim() || `snapshot-imported-${index + 1}`,
       createdAt,
       reason: safeString(source.reason, "imported").trim() || "imported",
       label: safeString(source.label, `Snapshot ${index + 1}`).trim() || `Snapshot ${index + 1}`,
-      fingerprint: storeFingerprint(store),
-      store
+      scope: configurationBundle ? "all-configuration" : "legacy-automation-only",
+      fingerprint: configurationBundle && ConfigurationBundle
+        ? ConfigurationBundle.fingerprint(configurationBundle)
+        : storeFingerprint(store),
+      store,
+      configurationBundle
     };
   }
 
-  function normalizeCollection(raw) {
+  function normalizeCollectionPhase63Base(raw) {
     const source = raw && typeof raw === "object" ? raw : {};
     const seenIds = new Set();
-    const snapshots = [];
+    const candidates = [];
     for (const [index, candidate] of (Array.isArray(source.snapshots) ? source.snapshots : []).entries()) {
       const snapshot = normalizeSnapshot(candidate, index);
       if (seenIds.has(snapshot.id)) {
         continue;
       }
       seenIds.add(snapshot.id);
-      snapshots.push(snapshot);
+      candidates.push(snapshot);
     }
-    snapshots.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    candidates.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+
+    // Snapshot creation has always treated equal fingerprints as duplicates. Re-apply
+    // that rule while loading so collections produced by older full-bundle fingerprints
+    // are compacted after volatile revision/timestamp fields stop affecting identity.
+    const seenFingerprints = new Set();
+    const snapshots = [];
+    for (const snapshot of candidates) {
+      if (seenFingerprints.has(snapshot.fingerprint)) {
+        continue;
+      }
+      seenFingerprints.add(snapshot.fingerprint);
+      snapshots.push(snapshot);
+      if (snapshots.length >= MAX_SNAPSHOTS) {
+        break;
+      }
+    }
     return {
       version: VERSION,
-      snapshots: snapshots.slice(0, MAX_SNAPSHOTS)
+      snapshots
     };
+  }
+
+  function normalizeCollection(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const candidates = (Array.isArray(source.snapshots) ? source.snapshots : [])
+      .map((candidate, index) => normalizeSnapshot(candidate, index))
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+
+    // Phase 64: preselect semantic duplicates before the existing normalizer.
+    // Manual intent beats automatic safety snapshots. Because candidates are
+    // newest-first, duplicates within the same class naturally keep the newest.
+    const byFingerprint = new Map();
+    for (const snapshot of candidates) {
+      const existing = byFingerprint.get(snapshot.fingerprint);
+      if (!existing || (existing.reason !== "manual" && snapshot.reason === "manual")) {
+        byFingerprint.set(snapshot.fingerprint, snapshot);
+      }
+    }
+    const selected = Array.from(byFingerprint.values())
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    return normalizeCollectionPhase63Base({ ...source, snapshots: selected });
   }
 
   function addSnapshot(rawCollection, rawSnapshot) {
@@ -92,16 +151,28 @@
     const snapshot = normalizeSnapshot(rawSnapshot);
     const existing = collection.snapshots.find((item) => item.fingerprint === snapshot.fingerprint);
     if (existing) {
+      const shouldPromoteManual = snapshot.reason === "manual" && existing.reason !== "manual";
+      if (shouldPromoteManual) {
+        const withoutExisting = collection.snapshots.filter((item) => item.id !== existing.id);
+        return {
+          collection: normalizeCollection({ snapshots: [snapshot, ...withoutExisting] }),
+          snapshot,
+          added: true,
+          promoted: true
+        };
+      }
       return {
         collection,
         snapshot: existing,
-        added: false
+        added: false,
+        promoted: false
       };
     }
     return {
       collection: normalizeCollection({ snapshots: [snapshot, ...collection.snapshots] }),
       snapshot,
-      added: true
+      added: true,
+      promoted: false
     };
   }
 
@@ -118,14 +189,19 @@
 
   function summary(rawSnapshot) {
     const snapshot = normalizeSnapshot(rawSnapshot);
+    const bundle = snapshot.configurationBundle;
     return {
       id: snapshot.id,
       createdAt: snapshot.createdAt,
       reason: snapshot.reason,
       label: snapshot.label,
+      scope: snapshot.scope,
       revision: snapshot.store.revision,
       profileCount: snapshot.store.profiles.length,
-      defaultProfileId: snapshot.store.defaultProfileId
+      defaultProfileId: snapshot.store.defaultProfileId,
+      localActionProfileCount: bundle?.localActionStore?.profiles?.length || 0,
+      commandPresetCount: bundle?.commandPresetStore?.presets?.length || 0,
+      customPromptTemplateCount: bundle?.promptTemplateStore?.customTemplates?.length || 0
     };
   }
 

@@ -28,6 +28,6 @@ Extend the Phase 20 file-based working-session workflow into a persistent local 
 
 - Restores always present tab selection before opening anything.
 - Site permissions are requested for the selected origins before restore.
-- The existing `before_working_session_import` settings recovery snapshot still runs before profile merging.
+- Since v0.40.7, restore is strictly session-scoped: it does not merge profiles or write the global Automation/Local action stores. Missing/mismatched saved profiles are represented by tab overrides using the embedded effective configuration.
 - Search is UI-only and never changes the selected saved session.
 - Import ID collisions with different content create a separate `(imported)` entry instead of overwriting unrelated data.

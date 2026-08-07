@@ -2,7 +2,7 @@
 
 <!-- FCI_PROJECT_STATUS_SCHEMA: 1 -->
 
-- Current add-on version: **0.40.0**
+- Current add-on version: **0.41.5**
 - Native Host version: **0.13.0**
 - Status updated: **2026-08-07**
 - Required-feature backlog: **completed**
@@ -18,6 +18,20 @@ This file is the release-facing feature inventory. Every feature patch must upda
 | Configuration management | Configuration profiles, URL routing, opt-in trusted-URL automatic activation, tab override, migration, recovery snapshots and typed import/export | **100%** | Auto-activation completed in v0.33.0 |
 | Profile editor continuity | Per-tab Automation/Local action editor selection survives sidebar reload, rejects stale URL context and distinguishes editing from applied state | **100%** | Completed in v0.39.9 |
 | Safe profile lifecycle | Deleting Automation or Local action profiles preserves effective values for active/stopped tabs as overrides; Local action imports preserve working drafts | **100%** | Completed in v0.40.0 |
+| Local action draft continuity | Saving a shared Local action profile preserves and rebases unsaved per-tab destination/working-directory/command drafts across the profile revision | **100%** | Fixed in v0.40.1 |
+| Component profile draft continuity | Monitor/Target profile create, save, delete and import operations preserve the complete current Automation rule draft and keep a stable library selection | **100%** | Fixed in v0.40.2 |
+| Non-destructive profile import | Typed profile bundles preserve existing IDs/defaults/running tabs, skip identical entries and import conflicts as renamed copies | **100%** | Fixed in v0.40.3 |
+| Explicit profile defaults | Automation, Local action, Monitor and Target defaults are selected deliberately, affect only future fallback/library selection and must be reassigned before deletion | **100%** | Completed in v0.40.5 |
+| Profile action clarity | Consistent create/save/default/delete wording, no redundant Automation duplicate action and case-insensitive unique manual names across all profile libraries | **100%** | Completed in v0.40.6 |
+| Working-session profile isolation | Session restore never mutates global Automation/Local action libraries; missing saved profiles restore through tab overrides | **100%** | Completed in v0.40.7 |
+| Safe configuration restore | Full configuration import and recovery-snapshot restore preserve active/stopped tab values as overrides when library profiles differ | **100%** | Fixed in v0.40.8 |
+| Complete configuration backup | Full JSON backup/recovery covers Automation/Monitor/Target profiles, Local action profiles, command presets, custom prompt templates and sidebar visibility while excluding working sessions/runtime/jobs | **100%** | Completed in v0.40.9 |
+| Configuration scope return contract | Import/restore returns all-configuration vs legacy scope and preservation counts so sidebar applies full bundle UI/preset/template changes immediately | **100%** | Completed in v0.41.0 |
+| Configuration import preview | Read-only parse/summary and explicit confirmation before full or legacy configuration import mutates storage | **100%** | Completed in v0.41.1 |
+| Atomic full-configuration commit | One multi-key storage commit for all reusable/global configuration stores with best-effort rollback on failure | **100%** | Completed in v0.41.2 |
+| Semantic recovery-snapshot deduplication | Ignore revision/timestamp-only churn in full-configuration fingerprints and compact old duplicates while retaining the newest snapshot | **100%** | Completed in v0.41.3 |
+| Manual snapshot promotion | Manual creation replaces an identical automatic recovery point without duplicate configuration entries or later automatic demotion | **100%** | Completed in v0.41.4 |
+| Manual-preferred snapshot compaction | Recovery-history normalization preserves Manual intent over newer automatic duplicates while retaining the newest entry within the same snapshot class | **100%** | Completed in v0.41.5 |
 | Monitor and target profiles | Reusable Monitor element and New target element profile libraries with typed JSON import/export | **100%** | Released in v0.29.0 |
 | Automation engine | Multiple rules, monitor conditions, stability window, new-target baseline, picker, selector tests and action pipeline | **100%** | Released |
 | Alerts and titles | AI READY/running indicators, desktop notification, optional bounded sound alerts, badge/title lifecycle and persistent custom tab names | **100%** | Sound alerts completed in v0.32.0 |

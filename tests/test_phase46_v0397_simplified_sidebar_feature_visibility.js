@@ -105,7 +105,7 @@ for (const id of ["saveProfileButton", "saveTabButton", "resetTabButton"]) {
 assert(target.includes('id="clearHighlightsButton"'), "Clear highlights belongs with rule target testing");
 assert(!backup.includes('id="clearHighlightsButton"'), "Backup must not contain page-test controls");
 assert(backup.includes("Export all configuration") && backup.includes("Import all configuration"));
-assert(backup.includes("Working-session data is managed separately"));
+assert(backup.includes("Working sessions, runtime logs and active jobs are excluded."));
 assert(backup.includes("Recovery snapshot"));
 assert(!backup.includes("Save working session"));
 

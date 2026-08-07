@@ -70,14 +70,14 @@
     monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), ruleCountText: $("#ruleCountText"), matchedRuleCountText: $("#matchedRuleCountText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), customizeSidebarButton: $("#customizeSidebarButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"), customTabTitle: $("#customTabTitle"), saveCustomTabTitleButton: $("#saveCustomTabTitleButton"), clearCustomTabTitleButton: $("#clearCustomTabTitleButton"),
     promptTemplateSelect: $("#promptTemplateSelect"), promptTemplateName: $("#promptTemplateName"), promptTemplateText: $("#promptTemplateText"), fillPromptTemplateButton: $("#fillPromptTemplateButton"), copyPromptTemplateButton: $("#copyPromptTemplateButton"), newPromptTemplateButton: $("#newPromptTemplateButton"), savePromptTemplateButton: $("#savePromptTemplateButton"), deletePromptTemplateButton: $("#deletePromptTemplateButton"), promptTemplateStatus: $("#promptTemplateStatus"),
-    profileSearch: $("#profileSearch"), profileSearchResult: $("#profileSearchResult"), profileSelect: $("#profileSelect"), profileName: $("#profileName"), automationProfileSourceSummary: $("#automationProfileSourceSummary"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
+    profileSearch: $("#profileSearch"), profileSearchResult: $("#profileSearchResult"), profileSelect: $("#profileSelect"), profileName: $("#profileName"), automationProfileSourceSummary: $("#automationProfileSourceSummary"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), setDefaultProfileButton: $("#setDefaultProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     ruleSelect: $("#ruleSelect"), ruleName: $("#ruleName"), ruleEnabled: $("#ruleEnabled"), newRuleButton: $("#newRuleButton"), duplicateRuleButton: $("#duplicateRuleButton"), deleteRuleButton: $("#deleteRuleButton"), ruleRuntimeSummary: $("#ruleRuntimeSummary"), ruleRuntimeBadge: $("#ruleRuntimeBadge"), ruleCommandEnabled: $("#ruleCommandEnabled"), ruleCommandPreset: $("#ruleCommandPreset"), ruleCommandTrigger: $("#ruleCommandTrigger"), ruleCommandAllowDryRun: $("#ruleCommandAllowDryRun"), ruleCommandStatus: $("#ruleCommandStatus"), statisticsRuleCount: $("#statisticsRuleCount"), statisticsMatchCount: $("#statisticsMatchCount"), statisticsClickCount: $("#statisticsClickCount"), statisticsVerifyCount: $("#statisticsVerifyCount"), statisticsCommandCount: $("#statisticsCommandCount"), ruleStatisticsRows: $("#ruleStatisticsRows"), selectedRuleStatistics: $("#selectedRuleStatistics"), ruleStatisticsStatus: $("#ruleStatisticsStatus"), exportRuleStatisticsButton: $("#exportRuleStatisticsButton"), resetRuleStatisticsButton: $("#resetRuleStatisticsButton"),
     autoProfileByUrl: $("#autoProfileByUrl"), autoActivateMatchingUrls: $("#autoActivateMatchingUrls"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), grantAutoActivationAccessButton: $("#grantAutoActivationAccessButton"), runAutoActivationScanButton: $("#runAutoActivationScanButton"), urlRoutingResult: $("#urlRoutingResult"), autoActivationResult: $("#autoActivationResult"),
-    monitorProfileSearch: $("#monitorProfileSearch"), monitorProfileSearchResult: $("#monitorProfileSearchResult"), monitorProfileSelect: $("#monitorProfileSelect"), monitorProfileName: $("#monitorProfileName"), applyMonitorProfileButton: $("#applyMonitorProfileButton"), newMonitorProfileButton: $("#newMonitorProfileButton"), saveMonitorProfileButton: $("#saveMonitorProfileButton"), deleteMonitorProfileButton: $("#deleteMonitorProfileButton"), monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
-    targetProfileSearch: $("#targetProfileSearch"), targetProfileSearchResult: $("#targetProfileSearchResult"), targetProfileSelect: $("#targetProfileSelect"), targetProfileName: $("#targetProfileName"), applyTargetProfileButton: $("#applyTargetProfileButton"), newTargetProfileButton: $("#newTargetProfileButton"), saveTargetProfileButton: $("#saveTargetProfileButton"), deleteTargetProfileButton: $("#deleteTargetProfileButton"), targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
+    monitorProfileSearch: $("#monitorProfileSearch"), monitorProfileSearchResult: $("#monitorProfileSearchResult"), monitorProfileSelect: $("#monitorProfileSelect"), monitorProfileName: $("#monitorProfileName"), applyMonitorProfileButton: $("#applyMonitorProfileButton"), newMonitorProfileButton: $("#newMonitorProfileButton"), saveMonitorProfileButton: $("#saveMonitorProfileButton"), setDefaultMonitorProfileButton: $("#setDefaultMonitorProfileButton"), deleteMonitorProfileButton: $("#deleteMonitorProfileButton"), monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
+    targetProfileSearch: $("#targetProfileSearch"), targetProfileSearchResult: $("#targetProfileSearchResult"), targetProfileSelect: $("#targetProfileSelect"), targetProfileName: $("#targetProfileName"), applyTargetProfileButton: $("#applyTargetProfileButton"), newTargetProfileButton: $("#newTargetProfileButton"), saveTargetProfileButton: $("#saveTargetProfileButton"), setDefaultTargetProfileButton: $("#setDefaultTargetProfileButton"), deleteTargetProfileButton: $("#deleteTargetProfileButton"), targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), soundAlertEnabled: $("#soundAlertEnabled"), soundAlertSettings: $("#soundAlertSettings"), soundAlertTone: $("#soundAlertTone"), soundAlertVolume: $("#soundAlertVolume"), soundAlertRepeatCount: $("#soundAlertRepeatCount"), soundAlertRepeatIntervalMs: $("#soundAlertRepeatIntervalMs"), testSoundAlertButton: $("#testSoundAlertButton"), soundAlertTestResult: $("#soundAlertTestResult"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), exportSupportBundleButton: $("#exportSupportBundleButton"), clearLogsButton: $("#clearLogsButton"),
-    localActionProfileSearch: $("#localActionProfileSearch"), localActionProfileSearchResult: $("#localActionProfileSearchResult"), localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), clearLocalActionProfileBindingButton: $("#clearLocalActionProfileBindingButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), downloadShellExecutionMode: $("#downloadShellExecutionMode"), openShellLogAfterExecution: $("#openShellLogAfterExecution"), downloadStateSummary: $("#downloadStateSummary"), downloadShellStateSummary: $("#downloadShellStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
+    localActionProfileSearch: $("#localActionProfileSearch"), localActionProfileSearchResult: $("#localActionProfileSearchResult"), localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), clearLocalActionProfileBindingButton: $("#clearLocalActionProfileBindingButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), setDefaultLocalActionProfileButton: $("#setDefaultLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), downloadShellExecutionMode: $("#downloadShellExecutionMode"), openShellLogAfterExecution: $("#openShellLogAfterExecution"), downloadStateSummary: $("#downloadStateSummary"), downloadShellStateSummary: $("#downloadShellStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
     shellPresetSearch: $("#shellPresetSearch"), shellPresetSearchResult: $("#shellPresetSearchResult"), shellPresetSelect: $("#shellPresetSelect"), shellPresetName: $("#shellPresetName"), shellPresetEnabled: $("#shellPresetEnabled"), loadShellPresetButton: $("#loadShellPresetButton"), newShellPresetButton: $("#newShellPresetButton"), updateShellPresetButton: $("#updateShellPresetButton"), deleteShellPresetButton: $("#deleteShellPresetButton"), requireShellPresetMatch: $("#requireShellPresetMatch"),
     workingDirectory: $("#workingDirectory"), shellCommand: $("#shellCommand"), shellMode: $("#shellMode"), confirmBeforeRun: $("#confirmBeforeRun"), rememberShellHistory: $("#rememberShellHistory"), shellHistoryLimit: $("#shellHistoryLimit"), shellHistorySearch: $("#shellHistorySearch"), shellHistorySearchResult: $("#shellHistorySearchResult"), shellHistorySelect: $("#shellHistorySelect"), loadShellHistoryButton: $("#loadShellHistoryButton"), clearShellHistoryButton: $("#clearShellHistoryButton"),
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"), nativeLogRetentionEnabled: $("#nativeLogRetentionEnabled"), nativeLogMaxAgeDays: $("#nativeLogMaxAgeDays"), nativeLogMaxTotalMiB: $("#nativeLogMaxTotalMiB"), nativeLogMaxFiles: $("#nativeLogMaxFiles"), nativeLogCleanupOnStartup: $("#nativeLogCleanupOnStartup"), nativeLogCleanupAfterCommand: $("#nativeLogCleanupAfterCommand"), saveNativeLogRetentionButton: $("#saveNativeLogRetentionButton"), runNativeLogCleanupButton: $("#runNativeLogCleanupButton"), nativeLogCleanupStatus: $("#nativeLogCleanupStatus"),
@@ -154,11 +154,10 @@
     MESSAGE.GET_DASHBOARD, MESSAGE.ACTIVATE_CURRENT, MESSAGE.STOP_TAB,
     MESSAGE.ASSIGN_PROFILE, MESSAGE.SAVE_TAB_CONFIG, MESSAGE.RESET_TAB_CONFIG,
     MESSAGE.CREATE_PROFILE, MESSAGE.DUPLICATE_PROFILE, MESSAGE.SAVE_PROFILE,
-    MESSAGE.DELETE_PROFILE, MESSAGE.CREATE_COMPONENT_PROFILE, MESSAGE.SAVE_COMPONENT_PROFILE,
-    MESSAGE.DELETE_COMPONENT_PROFILE, MESSAGE.IMPORT_PROFILE_BUNDLE, MESSAGE.SET_TAB_CUSTOM_TITLE,
-    MESSAGE.IMPORT_SETTINGS, MESSAGE.CREATE_SETTINGS_SNAPSHOT,
+    MESSAGE.DELETE_PROFILE, MESSAGE.SET_DEFAULT_PROFILE, MESSAGE.IMPORT_PROFILE_BUNDLE, MESSAGE.SET_TAB_CUSTOM_TITLE,
+    MESSAGE.PREVIEW_SETTINGS_IMPORT, MESSAGE.IMPORT_SETTINGS, MESSAGE.CREATE_SETTINGS_SNAPSHOT,
     MESSAGE.CREATE_LOCAL_ACTION_PROFILE, MESSAGE.SAVE_LOCAL_ACTION_PROFILE,
-    MESSAGE.DELETE_LOCAL_ACTION_PROFILE, MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE,
+    MESSAGE.DELETE_LOCAL_ACTION_PROFILE, MESSAGE.SET_DEFAULT_LOCAL_ACTION_PROFILE, MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE,
     MESSAGE.SAVE_TAB_LOCAL_ACTIONS, MESSAGE.RESET_TAB_LOCAL_ACTIONS,
     MESSAGE.RESTORE_SETTINGS_SNAPSHOT, MESSAGE.DELETE_SETTINGS_SNAPSHOT,
     MESSAGE.SAVE_WORKING_SESSION_ENTRY, MESSAGE.RENAME_WORKING_SESSION_ENTRY,
@@ -1995,7 +1994,15 @@
       : "This tab is already using URL routing or the default Local action profile.";
     elements.saveTabLocalActionsButton.disabled = busy || !session;
     elements.resetTabLocalActionsButton.disabled = busy || !session || session.localActionConfigMode !== CONFIG_MODE.TAB;
-    elements.deleteLocalActionProfileButton.disabled = busy || store.profiles.length <= 1;
+    const localActionIsDefault = Boolean(profile && profile.id === store.defaultProfileId);
+    elements.setDefaultLocalActionProfileButton.disabled = busy || !profile || localActionIsDefault;
+    elements.setDefaultLocalActionProfileButton.title = localActionIsDefault
+      ? "This is already the default Local action profile."
+      : "Use this profile only as the fallback for future unmatched tabs; open tabs are unchanged.";
+    elements.deleteLocalActionProfileButton.disabled = busy || !profile || store.profiles.length <= 1 || localActionIsDefault;
+    elements.deleteLocalActionProfileButton.title = localActionIsDefault
+      ? "Choose another default Local action profile before deleting this one."
+      : "Delete this Local action profile while preserving values for tabs that currently use it.";
     renderLocalActionDraftStatus();
   }
 
@@ -2579,7 +2586,7 @@
     elements.settingsSnapshotSelect.replaceChildren();
     if (!snapshots.length) {
       elements.settingsSnapshotSelect.add(new Option("No snapshots yet", ""));
-      elements.settingsSnapshotInfo.textContent = "Automatic snapshots are created before profile save/delete and settings import.";
+      elements.settingsSnapshotInfo.textContent = "New snapshots cover all configuration. Legacy snapshots created before v0.40.9 contain Automation settings only.";
     } else {
       for (const snapshot of snapshots) {
         const stamp = new Date(snapshot.createdAt).toLocaleString();
@@ -2589,7 +2596,9 @@
         ? previous
         : snapshots[0].id;
       const selected = snapshots.find((snapshot) => snapshot.id === elements.settingsSnapshotSelect.value) || snapshots[0];
-      elements.settingsSnapshotInfo.textContent = `${selected.profileCount} profile(s), revision ${selected.revision}, reason: ${selected.reason}.`;
+      elements.settingsSnapshotInfo.textContent = selected.scope === "all-configuration"
+        ? `${selected.profileCount} Automation, ${selected.localActionProfileCount} Local action, ${selected.commandPresetCount} command preset(s), ${selected.customPromptTemplateCount} custom prompt template(s); reason: ${selected.reason}.`
+        : `Legacy Automation-only snapshot: ${selected.profileCount} profile(s), revision ${selected.revision}, reason: ${selected.reason}.`;
     }
     const hasSelection = Boolean(elements.settingsSnapshotSelect.value);
     elements.restoreSettingsSnapshotButton.disabled = busy || !hasSelection;
@@ -2773,6 +2782,16 @@
     elements.tabStopQuickButton.disabled = busy || !session;
     elements.targetClickQuickButton.disabled = busy || !currentIsSelected;
     elements.assignProfileButton.disabled = busy || !session;
+    const automationProfile = profileById(selectedProfileId);
+    const automationIsDefault = Boolean(automationProfile && automationProfile.id === dashboard.store.defaultProfileId);
+    elements.setDefaultProfileButton.disabled = busy || !automationProfile || automationIsDefault;
+    elements.setDefaultProfileButton.title = automationIsDefault
+      ? "This is already the default Automation profile."
+      : "Use this profile only as the fallback for future activations; open tabs are unchanged.";
+    elements.deleteProfileButton.disabled = busy || !automationProfile || dashboard.store.profiles.length <= 1 || automationIsDefault;
+    elements.deleteProfileButton.title = automationIsDefault
+      ? "Choose another default Automation profile before deleting this one."
+      : "Delete this Automation profile while preserving values for tabs that currently use it.";
     elements.testUrlRoutingButton.disabled = busy || !currentIsSelected;
     elements.useRoutedProfileButton.disabled = busy || !currentIsSelected;
     const autoActivationPreview = renderAutoActivationStatus();
@@ -2781,14 +2800,32 @@
     elements.autoProfileByUrl.checked = autoProfileByUrl;
     elements.saveTabButton.disabled = busy || !session;
     elements.resetTabButton.disabled = busy || !session || session.configMode !== CONFIG_MODE.TAB;
-    elements.applyMonitorProfileButton.disabled = busy || !monitorProfileById(selectedMonitorProfileId);
+    const monitorProfile = monitorProfileById(selectedMonitorProfileId);
+    const monitorIsDefault = Boolean(monitorProfile && monitorProfile.id === dashboard.store.defaultMonitorProfileId);
+    elements.applyMonitorProfileButton.disabled = busy || !monitorProfile;
     elements.newMonitorProfileButton.disabled = busy;
-    elements.saveMonitorProfileButton.disabled = busy || !monitorProfileById(selectedMonitorProfileId);
-    elements.deleteMonitorProfileButton.disabled = busy || (dashboard.store.monitorProfiles?.length || 0) <= 1;
-    elements.applyTargetProfileButton.disabled = busy || !targetProfileById(selectedTargetProfileId);
+    elements.saveMonitorProfileButton.disabled = busy || !monitorProfile;
+    elements.setDefaultMonitorProfileButton.disabled = busy || !monitorProfile || monitorIsDefault;
+    elements.setDefaultMonitorProfileButton.title = monitorIsDefault
+      ? "This is already the default Monitor profile."
+      : "Use this profile as the initial Monitor-library selection; the current rule is unchanged.";
+    elements.deleteMonitorProfileButton.disabled = busy || !monitorProfile || (dashboard.store.monitorProfiles?.length || 0) <= 1 || monitorIsDefault;
+    elements.deleteMonitorProfileButton.title = monitorIsDefault
+      ? "Choose another default Monitor profile before deleting this one."
+      : "Delete this library profile without changing the current rule draft.";
+    const targetProfile = targetProfileById(selectedTargetProfileId);
+    const targetIsDefault = Boolean(targetProfile && targetProfile.id === dashboard.store.defaultTargetProfileId);
+    elements.applyTargetProfileButton.disabled = busy || !targetProfile;
     elements.newTargetProfileButton.disabled = busy;
-    elements.saveTargetProfileButton.disabled = busy || !targetProfileById(selectedTargetProfileId);
-    elements.deleteTargetProfileButton.disabled = busy || (dashboard.store.targetProfiles?.length || 0) <= 1;
+    elements.saveTargetProfileButton.disabled = busy || !targetProfile;
+    elements.setDefaultTargetProfileButton.disabled = busy || !targetProfile || targetIsDefault;
+    elements.setDefaultTargetProfileButton.title = targetIsDefault
+      ? "This is already the default Target profile."
+      : "Use this profile as the initial Target-library selection; the current rule is unchanged.";
+    elements.deleteTargetProfileButton.disabled = busy || !targetProfile || (dashboard.store.targetProfiles?.length || 0) <= 1 || targetIsDefault;
+    elements.deleteTargetProfileButton.title = targetIsDefault
+      ? "Choose another default Target profile before deleting this one."
+      : "Delete this library profile without changing the current rule draft.";
     renderPickerButtons(currentIsSelected);
     elements.monitorTestButton.disabled = busy || !currentIsSelected;
     elements.targetTestButton.disabled = busy || !currentIsSelected;
@@ -3866,6 +3903,7 @@ ${run.command || ""}`)) {
   elements.applyMonitorProfileButton.addEventListener("click", () => applyComponentProfileToRule("monitor"));
   elements.newMonitorProfileButton.addEventListener("click", () => void createComponentProfileFromRule("monitor"));
   elements.saveMonitorProfileButton.addEventListener("click", () => void saveSelectedComponentProfile("monitor"));
+  elements.setDefaultMonitorProfileButton.addEventListener("click", () => void setSelectedComponentProfileAsDefault("monitor"));
   elements.deleteMonitorProfileButton.addEventListener("click", () => void deleteSelectedComponentProfile("monitor"));
 
   elements.targetProfileSelect.addEventListener("change", () => {
@@ -3876,6 +3914,7 @@ ${run.command || ""}`)) {
   elements.applyTargetProfileButton.addEventListener("click", () => applyComponentProfileToRule("target"));
   elements.newTargetProfileButton.addEventListener("click", () => void createComponentProfileFromRule("target"));
   elements.saveTargetProfileButton.addEventListener("click", () => void saveSelectedComponentProfile("target"));
+  elements.setDefaultTargetProfileButton.addEventListener("click", () => void setSelectedComponentProfileAsDefault("target"));
   elements.deleteTargetProfileButton.addEventListener("click", () => void deleteSelectedComponentProfile("target"));
 
   elements.saveCustomTabTitleButton.addEventListener("click", () => void saveCustomTabTitle(elements.customTabTitle.value));
@@ -4100,24 +4139,57 @@ ${run.command || ""}`)) {
     });
     writeRuleFields(nextRule);
     renderRuleRuntimeSummary();
-    showMessage(`${type === "monitor" ? "Monitor" : "Target"} profile “${profile.name}” applied to rule “${nextRule.name}”. Save the configuration profile or tab configuration to persist it.`, "success");
+    showMessage(`${type === "monitor" ? "Monitor" : "Target"} profile “${profile.name}” applied to rule “${nextRule.name}”. Save the Automation profile or save for this tab to persist it.`, "success");
+  }
+
+  function captureComponentProfileEditorDraft() {
+    const config = Settings.normalizeConfig(readConfig());
+    const rule = ruleById(config, selectedRuleId) || ruleById(config, config.activeRuleId) || config.rules[0] || null;
+    return {
+      config,
+      selectedRuleId: rule?.id || null
+    };
+  }
+
+  function restoreComponentProfileEditorDraft(snapshot) {
+    if (!snapshot?.config) return;
+    const config = Settings.normalizeConfig(snapshot.config);
+    const rule = ruleById(config, snapshot.selectedRuleId) || ruleById(config, config.activeRuleId) || config.rules[0] || null;
+    if (!rule) return;
+    selectedRuleId = rule.id;
+    formConfigDraft = Settings.normalizeConfig({
+      ...config,
+      activeRuleId: rule.id,
+      monitor: rule.monitor,
+      target: rule.target
+    });
+    renderRuleOptions();
+    writeRuleFields(rule);
+    renderRuleRuntimeSummary();
   }
 
   async function createComponentProfileFromRule(type) {
-    const { rule } = currentRuleDraft();
+    const editorDraft = captureComponentProfileEditorDraft();
+    const rule = ruleById(editorDraft.config, editorDraft.selectedRuleId) || editorDraft.config.rules[0];
     if (!rule) return;
     const defaultName = type === "monitor" ? "New monitor profile" : "New target profile";
     const name = prompt(`${type === "monitor" ? "Monitor" : "Target"} profile name:`, defaultName);
     if (!name) return;
-    await request(MESSAGE.CREATE_COMPONENT_PROFILE, {
+    const response = await request(MESSAGE.CREATE_COMPONENT_PROFILE, {
       profileType: type,
       name,
       config: type === "monitor" ? rule.monitor : rule.target
-    }, `${type === "monitor" ? "Monitor" : "Target"} profile created.`);
+    }, "", { reloadForm: false });
+    restoreComponentProfileEditorDraft(editorDraft);
+    if (!response?.savedProfile) return;
+    renderComponentProfileOptions();
+    await persistSidebarUi();
+    showMessage(`${type === "monitor" ? "Monitor" : "Target"} profile “${response.savedProfile.name}” created and selected; the current rule draft was preserved.`, "success");
   }
 
   async function saveSelectedComponentProfile(type) {
-    const { rule } = currentRuleDraft();
+    const editorDraft = captureComponentProfileEditorDraft();
+    const rule = ruleById(editorDraft.config, editorDraft.selectedRuleId) || editorDraft.config.rules[0];
     const profile = type === "monitor"
       ? monitorProfileById(selectedMonitorProfileId)
       : targetProfileById(selectedTargetProfileId);
@@ -4133,23 +4205,61 @@ ${run.command || ""}`)) {
         name: nameElement.value.trim() || profile.name,
         ...(type === "monitor" ? { monitor: rule.monitor } : { target: rule.target })
       }
-    }, `${type === "monitor" ? "Monitor" : "Target"} profile saved.`);
-    if (response?.savedProfile) {
-      if (type === "monitor") selectedMonitorProfileId = response.savedProfile.id;
-      else selectedTargetProfileId = response.savedProfile.id;
-      void persistSidebarUi();
-    }
+    }, "", { reloadForm: false });
+    restoreComponentProfileEditorDraft(editorDraft);
+    if (!response?.savedProfile) return;
+    if (type === "monitor") selectedMonitorProfileId = response.savedProfile.id;
+    else selectedTargetProfileId = response.savedProfile.id;
+    renderComponentProfileOptions();
+    await persistSidebarUi();
+    showMessage(`${type === "monitor" ? "Monitor" : "Target"} profile “${response.savedProfile.name}” saved; the current rule draft was preserved.`, "success");
   }
 
-  async function deleteSelectedComponentProfile(type) {
+  async function setSelectedComponentProfileAsDefault(type) {
+    const editorDraft = captureComponentProfileEditorDraft();
     const profile = type === "monitor"
       ? monitorProfileById(selectedMonitorProfileId)
       : targetProfileById(selectedTargetProfileId);
-    if (!profile || !confirm(`Delete ${type} profile “${profile.name}”?`)) return;
-    await request(MESSAGE.DELETE_COMPONENT_PROFILE, {
+    const defaultProfileId = type === "monitor"
+      ? dashboard.store.defaultMonitorProfileId
+      : dashboard.store.defaultTargetProfileId;
+    const label = type === "monitor" ? "Monitor" : "Target";
+    if (!profile) {
+      showMessage(`Select a ${type} profile first.`, "error");
+      return;
+    }
+    if (profile.id === defaultProfileId) {
+      showMessage(`${label} profile “${profile.name}” is already the default.`, "info");
+      return;
+    }
+    const response = await request(MESSAGE.SET_DEFAULT_COMPONENT_PROFILE, {
       profileType: type,
       profileId: profile.id
-    }, `${type === "monitor" ? "Monitor" : "Target"} profile deleted.`);
+    }, "", { reloadForm: false });
+    restoreComponentProfileEditorDraft(editorDraft);
+    if (!response?.ok) return;
+    if (type === "monitor") selectedMonitorProfileId = profile.id;
+    else selectedTargetProfileId = profile.id;
+    renderComponentProfileOptions();
+    await persistSidebarUi();
+    showMessage(`${label} profile “${profile.name}” is now the default library selection. The current rule was not changed.`, "success");
+  }
+
+  async function deleteSelectedComponentProfile(type) {
+    const editorDraft = captureComponentProfileEditorDraft();
+    const profile = type === "monitor"
+      ? monitorProfileById(selectedMonitorProfileId)
+      : targetProfileById(selectedTargetProfileId);
+    if (!profile || !confirm(`Delete ${type} profile “${profile.name}”? The current rule draft will not change.`)) return;
+    const response = await request(MESSAGE.DELETE_COMPONENT_PROFILE, {
+      profileType: type,
+      profileId: profile.id
+    }, "", { reloadForm: false });
+    restoreComponentProfileEditorDraft(editorDraft);
+    if (!response?.ok) return;
+    renderComponentProfileOptions();
+    await persistSidebarUi();
+    showMessage(`${type === "monitor" ? "Monitor" : "Target"} profile “${profile.name}” deleted; the current rule draft was preserved.`, "success");
   }
 
   async function saveCustomTabTitle(title) {
@@ -4231,30 +4341,55 @@ ${run.command || ""}`)) {
   }
 
 
-  async function duplicateSelectedProfile() {
-    const base = profileById(selectedProfileId);
-    if (!base) {
-      showMessage("Select a profile before duplicating it.", "error");
+  async function setSelectedAutomationProfileAsDefault() {
+    const profile = profileById(selectedProfileId);
+    if (!profile) {
+      showMessage("Select an Automation profile first.", "error");
       return;
     }
-    const name = prompt("Copy name:", `${base.name || "Profile"} - copy`);
-    if (!name) return;
+    if (profile.id === dashboard.store.defaultProfileId) {
+      showMessage(`Automation profile “${profile.name}” is already the default.`, "info");
+      return;
+    }
     setBusy(true);
     try {
-      const response = await browser.runtime.sendMessage({
-        type: MESSAGE.DUPLICATE_PROFILE,
-        profileId: base.id,
-        name
-      });
-      if (!response?.ok) throw new Error(response?.error || "Could not duplicate the profile.");
+      const response = await browser.runtime.sendMessage({ type: MESSAGE.SET_DEFAULT_PROFILE, profileId: profile.id });
+      if (!response?.ok) throw new Error(response?.error || "Could not set the default Automation profile.");
       dashboard = response.dashboard || dashboard;
-      selectedProfileId = response.profileId;
+      selectedProfileId = profile.id;
       setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId);
       void persistSidebarUi();
       renderSelectors(selectedTabId);
-      elements.profileName.value = response.savedProfile?.name || name;
-      writeConfig(response.savedProfile?.config || base.config);
-      showMessage(`Profile “${response.savedProfile?.name || name}” duplicated and selected.`, "success");
+      renderDetails(false);
+      showMessage(`Automation profile “${profile.name}” is now the default for future fallback. Open tabs were not changed.`, "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setSelectedLocalActionProfileAsDefault() {
+    const profile = localActionProfileById(selectedLocalActionProfileId);
+    if (!profile) {
+      showMessage("Select a Local action profile first.", "error");
+      return;
+    }
+    if (profile.id === dashboard.localActionStore.defaultProfileId) {
+      showMessage(`Local action profile “${profile.name}” is already the default.`, "info");
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await browser.runtime.sendMessage({ type: MESSAGE.SET_DEFAULT_LOCAL_ACTION_PROFILE, profileId: profile.id });
+      if (!response?.ok) throw new Error(response?.error || "Could not set the default Local action profile.");
+      dashboard = response.dashboard || dashboard;
+      selectedLocalActionProfileId = profile.id;
+      setTabProfileSelection(localActionProfileEditorSelectionByTab, selectedTabId, selectedLocalActionProfileId);
+      void persistSidebarUi();
+      renderSelectors(selectedTabId);
+      renderDetails(false);
+      showMessage(`Local action profile “${profile.name}” is now the default for future fallback. Open tabs were not changed.`, "success");
     } catch (error) {
       showMessage(error instanceof Error ? error.message : String(error), "error");
     } finally {
@@ -4629,6 +4764,7 @@ ${run.command || ""}`)) {
   });
   elements.newLocalActionProfileButton.addEventListener("click", () => void createLocalActionProfileFromCurrentForm());
   elements.saveLocalActionProfileButton.addEventListener("click", () => void saveLocalActionProfile());
+  elements.setDefaultLocalActionProfileButton.addEventListener("click", () => void setSelectedLocalActionProfileAsDefault());
   elements.deleteLocalActionProfileButton.addEventListener("click", () => void deleteSelectedLocalActionProfile());
   elements.saveTabLocalActionsButton.addEventListener("click", () => void saveTabLocalActions());
   elements.resetTabLocalActionsButton.addEventListener("click", () => {
@@ -4776,7 +4912,7 @@ Cancel: keep editing without losing the changes.`);
   elements.saveTabButton.addEventListener("click", () => void saveTabConfiguration());
   elements.resetTabButton.addEventListener("click", () => void request(MESSAGE.RESET_TAB_CONFIG, { tabId: selectedTabId }, "The tab now uses its profile configuration."));
   elements.newProfileButton.addEventListener("click", () => void createProfileFromCurrentForm());
-  elements.duplicateProfileButton.addEventListener("click", () => void duplicateSelectedProfile());
+  elements.setDefaultProfileButton.addEventListener("click", () => void setSelectedAutomationProfileAsDefault());
   elements.deleteProfileButton.addEventListener("click", () => void deleteSelectedAutomationProfile());
   elements.saveProfileButton.addEventListener("click", () => void saveProfileConfiguration());
   function downloadBlob(blob, filename) {
@@ -4923,9 +5059,52 @@ Cancel: keep editing without losing the changes.`);
   elements.importFile.addEventListener("change", async () => {
     const file = elements.importFile.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    await request(MESSAGE.IMPORT_SETTINGS, { text }, "Configuration imported. The previous configuration was saved as a recovery snapshot.");
-    elements.importFile.value = "";
+    try {
+      const text = await file.text();
+      const previewResponse = await request(MESSAGE.PREVIEW_SETTINGS_IMPORT, { text }, "", { reloadForm: false });
+      const preview = previewResponse?.preview;
+      if (!previewResponse?.ok || !preview) return;
+      const details = preview.scope === "all-configuration"
+        ? [
+            `${preview.automationProfiles} Automation`,
+            `${preview.monitorProfiles} Monitor`,
+            `${preview.targetProfiles} Target`,
+            `${preview.localActionProfiles} Local action`,
+            `${preview.commandPresets} command preset(s)`,
+            `${preview.customPromptTemplates} custom prompt template(s)`,
+            `sidebar preset: ${preview.sidebarFeaturePreset || "standard"}`
+          ].join(", ")
+        : `${preview.automationProfiles} Automation, ${preview.monitorProfiles} Monitor, ${preview.targetProfiles} Target profile(s)`;
+      const scopeText = preview.scope === "all-configuration"
+        ? "FULL configuration bundle"
+        : "LEGACY Automation-only configuration";
+      const warning = preview.scope === "all-configuration"
+        ? "This replaces the global Automation, Local action, preset, template and sidebar-preference libraries. Open/stopped tabs keep their current effective values where profiles differ."
+        : "This replaces only the global Automation library. Local action profiles, presets, templates and sidebar preferences stay unchanged.";
+      if (!confirm(`Import ${scopeText}?
+
+File: ${file.name}
+Contains: ${details}
+
+${warning}
+
+A recovery snapshot will be created before import.`)) return;
+      const response = await request(MESSAGE.IMPORT_SETTINGS, { text }, "", { reloadForm: true });
+      if (!response?.ok) return;
+      if (response.scope === "all-configuration") {
+        const automationPreserved = Number(response.automationPreservation?.preservedActiveTabs || 0) + Number(response.automationPreservation?.preservedStoppedTabs || 0);
+        const localActionPreserved = Number(response.localActionPreservation?.preservedActiveTabs || 0) + Number(response.localActionPreservation?.preservedStoppedTabs || 0);
+        const preservedDetail = automationPreserved || localActionPreserved
+          ? ` Preserved tab overrides: ${automationPreserved} Automation, ${localActionPreserved} Local action.`
+          : "";
+        showMessage(`Full configuration imported. Existing open/stopped tabs kept their current Automation and Local action values where imported profiles differed.${preservedDetail} Reloading the sidebar to apply imported UI, preset and template preferences…`, "success");
+        window.setTimeout(() => window.location.reload(), 180);
+      } else {
+        showMessage("Legacy Automation-only configuration imported. Local action profiles, presets, templates and sidebar preferences were left unchanged.", "success");
+      }
+    } finally {
+      elements.importFile.value = "";
+    }
   });
   elements.exportConfigurationProfilesButton.addEventListener("click", () => void exportProfileType("configuration"));
   elements.importConfigurationProfilesButton.addEventListener("click", () => chooseProfileImport("configuration"));
@@ -4942,9 +5121,31 @@ Cancel: keep editing without losing the changes.`);
     if (!file || !type) return;
     try {
       const text = await file.text();
-      const response = await request(MESSAGE.IMPORT_PROFILE_BUNDLE, { profileType: type, text });
+      const preserveComponentDraft = type === "monitor" || type === "target";
+      const editorDraft = preserveComponentDraft ? captureComponentProfileEditorDraft() : null;
+      const response = await request(
+        MESSAGE.IMPORT_PROFILE_BUNDLE,
+        { profileType: type, text },
+        "",
+        { reloadForm: !preserveComponentDraft }
+      );
+      if (editorDraft) restoreComponentProfileEditorDraft(editorDraft);
       if (response?.ok) {
-        showMessage(`${response.imported || 0} ${type} profile(s) imported (${response.created || 0} new, ${response.updated || 0} updated).`, "success");
+        if (preserveComponentDraft) {
+          renderComponentProfileOptions();
+          await persistSidebarUi();
+        }
+        const created = Number(response.created) || 0;
+        const skipped = Number(response.skipped) || 0;
+        const collisionCopies = Number(response.collisionCopies) || 0;
+        const renamed = Number(response.renamed) || 0;
+        const details = [
+          `${created} added`,
+          `${skipped} identical skipped`,
+          collisionCopies ? `${collisionCopies} ID conflict${collisionCopies === 1 ? "" : "s"} imported as copies` : "",
+          renamed ? `${renamed} name conflict${renamed === 1 ? "" : "s"} renamed` : ""
+        ].filter(Boolean).join(", ");
+        showMessage(`${type} profile import: ${details}. Existing profiles, defaults and running tabs were unchanged.${preserveComponentDraft ? " The current rule draft was preserved." : ""}`, "success");
       }
     } finally {
       elements.profileImportFile.value = "";
@@ -4960,8 +5161,22 @@ Cancel: keep editing without losing the changes.`);
   elements.restoreSettingsSnapshotButton.addEventListener("click", () => {
     const snapshotId = elements.settingsSnapshotSelect.value;
     const label = elements.settingsSnapshotSelect.selectedOptions[0]?.textContent || "selected snapshot";
-    if (snapshotId && confirm(`Restore ${label}? Current settings will be snapshotted first.`)) {
-      void request(MESSAGE.RESTORE_SETTINGS_SNAPSHOT, { snapshotId }, "Settings snapshot restored.");
+    if (snapshotId && confirm(`Restore ${label}? Current configuration will be snapshotted first. Open/stopped tabs keep their current effective values if restored profiles differ.`)) {
+      void (async () => {
+        const response = await request(MESSAGE.RESTORE_SETTINGS_SNAPSHOT, { snapshotId }, "", { reloadForm: true });
+        if (!response?.ok) return;
+        if (response.scope === "all-configuration") {
+          const automationPreserved = Number(response.automationPreservation?.preservedActiveTabs || 0) + Number(response.automationPreservation?.preservedStoppedTabs || 0);
+          const localActionPreserved = Number(response.localActionPreservation?.preservedActiveTabs || 0) + Number(response.localActionPreservation?.preservedStoppedTabs || 0);
+          const preservedDetail = automationPreserved || localActionPreserved
+            ? ` Preserved tab overrides: ${automationPreserved} Automation, ${localActionPreserved} Local action.`
+            : "";
+          showMessage(`Full configuration snapshot restored. Existing open/stopped tabs kept their current Automation and Local action values where restored profiles differed.${preservedDetail} Reloading the sidebar to apply restored UI, preset and template preferences…`, "success");
+          window.setTimeout(() => window.location.reload(), 180);
+        } else {
+          showMessage("Legacy Automation-only snapshot restored. Local action profiles, presets, templates and sidebar preferences were left unchanged.", "success");
+        }
+      })();
     }
   });
   elements.deleteSettingsSnapshotButton.addEventListener("click", () => {

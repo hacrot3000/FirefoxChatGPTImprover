@@ -1,0 +1,53 @@
+{
+  "id": "feature-research",
+  "title": "Project evidence requested by AI",
+  "actions": [
+    {
+      "type": "overview",
+      "path": ".",
+      "tree_depth": 4,
+      "collect_key_files": true,
+      "include_git": true
+    },
+    {
+      "type": "find",
+      "paths": ["src", "include"],
+      "patterns": ["*.c", "*.h"],
+      "max_results": 1000
+    },
+    {
+      "type": "search",
+      "query": "feature_entry",
+      "paths": ["src", "include"],
+      "context_lines": 8,
+      "max_matches": 100
+    },
+    {
+      "type": "references",
+      "symbol": "feature_entry",
+      "paths": ["src", "include"],
+      "context_lines": 5
+    },
+    {
+      "type": "callgraph",
+      "path": "src/feature.c",
+      "symbol": "feature_entry",
+      "paths": ["src", "include"]
+    },
+    {
+      "type": "dependencies",
+      "path": "src",
+      "include": ["**/*.c", "**/*.h"]
+    },
+    {
+      "type": "pack",
+      "paths": ["src/feature.c", "include", "CMakeLists.txt"]
+    }
+  ],
+  "limits": {
+    "max_files": 500,
+    "max_total_bytes": 33554432,
+    "max_file_bytes": 4194304,
+    "max_search_matches": 200
+  }
+}

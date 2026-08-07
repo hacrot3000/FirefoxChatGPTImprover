@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "patch_key": "patch_firefox_chat_improver_phase64_v0_41_5_manual_preferred_snapshot_compaction_v3_20260807_1445",
+  "updated_at": "2026-08-07T14:41:10+07:00",
+  "last_run": {
+    "at": "2026-08-07T14:41:10+07:00",
+    "status": "FAIL",
+    "mode": "APPLY",
+    "delta_status": "SAME_FAILURE",
+    "root_causes": [
+      {
+        "code": "PTV-RUNNER-001",
+        "kind": "package",
+        "file": "",
+        "line": 0,
+        "message": "Stopping package after failed patch: patchs/patch_firefox_chat_improver_phase64_v0_41_5_manual_preferred_snapshot_compaction_v3_20260807_1445.zip::patch_firefox_chat_improver_phase64_v0_41_5_manual_preferred_snapshot_compaction_v3_20260807_1445.py",
+        "evidence": "Stopping package after failed patch: patchs/patch_firefox_chat_improver_phase64_v0_41_5_manual_preferred_snapshot_compaction_v3_20260807_1445.zip::patch_firefox_chat_improver_phase64_v0_41_5_manual_preferred_snapshot_compaction_v3_20260807_1445.py",
+        "fingerprint": "4ba58edfd414571992c1"
+      }
+    ]
+  },
+  "last_failure": {
+    "at": "2026-08-07T14:41:10+07:00",
+    "resolved_at": "",
+    "root_causes": [
+      {
+        "code": "PTV-RUNNER-001",
+        "kind": "package",
+        "file": "",
+        "line": 0,
+        "message": "Stopping package after failed patch: patchs/patch_firefox_chat_improver_phase64_v0_41_5_manual_preferred_snapshot_compaction_v3_20260807_1445.zip::patch_firefox_chat_improver_phase64_v0_41_5_manual_preferred_snapshot_compaction_v3_20260807_1445.py",
+        "evidence": "Stopping package after failed patch: patchs/patch_firefox_chat_improver_phase64_v0_41_5_manual_preferred_snapshot_compaction_v3_20260807_1445.zip::patch_firefox_chat_improver_phase64_v0_41_5_manual_preferred_snapshot_compaction_v3_20260807_1445.py",
+        "fingerprint": "4ba58edfd414571992c1"
+      }
+    ],
+    "validation_profiles": [],
+    "error": "Stopping package after failed patch: patchs/patch_firefox_chat_improver_phase64_v0_41_5_manual_preferred_snapshot_compaction_v3_20260807_1445.zip::patch_firefox_chat_improver_phase64_v0_41_5_manual_preferred_snapshot_compaction_v3_20260807_1445.py"
+  }
+}

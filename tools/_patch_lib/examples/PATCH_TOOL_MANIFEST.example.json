@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "project": {
+    "key": "replace-with-stable-project-key"
+  },
+  "patch": {
+    "id": "feature_checkpoint",
+    "version": "v5.16.0",
+    "phase": "Phase 4 / ~5",
+    "phase_under_test": "Phase 4",
+    "summary": "Complete the feature checkpoint and preserve backward compatibility.",
+    "regression_scope": "Focused feature checks plus existing core regression suite."
+  },
+  "execution": {
+    "timeout_seconds": 0
+  },
+  "validation": {
+    "profiles": [
+      "patch_tool_python_syntax"
+    ]
+  },
+  "git": {
+    "add": "changed",
+    "commit": "auto",
+    "commit_message": "Complete feature checkpoint",
+    "push": "off",
+    "fail_on_error": true
+  },
+  "source_baseline": {
+    "generated_from": "optional: git HEAD or source snapshot identifier",
+    "files": []
+  },
+  "post_patch": {
+    "commands": [
+      {
+        "name": "Run focused project check",
+        "argv": [
+          "python3",
+          "tools/check_feature.py"
+        ],
+        "cwd": ".",
+        "timeout_seconds": 300
+      }
+    ],
+    "run_when_no_changes": false
+  }
+}

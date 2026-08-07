@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "patch_key": "patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415 (1)",
+  "updated_at": "2026-08-07T14:23:09+07:00",
+  "last_run": {
+    "at": "2026-08-07T14:23:09+07:00",
+    "status": "PASS",
+    "mode": "APPLY",
+    "delta_status": "NO_PREVIOUS_FAILURE",
+    "root_causes": [
+      {
+        "code": "PTV-RUNNER-001",
+        "kind": "log",
+        "file": "",
+        "line": 0,
+        "message": "PASS: Phase 61 full configuration import/restore commits all five global stores together and rolls back on storage failure",
+        "evidence": "PASS: Phase 61 full configuration import/restore commits all five global stores together and rolls back on storage failure",
+        "fingerprint": "308140b0d7b8aebbed5a"
+      },
+      {
+        "code": "PTV-RUNNER-001",
+        "kind": "log",
+        "file": "",
+        "line": 0,
+        "message": "PASS: Phase 07 monitor transition, re-render, mutation storm and error state",
+        "evidence": "PASS: Phase 07 monitor transition, re-render, mutation storm and error state",
+        "fingerprint": "b3a2044e0f2795f71261"
+      }
+    ]
+  },
+  "last_failure": null
+}

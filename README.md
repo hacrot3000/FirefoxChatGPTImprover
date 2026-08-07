@@ -38,6 +38,64 @@ Sau đó reload add-on trong `about:addons`.
 
 ---
 
+## Complete configuration backup and safe restore
+
+**Export all configuration** now backs up the complete reusable configuration surface: Automation/Monitor/Target profiles, Local action profiles, global command presets, custom prompt templates and sidebar visibility preferences. Working sessions, runtime logs, active download/shell jobs, recovery-history and tab-ID editor state are intentionally excluded.
+
+Importing a full bundle or restoring a v0.40.9+ recovery snapshot updates the global libraries without silently reconfiguring tabs that are already open or explicitly stopped. If either the Automation or Local action profile referenced by a tab is missing or has different values after replacement, the tab keeps its previous effective values as tab overrides. Legacy pre-v0.40.9 Automation-only exports and snapshots remain supported and are labelled as legacy scope.
+
+### Full-scope import/restore activation
+
+Full configuration import and full-scope recovery restore propagate their scope back to the sidebar. The sidebar reloads itself after a full replacement so imported visibility preferences, command presets and prompt templates become active immediately; monitored web tabs are not reloaded. Legacy Automation-only files do not trigger this sidebar reload.
+
+### Semantic recovery snapshot deduplication
+
+Recovery snapshots compare reusable configuration by behavior rather than bookkeeping metadata. Revision counters and created/updated timestamps no longer consume additional recovery slots when the effective configuration is unchanged. Existing semantic duplicates from earlier full-configuration snapshots are compacted automatically, keeping the newest copy.
+
+### Atomic full-configuration storage commit
+
+Full configuration import and full recovery restore prepare Automation, Local action, command presets, prompt templates and sidebar preferences before mutation, then write the five storage keys together. In-memory Automation/Local-action caches update only after storage succeeds. If the provider rejects the commit, the previous coherent payload is restored on a best-effort basis and the operation reports an error.
+
+### Preview before configuration import
+
+Selecting a file in **Backup and transfer → Import all configuration** first performs a read-only validation and preview. The confirmation identifies whether the file is a full configuration bundle or legacy Automation-only configuration and summarizes the contained profile/preset/template libraries. Nothing is written until the user confirms; a recovery snapshot is then created immediately before the import.
+
+### Manual snapshot promotion
+
+If the current semantic configuration already exists as an automatic safety snapshot, choosing **Create snapshot** replaces that matching automatic entry with the new Manual snapshot instead of silently discarding the user's Manual intent or storing a duplicate. A later automatic snapshot of the same configuration cannot replace the Manual entry. The existing bounded recovery-history size is unchanged.
+
+### Manual recovery points survive history compaction
+
+Recovery history applies the same Manual intent rule both when a snapshot is created and when stored history is normalized after reload. If an older Manual snapshot and a newer automatic safety snapshot have the same semantic fingerprint, the Manual recovery point is retained; among duplicates of the same class, the newest is kept. This prevents browser/background reload from undoing the Manual protection introduced by Phase 63.
+
+## Working-session restore does not change profile libraries
+
+The **Working session library** is session-scoped. Restoring a saved session opens/restores tabs and their effective Automation/Local action state, but it does not create, overwrite, rename, delete, or select global profiles. If the exact saved profile still exists with the same configuration it is reused; otherwise the saved effective state becomes a tab override. Configuration/profile backup and transfer remain separate under **Backup and transfer**.
+
+## Clear and consistent profile actions
+
+All four profile libraries use the same action language: **Save as new profile** creates and selects a new item from the current editor values, **Save changes** updates the selected item, **Make default** changes only the future/library fallback, and **Delete profile** removes a non-default item. Automation no longer shows a separate Duplicate button because Save as new profile already covers that workflow. Manual names must be unique within their library, ignoring letter case. Assignment and override buttons explicitly state whether they affect a tab, a rule, or only the library.
+
+## Complete profile default controls
+
+Automation, Local action, Monitor and Target profile libraries all expose **Set as default**. For Monitor and Target profiles, the default controls only which library item is initially selected; they do not alter the current rule. A default must be reassigned before deletion. To rename any profile without adding another button, edit **Profile name** and choose **Save current values**.
+
+## Explicit profile defaults
+
+Automation and Local action libraries provide **Set as default**. The selected default is used only as the fallback for future unmatched activations; changing it never rewrites open sessions, stopped-tab snapshots, tab overrides, unsaved drafts, downloads or shell jobs. Select another default before deleting the current one.
+
+## Non-destructive profile import
+
+Typed Automation, Monitor, Target and Local action profile bundles are imported without overwriting existing profiles or changing the local default. Identical entries are skipped; ID conflicts become fresh copies; name conflicts receive an `(imported)` suffix. Import alone never changes a running tab, per-tab Local action draft or frozen download/shell job.
+
+## Component profile draft continuity
+
+Monitor and Target profile library actions update only the reusable component library. Creating, saving, deleting or importing these profiles preserves the complete Automation rule draft, selected rule and current form values. A component profile changes the rule only after **Apply to rule** is pressed.
+
+## Local action draft continuity
+
+Saving a shared Local action profile preserves unsaved per-tab download destination, working directory and shell command values. Each draft is rebased to the profile's new revision, so saving from one tab cannot invalidate or erase another tab's current Local action edits.
+
 ## Safe profile lifecycle
 
 Deleting an Automation or Local action profile uses **safe detach**. Open active/stopped tabs keep their effective automation, download and shell values as tab-specific overrides instead of silently reverting to Default or URL routing. Importing Local action profile bundles also preserves unsaved per-tab working drafts.
@@ -364,7 +422,7 @@ Details: `document/PHASE_18_SUPPORT_BUNDLE_EXPORT.md`.
 
 ## Phase 19 — Settings snapshots and rollback
 
-The **Save configuration** section now provides a bounded local recovery history. The add-on automatically snapshots settings before profile save/delete and JSON import, and creates a safety snapshot before every restore.
+The **Backup and transfer** section provides a bounded local recovery history. Starting with v0.40.9, newly created snapshots cover the complete configuration bundle (Automation/Monitor/Target, Local action, command presets, custom prompt templates and sidebar visibility); older snapshots remain available as legacy Automation-only recovery points. A safety snapshot is created before destructive configuration import/restore and profile-library changes.
 
 Details: `document/PHASE_19_SETTINGS_SNAPSHOT_ROLLBACK.md`.
 

@@ -124,6 +124,21 @@ node tests/test_phase46_v0397_simplified_sidebar_feature_visibility.js
 node tests/test_phase47_v0398_profile_capture_selection_continuity.js
 node tests/test_phase48_v0399_persistent_profile_editor_intent.js
 node tests/test_phase49_v0400_safe_profile_lifecycle.js
+node tests/test_phase50_v0401_local_action_profile_save_draft_continuity.js
+node tests/test_phase51_v0402_component_profile_editor_draft_continuity.js
+node tests/test_phase52_v0403_non_destructive_profile_bundle_import.js
+node tests/test_phase53_v0404_explicit_default_profile_controls.js
+node tests/test_phase54_v0405_component_default_profile_controls.js
+node tests/test_phase55_v0406_profile_action_clarity.js
+node tests/test_phase56_v0407_working_session_profile_isolation.js
+node tests/test_phase57_v0408_safe_configuration_restore.js
+node tests/test_phase58_v0409_complete_configuration_backup.js
+node tests/test_phase59_v0410_configuration_scope_return_contract.js
+node tests/test_phase60_v0411_configuration_import_preview_confirmation.js
+node tests/test_phase61_v0412_atomic_full_configuration_commit.js
+node tests/test_phase62_v0413_semantic_recovery_snapshot_deduplication.js
+node tests/test_phase63_v0414_manual_snapshot_promotion.js
+node tests/test_phase64_v0415_manual_preferred_snapshot_compaction.js
 
 if [ "${FCI_RUN_FIREFOX_E2E:-0}" = "1" ]; then
   python3 tools/run_firefox_e2e.py ${FCI_FIREFOX_E2E_ARGS:-}
@@ -145,4 +160,4 @@ elif [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf '%s\n' 'PASS: FirefoxChatImprover Phase 04-46 v0.39.7 adds simplified persistent sidebar feature visibility while preserving explicit stopped-tab state, complete per-tab configuration across Stop/Start, separated configuration/session scopes, Local action binding controls, accessibility, Chromium/Chrome/Edge packaging, prompt templates, command-log export, per-rule statistics, trusted URL auto-activation, saved working sessions, custom tab titles, Linux/Windows Native Host runtime and protected command-log retention.'
+printf '%s\n' 'PASS: FirefoxChatImprover Phase 04-64 v0.41.5 manual-preferred snapshot compaction, manual snapshot promotion, semantic recovery-snapshot deduplication, adds simplified persistent sidebar feature visibility while preserving explicit stopped-tab state, complete per-tab configuration across Stop/Start, separated configuration/session scopes, Local action binding controls, accessibility, Chromium/Chrome/Edge packaging, prompt templates, command-log export, per-rule statistics, trusted URL auto-activation, saved working sessions, custom tab titles, Linux/Windows Native Host runtime and protected command-log retention.'

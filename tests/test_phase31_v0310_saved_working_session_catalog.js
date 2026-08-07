@@ -89,7 +89,7 @@ for (const name of [
 const background = fs.readFileSync(path.join(root, "extension/background/background.js"), "utf8");
 for (const token of [
   "loadWorkingSessionCatalog", "saveWorkingSessionEntry", "restoreWorkingSessionEntry",
-  "before_working_session_import", "workingSessionCatalog: WorkingSession.catalogSummary"
+  "workingSessionAutomationRestorePlan", "workingSessionLocalActionRestorePlan", "workingSessionCatalog: WorkingSession.catalogSummary"
 ]) assert(background.includes(token), `Missing background token ${token}`);
 
 const html = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.html"), "utf8");

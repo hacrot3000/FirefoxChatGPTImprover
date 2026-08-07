@@ -1,0 +1,24 @@
+{
+  "finished_at": "2026-08-07T14:41:27+07:00",
+  "history_is_not_sequence_constraint": true,
+  "history_scope": "LOCAL_MACHINE_ONLY",
+  "mode": "ZERO_ARGUMENT",
+  "processed_count": 0,
+  "project_identity": {
+    "adopted": false,
+    "enabled": true,
+    "exists": false,
+    "file": ".python_patch_tool_project.json",
+    "key": "",
+    "local_only": true
+  },
+  "remaining_count": 0,
+  "results": [],
+  "run_id": "20260807_144127",
+  "schema_version": 1,
+  "selected_count": 0,
+  "skipped": [],
+  "skipped_count": 0,
+  "status": "IDLE",
+  "tool_version": "5.16.0"
+}

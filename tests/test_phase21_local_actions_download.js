@@ -46,7 +46,7 @@ const html = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.html"), 
 for (const id of ["localActionProfileSelect", "managedDownloadEnabled", "downloadDestinationDirectory", "downloadCompletionDialog"]) assert(html.includes(`id="${id}"`));
 assert.equal((html.match(/id="downloadCompletionDialog"/g) || []).length, 1);
 const background = fs.readFileSync(path.join(root, "extension/background/background.js"), "utf8");
-for (const token of ["armDownloadCapture", "interceptDownloadResponse", "move_download", "sessionLocalActionConfig", "mergeWorkingSessionLocalActionProfiles"]) assert(background.includes(token));
+for (const token of ["armDownloadCapture", "interceptDownloadResponse", "move_download", "sessionLocalActionConfig", "workingSessionLocalActionRestorePlan"]) assert(background.includes(token));
 const activation = fs.readFileSync(path.join(root, "extension/content/activation.js"), "utf8");
 assert(activation.includes("onBeforeTargetClick"));
 assert(activation.includes("ARM_DOWNLOAD_CAPTURE"));

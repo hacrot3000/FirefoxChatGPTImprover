@@ -240,7 +240,7 @@
       </div>
       <input id="importWorkingSessionEntryFile" type="file" accept="application/json,.json" hidden>
       <input id="importWorkingSessionCatalogFile" type="file" accept="application/json,.json" hidden>
-      <output id="workingSessionCatalogResult" class="inline-result" aria-live="polite">This section manages working-session data only. Saved sessions are stored locally and may also be exported as JSON.</output>
+      <output id="workingSessionCatalogResult" class="inline-result" aria-live="polite">This section manages working-session data only. Restore recreates each tab from its saved effective configuration without creating or changing global profiles. Saved sessions are stored locally and may also be exported as JSON.</output>
     </section>
 
     <section class="card" data-group-id="profiles" aria-labelledby="profileHeading">
@@ -260,17 +260,17 @@
         <input id="profileName" type="text" autocomplete="off">
       </label>
       <div class="button-grid">
-        <button id="assignProfileButton" type="button">Apply to tab</button>
-        <button id="newProfileButton" type="button">Save current as new</button>
-        <button id="duplicateProfileButton" type="button">Duplicate</button>
+        <button id="assignProfileButton" type="button">Assign selected to tab</button>
+        <button id="newProfileButton" type="button">Save as new profile</button>
+        <button id="setDefaultProfileButton" type="button">Make default</button>
         <button id="deleteProfileButton" type="button" class="danger">Delete profile</button>
       </div>
       <div class="button-grid profile-save-actions" aria-label="Save automation configuration">
-        <button id="saveProfileButton" type="button" class="primary">Save current values</button>
+        <button id="saveProfileButton" type="button" class="primary">Save changes</button>
         <button id="saveTabButton" type="button">Save as tab override</button>
-        <button id="resetTabButton" type="button">Use profile for tab</button>
+        <button id="resetTabButton" type="button">Remove tab override</button>
       </div>
-      <small class="inline-result">Automation profiles contain rules, monitors, targets, alerts and routing. Saving edits the selected profile; Apply to tab changes the active tab. Local paths and shell commands stay in Local action profiles.</small>
+      <small class="inline-result">Save as new profile creates and selects a new profile from the current form. Save changes updates the selected profile without changing the tab assignment. Assign selected to tab is the only profile action here that changes which Automation profile the tab uses. Local paths and shell commands stay in Local action profiles.</small>
     </section>
 
     <section class="card" data-group-id="activation" aria-labelledby="activationHeading">
@@ -388,11 +388,13 @@
         <label>Monitor profile<select id="monitorProfileSelect"></select></label>
         <label>Profile name<input id="monitorProfileName" type="text" autocomplete="off"></label>
         <div class="button-grid four">
-          <button id="applyMonitorProfileButton" type="button">Apply to rule</button>
-          <button id="newMonitorProfileButton" type="button">New from current</button>
-          <button id="saveMonitorProfileButton" type="button">Save selected</button>
-          <button id="deleteMonitorProfileButton" type="button" class="danger">Delete</button>
+          <button id="applyMonitorProfileButton" type="button">Apply selected to rule</button>
+          <button id="newMonitorProfileButton" type="button">Save as new profile</button>
+          <button id="saveMonitorProfileButton" type="button">Save changes</button>
+          <button id="setDefaultMonitorProfileButton" type="button">Make default</button>
+          <button id="deleteMonitorProfileButton" type="button" class="danger">Delete profile</button>
         </div>
+        <small class="inline-result">Save as new profile creates and selects a new library item from the current rule values. To rename, edit Profile name and choose Save changes. Make default changes only the library fallback and does not modify the current rule.</small>
       </div>
       <div class="selector-grid">
         <label>Tag<select id="monitorTag">
@@ -473,11 +475,13 @@
         <label>Target profile<select id="targetProfileSelect"></select></label>
         <label>Profile name<input id="targetProfileName" type="text" autocomplete="off"></label>
         <div class="button-grid four">
-          <button id="applyTargetProfileButton" type="button">Apply to rule</button>
-          <button id="newTargetProfileButton" type="button">New from current</button>
-          <button id="saveTargetProfileButton" type="button">Save selected</button>
-          <button id="deleteTargetProfileButton" type="button" class="danger">Delete</button>
+          <button id="applyTargetProfileButton" type="button">Apply selected to rule</button>
+          <button id="newTargetProfileButton" type="button">Save as new profile</button>
+          <button id="saveTargetProfileButton" type="button">Save changes</button>
+          <button id="setDefaultTargetProfileButton" type="button">Make default</button>
+          <button id="deleteTargetProfileButton" type="button" class="danger">Delete profile</button>
         </div>
+        <small class="inline-result">Save as new profile creates and selects a new library item from the current rule values. To rename, edit Profile name and choose Save changes. Make default changes only the library fallback and does not modify the current rule.</small>
       </div>
       <label class="check-row"><input id="targetEnabled" type="checkbox">Process new targets while the monitor is MATCHED</label>
       <div class="selector-grid">
@@ -658,7 +662,7 @@
             <summary aria-label="Local action profile help" title="Help">?</summary>
             <div class="help-popover" role="tooltip">
               <p>Local-action profiles are separate from automation profiles and contain both managed-download and shell settings. Use the dedicated managed-download and shell-command groups below to edit those settings.</p>
-              <p>The source summary shows whether the current tab uses a tab override, an assigned profile, a URL-routed profile, or the default profile. Unsaved edits are protected when switching tabs or profiles.</p>
+              <p>The source summary shows whether the current tab uses a tab override, an assigned profile, a URL-routed profile, or the default profile. Save as new profile creates and selects a new item from the current form. Make default changes only future fallback selection and never changes open tabs. Unsaved edits are protected when switching tabs or profiles.</p>
             </div>
           </details>
         </div>
@@ -670,10 +674,11 @@
         <label>Profile name<input id="localActionProfileName" type="text" autocomplete="off"></label>
       </div>
       <div class="button-grid">
-        <button id="assignLocalActionProfileButton" type="button">Apply to tab</button>
-        <button id="clearLocalActionProfileBindingButton" type="button">Use URL/default</button>
-        <button id="newLocalActionProfileButton" type="button">Save current as new</button>
-        <button id="saveLocalActionProfileButton" type="button" class="primary">Save current values</button>
+        <button id="assignLocalActionProfileButton" type="button">Assign selected to tab</button>
+        <button id="clearLocalActionProfileBindingButton" type="button">Clear tab assignment</button>
+        <button id="newLocalActionProfileButton" type="button">Save as new profile</button>
+        <button id="saveLocalActionProfileButton" type="button" class="primary">Save changes</button>
+        <button id="setDefaultLocalActionProfileButton" type="button">Make default</button>
         <button id="deleteLocalActionProfileButton" type="button" class="danger">Delete profile</button>
       </div>
       <div class="two-column compact-fields">
@@ -682,8 +687,8 @@
       </div>
       <label>URL patterns, one per line<textarea id="localActionUrlPatterns" rows="2" placeholder="https://ai.company.local/*"></textarea></label>
       <div class="button-grid">
-        <button id="saveTabLocalActionsButton" type="button">Save for this tab</button>
-        <button id="resetTabLocalActionsButton" type="button">Use profile for tab</button>
+        <button id="saveTabLocalActionsButton" type="button">Save tab override</button>
+        <button id="resetTabLocalActionsButton" type="button">Remove tab override</button>
         <button id="revertLocalActionDraftButton" type="button" disabled>Revert unsaved edits</button>
       </div>
     </section>
@@ -837,7 +842,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
 
     <section class="card" data-group-id="save" aria-labelledby="saveHeading">
       <h2 id="saveHeading">Backup and transfer</h2>
-      <p class="inline-result">Configuration data only. Working-session data is managed separately in the Working session library.</p>
+      <p class="inline-result">Full configuration backup: Automation/Monitor/Target profiles, Local action profiles, global command presets, custom prompt templates and sidebar visibility. Working sessions, runtime logs and active jobs are excluded.</p>
       <div class="button-grid">
         <button id="exportButton" type="button">Export all configuration</button>
         <button id="importButton" type="button">Import all configuration</button>
@@ -861,7 +866,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
           <button id="restoreSettingsSnapshotButton" type="button">Restore</button>
           <button id="deleteSettingsSnapshotButton" type="button" class="danger">Delete</button>
         </div>
-        <small id="settingsSnapshotInfo" class="inline-result">Automatic snapshots are created before profile save/delete and configuration import.</small>
+        <small id="settingsSnapshotInfo" class="inline-result">New snapshots cover all configuration. Legacy snapshots created before v0.40.9 contain Automation settings only.</small>
       </div>
     </section>
 

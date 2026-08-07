@@ -54,7 +54,7 @@ for (const legacyId of ["saveWorkingSessionButton", "importWorkingSessionButton"
 
 assert(configuration.includes("Export all configuration"));
 assert(configuration.includes("Import all configuration"));
-assert(configuration.includes("Working-session data is managed separately"));
+assert(configuration.includes("Working sessions, runtime logs and active jobs are excluded."));
 assert(!configuration.includes("Save working session"));
 assert(!configuration.includes("Import working session"));
 assert(sessions.includes("This section manages working-session data only"));
@@ -77,5 +77,18 @@ assert(importStart >= 0 && importEnd > importStart);
 const importSettingsBody = background.slice(importStart, importEnd);
 assert(!importSettingsBody.includes("WorkingSession"));
 assert(!importSettingsBody.includes("CATALOG_STORAGE_KEY"));
+
+
+const workingImportStart = background.indexOf("async function importWorkingSession(text)");
+const workingImportEnd = background.indexOf("\n  function shortcutAction", workingImportStart);
+assert(workingImportStart >= 0 && workingImportEnd > workingImportStart);
+const workingImportBody = background.slice(workingImportStart, workingImportEnd);
+assert(!workingImportBody.includes("saveStore("));
+assert(!workingImportBody.includes("saveLocalActionStore("));
+assert(!workingImportBody.includes("createSettingsSnapshot("));
+assert(!workingImportBody.includes("mergeWorkingSessionProfiles"));
+assert(!workingImportBody.includes("mergeWorkingSessionLocalActionProfiles"));
+assert(workingImportBody.includes("workingSessionAutomationRestorePlan"));
+assert(workingImportBody.includes("workingSessionLocalActionRestorePlan"));
 
 console.log("PASS: Phase 43 separates configuration import/export from saved working sessions");

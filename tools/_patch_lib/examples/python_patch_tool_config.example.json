@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "automation": {
+    "zero_argument": {
+      "enabled": true,
+      "selection": "prompt",
+      "non_interactive_confirmed": false,
+      "initial_selection": "none",
+      "selector_ui": "auto",
+      "move_success": true,
+      "stop_on_failure": true,
+      "keep_failed_input": true,
+      "natural_sort": true,
+      "inventory_mode": "compact",
+      "max_inventory_items": 20,
+      "write_last_run": true
+    },
+    "queue_hygiene": {
+      "enabled": true,
+      "move_ignored": true,
+      "ignored_dir": "patchs/ignored",
+      "warn_non_patch": true,
+      "warn_foreign_project": true
+    },
+    "local_history": {
+      "enabled": true,
+      "skip_successful_duplicates": true,
+      "file": "patchs/reports/.patch_tool_local_history/successful.jsonl"
+    }
+  },
+  "package_policy": {
+    "require_zip": true,
+    "require_manifest": true,
+    "require_standard_metadata": true,
+    "warn_standalone": true,
+    "allow_legacy_v4": true,
+    "warn_legacy_v4_unscoped_project": true
+  },
+  "execution": {
+    "timeout_seconds": 0,
+    "max_archive_members": 10000,
+    "max_archive_total_bytes": 1073741824,
+    "max_archive_member_bytes": 268435456,
+    "max_log_bytes": 268435456,
+    "console_mode": "smart",
+    "raw_command_log_max_bytes": 268435456,
+    "important_context_before": 2,
+    "important_context_after": 2,
+    "failure_tail_lines": 80,
+    "max_important_lines": 4000,
+    "terminate_grace_seconds": 3.0,
+    "kill_grace_seconds": 1.0,
+    "redact_secret_values": true,
+    "max_line_chars": 20000
+  },
+  "reports": {
+    "enabled": true,
+    "keep_work_directory": false,
+    "retention": {
+      "enabled": false,
+      "max_pass_reports": 50,
+      "max_pass_age_days": 0
+    },
+    "ai_handoff": {
+      "enabled": true,
+      "max_code_files": 24,
+      "max_code_total_bytes": 4194304,
+      "full_file_max_bytes": 262144,
+      "context_lines": 20,
+      "max_diff_bytes": 1048576,
+      "include_touched_files": true,
+      "max_root_causes": 8,
+      "max_symbols": 12,
+      "max_symbol_lines": 800,
+      "max_symbol_bytes": 524288,
+      "handoff_max_tokens": 24000,
+      "summary_max_tokens": 10000,
+      "code_max_tokens": 28000,
+      "per_text_file_max_tokens": 6000,
+      "deduplicate_by_sha256": true,
+      "semantic_safe_truncation": true,
+      "split_compatibility_bundles": false
+    }
+  },
+  "source_drift": {
+    "enabled": true,
+    "fail_on_drift": true,
+    "allow_file_hash_drift_when_symbol_matches": true,
+    "max_file_bytes": 67108864
+  },
+  "validation": {
+    "default_profiles": [],
+    "timeout_seconds": 0,
+    "fail_on_error": true,
+    "profiles": {
+      "patch_tool_python_syntax": [
+        {
+          "name": "Compile Python tools",
+          "command": [
+            "python3",
+            "-m",
+            "compileall",
+            "-q",
+            "tools"
+          ],
+          "cwd": ".",
+          "timeout_seconds": 120,
+          "diagnostic_rerun": {
+            "enabled": true,
+            "safe": true,
+            "name": "Verbose Python compile diagnostics",
+            "command": [
+              "python3",
+              "-m",
+              "compileall",
+              "tools"
+            ],
+            "timeout_seconds": 120,
+            "on_timeout": false
+          }
+        }
+      ]
+    },
+    "selection": {
+      "mode": "append",
+      "fallback_profiles": [],
+      "rules": [
+        {
+          "name": "Patch Tool Python runtime",
+          "include": [
+            "tools/*.py",
+            "tools/**/*.py"
+          ],
+          "exclude": [
+            "tools/**/testdata/**"
+          ],
+          "profiles": [
+            "patch_tool_python_syntax"
+          ]
+        }
+      ]
+    },
+    "diagnostic_rerun": {
+      "enabled": true,
+      "max_commands": 1
+    }
+  },
+  "git": {
+    "add": "changed",
+    "commit": "off",
+    "commit_message": "",
+    "push": "off",
+    "remote": "",
+    "branch": "",
+    "fail_on_error": true,
+    "exclude_paths": [
+      "patchs/backup/**",
+      "patchs/failed_patch_files/**",
+      "patchs/reports/**",
+      "patchs/.patch_runner_tmp/**",
+      "patchs/patched/**",
+      "**/__pycache__/**",
+      "**/*.pyc",
+      "patchs/reports/.environment_fingerprint_cache.json",
+      "artifacts/.patch_tool_indexes/**",
+      "artifacts/patch_tool_code_collections/**"
+    ]
+  },
+  "transaction": {
+    "mode": "auto",
+    "keep_failed_sandbox": false,
+    "overlay_paths": [],
+    "exclude_paths": [
+      "patchs/**",
+      ".git/**"
+    ],
+    "max_apply_paths": 4000,
+    "idempotency": "data_only"
+  },
+  "project_identity": {
+    "enabled": true,
+    "require_patch_key": true,
+    "adopt_from_first_patch": true,
+    "identity_file": ".python_patch_tool_project.json"
+  },
+  "path_policy": {
+    "display": "relative",
+    "reports": "relative"
+  },
+  "code_collection": {
+    "enabled": true,
+    "output_root": "artifacts/patch_tool_code_collections",
+    "max_files": 1000,
+    "max_total_bytes": 67108864,
+    "max_file_bytes": 8388608,
+    "max_search_matches": 500,
+    "relative_paths_only": true,
+    "redact_secret_values": true
+  },
+  "post_patch": {
+    "enabled": true,
+    "default_timeout_seconds": 300,
+    "max_timeout_seconds": 1800,
+    "max_commands": 8,
+    "allow_no_change_override": true,
+    "max_forced_commands": 1,
+    "allowed_basic_commands": [
+      "ls",
+      "tree",
+      "pwd",
+      "find"
+    ],
+    "allowed_interpreters": [
+      "python",
+      "python3",
+      "bash",
+      "sh",
+      "node",
+      "pwsh",
+      "powershell"
+    ],
+    "script_extensions": [
+      ".py",
+      ".sh",
+      ".bash",
+      ".js",
+      ".mjs",
+      ".cjs",
+      ".ps1",
+      ".pl",
+      ".rb"
+    ]
+  },
+  "console": {
+    "color": "auto",
+    "critical_paths": "absolute",
+    "show_bundle_guide": true,
+    "live_status": true,
+    "live_status_interval_seconds": 0.5
+  }
+}

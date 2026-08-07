@@ -1,0 +1,34 @@
+Python Patch Tool v5.16.0 portable package
+
+Release root:
+  tools/
+
+Public entry point:
+  tools/run_python_patches.sh
+
+Private library:
+  tools/_patch_lib/
+    install_python_patch_tool_v5.py       (optional)
+    python_patch_runner.py
+    python_patch_utils.py
+    python_patch_diagnostics.py
+    python_patch_transaction.py
+    python_patch_intelligence.py
+    python_patch_identity.py
+    python_patch_commands.py
+    python_patch_selector.py
+    python_patch_source_baseline.py
+    python_patch_decompile_extractor.py
+    python_patch_code_collector.py
+    self_test_python_patch_tool_v5.py
+    SHA256SUMS
+    docs/
+      PATCH_SELECTION_GUIDE.md
+      LEGACY_V4_COMPATIBILITY.md
+      OUTPUT_FILES_GUIDE.md
+    examples/
+    templates/
+
+Normal use:
+  unzip -o python_patch_tool_v5.16.0_package.zip -d PROJECT_ROOT
+  ./tools/run_python_patches.sh

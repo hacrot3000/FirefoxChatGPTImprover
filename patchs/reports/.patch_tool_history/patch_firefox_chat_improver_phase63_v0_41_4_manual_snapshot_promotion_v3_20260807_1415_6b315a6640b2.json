@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "patch_key": "patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415",
+  "updated_at": "2026-08-07T14:23:09+07:00",
+  "last_run": {
+    "at": "2026-08-07T14:23:09+07:00",
+    "status": "FAIL",
+    "mode": "APPLY",
+    "delta_status": "SAME_FAILURE",
+    "root_causes": [
+      {
+        "code": "PTV-RUNNER-001",
+        "kind": "package",
+        "file": "",
+        "line": 0,
+        "message": "Stopping package after failed patch: patchs/patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415.zip::patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415.py",
+        "evidence": "Stopping package after failed patch: patchs/patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415.zip::patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415.py",
+        "fingerprint": "5da8f96f0568fb4a4724"
+      }
+    ]
+  },
+  "last_failure": {
+    "at": "2026-08-07T14:23:09+07:00",
+    "resolved_at": "",
+    "root_causes": [
+      {
+        "code": "PTV-RUNNER-001",
+        "kind": "package",
+        "file": "",
+        "line": 0,
+        "message": "Stopping package after failed patch: patchs/patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415.zip::patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415.py",
+        "evidence": "Stopping package after failed patch: patchs/patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415.zip::patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415.py",
+        "fingerprint": "5da8f96f0568fb4a4724"
+      }
+    ],
+    "validation_profiles": [],
+    "error": "Stopping package after failed patch: patchs/patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415.zip::patch_firefox_chat_improver_phase63_v0_41_4_manual_snapshot_promotion_v3_20260807_1415.py"
+  }
+}

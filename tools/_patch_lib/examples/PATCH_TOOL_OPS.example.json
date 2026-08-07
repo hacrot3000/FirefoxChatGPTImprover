@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "patch_name": "feature_checkpoint",
+  "default_on_error": "stop",
+  "ops": [
+    {
+      "id": "update-feature-block",
+      "kind": "replace",
+      "file": "src/feature.c",
+      "anchor": "static void feature_entry(void)",
+      "old": "old block",
+      "new": "new block",
+      "mode": "auto"
+    }
+  ]
+}

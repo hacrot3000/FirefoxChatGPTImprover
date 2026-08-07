@@ -21,6 +21,8 @@
   const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
   const WorkingSession = globalThis.FCI_WORKING_SESSION;
   const LocalActions = globalThis.FCI_LOCAL_ACTIONS;
+  const CommandPresets = globalThis.FCI_COMMAND_PRESETS;
+  const ConfigurationBundle = globalThis.FCI_CONFIGURATION_BUNDLE;
   // Phase 37 rerun compatibility marker: const PromptTemplates = globalThis.FCI_PROMPT_TEMPLATES;
   const PromptTemplates = globalThis.FCI_PROMPT_TEMPLATES || null;
   const PROMPT_TEMPLATE_MAX_LENGTH_FALLBACK = 30000;
@@ -2506,6 +2508,56 @@
     return LocalActions.clone(normalized);
   }
 
+  async function loadCommandPresetStore() {
+    const result = await browser.storage.local.get(CommandPresets.STORAGE_KEY);
+    return CommandPresets.normalizeStore(result[CommandPresets.STORAGE_KEY]);
+  }
+
+  async function saveCommandPresetStore(nextStore) {
+    const normalized = CommandPresets.normalizeStore(nextStore);
+    await browser.storage.local.set({ [CommandPresets.STORAGE_KEY]: normalized });
+    return CommandPresets.clone(normalized);
+  }
+
+  async function loadSidebarPreferences() {
+    const result = await browser.storage.local.get(ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY);
+    return ConfigurationBundle.normalizeSidebarPreferences(result[ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY]);
+  }
+
+  async function saveSidebarPreferences(nextPreferences) {
+    const result = await browser.storage.local.get(ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY);
+    const existing = result[ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY] && typeof result[ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY] === "object"
+      ? result[ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY]
+      : {};
+    const preferences = ConfigurationBundle.normalizeSidebarPreferences(nextPreferences);
+    const merged = {
+      ...existing,
+      collapsedGroups: preferences.collapsedGroups,
+      featurePreset: preferences.featurePreset,
+      visibleFeatures: preferences.visibleFeatures,
+      autoProfileByUrl: preferences.autoProfileByUrl
+    };
+    await browser.storage.local.set({ [ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY]: merged });
+    return preferences;
+  }
+
+  async function buildFullConfigurationBundle(automationStoreOverride = null, localActionStoreOverride = null) {
+    const [automationStore, localActionStore, commandPresetStore, promptTemplateStore, sidebarPreferences] = await Promise.all([
+      automationStoreOverride ? Promise.resolve(Settings.normalizeStore(automationStoreOverride)) : loadStore(),
+      localActionStoreOverride ? Promise.resolve(LocalActions.normalizeStore(localActionStoreOverride)) : loadLocalActionStore(),
+      loadCommandPresetStore(),
+      PromptTemplates.loadStore(browser),
+      loadSidebarPreferences()
+    ]);
+    return ConfigurationBundle.build({
+      automationStore,
+      localActionStore,
+      commandPresetStore,
+      promptTemplateStore,
+      sidebarPreferences
+    });
+  }
+
   async function loadSnapshotCollection() {
     if (!snapshotPromise) {
       snapshotPromise = browser.storage.local.get(Snapshots.STORAGE_KEY).then(async (result) => {
@@ -2545,8 +2597,9 @@
 
   async function createSettingsSnapshot(reason = "manual", label = "Manual snapshot", rawStore = null) {
     const store = rawStore ? Settings.normalizeStore(rawStore) : await loadStore();
+    const configurationBundle = await buildFullConfigurationBundle(store, null);
     const collection = await loadSnapshotCollection();
-    const result = Snapshots.addSnapshot(collection, Snapshots.makeSnapshot(store, reason, label));
+    const result = Snapshots.addSnapshot(collection, Snapshots.makeSnapshot(store, reason, label, { configurationBundle }));
     if (result.added) {
       await saveSnapshotCollection(result.collection);
       await broadcast("settings-snapshot-created");
@@ -2612,6 +2665,33 @@
       return null;
     }
     return LocalActions.normalizeConfig(session.localActionWorkingConfig);
+  }
+
+  function captureWorkingLocalActionDraft(session) {
+    if (!session) return null;
+    const tabId = Number(session.tabId);
+    const volatileEntry = volatileLocalActionDrafts.get(tabId);
+    if (volatileEntry && localActionContextMatches(session, volatileEntry.context)) {
+      return LocalActions.normalizeConfig(volatileEntry.config);
+    }
+    if (session.localActionWorkingConfig && localActionContextMatches(session, session.localActionWorkingContext)) {
+      return LocalActions.normalizeConfig(session.localActionWorkingConfig);
+    }
+    return null;
+  }
+
+  function restoreWorkingLocalActionDraft(session, rawConfig) {
+    if (!session || !rawConfig) return false;
+    const config = LocalActions.normalizeConfig(rawConfig);
+    const context = currentLocalActionContext(session);
+    volatileLocalActionDrafts.set(Number(session.tabId), { config: LocalActions.clone(config), context: { ...context } });
+    session.localActionWorkingConfig = LocalActions.clone(config);
+    session.localActionWorkingContext = {
+      ...context,
+      updatedAt: Settings.nowIso(),
+      fingerprint: LocalActions.configFingerprint(config)
+    };
+    return true;
   }
 
   function sessionLocalActionResolution(session, localStore) {
@@ -4107,12 +4187,25 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     await broadcast("tab-local-actions-reset", tabId);
   }
 
+  function manualProfileName(collection, rawName, excludeId, label, fallbackName) {
+    const name = String(rawName || "").trim() || fallbackName;
+    const key = name.toLocaleLowerCase();
+    const conflict = collection.find((item) =>
+      item.id !== excludeId && String(item.name || "").trim().toLocaleLowerCase() === key
+    ) || null;
+    if (conflict) {
+      throw new Error(`${label} profile “${name}” already exists. Choose a different name.`);
+    }
+    return name;
+  }
+
   async function createLocalActionProfile(name, baseProfileId = null, rawConfig = null) {
     const store = await loadLocalActionStore();
     const base = LocalActions.profileById(store, baseProfileId) || LocalActions.profileById(store, store.defaultProfileId);
     const validation = LocalActions.validateConfig(rawConfig || base?.config || LocalActions.defaultConfig());
     if (!validation.ok) throw new Error(validation.errors.join("\n"));
-    const profile = LocalActions.createProfile(name || "New local actions", validation.config);
+    const profileName = manualProfileName(store.profiles, name, null, "Local action", "New local actions");
+    const profile = LocalActions.createProfile(profileName, validation.config);
     store.profiles.push(profile);
     const saved = await saveLocalActionStore(store);
     await broadcast("local-action-profile-created");
@@ -4126,27 +4219,45 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     if (!validation.ok) throw new Error(validation.errors.join("\n"));
     const index = store.profiles.findIndex((item) => item.id === profile.id);
     if (index < 0) throw new Error("Local-action profile not found.");
+    profile.name = manualProfileName(store.profiles, profile.name, profile.id, "Local action", store.profiles[index].name);
     profile.config = validation.config;
     profile.createdAt = store.profiles[index].createdAt;
     profile.updatedAt = LocalActions.nowIso();
+    await createSettingsSnapshot("before_local_action_profile_save", `Before saving Local action profile: ${store.profiles[index].name}`);
     store.profiles[index] = profile;
     const saved = await saveLocalActionStore(store);
     for (const session of sessions.values()) {
       if (session.localActionProfileId !== profile.id || session.localActionConfigMode !== CONFIG_MODE.PROFILE) continue;
-      clearWorkingLocalActionSnapshot(session);
+      const preservedDraft = captureWorkingLocalActionDraft(session);
       session.localActionRevision = Number(session.localActionRevision || 0) + 1;
+      if (preservedDraft) restoreWorkingLocalActionDraft(session, preservedDraft);
+      else clearWorkingLocalActionSnapshot(session);
       await persistSession(session);
     }
     await broadcast("local-action-profile-saved");
     return saved;
   }
 
+  async function setDefaultLocalActionProfile(profileId) {
+    const store = await loadLocalActionStore();
+    const profile = LocalActions.profileById(store, profileId);
+    if (!profile) throw new Error("Local-action profile not found.");
+    if (store.defaultProfileId === profile.id) return { store, profile };
+    await createSettingsSnapshot("before_local_action_default_change", `Before setting default Local action profile: ${profile.name}`);
+    store.defaultProfileId = profile.id;
+    const saved = await saveLocalActionStore(store);
+    await broadcast("local-action-default-profile-changed");
+    return { store: saved, profile: LocalActions.profileById(saved, profile.id) };
+  }
+
   async function deleteLocalActionProfile(profileId) {
     const store = await loadLocalActionStore();
     if (store.profiles.length <= 1) throw new Error("At least one local-action profile must remain.");
+    if (store.defaultProfileId === profileId) throw new Error("Choose another default Local action profile before deleting this one.");
     const profileToDelete = LocalActions.profileById(store, profileId);
     if (!profileToDelete) throw new Error("Local-action profile not found.");
     const previousStore = LocalActions.clone(store);
+    await createSettingsSnapshot("before_local_action_profile_delete", `Before deleting Local action profile: ${profileToDelete.name}`);
     store.profiles = store.profiles.filter((item) => item.id !== profileId);
     if (store.defaultProfileId === profileId) store.defaultProfileId = store.profiles[0].id;
     const saved = await saveLocalActionStore(store);
@@ -4194,17 +4305,20 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
   async function createComponentProfile(type, name, rawConfig) {
     const store = await loadStore();
+    const collection = type === "monitor" ? store.monitorProfiles : (type === "target" ? store.targetProfiles : null);
+    if (!collection) throw new Error(`Unsupported component profile type: ${type}.`);
+    const label = type === "monitor" ? "Monitor" : "Target";
+    const fallbackName = type === "monitor" ? "New monitor profile" : "New target profile";
+    const profileName = manualProfileName(collection, name, null, label, fallbackName);
     let profile;
     if (type === "monitor") {
-      profile = Settings.createMonitorProfile(name || "New monitor profile", rawConfig || Settings.defaultMonitorConfig());
+      profile = Settings.createMonitorProfile(profileName, rawConfig || Settings.defaultMonitorConfig());
       validateComponentProfile(type, profile);
       store.monitorProfiles.push(profile);
-    } else if (type === "target") {
-      profile = Settings.createTargetProfile(name || "New target profile", rawConfig || Settings.defaultTargetConfig());
+    } else {
+      profile = Settings.createTargetProfile(profileName, rawConfig || Settings.defaultTargetConfig());
       validateComponentProfile(type, profile);
       store.targetProfiles.push(profile);
-    } else {
-      throw new Error(`Unsupported component profile type: ${type}.`);
     }
     await saveStore(store);
     await broadcast(`${type}-profile-created`);
@@ -4218,6 +4332,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     const collection = type === "monitor" ? store.monitorProfiles : store.targetProfiles;
     const index = collection.findIndex((item) => item.id === profile.id);
     if (index < 0) throw new Error(`${type === "monitor" ? "Monitor" : "Target"} profile not found.`);
+    const label = type === "monitor" ? "Monitor" : "Target";
+    profile.name = manualProfileName(collection, profile.name, profile.id, label, collection[index].name);
     profile.createdAt = collection[index].createdAt;
     profile.updatedAt = Settings.nowIso();
     await createSettingsSnapshot("before_component_profile_save", `Before saving ${type} profile: ${collection[index].name}`, store);
@@ -4227,6 +4343,21 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return profile;
   }
 
+  async function setDefaultComponentProfile(type, profileId) {
+    const store = await loadStore();
+    const collectionKey = type === "monitor" ? "monitorProfiles" : (type === "target" ? "targetProfiles" : null);
+    const defaultKey = type === "monitor" ? "defaultMonitorProfileId" : (type === "target" ? "defaultTargetProfileId" : null);
+    if (!collectionKey) throw new Error(`Unsupported component profile type: ${type}.`);
+    const profile = store[collectionKey].find((item) => item.id === profileId) || null;
+    if (!profile) throw new Error(`${type === "monitor" ? "Monitor" : "Target"} profile not found.`);
+    if (store[defaultKey] === profile.id) return { store, profile };
+    await createSettingsSnapshot("before_component_default_change", `Before setting default ${type} profile: ${profile.name}`, store);
+    store[defaultKey] = profile.id;
+    const saved = await saveStore(store);
+    await broadcast(`${type}-default-profile-changed`);
+    return { store: saved, profile: saved[collectionKey].find((item) => item.id === profile.id) || profile };
+  }
+
   async function deleteComponentProfile(type, profileId) {
     const store = await loadStore();
     const collectionKey = type === "monitor" ? "monitorProfiles" : (type === "target" ? "targetProfiles" : null);
@@ -4234,33 +4365,60 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     if (!collectionKey) throw new Error(`Unsupported component profile type: ${type}.`);
     const collection = store[collectionKey];
     if (collection.length <= 1) throw new Error(`At least one ${type} profile must remain.`);
+    if (store[defaultKey] === profileId) {
+      throw new Error(`Choose another default ${type === "monitor" ? "Monitor" : "Target"} profile before deleting this one.`);
+    }
     const profileToDelete = collection.find((item) => item.id === profileId);
     if (!profileToDelete) throw new Error(`${type} profile not found.`);
     await createSettingsSnapshot("before_component_profile_delete", `Before deleting ${type} profile: ${profileToDelete.name}`, store);
     store[collectionKey] = collection.filter((item) => item.id !== profileId);
-    if (store[defaultKey] === profileId) store[defaultKey] = store[collectionKey][0].id;
     await saveStore(store);
     await broadcast(`${type}-profile-deleted`);
   }
 
-  function upsertProfiles(existing, incoming, normalize) {
+  function uniqueImportedProfileName(existingProfiles, requestedName) {
+    const base = String(requestedName || "Imported profile").trim() || "Imported profile";
+    const occupied = new Set(existingProfiles.map((profile) => String(profile?.name || "").trim().toLocaleLowerCase()));
+    if (!occupied.has(base.toLocaleLowerCase())) return base;
+    const importedBase = `${base} (imported)`;
+    if (!occupied.has(importedBase.toLocaleLowerCase())) return importedBase;
+    let index = 2;
+    while (occupied.has(`${importedBase} ${index}`.toLocaleLowerCase())) index += 1;
+    return `${importedBase} ${index}`;
+  }
+
+  function mergeImportedProfilesSafely(existing, incoming, operations) {
     const result = existing.map((item) => Settings.clone(item));
     let created = 0;
-    let updated = 0;
+    let skipped = 0;
+    let collisionCopies = 0;
+    let renamed = 0;
     for (const rawProfile of incoming) {
-      const profile = normalize(rawProfile);
-      const index = result.findIndex((item) => item.id === profile.id);
-      if (index >= 0) {
-        profile.createdAt = result[index].createdAt || profile.createdAt;
-        profile.updatedAt = Settings.nowIso();
-        result[index] = profile;
-        updated += 1;
-      } else {
-        result.push(profile);
-        created += 1;
+      const profile = operations.normalize(rawProfile);
+      const fingerprint = operations.fingerprint(profile);
+      const normalizedName = String(profile.name || "Profile").trim() || "Profile";
+      const existingById = result.find((item) => item.id === profile.id) || null;
+      const equivalent = result.find((item) =>
+        String(item.name || "").trim().toLocaleLowerCase() === normalizedName.toLocaleLowerCase() &&
+        operations.fingerprint(item) === fingerprint
+      ) || null;
+      if (equivalent || (existingById &&
+        String(existingById.name || "").trim() === normalizedName &&
+        operations.fingerprint(existingById) === fingerprint)) {
+        skipped += 1;
+        continue;
       }
+      let id = profile.id;
+      if (existingById) {
+        id = operations.makeId();
+        collisionCopies += 1;
+      }
+      const name = uniqueImportedProfileName(result, normalizedName);
+      if (name !== normalizedName) renamed += 1;
+      result.push(operations.create(profile, id, name));
+      created += 1;
     }
-    return { profiles: result, created, updated };
+    return { profiles: result, created, updated: 0, skipped, collisionCopies, renamed };
   }
 
   async function exportProfileBundle(type) {
@@ -4287,22 +4445,29 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
     if (type === "local-action") {
       const store = await loadLocalActionStore();
-      const merged = upsertProfiles(store.profiles, bundle.profiles, (item) => {
-        const profile = LocalActions.normalizeProfile(item);
-        const validation = LocalActions.validateConfig(profile.config);
-        if (!validation.ok) throw new Error(validation.errors.join("\n"));
-        profile.config = validation.config;
-        return profile;
+      const merged = mergeImportedProfilesSafely(store.profiles, bundle.profiles, {
+        normalize(item) {
+          const profile = LocalActions.normalizeProfile(item);
+          const validation = LocalActions.validateConfig(profile.config);
+          if (!validation.ok) throw new Error(validation.errors.join("\n"));
+          profile.config = validation.config;
+          return profile;
+        },
+        fingerprint(profile) {
+          return WorkingSession.localActionConfigFingerprint(profile.config);
+        },
+        makeId() {
+          return LocalActions.makeId("local-profile");
+        },
+        create(profile, id, name) {
+          return LocalActions.createProfile(name, profile.config, id);
+        }
       });
       store.profiles = merged.profiles;
-      if (bundle.defaultProfileId && store.profiles.some((item) => item.id === bundle.defaultProfileId)) {
-        store.defaultProfileId = bundle.defaultProfileId;
-      } else if (!store.profiles.some((item) => item.id === store.defaultProfileId)) {
-        store.defaultProfileId = store.profiles[0].id;
-      }
-      await saveLocalActionStore(store);
       // Imported profile data must not erase per-tab working drafts or frozen download/shell values.
-      // Profile-mode tabs resolve the updated profile from storage on the next dashboard render.
+      // Profile-bundle import is intentionally non-destructive: keep the local default,
+      // existing profile IDs and running tabs.
+      await saveLocalActionStore(store);
       await broadcast("local-action-profiles-imported");
       return merged;
     }
@@ -4311,48 +4476,67 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     await createSettingsSnapshot("before_profile_bundle_import", `Before importing ${type} profiles`, store);
     let merged;
     if (type === "configuration") {
-      merged = upsertProfiles(store.profiles, bundle.profiles, (item) => {
-        const profile = Settings.normalizeProfile(item);
-        const validation = Settings.validateConfig(profile.config);
-        if (!validation.ok) throw new Error(validation.errors.join("\n"));
-        profile.config = validation.config;
-        return profile;
+      merged = mergeImportedProfilesSafely(store.profiles, bundle.profiles, {
+        normalize(item) {
+          const profile = Settings.normalizeProfile(item);
+          const validation = Settings.validateConfig(profile.config);
+          if (!validation.ok) throw new Error(validation.errors.join("\n"));
+          profile.config = validation.config;
+          return profile;
+        },
+        fingerprint(profile) {
+          return WorkingSession.configFingerprint(profile.config);
+        },
+        makeId() {
+          return Settings.makeId("profile");
+        },
+        create(profile, id, name) {
+          return Settings.createProfile(name, profile.config, id);
+        }
       });
       store.profiles = merged.profiles;
-      if (bundle.defaultProfileId && store.profiles.some((item) => item.id === bundle.defaultProfileId)) {
-        store.defaultProfileId = bundle.defaultProfileId;
-      } else if (!store.profiles.some((item) => item.id === store.defaultProfileId)) {
-        store.defaultProfileId = store.profiles[0].id;
-      }
     } else if (type === "monitor") {
-      merged = upsertProfiles(store.monitorProfiles, bundle.profiles, (item) => {
-        const profile = Settings.normalizeMonitorProfile(item);
-        validateComponentProfile(type, profile);
-        return profile;
+      merged = mergeImportedProfilesSafely(store.monitorProfiles, bundle.profiles, {
+        normalize(item) {
+          const profile = Settings.normalizeMonitorProfile(item);
+          validateComponentProfile(type, profile);
+          return profile;
+        },
+        fingerprint(profile) {
+          return JSON.stringify(profile.monitor);
+        },
+        makeId() {
+          return Settings.makeId("monitor-profile");
+        },
+        create(profile, id, name) {
+          return Settings.createMonitorProfile(name, profile.monitor, id);
+        }
       });
       store.monitorProfiles = merged.profiles;
-      if (bundle.defaultProfileId && store.monitorProfiles.some((item) => item.id === bundle.defaultProfileId)) {
-        store.defaultMonitorProfileId = bundle.defaultProfileId;
-      } else if (!store.monitorProfiles.some((item) => item.id === store.defaultMonitorProfileId)) {
-        store.defaultMonitorProfileId = store.monitorProfiles[0].id;
-      }
     } else if (type === "target") {
-      merged = upsertProfiles(store.targetProfiles, bundle.profiles, (item) => {
-        const profile = Settings.normalizeTargetProfile(item);
-        validateComponentProfile(type, profile);
-        return profile;
+      merged = mergeImportedProfilesSafely(store.targetProfiles, bundle.profiles, {
+        normalize(item) {
+          const profile = Settings.normalizeTargetProfile(item);
+          validateComponentProfile(type, profile);
+          return profile;
+        },
+        fingerprint(profile) {
+          return JSON.stringify(profile.target);
+        },
+        makeId() {
+          return Settings.makeId("target-profile");
+        },
+        create(profile, id, name) {
+          return Settings.createTargetProfile(name, profile.target, id);
+        }
       });
       store.targetProfiles = merged.profiles;
-      if (bundle.defaultProfileId && store.targetProfiles.some((item) => item.id === bundle.defaultProfileId)) {
-        store.defaultTargetProfileId = bundle.defaultProfileId;
-      } else if (!store.targetProfiles.some((item) => item.id === store.defaultTargetProfileId)) {
-        store.defaultTargetProfileId = store.targetProfiles[0].id;
-      }
     } else {
       throw new Error(`Unsupported profile type: ${type}.`);
     }
-    const saved = await saveStore(store);
-    if (type === "configuration") await refreshSessionsForStore(saved);
+    await saveStore(store);
+    // Do not adopt the bundle's default profile and do not refresh active sessions.
+    // Imports add safe library copies only; applying a profile remains explicit.
     await broadcast(`${type}-profiles-imported`);
     return merged;
   }
@@ -4362,7 +4546,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     const base = Settings.profileById(store, baseProfileId);
     const validation = Settings.validateConfig(rawConfig || base?.config || Settings.defaultConfig());
     if (!validation.ok) throw new Error(validation.errors.join("\n"));
-    const profile = Settings.createProfile(name, validation.config);
+    const profileName = manualProfileName(store.profiles, name, null, "Automation", "New profile");
+    const profile = Settings.createProfile(profileName, validation.config);
     store.profiles.push(profile);
     const saved = await saveStore(store);
     await broadcast("profile-created");
@@ -4382,6 +4567,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     if (index < 0) {
       throw new Error("Could not find the profile to save.");
     }
+    incoming.name = manualProfileName(store.profiles, incoming.name, incoming.id, "Automation", store.profiles[index].name);
     incoming.createdAt = store.profiles[index].createdAt;
     await createSettingsSnapshot("before_profile_save", `Before saving profile: ${store.profiles[index].name}`, store);
     store.profiles[index] = incoming;
@@ -4395,6 +4581,18 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     await broadcast("profile-saved");
     scheduleAutoActivationScan("profile-saved", 80);
     return saved;
+  }
+
+  async function setDefaultProfile(profileId) {
+    const store = await loadStore();
+    const profile = Settings.profileById(store, profileId);
+    if (!profile) throw new Error("Automation profile not found.");
+    if (store.defaultProfileId === profile.id) return { store, profile };
+    await createSettingsSnapshot("before_default_profile_change", `Before setting default profile: ${profile.name}`, store);
+    store.defaultProfileId = profile.id;
+    const saved = await saveStore(store);
+    await broadcast("default-profile-changed");
+    return { store: saved, profile: Settings.profileById(saved, profile.id) };
   }
 
   async function deleteProfile(profileId) {
@@ -4417,24 +4615,318 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return { store: saved, profile: profileToDelete, preservedTabs };
   }
 
-  async function refreshSessionsForStore(saved) {
-    for (const session of sessions.values()) {
-      if (!Settings.profileById(saved, session.profileId)) {
-        session.profileId = saved.defaultProfileId;
-        session.configMode = CONFIG_MODE.PROFILE;
-        session.tabConfig = null;
+  async function refreshSessionsForStore(previousStore, saved, reason = "configuration replacement") {
+    // Full configuration import/recovery changes the global Automation library, not the
+    // effective values of tabs that are already open. If a referenced profile was
+    // removed or changed, preserve that tab's previous effective values as a tab
+    // override and rebase only the profile reference used as its library fallback.
+    const report = { preservedActiveTabs: 0, preservedStoppedTabs: 0 };
+    const tabs = await browser.tabs.query({});
+    for (const tab of tabs) {
+      if (!Number.isInteger(tab?.id)) continue;
+      const session = sessions.get(tab.id);
+      if (session) {
+        const previousEffective = Settings.normalizeConfig(sessionConfig(session, previousStore));
+        const referencedProfile = Settings.profileById(saved, session.profileId);
+        const profileStillMatches = Boolean(referencedProfile) &&
+          configFingerprint(referencedProfile.config) === configFingerprint(previousEffective);
+        let preserved = false;
+
+        if (session.configMode === CONFIG_MODE.TAB) {
+          session.tabConfig = Settings.normalizeConfig(session.tabConfig || previousEffective);
+          if (!referencedProfile) {
+            const replacement = replacementAutomationProfile(saved, session.url || tab.url || "");
+            if (!replacement) throw new Error("No Automation profile is available after configuration replacement.");
+            session.profileId = replacement.id;
+            preserved = true;
+          }
+        } else if (!profileStillMatches) {
+          const replacement = referencedProfile || replacementAutomationProfile(saved, session.url || tab.url || "");
+          if (!replacement) throw new Error("No Automation profile is available after configuration replacement.");
+          session.profileId = replacement.id;
+          session.configMode = CONFIG_MODE.TAB;
+          session.tabConfig = previousEffective;
+          preserved = true;
+        }
+
+        if (preserved) {
+          appendLog(session, "user", "configuration-library-replaced-config-preserved", `${reason}: current automation values were preserved as a tab override.`);
+          report.preservedActiveTabs += 1;
+        }
+        session.configRevision += 1;
+        await persistSession(session);
+        await updateBadge(session, saved);
+        continue;
       }
-      session.configRevision += 1;
-      await applySessionToContent(session, saved);
-      await persistSession(session);
-      await updateBadge(session, saved);
+
+      const snapshot = await loadStoppedTabConfigSnapshot(tab.id);
+      if (!snapshot) continue;
+      const referencedProfile = Settings.profileById(saved, snapshot.profileId);
+      const profileStillMatches = Boolean(referencedProfile) &&
+        configFingerprint(referencedProfile.config) === configFingerprint(snapshot.effectiveConfig);
+      const needsPreservation = !referencedProfile ||
+        (snapshot.configMode === CONFIG_MODE.PROFILE && !profileStillMatches);
+      if (!needsPreservation) continue;
+      const replacement = referencedProfile || replacementAutomationProfile(saved, tab.url || snapshot.url || "");
+      if (!replacement) throw new Error("No Automation profile is available after configuration replacement.");
+      await saveStoppedTabConfigSnapshot(tab.id, {
+        ...snapshot,
+        profileId: replacement.id,
+        configMode: CONFIG_MODE.TAB,
+        tabConfig: snapshot.effectiveConfig,
+        effectiveConfig: snapshot.effectiveConfig
+      });
+      report.preservedStoppedTabs += 1;
     }
+    return report;
+  }
+
+  async function refreshSessionsForLocalActionStore(previousStore, savedStore, reason = "Local action configuration replacement") {
+    // Full configuration replacement changes the global Local action library, but it must
+    // not silently change download/shell values for tabs that are already active or stopped.
+    const report = { preservedActiveTabs: 0, preservedStoppedTabs: 0, clearedBindings: 0 };
+    const tabs = await browser.tabs.query({});
+    for (const tab of tabs) {
+      if (!Number.isInteger(tab?.id)) continue;
+      let explicitProfileId = null;
+      try {
+        explicitProfileId = await browser.sessions.getTabValue(tab.id, TAB_LOCAL_ACTION_PROFILE_KEY);
+      } catch (_error) {
+        explicitProfileId = null;
+      }
+      const explicitMissing = Boolean(explicitProfileId) && !LocalActions.profileById(savedStore, explicitProfileId);
+      if (explicitMissing) {
+        await clearTabLocalActionProfileId(tab.id);
+        report.clearedBindings += 1;
+      }
+
+      const session = sessions.get(tab.id);
+      if (session) {
+        const previousProfile = LocalActions.profileById(previousStore, session.localActionProfileId);
+        const referencedProfile = LocalActions.profileById(savedStore, session.localActionProfileId);
+        const profileStillMatches = Boolean(previousProfile && referencedProfile) &&
+          LocalActions.configFingerprint(previousProfile.config) === LocalActions.configFingerprint(referencedProfile.config);
+        const resolution = sessionLocalActionResolution(session, previousStore);
+        const hasWorkingDraft = resolution.source === "tab-working-draft" || resolution.source === "tab-working-snapshot";
+        const preservedDraft = hasWorkingDraft ? captureWorkingLocalActionDraft(session) : null;
+        let preserved = false;
+        let changed = false;
+
+        if (!referencedProfile) {
+          const replacement = replacementLocalActionProfile(savedStore, session.url || tab.url || "");
+          if (!replacement.profile) throw new Error("No Local action profile is available after configuration replacement.");
+          session.localActionProfileId = replacement.profile.id;
+          if (session.localActionConfigMode === CONFIG_MODE.PROFILE && !hasWorkingDraft) {
+            session.localActionConfigMode = CONFIG_MODE.TAB;
+            session.localActionTabConfig = LocalActions.normalizeConfig(resolution.config);
+            preserved = true;
+          }
+          changed = true;
+        } else if (session.localActionConfigMode === CONFIG_MODE.PROFILE && !profileStillMatches && !hasWorkingDraft) {
+          session.localActionConfigMode = CONFIG_MODE.TAB;
+          session.localActionTabConfig = LocalActions.normalizeConfig(resolution.config);
+          preserved = true;
+          changed = true;
+        }
+
+        if (changed) {
+          session.localActionRevision = Number(session.localActionRevision || 0) + 1;
+          if (preservedDraft) restoreWorkingLocalActionDraft(session, preservedDraft);
+          if (preserved) {
+            appendLog(session, "user", "local-action-library-replaced-config-preserved", `${reason}: current download and shell values were preserved as a tab override.`);
+            report.preservedActiveTabs += 1;
+          }
+          await persistSession(session);
+        }
+        continue;
+      }
+
+      const snapshot = await loadStoppedTabConfigSnapshot(tab.id);
+      if (!snapshot) continue;
+      const previousProfile = LocalActions.profileById(previousStore, snapshot.localActionProfileId);
+      const referencedProfile = LocalActions.profileById(savedStore, snapshot.localActionProfileId);
+      const profileStillMatches = Boolean(previousProfile && referencedProfile) &&
+        LocalActions.configFingerprint(previousProfile.config) === LocalActions.configFingerprint(referencedProfile.config);
+      const hasWorkingDraft = Boolean(snapshot.localActionWorkingConfig);
+      let next = { ...snapshot };
+      let changed = false;
+      let preserved = false;
+
+      if (!referencedProfile) {
+        const replacement = replacementLocalActionProfile(savedStore, tab.url || snapshot.url || "");
+        if (!replacement.profile) throw new Error("No Local action profile is available after configuration replacement.");
+        next.localActionProfileId = replacement.profile.id;
+        next.localActionBinding = replacement.binding;
+        if (snapshot.localActionConfigMode === CONFIG_MODE.PROFILE && !hasWorkingDraft) {
+          next.localActionConfigMode = CONFIG_MODE.TAB;
+          next.localActionTabConfig = LocalActions.normalizeConfig(snapshot.effectiveLocalActions);
+          preserved = true;
+        }
+        changed = true;
+      } else if (snapshot.localActionConfigMode === CONFIG_MODE.PROFILE && !profileStillMatches && !hasWorkingDraft) {
+        next.localActionConfigMode = CONFIG_MODE.TAB;
+        next.localActionTabConfig = LocalActions.normalizeConfig(snapshot.effectiveLocalActions);
+        preserved = true;
+        changed = true;
+      }
+
+      if (changed) {
+        next.effectiveLocalActions = LocalActions.normalizeConfig(snapshot.effectiveLocalActions);
+        await saveStoppedTabConfigSnapshot(tab.id, next);
+        if (preserved) report.preservedStoppedTabs += 1;
+      }
+    }
+    return report;
+  }
+
+  async function commitFullConfigurationBundle(bundle) {
+    const normalized = ConfigurationBundle.normalizeBundle(bundle);
+    const [previousAutomationStore, previousLocalActionStore, previousCommandPresetStore, previousPromptTemplateStore, sidebarResult] = await Promise.all([
+      loadStore(),
+      loadLocalActionStore(),
+      loadCommandPresetStore(),
+      PromptTemplates.loadStore(browser),
+      browser.storage.local.get(ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY)
+    ]);
+
+    const savedAutomationStore = Settings.normalizeStore(normalized.automationStore);
+    savedAutomationStore.revision += 1;
+    const savedLocalActionStore = LocalActions.normalizeStore(normalized.localActionStore);
+    savedLocalActionStore.revision += 1;
+    const savedCommandPresetStore = CommandPresets.normalizeStore(normalized.commandPresetStore);
+    const savedPromptTemplateStore = PromptTemplates.normalizeStore(normalized.promptTemplateStore);
+    const preferences = ConfigurationBundle.normalizeSidebarPreferences(normalized.sidebarPreferences);
+    const existingSidebarPreferences = sidebarResult[ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY] && typeof sidebarResult[ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY] === "object"
+      ? sidebarResult[ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY]
+      : {};
+    const savedSidebarPreferences = {
+      ...existingSidebarPreferences,
+      collapsedGroups: preferences.collapsedGroups,
+      featurePreset: preferences.featurePreset,
+      visibleFeatures: preferences.visibleFeatures,
+      autoProfileByUrl: preferences.autoProfileByUrl
+    };
+
+    const nextPayload = {
+      [Settings.STORAGE_KEY]: savedAutomationStore,
+      [LocalActions.STORAGE_KEY]: savedLocalActionStore,
+      [CommandPresets.STORAGE_KEY]: savedCommandPresetStore,
+      [PromptTemplates.STORAGE_KEY]: savedPromptTemplateStore,
+      [ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY]: savedSidebarPreferences
+    };
+    const rollbackPayload = {
+      [Settings.STORAGE_KEY]: previousAutomationStore,
+      [LocalActions.STORAGE_KEY]: previousLocalActionStore,
+      [CommandPresets.STORAGE_KEY]: previousCommandPresetStore,
+      [PromptTemplates.STORAGE_KEY]: previousPromptTemplateStore,
+      [ConfigurationBundle.SIDEBAR_UI_STORAGE_KEY]: existingSidebarPreferences
+    };
+
+    try {
+      // One storage write keeps the five reusable/global configuration stores on one commit boundary.
+      await browser.storage.local.set(nextPayload);
+    } catch (error) {
+      // Storage-provider failures can be ambiguous. Restore the previous coherent
+      // five-store payload before surfacing the error whenever rollback is possible.
+      try {
+        await browser.storage.local.set(rollbackPayload);
+      } catch (rollbackError) {
+        throw new Error(`Full configuration commit failed and rollback also failed: ${error instanceof Error ? error.message : String(error)}; rollback: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`);
+      }
+      throw new Error(`Full configuration commit failed; previous configuration was restored: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    // Do not advance in-memory caches until the multi-key storage commit succeeds.
+    storePromise = Promise.resolve(savedAutomationStore);
+    localActionStorePromise = Promise.resolve(savedLocalActionStore);
+    return {
+      previousAutomationStore,
+      previousLocalActionStore,
+      savedAutomationStore: clone(savedAutomationStore),
+      savedLocalActionStore: LocalActions.clone(savedLocalActionStore),
+      savedCommandPresetStore: CommandPresets.clone(savedCommandPresetStore),
+      savedPromptTemplateStore: PromptTemplates.clone(savedPromptTemplateStore),
+      savedSidebarPreferences: ConfigurationBundle.clone(preferences)
+    };
+  }
+
+  async function replaceFullConfigurationBundle(bundle, reason = "Full configuration replacement") {
+    const committed = await commitFullConfigurationBundle(bundle);
+    const [automationPreservation, localActionPreservation] = await Promise.all([
+      refreshSessionsForStore(committed.previousAutomationStore, committed.savedAutomationStore, reason),
+      refreshSessionsForLocalActionStore(committed.previousLocalActionStore, committed.savedLocalActionStore, reason)
+    ]);
+    return {
+      store: committed.savedAutomationStore,
+      localActionStore: committed.savedLocalActionStore,
+      automationPreservation,
+      localActionPreservation
+    };
+  }
+
+  async function previewSettingsImport(text) {
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      throw new Error(`The selected configuration file is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "format")) {
+      if (!ConfigurationBundle.isBundle(parsed)) {
+        throw new Error("The selected file uses an unsupported Firefox ChatAI Assistant configuration-bundle format or version.");
+      }
+      const bundle = ConfigurationBundle.normalizeBundle(parsed);
+      return {
+        scope: "all-configuration",
+        automationProfiles: bundle.automationStore.profiles.length,
+        monitorProfiles: bundle.automationStore.monitorProfiles.length,
+        targetProfiles: bundle.automationStore.targetProfiles.length,
+        localActionProfiles: bundle.localActionStore.profiles.length,
+        commandPresets: bundle.commandPresetStore.presets.length,
+        customPromptTemplates: bundle.promptTemplateStore.customTemplates.length,
+        sidebarFeaturePreset: bundle.sidebarPreferences.featurePreset,
+        visibleSidebarFeatures: bundle.sidebarPreferences.visibleFeatures.length
+      };
+    }
+
+    const store = Settings.normalizeStore(parsed);
+    return {
+      scope: "legacy-automation-only",
+      automationProfiles: store.profiles.length,
+      monitorProfiles: store.monitorProfiles.length,
+      targetProfiles: store.targetProfiles.length,
+      localActionProfiles: null,
+      commandPresets: null,
+      customPromptTemplates: null,
+      sidebarFeaturePreset: null,
+      visibleSidebarFeatures: null
+    };
   }
 
   async function importSettings(text) {
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      throw new Error(`The selected configuration file is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "format")) {
+      if (!ConfigurationBundle.isBundle(parsed)) {
+        throw new Error("The selected file uses an unsupported Firefox ChatAI Assistant configuration-bundle format or version.");
+      }
+      await createSettingsSnapshot("before_full_configuration_import", "Before full configuration import");
+      const importedBundle = ConfigurationBundle.normalizeBundle(parsed);
+      const result = await replaceFullConfigurationBundle(importedBundle, "Full configuration import");
+      await broadcast("settings-imported");
+      return { ...result, scope: "all-configuration" };
+    }
+
+    // Backward compatibility: releases before v0.40.9 exported only the Automation store.
     const current = await loadStore();
-    await createSettingsSnapshot("before_settings_import", "Before configuration import", current);
-    const imported = Settings.importStore(text);
+    await createSettingsSnapshot("before_settings_import", "Before legacy Automation configuration import", current);
+    const imported = Settings.normalizeStore(parsed);
     const saved = await saveStore(imported);
     for (const importedProfile of imported.profiles) {
       const persistedProfile = Settings.profileById(saved, importedProfile.id);
@@ -4443,9 +4935,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       }
       assertPersistedConfig(importedProfile.config, persistedProfile.config, `Import profile ${importedProfile.name}`);
     }
-    await refreshSessionsForStore(saved);
+    const preservation = await refreshSessionsForStore(current, saved, "Legacy Automation configuration import");
     await broadcast("settings-imported");
-    return saved;
+    return { store: saved, preservation, scope: "legacy-automation-only" };
   }
 
   async function restoreSettingsSnapshot(snapshotId) {
@@ -4454,12 +4946,19 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     if (!snapshot) {
       throw new Error("Settings snapshot not found.");
     }
+    await createSettingsSnapshot("before_snapshot_restore", "Before snapshot restore");
+    if (snapshot.configurationBundle) {
+      const result = await replaceFullConfigurationBundle(snapshot.configurationBundle, "Full recovery snapshot restore");
+      await broadcast("settings-snapshot-restored");
+      return { ...result, scope: "all-configuration" };
+    }
+
+    // Legacy snapshots created before v0.40.9 contain Automation settings only.
     const current = await loadStore();
-    await createSettingsSnapshot("before_snapshot_restore", "Before snapshot restore", current);
     const saved = await saveStore(snapshot.store);
-    await refreshSessionsForStore(saved);
+    const preservation = await refreshSessionsForStore(current, saved, "Legacy Automation recovery snapshot restore");
     await broadcast("settings-snapshot-restored");
-    return saved;
+    return { store: saved, preservation, scope: "legacy-automation-only" };
   }
 
   function supportNativeState() {
@@ -4737,66 +5236,85 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return { catalog: WorkingSession.catalogSummary(saved), report: merged.report };
   }
 
-  function mergeWorkingSessionProfiles(store, bundle) {
-    const saved = Settings.normalizeStore(store);
-    const profileMap = new Map();
-    for (const tab of bundle.tabs) {
-      const incoming = Settings.normalizeProfile(tab.profile, tab.profileId || null);
-      const existingById = Settings.profileById(saved, incoming.id);
-      if (existingById && WorkingSession.configFingerprint(existingById.config) === WorkingSession.configFingerprint(incoming.config)) {
-        profileMap.set(tab.profileId, existingById.id);
-        continue;
-      }
-      const equivalent = saved.profiles.find((profile) =>
-        profile.name === incoming.name &&
-        WorkingSession.configFingerprint(profile.config) === WorkingSession.configFingerprint(incoming.config)
-      );
-      if (equivalent) {
-        profileMap.set(tab.profileId, equivalent.id);
-        continue;
-      }
-      const id = existingById ? Settings.makeId("profile") : incoming.id;
-      const imported = Settings.createProfile(existingById ? `${incoming.name} (session import)` : incoming.name, incoming.config, id);
-      saved.profiles.push(imported);
-      profileMap.set(tab.profileId, imported.id);
-    }
-    return { store: saved, profileMap };
+  function exactWorkingSessionAutomationProfile(store, savedTab) {
+    const profileId = String(savedTab?.profileId || savedTab?.profile?.id || "").trim();
+    if (!profileId) return null;
+    const profile = Settings.profileById(store, profileId);
+    if (!profile) return null;
+    const savedProfileConfig = Settings.normalizeConfig(savedTab?.profile?.config || savedTab?.effectiveConfig);
+    return WorkingSession.configFingerprint(profile.config) === WorkingSession.configFingerprint(savedProfileConfig)
+      ? profile
+      : null;
   }
 
-  function mergeWorkingSessionLocalActionProfiles(store, bundle) {
-    const saved = LocalActions.normalizeStore(store);
-    const profileMap = new Map();
-    for (const tab of bundle.tabs) {
-      const incoming = LocalActions.normalizeProfile(tab.localActionProfile, tab.localActionProfileId || null);
-      const existingById = LocalActions.profileById(saved, incoming.id);
-      if (existingById && WorkingSession.localActionConfigFingerprint(existingById.config) === WorkingSession.localActionConfigFingerprint(incoming.config)) {
-        profileMap.set(tab.localActionProfileId, existingById.id);
-        continue;
-      }
-      const equivalent = saved.profiles.find((profile) =>
-        profile.name === incoming.name &&
-        WorkingSession.localActionConfigFingerprint(profile.config) === WorkingSession.localActionConfigFingerprint(incoming.config)
-      );
-      if (equivalent) {
-        profileMap.set(tab.localActionProfileId, equivalent.id);
-        continue;
-      }
-      const id = existingById ? LocalActions.makeId("local-profile") : incoming.id;
-      const imported = LocalActions.createProfile(existingById ? `${incoming.name} (session import)` : incoming.name, incoming.config, id);
-      saved.profiles.push(imported);
-      profileMap.set(tab.localActionProfileId, imported.id);
+  function workingSessionAutomationRestorePlan(store, savedTab) {
+    const exactProfile = exactWorkingSessionAutomationProfile(store, savedTab);
+    const fallbackProfile = exactProfile || Settings.routeProfile(store, savedTab.url).profile ||
+      Settings.profileById(store, store.defaultProfileId) || store.profiles[0];
+    if (!fallbackProfile) throw new Error("No Automation profile is available for working-session restore.");
+    const requestedMode = savedTab.configMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE;
+    if (requestedMode === CONFIG_MODE.PROFILE && exactProfile) {
+      return { profileId: exactProfile.id, configMode: CONFIG_MODE.PROFILE, tabConfig: null, source: "existing-profile" };
     }
-    return { store: saved, profileMap };
+    const tabConfig = Settings.normalizeConfig(
+      requestedMode === CONFIG_MODE.TAB
+        ? (savedTab.tabConfig || savedTab.effectiveConfig || savedTab.profile?.config)
+        : (savedTab.effectiveConfig || savedTab.profile?.config)
+    );
+    return {
+      profileId: fallbackProfile.id,
+      configMode: CONFIG_MODE.TAB,
+      tabConfig,
+      source: requestedMode === CONFIG_MODE.TAB ? "saved-tab-override" : "session-snapshot"
+    };
+  }
+
+  function exactWorkingSessionLocalActionProfile(localStore, savedTab) {
+    const profileId = String(savedTab?.localActionProfileId || savedTab?.localActionProfile?.id || "").trim();
+    if (!profileId) return null;
+    const profile = LocalActions.profileById(localStore, profileId);
+    if (!profile) return null;
+    const savedProfileConfig = LocalActions.normalizeConfig(savedTab?.localActionProfile?.config || savedTab?.effectiveLocalActions);
+    return WorkingSession.localActionConfigFingerprint(profile.config) === WorkingSession.localActionConfigFingerprint(savedProfileConfig)
+      ? profile
+      : null;
+  }
+
+  function workingSessionLocalActionRestorePlan(localStore, savedTab) {
+    const exactProfile = exactWorkingSessionLocalActionProfile(localStore, savedTab);
+    const fallbackProfile = exactProfile || LocalActions.routeProfile(localStore, savedTab.url).profile ||
+      LocalActions.profileById(localStore, localStore.defaultProfileId) || localStore.profiles[0];
+    if (!fallbackProfile) throw new Error("No Local action profile is available for working-session restore.");
+    const requestedMode = savedTab.localActionConfigMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE;
+    if (requestedMode === CONFIG_MODE.PROFILE && exactProfile) {
+      return { profileId: exactProfile.id, configMode: CONFIG_MODE.PROFILE, tabConfig: null, source: "existing-profile" };
+    }
+    const tabConfig = LocalActions.normalizeConfig(
+      requestedMode === CONFIG_MODE.TAB
+        ? (savedTab.localActionTabConfig || savedTab.effectiveLocalActions || savedTab.localActionProfile?.config)
+        : (savedTab.effectiveLocalActions || savedTab.localActionProfile?.config)
+    );
+    return {
+      profileId: fallbackProfile.id,
+      configMode: CONFIG_MODE.TAB,
+      tabConfig,
+      source: requestedMode === CONFIG_MODE.TAB ? "saved-tab-override" : "session-snapshot"
+    };
   }
 
   async function importWorkingSession(text) {
     const bundle = WorkingSession.parse(text);
-    const [currentStore, currentLocalStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
-    await createSettingsSnapshot("before_working_session_import", "Before working session import", currentStore);
-    const merged = mergeWorkingSessionProfiles(currentStore, bundle);
-    const mergedLocal = mergeWorkingSessionLocalActionProfiles(currentLocalStore, bundle);
-    const [store, localStore] = await Promise.all([saveStore(merged.store), saveLocalActionStore(mergedLocal.store)]);
-    const report = { restored: 0, openedTabIds: [], failed: [] };
+    // Working-session restore is intentionally session-scoped. The embedded
+    // profile/config snapshots are used only to recreate each tab's effective
+    // state; they never create, overwrite, rename or select global profiles.
+    const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
+    const report = {
+      restored: 0,
+      openedTabIds: [],
+      failed: [],
+      automationSnapshotFallbacks: 0,
+      localActionSnapshotFallbacks: 0
+    };
 
     for (const [index, savedTab] of bundle.tabs.entries()) {
       let tab = null;
@@ -4813,23 +5331,21 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         if (!savedTab.addOnActive) {
           continue;
         }
-        const profileId = merged.profileMap.get(savedTab.profileId) || store.defaultProfileId;
-        const localActionProfileId = mergedLocal.profileMap.get(savedTab.localActionProfileId) || localStore.defaultProfileId;
-        const session = makeSession(tab, profileId, "working-session-import", localActionProfileId);
+        const automationPlan = workingSessionAutomationRestorePlan(store, savedTab);
+        const localActionPlan = workingSessionLocalActionRestorePlan(localStore, savedTab);
+        if (automationPlan.source === "session-snapshot") report.automationSnapshotFallbacks += 1;
+        if (localActionPlan.source === "session-snapshot") report.localActionSnapshotFallbacks += 1;
+        const session = makeSession(tab, automationPlan.profileId, "working-session-import", localActionPlan.profileId);
         applyCustomTitleStateToSession(session, {
           customTitle: savedTab.customTitle || "",
           pageTitle: savedTab.pageTitle || savedTab.title || tab.title || "",
           updatedAt: Settings.nowIso()
         }, tab.title || savedTab.pageTitle || savedTab.title || "");
-        session.configMode = savedTab.configMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE;
-        session.tabConfig = session.configMode === CONFIG_MODE.TAB
-          ? Settings.normalizeConfig(savedTab.tabConfig || savedTab.effectiveConfig)
-          : null;
+        session.configMode = automationPlan.configMode;
+        session.tabConfig = automationPlan.tabConfig;
         session.configRevision += 1;
-        session.localActionConfigMode = savedTab.localActionConfigMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE;
-        session.localActionTabConfig = session.localActionConfigMode === CONFIG_MODE.TAB
-          ? LocalActions.normalizeConfig(savedTab.localActionTabConfig || savedTab.effectiveLocalActions)
-          : null;
+        session.localActionConfigMode = localActionPlan.configMode;
+        session.localActionTabConfig = localActionPlan.tabConfig;
         session.localActionRevision += 1;
         if (!(await hasHostPermission(savedTab.url))) {
           throw new Error("Firefox site permission is missing for this URL.");
@@ -5211,6 +5727,11 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
           return { ok: true, deletedProfile: result.profile, preservedTabs: result.preservedTabs, dashboard: await dashboard() };
         }
 
+        case MESSAGE.SET_DEFAULT_PROFILE: {
+          const result = await setDefaultProfile(message.profileId);
+          return { ok: true, defaultProfileId: result.profile.id, dashboard: await dashboard() };
+        }
+
         case MESSAGE.CREATE_COMPONENT_PROFILE: {
           const profile = await createComponentProfile(message.profileType, message.name, message.config);
           return { ok: true, profileType: message.profileType, componentProfileId: profile.id, savedProfile: profile, dashboard: await dashboard() };
@@ -5225,6 +5746,11 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
           await deleteComponentProfile(message.profileType, message.profileId);
           return { ok: true, profileType: message.profileType, dashboard: await dashboard() };
 
+        case MESSAGE.SET_DEFAULT_COMPONENT_PROFILE: {
+          const result = await setDefaultComponentProfile(message.profileType, message.profileId);
+          return { ok: true, profileType: message.profileType, componentProfileId: result.profile.id, dashboard: await dashboard() };
+        }
+
         case MESSAGE.EXPORT_PROFILE_BUNDLE: {
           const bundle = await exportProfileBundle(message.profileType);
           return { ok: true, profileType: message.profileType, text: JSON.stringify(bundle, null, 2), count: bundle.profiles.length };
@@ -5232,7 +5758,17 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
         case MESSAGE.IMPORT_PROFILE_BUNDLE: {
           const result = await importProfileBundle(message.profileType, message.text);
-          return { ok: true, profileType: message.profileType, imported: result.created + result.updated, created: result.created, updated: result.updated, dashboard: await dashboard() };
+          return {
+            ok: true,
+            profileType: message.profileType,
+            imported: result.created,
+            created: result.created,
+            updated: 0,
+            skipped: result.skipped || 0,
+            collisionCopies: result.collisionCopies || 0,
+            renamed: result.renamed || 0,
+            dashboard: await dashboard()
+          };
         }
 
         case MESSAGE.SET_TAB_CUSTOM_TITLE: {
@@ -5241,25 +5777,30 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         }
 
         case MESSAGE.EXPORT_SETTINGS: {
-          const store = await loadStore();
-          return { ok: true, text: Settings.exportStore(store) };
+          const bundle = await buildFullConfigurationBundle();
+          return { ok: true, text: ConfigurationBundle.stringify(bundle), scope: "all-configuration" };
         }
 
         case MESSAGE.EXPORT_SUPPORT_BUNDLE:
           return { ok: true, bundle: await buildSupportBundle() };
 
-        case MESSAGE.IMPORT_SETTINGS:
-          await importSettings(message.text);
-          return { ok: true, dashboard: await dashboard() };
+        case MESSAGE.PREVIEW_SETTINGS_IMPORT:
+          return { ok: true, preview: await previewSettingsImport(message.text) };
+
+        case MESSAGE.IMPORT_SETTINGS: {
+          const result = await importSettings(message.text);
+          return { ok: true, ...result, dashboard: await dashboard() };
+        }
 
         case MESSAGE.CREATE_SETTINGS_SNAPSHOT: {
           const result = await createSettingsSnapshot("manual", message.label || "Manual snapshot");
           return { ok: true, snapshot: result.snapshot, added: result.added, dashboard: await dashboard() };
         }
 
-        case MESSAGE.RESTORE_SETTINGS_SNAPSHOT:
-          await restoreSettingsSnapshot(message.snapshotId);
-          return { ok: true, dashboard: await dashboard() };
+        case MESSAGE.RESTORE_SETTINGS_SNAPSHOT: {
+          const result = await restoreSettingsSnapshot(message.snapshotId);
+          return { ok: true, ...result, dashboard: await dashboard() };
+        }
 
         case MESSAGE.DELETE_SETTINGS_SNAPSHOT:
           await deleteSettingsSnapshot(message.snapshotId);
@@ -5334,6 +5875,11 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         case MESSAGE.DELETE_LOCAL_ACTION_PROFILE: {
           const result = await deleteLocalActionProfile(message.profileId);
           return { ok: true, deletedProfile: result.profile, preservedTabs: result.preservedTabs, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.SET_DEFAULT_LOCAL_ACTION_PROFILE: {
+          const result = await setDefaultLocalActionProfile(message.profileId);
+          return { ok: true, defaultProfileId: result.profile.id, dashboard: await dashboard() };
         }
 
         case MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE: {
@@ -5529,14 +6075,17 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.DUPLICATE_PROFILE,
     MESSAGE.SAVE_PROFILE,
     MESSAGE.DELETE_PROFILE,
+    MESSAGE.SET_DEFAULT_PROFILE,
     MESSAGE.CREATE_COMPONENT_PROFILE,
     MESSAGE.SAVE_COMPONENT_PROFILE,
     MESSAGE.DELETE_COMPONENT_PROFILE,
+    MESSAGE.SET_DEFAULT_COMPONENT_PROFILE,
     MESSAGE.EXPORT_PROFILE_BUNDLE,
     MESSAGE.IMPORT_PROFILE_BUNDLE,
     MESSAGE.SET_TAB_CUSTOM_TITLE,
     MESSAGE.EXPORT_SETTINGS,
     MESSAGE.EXPORT_SUPPORT_BUNDLE,
+    MESSAGE.PREVIEW_SETTINGS_IMPORT,
     MESSAGE.IMPORT_SETTINGS,
     MESSAGE.CREATE_SETTINGS_SNAPSHOT,
     MESSAGE.RESTORE_SETTINGS_SNAPSHOT,
@@ -5569,6 +6118,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.CREATE_LOCAL_ACTION_PROFILE,
     MESSAGE.SAVE_LOCAL_ACTION_PROFILE,
     MESSAGE.DELETE_LOCAL_ACTION_PROFILE,
+    MESSAGE.SET_DEFAULT_LOCAL_ACTION_PROFILE,
     MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE,
     MESSAGE.SAVE_TAB_LOCAL_ACTIONS,
     MESSAGE.RESET_TAB_LOCAL_ACTIONS,
@@ -5596,14 +6146,17 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.DUPLICATE_PROFILE,
     MESSAGE.SAVE_PROFILE,
     MESSAGE.DELETE_PROFILE,
+    MESSAGE.SET_DEFAULT_PROFILE,
     MESSAGE.CREATE_COMPONENT_PROFILE,
     MESSAGE.SAVE_COMPONENT_PROFILE,
     MESSAGE.DELETE_COMPONENT_PROFILE,
+    MESSAGE.SET_DEFAULT_COMPONENT_PROFILE,
     MESSAGE.EXPORT_PROFILE_BUNDLE,
     MESSAGE.IMPORT_PROFILE_BUNDLE,
     MESSAGE.SET_TAB_CUSTOM_TITLE,
     MESSAGE.EXPORT_SETTINGS,
     MESSAGE.EXPORT_SUPPORT_BUNDLE,
+    MESSAGE.PREVIEW_SETTINGS_IMPORT,
     MESSAGE.IMPORT_SETTINGS,
     MESSAGE.CREATE_SETTINGS_SNAPSHOT,
     MESSAGE.RESTORE_SETTINGS_SNAPSHOT,
@@ -5636,6 +6189,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     MESSAGE.CREATE_LOCAL_ACTION_PROFILE,
     MESSAGE.SAVE_LOCAL_ACTION_PROFILE,
     MESSAGE.DELETE_LOCAL_ACTION_PROFILE,
+    MESSAGE.SET_DEFAULT_LOCAL_ACTION_PROFILE,
     MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE,
     MESSAGE.SAVE_TAB_LOCAL_ACTIONS,
     MESSAGE.RESET_TAB_LOCAL_ACTIONS,

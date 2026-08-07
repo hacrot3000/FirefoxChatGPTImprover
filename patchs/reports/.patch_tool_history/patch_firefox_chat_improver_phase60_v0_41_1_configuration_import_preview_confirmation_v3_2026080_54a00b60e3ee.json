@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "patch_key": "patch_firefox_chat_improver_phase60_v0_41_1_configuration_import_preview_confirmation_v3_20260807_1245(1)",
+  "updated_at": "2026-08-07T14:03:23+07:00",
+  "last_run": {
+    "at": "2026-08-07T14:03:23+07:00",
+    "status": "PASS",
+    "mode": "APPLY",
+    "delta_status": "NO_PREVIOUS_FAILURE",
+    "root_causes": []
+  },
+  "last_failure": null
+}

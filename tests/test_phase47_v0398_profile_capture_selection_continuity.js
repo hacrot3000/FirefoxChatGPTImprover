@@ -22,10 +22,10 @@ function versionAtLeast(actual, minimum) {
 }
 
 assert(versionAtLeast(manifest.version, "0.39.8"));
-assert(html.includes('id="newProfileButton" type="button">Save current as new</button>'));
-assert(html.includes('id="saveProfileButton" type="button" class="primary">Save current values</button>'));
-assert(html.includes('id="newLocalActionProfileButton" type="button">Save current as new</button>'));
-assert(html.includes('id="saveLocalActionProfileButton" type="button" class="primary">Save current values</button>'));
+assert(html.includes('id="newProfileButton" type="button">Save as new profile</button>'));
+assert(html.includes('id="saveProfileButton" type="button" class="primary">Save changes</button>'));
+assert(html.includes('id="newLocalActionProfileButton" type="button">Save as new profile</button>'));
+assert(html.includes('id="saveLocalActionProfileButton" type="button" class="primary">Save changes</button>'));
 assert(sidebar.includes("const profileEditorSelectionByTab = new Map();"));
 assert(sidebar.includes("const localActionProfileEditorSelectionByTab = new Map();"));
 assert(sidebar.includes("async function createProfileFromCurrentForm()"));

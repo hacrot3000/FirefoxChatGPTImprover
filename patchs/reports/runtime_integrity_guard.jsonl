@@ -1,0 +1,8 @@
+{"core_returncode": 1, "decision": "sandbox_auto_measure", "event": "sandbox_decision", "guard_version": "5.15.2", "measured_seconds": null, "threshold_seconds": 60.0, "ts": "2026-08-07T14:12:50+0700"}
+{"core_returncode": 1, "decision": "sandbox_auto_measure", "event": "sandbox_decision", "guard_version": "5.15.2", "measured_seconds": null, "threshold_seconds": 60.0, "ts": "2026-08-07T14:13:23+0700"}
+{"core_returncode": 0, "decision": "sandbox_auto_measure", "event": "sandbox_decision", "guard_version": "5.15.2", "measured_seconds": null, "threshold_seconds": 60.0, "ts": "2026-08-07T14:13:28+0700"}
+{"core_returncode": 1, "decision": "sandbox_auto_measure", "event": "sandbox_decision", "guard_version": "5.15.2", "measured_seconds": 0.0, "threshold_seconds": 60.0, "ts": "2026-08-07T14:23:09+0700"}
+{"core_returncode": 0, "decision": "sandbox_auto_measure", "event": "sandbox_decision", "guard_version": "5.15.2", "measured_seconds": null, "threshold_seconds": 60.0, "ts": "2026-08-07T14:23:31+0700"}
+{"core_returncode": 1, "decision": "sandbox_auto_measure", "event": "sandbox_decision", "guard_version": "5.15.2", "measured_seconds": null, "threshold_seconds": 60.0, "ts": "2026-08-07T14:35:24+0700"}
+{"core_returncode": 1, "decision": "sandbox_auto_measure", "event": "sandbox_decision", "guard_version": "5.15.2", "measured_seconds": null, "threshold_seconds": 60.0, "ts": "2026-08-07T14:41:10+0700"}
+{"core_returncode": 0, "decision": "sandbox_auto_measure", "event": "sandbox_decision", "guard_version": "5.15.2", "measured_seconds": null, "threshold_seconds": 60.0, "ts": "2026-08-07T14:41:27+0700"}

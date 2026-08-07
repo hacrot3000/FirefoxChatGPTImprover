@@ -1,6 +1,6 @@
 # FirefoxChatImprover — Kế hoạch triển khai
 
-> **Current implementation baseline:** Phase 49 v0.40.0
+> **Current implementation baseline:** Phase 64 v0.41.5
 
 
 ## 1. Mục tiêu dự án
@@ -744,3 +744,154 @@ Status: **Complete**
 - Regression kiểm tra active tab, stopped tab, explicit binding và import continuity.
 
 **Trạng thái:** Hoàn tất trong v0.40.0.
+
+## Phase 50 — Local action profile-save draft continuity
+
+**Mục tiêu:** Lưu shared Local action profile không được xóa draft chưa lưu của bất kỳ tab nào.
+
+- Chụp working draft hợp lệ trước khi tăng `localActionRevision`.
+- Rebase draft vào context mới gồm session token, profile ID, config mode và revision.
+- Đồng bộ cả in-memory volatile draft và persisted working snapshot.
+- Không tạo tab override khi tab không có draft.
+- Regression phải chứng minh path/command hiện tại vẫn còn sau profile save.
+
+**Trạng thái:** Hoàn tất trong v0.40.1.
+
+## Phase 51 — Component profile editor draft continuity
+
+**Mục tiêu:** Các thao tác thư viện Monitor/Target profile không được reload hoặc làm mất Automation rule draft đang chỉnh sửa.
+
+- Chụp toàn bộ Automation draft và selected rule trước Create/Save/Delete.
+- Refresh riêng danh sách component profile với `reloadForm: false`.
+- Khôi phục draft sau phản hồi background, kể cả khi thao tác lỗi.
+- Import Monitor/Target bundle không reload form Automation.
+- New/Save giữ profile vừa tạo hoặc vừa lưu; Delete chọn fallback hợp lệ.
+
+**Trạng thái:** Hoàn tất trong v0.40.2.
+
+## Phase 52 — Non-destructive profile bundle import
+
+**Mục tiêu:** Import typed profile bundles must not overwrite existing profiles, change defaults or alter running tabs implicitly.
+
+- Skip identical name/content entries.
+- Convert ID conflicts into fresh profile copies.
+- Rename name conflicts with deterministic imported suffixes.
+- Preserve local default IDs and do not refresh active Automation sessions.
+- Preserve Local action drafts and frozen download/shell jobs.
+- Report created, skipped, collision-copy and renamed counts.
+
+**Trạng thái:** Hoàn tất trong v0.40.3.
+
+## Phase 53 — Explicit default profile controls
+
+**Mục tiêu:** Make the fallback default visible and deliberate for both Automation and Local action profiles without mutating open-tab state.
+
+- Add Set as default controls to both profile libraries.
+- Keep active sessions, stopped snapshots, tab overrides, Local action drafts and frozen jobs unchanged.
+- Require users to select a replacement default before deleting the current default.
+- Preserve editor selection after changing the default.
+
+**Trạng thái:** Hoàn tất trong v0.40.4.
+
+## Phase 54 — Explicit Monitor/Target defaults
+
+**Mục tiêu:** Make component-library fallback selection deliberate without changing any current Automation rule.
+
+- Add Set as default to Monitor and Target profile libraries.
+- Preserve current rule drafts and all open-tab runtime state.
+- Require another default before deleting the current default.
+- Keep renaming compact through Profile name + Save current values.
+
+**Trạng thái:** Hoàn tất trong v0.40.5.
+
+## Phase 55 — Profile action clarity
+
+**Mục tiêu:** Make all profile editors use one natural, unambiguous action model.
+
+- Use consistent save/new/default/delete labels across all profile libraries.
+- Remove the redundant Automation Duplicate action.
+- Distinguish library editing from tab/rule assignment and override reset.
+- Reject manual duplicate names case-insensitively.
+
+**Trạng thái:** Hoàn tất trong v0.40.6.
+
+## Phase 56 — Working-session profile isolation
+
+**Mục tiêu:** Enforce the UI/data boundary introduced in Phase 43 at the restore implementation layer.
+
+- Restore saved tabs without writing Automation or Local action profile stores.
+- Reuse an exact saved profile only when its ID and configuration fingerprint still match.
+- Otherwise preserve the saved effective configuration as a tab override.
+- Keep working-session JSON backward compatible.
+
+**Trạng thái:** Hoàn tất trong v0.40.7.
+
+## Phase 57 — Safe configuration restore
+
+**Status:** Completed in v0.40.8.
+
+- Preserve the prior effective Automation configuration of active and stopped tabs when full configuration import/recovery changes or removes their profile.
+- Convert only affected tabs to explicit tab overrides; do not apply imported/restored profile values to a running tab implicitly.
+- Keep pre-import/pre-restore recovery snapshots and explicit future profile assignment semantics.
+
+## Phase 58 — Complete configuration backup
+
+**Status:** Completed in v0.40.9.
+
+- Make **Export all configuration** include every reusable/global configuration library: Automation/Monitor/Target, Local action, global command presets, custom prompt templates and sidebar visibility preferences.
+- Keep Working sessions, runtime/log/job state, recovery-history and tab-ID editor state outside the configuration bundle.
+- Upgrade new recovery snapshots to the same full scope while preserving legacy Automation-only snapshot compatibility.
+- Preserve Automation and Local action effective values for active/stopped tabs when imported/restored libraries differ.
+- Reload only the sidebar after full import/restore so imported UI/preset/template preferences become visible without reloading web tabs.
+
+## Phase 59 — Configuration scope return contract
+
+**Status:** Completed in v0.41.0.
+
+- Preserve import/restore scope and tab-preservation reports across the background message boundary.
+- Reload only the extension sidebar after full-scope configuration replacement so imported UI, preset and template settings become active immediately.
+- Keep legacy Automation-only import/restore behavior unchanged.
+
+## Phase 60 — Configuration import preview and confirmation
+
+**Status:** Completed in v0.41.1.
+
+- Parse and validate configuration files without mutation before import.
+- Show full-vs-legacy scope and relevant library counts.
+- Require explicit confirmation before the mutating import request while retaining the automatic pre-import recovery snapshot.
+
+## Phase 61 — Atomic full configuration commit
+
+**Status:** Completed in v0.41.2.
+
+- Prepare all five reusable/global configuration stores before mutation.
+- Commit Automation, Local action, command presets, prompt templates and sidebar preferences in one multi-key storage write.
+- Update in-memory caches only after storage succeeds and attempt rollback to the previous coherent payload if the provider rejects the commit.
+- Run existing active/stopped-tab safe-detach reconciliation after a successful global commit.
+
+## Phase 62 — Semantic recovery snapshot deduplication
+
+**Status:** Completed in v0.41.3.
+
+- Canonicalize full configuration without revision or created/updated timestamps before fingerprinting.
+- Preserve profile IDs, names, defaults and every behavior-changing configuration value in snapshot identity.
+- Compact semantic duplicates already stored by older full-bundle fingerprints, retaining the newest copy.
+- Preserve legacy Automation-only snapshot compatibility and the 20-snapshot bound.
+
+## Phase 63 — Manual snapshot promotion
+
+**Status:** Completed in v0.41.4.
+
+- Preserve deliberate Manual-snapshot intent when Phase 62 semantic deduplication finds an identical automatic safety snapshot.
+- Replace/promote the matching automatic entry instead of storing a duplicate configuration copy.
+- Prevent later automatic duplicates from demoting the Manual entry.
+- Keep the Phase 62 fingerprint semantics and 20-snapshot bounded retention policy unchanged.
+
+## Phase 64 — Manual-preferred snapshot compaction
+
+**Status:** Completed in v0.41.5.
+
+- Apply Manual-over-automatic precedence while compacting stored semantic snapshot duplicates during collection normalization.
+- Keep the newest duplicate within the same Manual/automatic class.
+- Preserve Phase 62 semantic fingerprint identity, Phase 63 add-time promotion and the existing 20-snapshot retention bound.
+

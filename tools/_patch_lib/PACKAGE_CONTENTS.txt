@@ -1,0 +1,21 @@
+Python Patch Tool v5.15.2 direct-upgrade portable package
+
+Release root:
+  tools/
+
+Public entry point:
+  tools/run_python_patches.sh
+
+This package upgrades an existing standard v5.15.0/v5.15.1 installation in place.
+It intentionally preserves the installed v5.15 core modules and adds/replaces only:
+  tools/run_python_patches.sh
+  tools/_patch_lib/python_patch_runtime_guard.py
+  tools/_patch_lib/self_test_runtime_integrity_v5_15_2.py
+  tools/_patch_lib/VERSION
+  tools/_patch_lib/SHA256SUMS
+  tools/_patch_lib/docs/SELECTION_INTEGRITY_V5_15_2.md
+  tools/_patch_lib/docs/ADAPTIVE_SANDBOX_V5_15_2.md
+  tools/_patch_lib/docs/PORTABLE_USAGE.md
+  tools/_patch_lib/docs/PATCH_SELECTION_GUIDE.md
+
+The existing core files such as python_patch_runner.py and python_patch_transaction.py are not deleted or overwritten.

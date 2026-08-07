@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Firefox ChatAI Assistant",
-  "version": "0.40.0",
+  "version": "0.41.5",
   "description": "Firefox and Chromium ChatAI Assistant with accessible keyboard-first tab automation, prompt templates, per-rule statistics, command-log export, managed downloads, Native Host actions, reusable profiles, shortcuts, and saved working sessions.",
   "browser_specific_settings": {
     "gecko": {
@@ -42,12 +42,14 @@
       "shared/protocol.js",
       "shared/settings.js",
       "shared/alert_sound.js",
+      "shared/command_presets.js",
       "shared/local_actions.js",
+      "shared/prompt_templates.js",
+      "shared/configuration_bundle.js",
       "shared/settings_snapshots.js",
       "shared/working_session.js",
       "shared/recovery.js",
       "shared/support_bundle.js",
-      "shared/prompt_templates.js",
       "background/background.js"
     ]
   },
