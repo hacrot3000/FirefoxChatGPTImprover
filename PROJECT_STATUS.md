@@ -2,9 +2,9 @@
 
 <!-- FCI_PROJECT_STATUS_SCHEMA: 1 -->
 
-- Current add-on version: **0.39.7**
+- Current add-on version: **0.39.9**
 - Native Host version: **0.13.0**
-- Status updated: **2026-08-06**
+- Status updated: **2026-08-07**
 - Required-feature backlog: **completed**
 - Recommended-feature backlog: **completed**
 
@@ -16,6 +16,7 @@ This file is the release-facing feature inventory. Every feature patch must upda
 | --- | --- | ---: | --- |
 | Multi-tab runtime | Independent activation, pause/resume/stop, cycles, logs, alert state and local actions per tab | **100%** | Released |
 | Configuration management | Configuration profiles, URL routing, opt-in trusted-URL automatic activation, tab override, migration, recovery snapshots and typed import/export | **100%** | Auto-activation completed in v0.33.0 |
+| Profile editor continuity | Per-tab Automation/Local action editor selection survives sidebar reload, rejects stale URL context and distinguishes editing from applied state | **100%** | Completed in v0.39.9 |
 | Monitor and target profiles | Reusable Monitor element and New target element profile libraries with typed JSON import/export | **100%** | Released in v0.29.0 |
 | Automation engine | Multiple rules, monitor conditions, stability window, new-target baseline, picker, selector tests and action pipeline | **100%** | Released |
 | Alerts and titles | AI READY/running indicators, desktop notification, optional bounded sound alerts, badge/title lifecycle and persistent custom tab names | **100%** | Sound alerts completed in v0.32.0 |

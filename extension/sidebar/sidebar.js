@@ -70,7 +70,7 @@
     monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), ruleCountText: $("#ruleCountText"), matchedRuleCountText: $("#matchedRuleCountText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), customizeSidebarButton: $("#customizeSidebarButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"), customTabTitle: $("#customTabTitle"), saveCustomTabTitleButton: $("#saveCustomTabTitleButton"), clearCustomTabTitleButton: $("#clearCustomTabTitleButton"),
     promptTemplateSelect: $("#promptTemplateSelect"), promptTemplateName: $("#promptTemplateName"), promptTemplateText: $("#promptTemplateText"), fillPromptTemplateButton: $("#fillPromptTemplateButton"), copyPromptTemplateButton: $("#copyPromptTemplateButton"), newPromptTemplateButton: $("#newPromptTemplateButton"), savePromptTemplateButton: $("#savePromptTemplateButton"), deletePromptTemplateButton: $("#deletePromptTemplateButton"), promptTemplateStatus: $("#promptTemplateStatus"),
-    profileSearch: $("#profileSearch"), profileSearchResult: $("#profileSearchResult"), profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
+    profileSearch: $("#profileSearch"), profileSearchResult: $("#profileSearchResult"), profileSelect: $("#profileSelect"), profileName: $("#profileName"), automationProfileSourceSummary: $("#automationProfileSourceSummary"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     ruleSelect: $("#ruleSelect"), ruleName: $("#ruleName"), ruleEnabled: $("#ruleEnabled"), newRuleButton: $("#newRuleButton"), duplicateRuleButton: $("#duplicateRuleButton"), deleteRuleButton: $("#deleteRuleButton"), ruleRuntimeSummary: $("#ruleRuntimeSummary"), ruleRuntimeBadge: $("#ruleRuntimeBadge"), ruleCommandEnabled: $("#ruleCommandEnabled"), ruleCommandPreset: $("#ruleCommandPreset"), ruleCommandTrigger: $("#ruleCommandTrigger"), ruleCommandAllowDryRun: $("#ruleCommandAllowDryRun"), ruleCommandStatus: $("#ruleCommandStatus"), statisticsRuleCount: $("#statisticsRuleCount"), statisticsMatchCount: $("#statisticsMatchCount"), statisticsClickCount: $("#statisticsClickCount"), statisticsVerifyCount: $("#statisticsVerifyCount"), statisticsCommandCount: $("#statisticsCommandCount"), ruleStatisticsRows: $("#ruleStatisticsRows"), selectedRuleStatistics: $("#selectedRuleStatistics"), ruleStatisticsStatus: $("#ruleStatisticsStatus"), exportRuleStatisticsButton: $("#exportRuleStatisticsButton"), resetRuleStatisticsButton: $("#resetRuleStatisticsButton"),
     autoProfileByUrl: $("#autoProfileByUrl"), autoActivateMatchingUrls: $("#autoActivateMatchingUrls"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), grantAutoActivationAccessButton: $("#grantAutoActivationAccessButton"), runAutoActivationScanButton: $("#runAutoActivationScanButton"), urlRoutingResult: $("#urlRoutingResult"), autoActivationResult: $("#autoActivationResult"),
     monitorProfileSearch: $("#monitorProfileSearch"), monitorProfileSearchResult: $("#monitorProfileSearchResult"), monitorProfileSelect: $("#monitorProfileSelect"), monitorProfileName: $("#monitorProfileName"), applyMonitorProfileButton: $("#applyMonitorProfileButton"), newMonitorProfileButton: $("#newMonitorProfileButton"), saveMonitorProfileButton: $("#saveMonitorProfileButton"), deleteMonitorProfileButton: $("#deleteMonitorProfileButton"), monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
@@ -135,7 +135,11 @@
     workingSessions: ""
   };
   const manualProfileSelectionByTab = new Map();
+  const profileEditorSelectionByTab = new Map();
+  const localActionProfileEditorSelectionByTab = new Map();
   const stoppedConfigBypassTabs = new Set();
+  const tabProfileUiUrlByTab = new Map();
+  const TAB_PROFILE_UI_STATE_LIMIT = 200;
   const pendingPickerResults = new Map();
   const lastShownDownloadCaptureByTab = new Map();
   const autoOpenedShellRunIds = new Set();
@@ -457,6 +461,95 @@
     }
   }
 
+
+  function tabProfileUiContextUrl(tabId) {
+    const numericTabId = Number(tabId);
+    const session = sessionById(numericTabId);
+    if (session?.url) return String(session.url);
+    if (Number(dashboard.currentTab?.tabId) === numericTabId) return String(dashboard.currentTab?.url || "");
+    return "";
+  }
+
+  function serializeTabProfileMap(map) {
+    return Object.fromEntries(
+      [...map.entries()]
+        .filter(([tabId, value]) => Number.isInteger(Number(tabId)) && String(value || ""))
+        .slice(-TAB_PROFILE_UI_STATE_LIMIT)
+        .map(([tabId, value]) => [String(Number(tabId)), String(value)])
+    );
+  }
+
+  function restoreTabProfileMap(map, raw) {
+    map.clear();
+    for (const [tabId, value] of Object.entries(raw && typeof raw === "object" ? raw : {})) {
+      const numericTabId = Number(tabId);
+      if (Number.isInteger(numericTabId) && String(value || "")) map.set(numericTabId, String(value));
+    }
+  }
+
+  function serializeTabProfileSet(set) {
+    return [...set].filter((tabId) => Number.isInteger(Number(tabId))).slice(-TAB_PROFILE_UI_STATE_LIMIT).map(Number);
+  }
+
+  function restoreTabProfileSet(set, raw) {
+    set.clear();
+    for (const tabId of Array.isArray(raw) ? raw : []) {
+      const numericTabId = Number(tabId);
+      if (Number.isInteger(numericTabId)) set.add(numericTabId);
+    }
+  }
+
+  function rememberTabProfileUiContext(tabId) {
+    const numericTabId = Number(tabId);
+    if (!Number.isInteger(numericTabId)) return;
+    const url = tabProfileUiContextUrl(numericTabId);
+    if (url) tabProfileUiUrlByTab.set(numericTabId, url);
+  }
+
+  function setTabProfileSelection(map, tabId, profileId) {
+    const numericTabId = Number(tabId);
+    if (!Number.isInteger(numericTabId)) return;
+    if (profileId) map.set(numericTabId, String(profileId));
+    else map.delete(numericTabId);
+    rememberTabProfileUiContext(numericTabId);
+  }
+
+  function setStoppedConfigBypass(tabId, enabled) {
+    const numericTabId = Number(tabId);
+    if (!Number.isInteger(numericTabId)) return;
+    if (enabled) stoppedConfigBypassTabs.add(numericTabId);
+    else stoppedConfigBypassTabs.delete(numericTabId);
+    rememberTabProfileUiContext(numericTabId);
+  }
+
+  function clearTabProfileUiState(tabId) {
+    const numericTabId = Number(tabId);
+    profileEditorSelectionByTab.delete(numericTabId);
+    localActionProfileEditorSelectionByTab.delete(numericTabId);
+    manualProfileSelectionByTab.delete(numericTabId);
+    stoppedConfigBypassTabs.delete(numericTabId);
+    tabProfileUiUrlByTab.delete(numericTabId);
+  }
+
+  function validateTabProfileUiContext(tabId) {
+    const numericTabId = Number(tabId);
+    if (!Number.isInteger(numericTabId)) return;
+    const currentUrl = tabProfileUiContextUrl(numericTabId);
+    const storedUrl = tabProfileUiUrlByTab.get(numericTabId) || "";
+    if (storedUrl && currentUrl && storedUrl !== currentUrl) {
+      clearTabProfileUiState(numericTabId);
+      void persistSidebarUi();
+    } else if (!storedUrl && currentUrl && (
+      profileEditorSelectionByTab.has(numericTabId) ||
+      localActionProfileEditorSelectionByTab.has(numericTabId) ||
+      manualProfileSelectionByTab.has(numericTabId) ||
+      stoppedConfigBypassTabs.has(numericTabId)
+    )) {
+      tabProfileUiUrlByTab.set(numericTabId, currentUrl);
+      void persistSidebarUi();
+    }
+  }
+
   function persistSidebarUi() {
     return browser.storage.local.set({
       [SIDEBAR_UI_STORAGE_KEY]: {
@@ -468,7 +561,14 @@
         selectedTargetProfileId,
         selectedWorkingSessionEntryId,
         selectedPromptTemplateId,
-        listFilters: { ...listFilters }
+        listFilters: { ...listFilters },
+        tabProfileUi: {
+          contextUrls: serializeTabProfileMap(tabProfileUiUrlByTab),
+          automationEditor: serializeTabProfileMap(profileEditorSelectionByTab),
+          localActionEditor: serializeTabProfileMap(localActionProfileEditorSelectionByTab),
+          manualAutomation: serializeTabProfileMap(manualProfileSelectionByTab),
+          stoppedConfigBypass: serializeTabProfileSet(stoppedConfigBypassTabs)
+        }
       }
     });
   }
@@ -604,6 +704,12 @@
     selectedTargetProfileId = typeof storedUi.selectedTargetProfileId === "string" ? storedUi.selectedTargetProfileId : null;
     selectedWorkingSessionEntryId = typeof storedUi.selectedWorkingSessionEntryId === "string" ? storedUi.selectedWorkingSessionEntryId : null;
     selectedPromptTemplateId = typeof storedUi.selectedPromptTemplateId === "string" ? storedUi.selectedPromptTemplateId : null;
+    const storedTabProfileUi = storedUi.tabProfileUi && typeof storedUi.tabProfileUi === "object" ? storedUi.tabProfileUi : {};
+    restoreTabProfileMap(tabProfileUiUrlByTab, storedTabProfileUi.contextUrls);
+    restoreTabProfileMap(profileEditorSelectionByTab, storedTabProfileUi.automationEditor);
+    restoreTabProfileMap(localActionProfileEditorSelectionByTab, storedTabProfileUi.localActionEditor);
+    restoreTabProfileMap(manualProfileSelectionByTab, storedTabProfileUi.manualAutomation);
+    restoreTabProfileSet(stoppedConfigBypassTabs, storedTabProfileUi.stoppedConfigBypass);
     const storedFilters = storedUi.listFilters && typeof storedUi.listFilters === "object" ? storedUi.listFilters : {};
     listFilters = {
       tabs: String(storedFilters.tabs || ""),
@@ -1822,10 +1928,7 @@
   }
 
   function readLocalActionProfileConfig() {
-    const draft = readLocalActionConfig();
-    const profile = localActionProfileById(selectedLocalActionProfileId);
-    const persistedShell = LocalActions.normalizeConfig(profile?.config || LocalActions.defaultConfig()).shell;
-    return LocalActions.normalizeConfig({ routing: draft.routing, download: draft.download, shell: persistedShell });
+    return LocalActions.normalizeConfig(readLocalActionConfig());
   }
 
   function renderLocalActionProfileOptions() {
@@ -1873,7 +1976,8 @@
       elements.localActionSourceSummary.hidden = false;
       elements.localActionSourceSummary.dataset.state = effectiveBinding === "explicit-tab" ? "ok" : "idle";
       const selectedDiffers = profile && effectiveProfile && profile.id !== effectiveProfile.id;
-      elements.localActionSourceSummary.textContent = `${sourceLabel}: ${effectiveProfile?.name || "Profile unavailable"}${selectedDiffers ? ` · Selected but not applied: ${profile.name}` : ""}`;
+      elements.localActionSourceSummary.dataset.state = selectedDiffers ? "warning" : (effectiveBinding === "explicit-tab" ? "ok" : "idle");
+      elements.localActionSourceSummary.textContent = `Tab uses: ${effectiveProfile?.name || "Profile unavailable"} (${sourceLabel}) · Editing: ${profile?.name || "Profile unavailable"}${selectedDiffers ? " (not applied)" : ""}`;
     }
     const selectedTabExists = Boolean(session) || currentTabSelected;
     const hasExplicitBinding = effectiveBinding === "explicit-tab";
@@ -2157,16 +2261,20 @@
     if (selectedTabId !== null) elements.tabSelect.value = String(selectedTabId);
     renderFilterResult(elements.tabSearchResult, { ...tabResult, query: listFilters.tabs });
 
+    validateTabProfileUiContext(selectedTabId);
     const oldProfile = selectedProfileId;
     const session = selectedSession();
     const stoppedConfig = !session && Number(dashboard.currentTab?.tabId) === Number(selectedTabId)
       ? dashboard.currentTab?.stoppedConfig
       : null;
+    const editorProfileId = profileEditorSelectionByTab.get(Number(selectedTabId));
     const manualProfileId = manualProfileSelectionByTab.get(Number(selectedTabId));
     const routedProfileId = autoProfileByUrl && !session
       ? Settings.routeProfile(dashboard.store, dashboard.currentTab?.url || "").profileId
       : null;
-    selectedProfileId = session?.profileId ||
+    selectedProfileId =
+      (dashboard.store.profiles.some((profile) => profile.id === editorProfileId) ? editorProfileId : null) ||
+      session?.profileId ||
       (dashboard.store.profiles.some((profile) => profile.id === manualProfileId) ? manualProfileId : null) ||
       (dashboard.store.profiles.some((profile) => profile.id === stoppedConfig?.profileId) ? stoppedConfig.profileId : null) ||
       (dashboard.store.profiles.some((profile) => profile.id === routedProfileId) ? routedProfileId : null) ||
@@ -2184,13 +2292,38 @@
     }));
     elements.profileSelect.value = selectedProfileId;
     renderFilterResult(elements.profileSearchResult, { ...profileResult, query: listFilters.configurationProfiles });
+    if (elements.automationProfileSourceSummary) {
+      const selectedProfile = profileById(selectedProfileId);
+      let effectiveProfileId = dashboard.store.defaultProfileId;
+      let sourceLabel = "Default profile";
+      if (session) {
+        effectiveProfileId = session.profileId || dashboard.store.defaultProfileId;
+        sourceLabel = session.configMode === CONFIG_MODE.TAB ? "Active tab override based on" : "Active tab uses";
+      } else if (stoppedConfig && !stoppedConfigBypassTabs.has(Number(selectedTabId))) {
+        effectiveProfileId = stoppedConfig.profileId || dashboard.store.defaultProfileId;
+        sourceLabel = stoppedConfig.configMode === CONFIG_MODE.TAB ? "Stopped tab override based on" : "Stopped tab will restore";
+      } else if (dashboard.store.profiles.some((profile) => profile.id === manualProfileId)) {
+        effectiveProfileId = manualProfileId;
+        sourceLabel = "Next Start will use";
+      } else if (dashboard.store.profiles.some((profile) => profile.id === routedProfileId)) {
+        effectiveProfileId = routedProfileId;
+        sourceLabel = "URL routing selects";
+      }
+      const effectiveProfile = profileById(effectiveProfileId);
+      const differs = selectedProfile && effectiveProfile && selectedProfile.id !== effectiveProfile.id;
+      elements.automationProfileSourceSummary.dataset.state = differs ? "warning" : "idle";
+      elements.automationProfileSourceSummary.textContent = `${sourceLabel}: ${effectiveProfile?.name || "Profile unavailable"} · Editing: ${selectedProfile?.name || "Profile unavailable"}${differs ? " (not applied)" : ""}`;
+    }
     renderComponentProfileOptions();
     const localStore = dashboard.localActionStore || LocalActions.defaultStore();
     const routedLocal = LocalActions.routeProfile(localStore, session?.url || dashboard.currentTab?.url || "");
     const currentTabBindingId = Number(dashboard.currentTab?.tabId) === Number(selectedTabId)
       ? dashboard.currentTab?.localActionProfileId
       : null;
-    selectedLocalActionProfileId = session?.localActionProfileId ||
+    const editorLocalActionProfileId = localActionProfileEditorSelectionByTab.get(Number(selectedTabId));
+    selectedLocalActionProfileId =
+      (localStore.profiles.some((profile) => profile.id === editorLocalActionProfileId) ? editorLocalActionProfileId : null) ||
+      session?.localActionProfileId ||
       (localStore.profiles.some((profile) => profile.id === currentTabBindingId) ? currentTabBindingId : null) ||
       (localStore.profiles.some((profile) => profile.id === stoppedConfig?.localActionProfileId) ? stoppedConfig.localActionProfileId : null) ||
       (localStore.profiles.some((profile) => profile.id === selectedLocalActionProfileId) ? selectedLocalActionProfileId : null) ||
@@ -2837,8 +2970,9 @@
       if (!response.ok) {
         throw new Error(response.error || "Could not activate the current tab.");
       }
-      stoppedConfigBypassTabs.delete(Number(activationTabId));
-      manualProfileSelectionByTab.delete(Number(activationTabId));
+      setStoppedConfigBypass(activationTabId, false);
+      setTabProfileSelection(manualProfileSelectionByTab, activationTabId, null);
+      void persistSidebarUi();
       if (response.dashboard && activeTabSerialAtStart === activeTabRefreshSerial) {
         render(response.dashboard, true, activationTabId);
       }
@@ -3369,10 +3503,11 @@ ${shell.command}`;
       if (response.savedProfile?.name !== name) throw new Error("Save local-action profile: Firefox storage returned a different profile name.");
       dashboard = response.dashboard || dashboard;
       selectedLocalActionProfileId = response.savedProfile.id;
+      setTabProfileSelection(localActionProfileEditorSelectionByTab, selectedTabId, selectedLocalActionProfileId);
+      void persistSidebarUi();
       renderSelectors(selectedTabId);
       elements.localActionProfileName.value = response.savedProfile.name;
-      writeLocalActionConfig(response.savedProfile.config, { preserveShell: true });
-      scheduleVolatileLocalActionSync();
+      captureLocalActionBaseline(validation.config);
       renderDetails(false);
       showMessage(`Local-action profile “${response.savedProfile.name}” saved and verified.`, "success");
     } catch (error) {
@@ -3414,13 +3549,38 @@ ${shell.command}`;
     }
   }
 
-  function createLocalActionProfile() {
+  async function createLocalActionProfileFromCurrentForm() {
     const name = prompt("New local-action profile name:", "New local actions");
     if (!name) return;
-    void request(MESSAGE.CREATE_LOCAL_ACTION_PROFILE, {
-      name,
-      baseProfileId: selectedLocalActionProfileId
-    }, "Local-action profile created.");
+    const validation = LocalActions.validateConfig(readLocalActionProfileConfig());
+    if (!validation.ok) {
+      showMessage(validation.errors.join("\n"), "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.CREATE_LOCAL_ACTION_PROFILE,
+        name,
+        baseProfileId: selectedLocalActionProfileId,
+        config: validation.config
+      });
+      if (!response?.ok) throw new Error(response?.error || "Could not create the local-action profile.");
+      assertSavedLocalActionConfig(validation.config, response.savedProfile?.config, "Create local-action profile");
+      dashboard = response.dashboard || dashboard;
+      selectedLocalActionProfileId = response.localActionProfileId;
+      setTabProfileSelection(localActionProfileEditorSelectionByTab, selectedTabId, selectedLocalActionProfileId);
+      void persistSidebarUi();
+      renderSelectors(selectedTabId);
+      elements.localActionProfileName.value = response.savedProfile?.name || name;
+      captureLocalActionBaseline(validation.config);
+      renderDetails(false);
+      showMessage(`Local-action profile “${response.savedProfile?.name || name}” created from the current values.`, "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function runShellAfterDownload() {
@@ -3737,14 +3897,7 @@ ${run.command || ""}`)) {
     }
     selectedTabId = nextTabId;
     syncOpenShellLogToSelectedTab();
-    const session = selectedSession();
-    const stoppedConfig = !session && Number(dashboard.currentTab?.tabId) === Number(selectedTabId)
-      ? dashboard.currentTab?.stoppedConfig
-      : null;
-    selectedProfileId = session?.profileId || stoppedConfig?.profileId || dashboard.store.defaultProfileId;
-    selectedLocalActionProfileId = session?.localActionProfileId || stoppedConfig?.localActionProfileId || selectedLocalActionProfileId;
-    elements.profileSelect.value = selectedProfileId;
-    elements.localActionProfileSelect.value = selectedLocalActionProfileId || "";
+    renderSelectors(selectedTabId);
     renderDetails(true);
     applyPendingPickerResult();
   });
@@ -3780,10 +3933,14 @@ ${run.command || ""}`)) {
   elements.deleteRuleButton.addEventListener("click", deleteSelectedRule);
   elements.profileSelect.addEventListener("change", () => {
     selectedProfileId = elements.profileSelect.value;
-    if (Number.isInteger(Number(selectedTabId)) && !selectedSession()) {
-      manualProfileSelectionByTab.set(Number(selectedTabId), selectedProfileId);
-      if (dashboard.currentTab?.stoppedConfig) stoppedConfigBypassTabs.add(Number(selectedTabId));
+    if (Number.isInteger(Number(selectedTabId))) {
+      setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId);
     }
+    if (Number.isInteger(Number(selectedTabId)) && !selectedSession()) {
+      setTabProfileSelection(manualProfileSelectionByTab, selectedTabId, selectedProfileId);
+      if (dashboard.currentTab?.stoppedConfig) setStoppedConfigBypass(selectedTabId, true);
+    }
+    void persistSidebarUi();
     const profile = profileById(selectedProfileId);
     elements.profileName.value = profile?.name || "";
     writeConfig(profile?.config || Settings.defaultConfig());
@@ -3791,18 +3948,19 @@ ${run.command || ""}`)) {
   elements.autoProfileByUrl.addEventListener("change", () => {
     autoProfileByUrl = elements.autoProfileByUrl.checked;
     if (autoProfileByUrl) {
-      manualProfileSelectionByTab.delete(Number(selectedTabId));
-      if (!selectedSession() && dashboard.currentTab?.stoppedConfig) stoppedConfigBypassTabs.add(Number(selectedTabId));
+      setTabProfileSelection(manualProfileSelectionByTab, selectedTabId, null);
+      if (!selectedSession() && dashboard.currentTab?.stoppedConfig) setStoppedConfigBypass(selectedTabId, true);
       const routing = renderUrlRoutingPreview();
       if (!selectedSession() && routing.profileId) {
         selectedProfileId = routing.profileId;
+        setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId);
         elements.profileSelect.value = selectedProfileId;
         const profile = profileById(selectedProfileId);
         elements.profileName.value = profile?.name || "";
         writeConfig(profile?.config || Settings.defaultConfig());
       }
     } else {
-      stoppedConfigBypassTabs.delete(Number(selectedTabId));
+      setStoppedConfigBypass(selectedTabId, false);
     }
     void persistSidebarUi();
   });
@@ -3819,13 +3977,15 @@ ${run.command || ""}`)) {
       showMessage("No matching profile is available.", "error");
       return;
     }
-    manualProfileSelectionByTab.delete(Number(selectedTabId));
-    if (!selectedSession() && dashboard.currentTab?.stoppedConfig) stoppedConfigBypassTabs.add(Number(selectedTabId));
+    setTabProfileSelection(manualProfileSelectionByTab, selectedTabId, null);
+    if (!selectedSession() && dashboard.currentTab?.stoppedConfig) setStoppedConfigBypass(selectedTabId, true);
     selectedProfileId = routing.profileId;
+    setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId);
     elements.profileSelect.value = selectedProfileId;
     const profile = profileById(selectedProfileId);
     elements.profileName.value = profile?.name || "";
     writeConfig(profile?.config || Settings.defaultConfig());
+    void persistSidebarUi();
     showMessage(`Selected profile “${routing.profileName}” by URL.`, "success");
   });
   elements.autoActivateMatchingUrls.addEventListener("change", () => {
@@ -4032,6 +4192,72 @@ ${run.command || ""}`)) {
     elements.profileImportFile.click();
   }
 
+  async function createProfileFromCurrentForm() {
+    const name = prompt("New profile name:", "New profile");
+    if (!name) return;
+    const validation = Settings.validateConfig(readConfig());
+    if (!validation.ok) {
+      showMessage(validation.errors.join("\n"), "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.CREATE_PROFILE,
+        name,
+        baseProfileId: selectedProfileId,
+        config: validation.config
+      });
+      if (!response?.ok) throw new Error(response?.error || "Could not create the profile.");
+      assertSavedConfig(validation.config, response.savedProfile?.config, "Create profile");
+      dashboard = response.dashboard || dashboard;
+      selectedProfileId = response.profileId;
+      setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId);
+      void persistSidebarUi();
+      formConfigDraft = Settings.normalizeConfig(validation.config);
+      renderSelectors(selectedTabId);
+      elements.profileName.value = response.savedProfile?.name || name;
+      renderDetails(false);
+      showMessage(`Profile “${response.savedProfile?.name || name}” created from the current values.`, "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
+  async function duplicateSelectedProfile() {
+    const base = profileById(selectedProfileId);
+    if (!base) {
+      showMessage("Select a profile before duplicating it.", "error");
+      return;
+    }
+    const name = prompt("Copy name:", `${base.name || "Profile"} - copy`);
+    if (!name) return;
+    setBusy(true);
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: MESSAGE.DUPLICATE_PROFILE,
+        profileId: base.id,
+        name
+      });
+      if (!response?.ok) throw new Error(response?.error || "Could not duplicate the profile.");
+      dashboard = response.dashboard || dashboard;
+      selectedProfileId = response.profileId;
+      setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId);
+      void persistSidebarUi();
+      renderSelectors(selectedTabId);
+      elements.profileName.value = response.savedProfile?.name || name;
+      writeConfig(response.savedProfile?.config || base.config);
+      showMessage(`Profile “${response.savedProfile?.name || name}” duplicated and selected.`, "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveProfileConfiguration() {
     const profile = profileById(selectedProfileId);
     if (!profile) {
@@ -4054,9 +4280,11 @@ ${run.command || ""}`)) {
       assertSavedConfig(validation.config, response.savedProfile?.config, "Save profile");
       dashboard = response.dashboard || dashboard;
       selectedProfileId = response.savedProfile.id;
-      formConfigDraft = Settings.normalizeConfig(response.savedProfile.config);
-      writeConfig(formConfigDraft);
+      setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId);
+      void persistSidebarUi();
+      formConfigDraft = Settings.normalizeConfig(validation.config);
       renderSelectors(selectedTabId);
+      elements.profileName.value = response.savedProfile.name;
       renderDetails(false);
       showMessage(`Profile “${response.savedProfile.name}” saved and verified.`, "success");
     } catch (error) {
@@ -4298,6 +4526,10 @@ ${run.command || ""}`)) {
       cancelScheduledVolatileLocalActionSync();
     }
     selectedLocalActionProfileId = nextProfileId;
+    if (Number.isInteger(Number(selectedTabId))) {
+      setTabProfileSelection(localActionProfileEditorSelectionByTab, selectedTabId, selectedLocalActionProfileId);
+      void persistSidebarUi();
+    }
     const profile = localActionProfileById(selectedLocalActionProfileId);
     elements.localActionProfileName.value = profile?.name || "";
     writeLocalActionConfig(profile?.config || LocalActions.defaultConfig(), { preserveShell: true });
@@ -4323,9 +4555,7 @@ ${run.command || ""}`)) {
       : "Explicit Local action binding removed; the active tab now uses URL routing or the default profile.",
     { reloadForm: true, preferredTabId: selectedTabId });
   });
-  elements.newLocalActionProfileButton.addEventListener("click", () => {
-    if (confirmDiscardLocalActionDraft("creating a new local-action profile")) createLocalActionProfile();
-  });
+  elements.newLocalActionProfileButton.addEventListener("click", () => void createLocalActionProfileFromCurrentForm());
   elements.saveLocalActionProfileButton.addEventListener("click", () => void saveLocalActionProfile());
   elements.deleteLocalActionProfileButton.addEventListener("click", () => {
     const profile = localActionProfileById(selectedLocalActionProfileId);
@@ -4479,15 +4709,8 @@ Cancel: keep editing without losing the changes.`);
   elements.assignProfileButton.addEventListener("click", () => void request(MESSAGE.ASSIGN_PROFILE, { tabId: selectedTabId, profileId: selectedProfileId }, "Profile applied to tab."));
   elements.saveTabButton.addEventListener("click", () => void saveTabConfiguration());
   elements.resetTabButton.addEventListener("click", () => void request(MESSAGE.RESET_TAB_CONFIG, { tabId: selectedTabId }, "The tab now uses its profile configuration."));
-  elements.newProfileButton.addEventListener("click", () => {
-    const name = prompt("New profile name:", "New profile");
-    if (name) void request(MESSAGE.CREATE_PROFILE, { name, baseProfileId: selectedProfileId }, "Profile created.");
-  });
-  elements.duplicateProfileButton.addEventListener("click", () => {
-    const base = profileById(selectedProfileId);
-    const name = prompt("Copy name:", `${base?.name || "Profile"} - copy`);
-    if (name) void request(MESSAGE.DUPLICATE_PROFILE, { profileId: selectedProfileId, name }, "Profile duplicated.");
-  });
+  elements.newProfileButton.addEventListener("click", () => void createProfileFromCurrentForm());
+  elements.duplicateProfileButton.addEventListener("click", () => void duplicateSelectedProfile());
   elements.deleteProfileButton.addEventListener("click", () => {
     const profile = profileById(selectedProfileId);
     if (profile && confirm(`Delete profile “${profile.name}”?`)) {

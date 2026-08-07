@@ -121,6 +121,9 @@ node tests/test_phase45_v0396_explicit_stopped_state_reconciliation.js
 
 node tests/test_phase46_v0397_simplified_sidebar_feature_visibility.js
 
+node tests/test_phase47_v0398_profile_capture_selection_continuity.js
+node tests/test_phase48_v0399_persistent_profile_editor_intent.js
+
 if [ "${FCI_RUN_FIREFOX_E2E:-0}" = "1" ]; then
   python3 tools/run_firefox_e2e.py ${FCI_FIREFOX_E2E_ARGS:-}
 else

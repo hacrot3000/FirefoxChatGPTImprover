@@ -1,6 +1,6 @@
 # FirefoxChatImprover — Kế hoạch triển khai
 
-> **Current implementation baseline:** Phase 46 v0.39.7.
+> **Current implementation baseline:** Phase 48 v0.39.9
 
 
 ## 1. Mục tiêu dự án

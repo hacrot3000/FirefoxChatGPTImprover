@@ -245,6 +245,7 @@
 
     <section class="card" data-group-id="profiles" aria-labelledby="profileHeading">
       <h2 id="profileHeading">Automation profiles</h2>
+      <output id="automationProfileSourceSummary" class="selector-test-result" data-state="idle">Profile source is not available.</output>
       <label class="filter-field">
         Find automation profile
         <input id="profileSearch" type="search" autocomplete="off" placeholder="Name, URL pattern, or profile ID">
@@ -269,7 +270,7 @@
         <button id="saveTabButton" type="button">Save as tab override</button>
         <button id="resetTabButton" type="button">Use profile for tab</button>
       </div>
-      <small class="inline-result">Automation profiles contain rules, monitors, targets, alerts and routing. Local paths and shell commands stay in Local action profiles.</small>
+      <small class="inline-result">Automation profiles contain rules, monitors, targets, alerts and routing. Saving edits the selected profile; Apply to tab changes the active tab. Local paths and shell commands stay in Local action profiles.</small>
     </section>
 
     <section class="card" data-group-id="activation" aria-labelledby="activationHeading">

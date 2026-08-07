@@ -38,6 +38,10 @@ Sau đó reload add-on trong `about:addons`.
 
 ---
 
+## Profile editor continuity
+
+Automation and Local action profile editors remember the selected profile per tab across sidebar reloads. The source summary distinguishes **Editing** from the profile the tab currently **uses**, and saved state is rejected when the tab URL changes.
+
 <!-- FIREFOX_CHAT_IMPROVER_PHASE00_BEGIN -->
 
 ## Kế hoạch và workflow phát triển add-on
@@ -817,3 +821,8 @@ Use the gear button in **Tabs and runtime** to choose a **Simple**, **Standard**
 
 Automation save and tab-override controls now live in Automation profiles. **Backup and transfer** contains only configuration import/export, typed profile transfer and recovery snapshots. Working-session files remain isolated in **Working session library**.
 <!-- FCI_PHASE46_SIMPLIFIED_SIDEBAR_END -->
+
+
+## Profile save continuity (v0.39.8)
+
+`Save current as new` captures the complete current Automation or Local action editor. The created or saved profile remains selected without applying Default or silently changing the profile bound to the tab.

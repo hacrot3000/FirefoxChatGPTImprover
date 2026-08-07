@@ -15,6 +15,36 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
+## [0.39.9] - 2026-08-07
+
+### Fixed
+
+- Automation and Local action profile editor selections now survive sidebar close/reopen and add-on reload for the same tab URL.
+- Stale saved editor choices are discarded when a tab navigates or a recycled tab ID points to a different URL.
+- URL-routed Automation selection, stopped-tab manual selection and stopped-snapshot bypass remain consistent after sidebar reload.
+- Duplicating an Automation profile now selects the new copy immediately.
+
+### Changed
+
+- Automation and Local action profile summaries now distinguish the profile being edited from the profile currently used by the tab.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.39.8] - 2026-08-07
+
+### Fixed
+
+- `Save current as new` now creates Automation and Local action profiles from the complete values currently visible in the editor.
+- Saving or creating a profile keeps that profile selected and preserves the current form instead of reverting to Default.
+- Local action profile saving now includes the current working directory, shell command and related shell options.
+- Profile editor selection is separated from the profile or Local action binding currently applied to a tab.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
 ## [0.39.7] - 2026-08-06
 
 ### Changed

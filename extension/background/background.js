@@ -4025,14 +4025,16 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     await broadcast("tab-local-actions-reset", tabId);
   }
 
-  async function createLocalActionProfile(name, baseProfileId = null) {
+  async function createLocalActionProfile(name, baseProfileId = null, rawConfig = null) {
     const store = await loadLocalActionStore();
     const base = LocalActions.profileById(store, baseProfileId) || LocalActions.profileById(store, store.defaultProfileId);
-    const profile = LocalActions.createProfile(name || "New local actions", base?.config || LocalActions.defaultConfig());
+    const validation = LocalActions.validateConfig(rawConfig || base?.config || LocalActions.defaultConfig());
+    if (!validation.ok) throw new Error(validation.errors.join("\n"));
+    const profile = LocalActions.createProfile(name || "New local actions", validation.config);
     store.profiles.push(profile);
-    await saveLocalActionStore(store);
+    const saved = await saveLocalActionStore(store);
     await broadcast("local-action-profile-created");
-    return profile.id;
+    return { store: saved, profileId: profile.id };
   }
 
   async function saveLocalActionProfile(rawProfile) {
@@ -4285,10 +4287,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return merged;
   }
 
-  async function createProfile(name, baseProfileId = null) {
+  async function createProfile(name, baseProfileId = null, rawConfig = null) {
     const store = await loadStore();
     const base = Settings.profileById(store, baseProfileId);
-    const profile = Settings.createProfile(name, base?.config || Settings.defaultConfig());
+    const validation = Settings.validateConfig(rawConfig || base?.config || Settings.defaultConfig());
+    if (!validation.ok) throw new Error(validation.errors.join("\n"));
+    const profile = Settings.createProfile(name, validation.config);
     store.profiles.push(profile);
     const saved = await saveStore(store);
     await broadcast("profile-created");
@@ -5123,8 +5127,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
           return { ok: true, dashboard: await dashboard() };
 
         case MESSAGE.CREATE_PROFILE: {
-          const result = await createProfile(message.name, message.baseProfileId);
-          return { ok: true, profileId: result.profileId, dashboard: await dashboard() };
+          const result = await createProfile(message.name, message.baseProfileId, message.config);
+          return { ok: true, profileId: result.profileId, savedProfile: Settings.profileById(result.store, result.profileId), dashboard: await dashboard() };
         }
 
         case MESSAGE.DUPLICATE_PROFILE: {
@@ -5134,7 +5138,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
             throw new Error("Could not find the profile to duplicate.");
           }
           const result = await createProfile(message.name || `${base.name} - copy`, base.id);
-          return { ok: true, profileId: result.profileId, dashboard: await dashboard() };
+          return { ok: true, profileId: result.profileId, savedProfile: Settings.profileById(result.store, result.profileId), dashboard: await dashboard() };
         }
 
         case MESSAGE.SAVE_PROFILE: {
@@ -5257,8 +5261,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         }
 
         case MESSAGE.CREATE_LOCAL_ACTION_PROFILE: {
-          const profileId = await createLocalActionProfile(message.name, message.baseProfileId);
-          return { ok: true, localActionProfileId: profileId, dashboard: await dashboard() };
+          const result = await createLocalActionProfile(message.name, message.baseProfileId, message.config);
+          return { ok: true, localActionProfileId: result.profileId, savedProfile: LocalActions.profileById(result.store, result.profileId), dashboard: await dashboard() };
         }
 
         case MESSAGE.SAVE_LOCAL_ACTION_PROFILE: {
