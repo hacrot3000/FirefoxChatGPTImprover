@@ -1969,9 +1969,13 @@
     const effectiveBinding = session?.localActionProfileBinding || (currentTabSelected ? dashboard.currentTab?.localActionProfileBinding : null) || "default";
     const effectiveProfileId = session?.localActionProfileId || (currentTabSelected ? dashboard.currentTab?.localActionProfileId : null) || routed.profileId || store.defaultProfileId;
     const effectiveProfile = localActionProfileById(effectiveProfileId);
-    const sourceLabel = effectiveBinding === "explicit-tab"
+    const baseSourceLabel = effectiveBinding === "explicit-tab"
       ? "Explicit tab binding"
       : (effectiveBinding === "url-route" ? "URL-routed profile" : "Default profile");
+    const stoppedLocalOverride = !session && currentTabSelected && dashboard.currentTab?.stoppedConfig?.localActionConfigMode === CONFIG_MODE.TAB;
+    const sourceLabel = session?.localActionConfigMode === CONFIG_MODE.TAB || stoppedLocalOverride
+      ? `${baseSourceLabel}; tab override preserved`
+      : baseSourceLabel;
     if (elements.localActionSourceSummary) {
       elements.localActionSourceSummary.hidden = false;
       elements.localActionSourceSummary.dataset.state = effectiveBinding === "explicit-tab" ? "ok" : "idle";
@@ -4258,6 +4262,74 @@ ${run.command || ""}`)) {
     }
   }
 
+  async function deleteSelectedAutomationProfile() {
+    const profile = profileById(selectedProfileId);
+    if (!profile) {
+      showMessage("Select an Automation profile before deleting it.", "error");
+      return;
+    }
+    const activeCount = dashboard.sessions.filter((session) => session.profileId === profile.id).length;
+    const stoppedCount = Number(dashboard.currentTab?.tabId) === Number(selectedTabId) &&
+      !selectedSession() && dashboard.currentTab?.stoppedConfig?.profileId === profile.id ? 1 : 0;
+    const affected = activeCount + stoppedCount;
+    const impact = affected
+      ? `\n\n${affected} open tab${affected === 1 ? "" : "s"} currently use this profile. Their current values will be preserved as tab-specific overrides.`
+      : "";
+    if (!confirm(`Delete Automation profile “${profile.name}”?${impact}`)) return;
+    setBusy(true);
+    try {
+      const response = await browser.runtime.sendMessage({ type: MESSAGE.DELETE_PROFILE, profileId: profile.id });
+      if (!response?.ok) throw new Error(response?.error || "Could not delete the Automation profile.");
+      dashboard = response.dashboard || dashboard;
+      const session = dashboard.sessions.find((item) => Number(item.tabId) === Number(selectedTabId));
+      selectedProfileId = session?.profileId || dashboard.currentTab?.stoppedConfig?.profileId || dashboard.store.defaultProfileId;
+      setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId);
+      void persistSidebarUi();
+      renderSelectors(selectedTabId);
+      renderDetails(true);
+      const preserved = Number(response.preservedTabs) || 0;
+      showMessage(`Automation profile “${profile.name}” deleted.${preserved ? ` Current values were preserved for ${preserved} tab${preserved === 1 ? "" : "s"}.` : ""}`, "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteSelectedLocalActionProfile() {
+    const profile = localActionProfileById(selectedLocalActionProfileId);
+    if (!profile) {
+      showMessage("Select a Local action profile before deleting it.", "error");
+      return;
+    }
+    const activeCount = dashboard.sessions.filter((session) => session.localActionProfileId === profile.id).length;
+    const stoppedCount = Number(dashboard.currentTab?.tabId) === Number(selectedTabId) &&
+      !selectedSession() && dashboard.currentTab?.stoppedConfig?.localActionProfileId === profile.id ? 1 : 0;
+    const affected = activeCount + stoppedCount;
+    const impact = affected
+      ? `\n\n${affected} open tab${affected === 1 ? "" : "s"} currently use this profile. Their download and shell values will be preserved as tab-specific overrides.`
+      : "";
+    if (!confirm(`Delete Local action profile “${profile.name}”?${impact}`)) return;
+    setBusy(true);
+    try {
+      const response = await browser.runtime.sendMessage({ type: MESSAGE.DELETE_LOCAL_ACTION_PROFILE, profileId: profile.id });
+      if (!response?.ok) throw new Error(response?.error || "Could not delete the Local action profile.");
+      dashboard = response.dashboard || dashboard;
+      const session = dashboard.sessions.find((item) => Number(item.tabId) === Number(selectedTabId));
+      selectedLocalActionProfileId = session?.localActionProfileId || dashboard.currentTab?.stoppedConfig?.localActionProfileId || dashboard.localActionStore.defaultProfileId;
+      setTabProfileSelection(localActionProfileEditorSelectionByTab, selectedTabId, selectedLocalActionProfileId);
+      void persistSidebarUi();
+      renderSelectors(selectedTabId);
+      renderDetails(true);
+      const preserved = Number(response.preservedTabs) || 0;
+      showMessage(`Local action profile “${profile.name}” deleted.${preserved ? ` Current values were preserved for ${preserved} tab${preserved === 1 ? "" : "s"}.` : ""}`, "success");
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveProfileConfiguration() {
     const profile = profileById(selectedProfileId);
     if (!profile) {
@@ -4557,13 +4629,7 @@ ${run.command || ""}`)) {
   });
   elements.newLocalActionProfileButton.addEventListener("click", () => void createLocalActionProfileFromCurrentForm());
   elements.saveLocalActionProfileButton.addEventListener("click", () => void saveLocalActionProfile());
-  elements.deleteLocalActionProfileButton.addEventListener("click", () => {
-    const profile = localActionProfileById(selectedLocalActionProfileId);
-    if (!profile || !confirmDiscardLocalActionDraft("deleting this local-action profile")) return;
-    if (confirm(`Delete local-action profile “${profile.name}”?`)) {
-      void request(MESSAGE.DELETE_LOCAL_ACTION_PROFILE, { profileId: profile.id }, "Local-action profile deleted.");
-    }
-  });
+  elements.deleteLocalActionProfileButton.addEventListener("click", () => void deleteSelectedLocalActionProfile());
   elements.saveTabLocalActionsButton.addEventListener("click", () => void saveTabLocalActions());
   elements.resetTabLocalActionsButton.addEventListener("click", () => {
     if (!confirmDiscardLocalActionDraft("removing the tab override")) return;
@@ -4711,12 +4777,7 @@ Cancel: keep editing without losing the changes.`);
   elements.resetTabButton.addEventListener("click", () => void request(MESSAGE.RESET_TAB_CONFIG, { tabId: selectedTabId }, "The tab now uses its profile configuration."));
   elements.newProfileButton.addEventListener("click", () => void createProfileFromCurrentForm());
   elements.duplicateProfileButton.addEventListener("click", () => void duplicateSelectedProfile());
-  elements.deleteProfileButton.addEventListener("click", () => {
-    const profile = profileById(selectedProfileId);
-    if (profile && confirm(`Delete profile “${profile.name}”?`)) {
-      void request(MESSAGE.DELETE_PROFILE, { profileId: profile.id }, "Profile deleted.");
-    }
-  });
+  elements.deleteProfileButton.addEventListener("click", () => void deleteSelectedAutomationProfile());
   elements.saveProfileButton.addEventListener("click", () => void saveProfileConfiguration());
   function downloadBlob(blob, filename) {
     const link = document.createElement("a");

@@ -27,7 +27,7 @@ const phase41OrNewer = manifestParts[0] > 0 || manifestParts[1] > 39 || (manifes
 if (phase41OrNewer) {
   assert.match(sidebar, /elements\.localActionSourceSummary\.hidden = false/);
   assert.doesNotMatch(sidebar, /elements\.localActionSourceSummary\.hidden = true/);
-  assert.match(sidebar, /const sourceLabel = effectiveBinding === "explicit-tab"/);
+  assert.match(sidebar, /const (?:baseSourceLabel|sourceLabel) = effectiveBinding === "explicit-tab"/);
   assert.match(sidebar, /"URL-routed profile"/);
   assert.match(sidebar, /"Default profile"/);
   assert.match(sidebar, /Selected but not applied:|Editing:.*\(not applied\)/);

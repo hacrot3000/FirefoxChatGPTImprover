@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 48 v0.39.9
+**Current baseline:** Phase 49 v0.40.0
 **Primary supported environment:** Firefox Desktop plus Chromium/Chrome/Edge packages; Native Host registration is provided for Linux Chromium browsers  
 **Native Host:** 0.13.0
 
@@ -28,7 +28,7 @@
 | Real Firefox E2E and version matrix | Complete | Opt-in runner covers tabs, title, badge, DOM action, navigation and optional Native Host download/shell; matrix emits JSON/Markdown per Firefox binary. |
 | Named saved working-session catalog | Complete | Multiple locally stored named sessions with search, update, rename, duplicate, delete, per-session/catalog JSON backup and controlled subset restore. |
 | Per-rule statistics dashboard | Complete | Session-isolated counts for match/click/verify/automatic-command outcomes, return-code frequencies, average target/pipeline timings, JSON export and reset. |
-| Source integrity and regression | Complete | Phase 04–45 contracts, syntax audits, Native Host tests, release-status, configuration/session scope and Stop/Start continuity gates, plus opt-in real-Firefox E2E/version-matrix tooling. |
+| Source integrity and regression | Complete | Phase 04–49 contracts, syntax audits, Native Host tests, release-status, configuration/session scope and Stop/Start continuity gates, plus opt-in real-Firefox E2E/version-matrix tooling. |
 
 ## Operator-provided deployment inputs
 
@@ -74,6 +74,13 @@ python .\tools\run_firefox_e2e.py --require-native
 
 
 
+
+## Phase 49 v0.40.0
+
+- Deleting an Automation profile preserves every affected active/stopped tab's effective automation configuration as a tab override instead of reverting to Default.
+- Deleting a Local action profile preserves current download and shell values as a tab override and clears obsolete explicit bindings back to URL/default semantics.
+- Local action profile bundle imports no longer erase per-tab working drafts or frozen download/shell values.
+- Deletion dialogs report affected open tabs and the sidebar identifies preserved Local action overrides.
 
 ## Phase 46 v0.39.7
 

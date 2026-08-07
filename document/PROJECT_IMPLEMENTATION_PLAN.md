@@ -1,6 +1,6 @@
 # FirefoxChatImprover — Kế hoạch triển khai
 
-> **Current implementation baseline:** Phase 48 v0.39.9
+> **Current implementation baseline:** Phase 49 v0.40.0
 
 
 ## 1. Mục tiêu dự án
@@ -732,3 +732,15 @@ Status: **Complete**
 - Provide persistent Simple, Standard, All and Custom visibility presets from an always-visible control.
 - Treat visibility as UI-only: no configuration deletion, runtime disablement or session mutation.
 - Enforce dependencies so routing requires Automation profiles and download/shell editors require Local action profiles.
+
+## Phase 49 — Safe profile lifecycle and deletion reconciliation
+
+**Mục tiêu:** Không để thao tác xóa/import profile âm thầm thay đổi cấu hình đang dùng trên tab.
+
+- Xóa Automation profile phải chuyển tab bị ảnh hưởng sang tab override với đúng effective config hiện tại.
+- Xóa Local action profile phải giữ download/shell values hiện tại, xóa explicit binding lỗi thời và chỉ dùng URL/default làm profile nền.
+- Stopped-tab snapshots phải được reconcile ngay, không giữ ID profile đã xóa.
+- Import Local action bundle không được xóa working draft hoặc frozen job values.
+- Regression kiểm tra active tab, stopped tab, explicit binding và import continuity.
+
+**Trạng thái:** Hoàn tất trong v0.40.0.

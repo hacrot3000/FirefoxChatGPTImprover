@@ -38,6 +38,10 @@ Sau đó reload add-on trong `about:addons`.
 
 ---
 
+## Safe profile lifecycle
+
+Deleting an Automation or Local action profile uses **safe detach**. Open active/stopped tabs keep their effective automation, download and shell values as tab-specific overrides instead of silently reverting to Default or URL routing. Importing Local action profile bundles also preserves unsaved per-tab working drafts.
+
 ## Profile editor continuity
 
 Automation and Local action profile editors remember the selected profile per tab across sidebar reloads. The source summary distinguishes **Editing** from the profile the tab currently **uses**, and saved state is rejected when the tab URL changes.

@@ -44,7 +44,8 @@ for (const token of [
   "loadTabLocalActionProfileId(tab.id, localStore)",
   'localActionRouting: boundLocalActionProfile ? "explicit-tab-binding"',
   "currentTabMeta.localActionProfileId = currentSession?.localActionProfileId || currentExplicitLocalActionProfileId",
-  "replaceDeletedTabLocalActionBindings(profileId, saved)",
+  "reconcileDeletedLocalActionProfileTabs(profileToDelete, previousStore, saved)",
+  "await clearTabLocalActionProfileId(tab.id)",
   "saveTabLocalActionProfileId(numericTabId, profile.id)"
 ]) assert(background.includes(token), `Missing stopped-tab binding contract: ${token}`);
 

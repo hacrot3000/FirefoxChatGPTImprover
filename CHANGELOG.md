@@ -15,6 +15,24 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
+## [0.40.0] - 2026-08-07
+
+### Fixed
+
+- Deleting an Automation profile no longer sends active or stopped tabs back to Default; their effective configuration is preserved as a tab override.
+- Deleting a Local action profile no longer changes download destinations or shell commands on affected tabs; current values are preserved as tab overrides.
+- Deleted explicit Local action bindings are cleared instead of converting URL/default fallback into a new explicit binding.
+- Importing Local action profile bundles no longer discards per-tab working drafts or frozen download/shell values.
+
+### Changed
+
+- Profile deletion dialogs now explain the number of affected open tabs and the safe-detach behavior.
+- Source summaries explicitly identify preserved Local action tab overrides.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
 ## [0.39.9] - 2026-08-07
 
 ### Fixed

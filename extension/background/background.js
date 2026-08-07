@@ -2247,27 +2247,109 @@
   }
 
 
-  async function replaceDeletedTabLocalActionBindings(deletedProfileId, localStore) {
+  function replacementAutomationProfile(store, url) {
+    const routed = Settings.routeProfile(store, url || "");
+    return routed.profile || Settings.profileById(store, store.defaultProfileId) || store.profiles[0] || null;
+  }
+
+  function replacementLocalActionProfile(store, url) {
+    const routed = LocalActions.routeProfile(store, url || "");
+    const profile = routed.profile || LocalActions.profileById(store, store.defaultProfileId) || store.profiles[0] || null;
+    return { profile, binding: routed.matched ? "url-route" : "default" };
+  }
+
+  async function reconcileDeletedAutomationProfileTabs(deletedProfile, savedStore) {
+    let preservedTabs = 0;
     const tabs = await browser.tabs.query({});
     for (const tab of tabs) {
       if (!Number.isInteger(tab?.id)) continue;
-      let boundProfileId = null;
-      try {
-        boundProfileId = await browser.sessions.getTabValue(tab.id, TAB_LOCAL_ACTION_PROFILE_KEY);
-      } catch (_error) {
+      const session = sessions.get(tab.id);
+      if (session?.profileId === deletedProfile.id) {
+        const effectiveConfig = session.configMode === CONFIG_MODE.TAB && session.tabConfig
+          ? Settings.normalizeConfig(session.tabConfig)
+          : Settings.normalizeConfig(deletedProfile.config);
+        const replacement = replacementAutomationProfile(savedStore, session.url || tab.url || "");
+        if (!replacement) continue;
+        session.profileId = replacement.id;
+        session.configMode = CONFIG_MODE.TAB;
+        session.tabConfig = effectiveConfig;
+        session.configRevision += 1;
+        appendLog(session, "user", "profile-deleted-config-preserved", `Deleted profile “${deletedProfile.name}”; current automation values were preserved as a tab override based on “${replacement.name}”.`);
+        try {
+          await applySessionToContent(session, savedStore);
+          session.error = null;
+        } catch (error) {
+          session.mode = MODE.ERROR;
+          session.error = error instanceof Error ? error.message : String(error);
+        }
+        await persistSession(session);
+        await updateBadge(session, savedStore);
+        preservedTabs += 1;
         continue;
       }
-      if (String(boundProfileId || "") !== String(deletedProfileId || "")) continue;
-      const routed = LocalActions.routeProfile(localStore, tab.url || "");
-      const replacementId = routed.profileId || localStore.defaultProfileId || localStore.profiles[0]?.id || null;
-      if (replacementId) {
-        const replacementProfile = LocalActions.profileById(localStore, replacementId);
-        await saveTabLocalActionProfileId(tab.id, replacementId);
-        await replaceStoppedTabLocalActionChoice(tab.id, replacementProfile, "explicit-tab");
-      } else {
-        await browser.sessions.removeTabValue(tab.id, TAB_LOCAL_ACTION_PROFILE_KEY).catch(() => {});
-      }
+
+      const snapshot = await loadStoppedTabConfigSnapshot(tab.id);
+      if (!snapshot || snapshot.profileId !== deletedProfile.id) continue;
+      const replacement = replacementAutomationProfile(savedStore, tab.url || snapshot.url || "");
+      if (!replacement) continue;
+      await saveStoppedTabConfigSnapshot(tab.id, {
+        ...snapshot,
+        profileId: replacement.id,
+        configMode: CONFIG_MODE.TAB,
+        tabConfig: snapshot.effectiveConfig,
+        effectiveConfig: snapshot.effectiveConfig
+      });
+      preservedTabs += 1;
     }
+    return preservedTabs;
+  }
+
+  async function reconcileDeletedLocalActionProfileTabs(deletedProfile, oldStore, savedStore) {
+    let preservedTabs = 0;
+    const tabs = await browser.tabs.query({});
+    for (const tab of tabs) {
+      if (!Number.isInteger(tab?.id)) continue;
+      let explicitProfileId = null;
+      try {
+        explicitProfileId = await browser.sessions.getTabValue(tab.id, TAB_LOCAL_ACTION_PROFILE_KEY);
+      } catch (_error) {
+        explicitProfileId = null;
+      }
+      const explicitDeleted = String(explicitProfileId || "") === String(deletedProfile.id);
+      if (explicitDeleted) await clearTabLocalActionProfileId(tab.id);
+
+      const session = sessions.get(tab.id);
+      if (session?.localActionProfileId === deletedProfile.id) {
+        const effectiveConfig = sessionLocalActionConfig(session, oldStore);
+        const replacement = replacementLocalActionProfile(savedStore, session.url || tab.url || "");
+        if (!replacement.profile) continue;
+        clearWorkingLocalActionSnapshot(session);
+        session.localActionProfileId = replacement.profile.id;
+        session.localActionConfigMode = CONFIG_MODE.TAB;
+        session.localActionTabConfig = LocalActions.normalizeConfig(effectiveConfig);
+        session.localActionRevision = Number(session.localActionRevision || 0) + 1;
+        appendLog(session, "user", "local-action-profile-deleted-config-preserved", `Deleted Local action profile “${deletedProfile.name}”; current download and shell values were preserved as a tab override based on “${replacement.profile.name}”.`);
+        await persistSession(session);
+        preservedTabs += 1;
+        continue;
+      }
+
+      const snapshot = await loadStoppedTabConfigSnapshot(tab.id);
+      if (!snapshot || (snapshot.localActionProfileId !== deletedProfile.id && !explicitDeleted)) continue;
+      const replacement = replacementLocalActionProfile(savedStore, tab.url || snapshot.url || "");
+      if (!replacement.profile) continue;
+      await saveStoppedTabConfigSnapshot(tab.id, {
+        ...snapshot,
+        localActionProfileId: replacement.profile.id,
+        localActionBinding: replacement.binding,
+        localActionConfigMode: CONFIG_MODE.TAB,
+        localActionTabConfig: snapshot.effectiveLocalActions,
+        localActionWorkingConfig: null,
+        effectiveLocalActions: snapshot.effectiveLocalActions
+      });
+      preservedTabs += 1;
+    }
+    return preservedTabs;
   }
 
   function applyCustomTitleStateToSession(session, state, fallbackPageTitle = "") {
@@ -4062,22 +4144,15 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
   async function deleteLocalActionProfile(profileId) {
     const store = await loadLocalActionStore();
     if (store.profiles.length <= 1) throw new Error("At least one local-action profile must remain.");
-    if (!LocalActions.profileById(store, profileId)) throw new Error("Local-action profile not found.");
+    const profileToDelete = LocalActions.profileById(store, profileId);
+    if (!profileToDelete) throw new Error("Local-action profile not found.");
+    const previousStore = LocalActions.clone(store);
     store.profiles = store.profiles.filter((item) => item.id !== profileId);
     if (store.defaultProfileId === profileId) store.defaultProfileId = store.profiles[0].id;
     const saved = await saveLocalActionStore(store);
-    await replaceDeletedTabLocalActionBindings(profileId, saved);
-    for (const session of sessions.values()) {
-      if (session.localActionProfileId !== profileId) continue;
-      clearWorkingLocalActionSnapshot(session);
-      const routed = LocalActions.routeProfile(saved, session.url || "");
-      session.localActionProfileId = routed.profileId || saved.defaultProfileId;
-      session.localActionConfigMode = CONFIG_MODE.PROFILE;
-      session.localActionTabConfig = null;
-      session.localActionRevision = Number(session.localActionRevision || 0) + 1;
-      await persistSession(session);
-    }
+    const preservedTabs = await reconcileDeletedLocalActionProfileTabs(profileToDelete, previousStore, saved);
     await broadcast("local-action-profile-deleted");
+    return { store: saved, profile: profileToDelete, preservedTabs };
   }
 
   async function updateProfileSessions(profileId, store) {
@@ -4225,14 +4300,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       } else if (!store.profiles.some((item) => item.id === store.defaultProfileId)) {
         store.defaultProfileId = store.profiles[0].id;
       }
-      const saved = await saveLocalActionStore(store);
-      for (const session of sessions.values()) {
-        if (session.localActionConfigMode !== CONFIG_MODE.PROFILE) continue;
-        if (!LocalActions.profileById(saved, session.localActionProfileId)) session.localActionProfileId = saved.defaultProfileId;
-        clearWorkingLocalActionSnapshot(session);
-        session.localActionRevision = Number(session.localActionRevision || 0) + 1;
-        await persistSession(session);
-      }
+      await saveLocalActionStore(store);
+      // Imported profile data must not erase per-tab working drafts or frozen download/shell values.
+      // Profile-mode tabs resolve the updated profile from storage on the next dashboard render.
       await broadcast("local-action-profiles-imported");
       return merged;
     }
@@ -4342,19 +4412,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     await createSettingsSnapshot("before_profile_delete", `Before deleting profile: ${profileToDelete.name}`, store);
     store.profiles = store.profiles.filter((profile) => profile.id !== profileId);
     const saved = await saveStore(store);
-    for (const session of sessions.values()) {
-      if (session.profileId === profileId) {
-        session.profileId = saved.defaultProfileId;
-        session.configMode = CONFIG_MODE.PROFILE;
-        session.tabConfig = null;
-        session.configRevision += 1;
-        await applySessionToContent(session, saved);
-        await persistSession(session);
-        await updateBadge(session, saved);
-      }
-    }
+    const preservedTabs = await reconcileDeletedAutomationProfileTabs(profileToDelete, saved);
     await broadcast("profile-deleted");
-    return saved;
+    return { store: saved, profile: profileToDelete, preservedTabs };
   }
 
   async function refreshSessionsForStore(saved) {
@@ -5146,9 +5206,10 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
           return { ok: true, savedProfile: Settings.profileById(saved, message.profile.id), dashboard: await dashboard() };
         }
 
-        case MESSAGE.DELETE_PROFILE:
-          await deleteProfile(message.profileId);
-          return { ok: true, dashboard: await dashboard() };
+        case MESSAGE.DELETE_PROFILE: {
+          const result = await deleteProfile(message.profileId);
+          return { ok: true, deletedProfile: result.profile, preservedTabs: result.preservedTabs, dashboard: await dashboard() };
+        }
 
         case MESSAGE.CREATE_COMPONENT_PROFILE: {
           const profile = await createComponentProfile(message.profileType, message.name, message.config);
@@ -5270,9 +5331,10 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
           return { ok: true, savedProfile: LocalActions.profileById(saved, message.profile?.id), dashboard: await dashboard() };
         }
 
-        case MESSAGE.DELETE_LOCAL_ACTION_PROFILE:
-          await deleteLocalActionProfile(message.profileId);
-          return { ok: true, dashboard: await dashboard() };
+        case MESSAGE.DELETE_LOCAL_ACTION_PROFILE: {
+          const result = await deleteLocalActionProfile(message.profileId);
+          return { ok: true, deletedProfile: result.profile, preservedTabs: result.preservedTabs, dashboard: await dashboard() };
+        }
 
         case MESSAGE.ASSIGN_LOCAL_ACTION_PROFILE: {
           const tabId = Number(message.tabId);
