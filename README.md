@@ -800,3 +800,20 @@ Pressing **Stop** ends the tab's automation runtime but no longer discards its c
 
 Runtime-only data intentionally starts clean: monitor baselines, alert state, activity logs and per-rule statistics are not treated as configuration. Selecting a different configuration profile while the tab is stopped intentionally replaces the preserved snapshot on the next Start.
 <!-- FCI_PHASE44_STOP_START_TAB_CONFIG_END -->
+
+## Explicit stopped-tab state (v0.39.6)
+
+After **Stop**, the tab remains explicitly inactive even if Firefox reloads the page or restarts the background script. Trusted URL auto-activation skips that tab until the user presses **Start**. The preserved configuration is consumed only after Start succeeds. Applying/clearing a Local action profile or deliberately selecting another configuration/URL route while stopped updates or bypasses the snapshot instead of restoring stale/default values.
+
+<!-- FCI_PHASE46_SIMPLIFIED_SIDEBAR_BEGIN -->
+## Simplified sidebar and visible features (v0.39.7)
+
+The two profile systems now use purpose-specific names:
+
+- **Automation profiles** store rules, monitors, targets, alerts and automation URL routing.
+- **Local action profiles** store machine-local download destinations, shell commands and their URL routing.
+
+Use the gear button in **Tabs and runtime** to choose a **Simple**, **Standard**, **All features** or **Custom** layout. Tabs and runtime always remains visible, so hidden features can always be restored. Hiding a feature affects only the sidebar controls; it does not delete settings, disable an active automation, alter saved working sessions or change Stop/Start persistence.
+
+Automation save and tab-override controls now live in Automation profiles. **Backup and transfer** contains only configuration import/export, typed profile transfer and recovery snapshots. Working-session files remain isolated in **Working session library**.
+<!-- FCI_PHASE46_SIMPLIFIED_SIDEBAR_END -->

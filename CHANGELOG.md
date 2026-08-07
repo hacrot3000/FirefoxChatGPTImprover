@@ -15,6 +15,33 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
+## [0.39.7] - 2026-08-06
+
+### Changed
+
+- Renamed `Configuration profiles` to `Automation profiles` and clarified the distinct `Local action profiles` scope.
+- Reorganized sidebar groups into automation, local-action, session/support and setup areas with clearer names.
+- Moved automation save/tab-override controls into Automation profiles, page-highlight cleanup into Rule target action, and left Backup and transfer responsible only for configuration transfer and recovery snapshots.
+- Added persistent Simple, Standard, All and Custom sidebar layouts from the always-visible feature button in Tabs and runtime.
+- Hiding a feature now hides only its controls; stored data, running automation and Stop/Start state are preserved.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
+## [0.39.6] - 2026-08-06
+
+### Fixed
+
+- Explicitly stopped tabs are no longer reactivated by URL auto-activation after reload or browser startup.
+- Applying or clearing a Local action profile while stopped now updates the preserved snapshot instead of allowing the previous draft/profile to return on Start.
+- Manual profile and URL-routing choices override the stopped snapshot consistently, including after sidebar refresh.
+- A stopped snapshot is consumed only after Start succeeds, so permission or content-script failures do not lose the preserved configuration.
+
+### Compatibility
+
+- Protocol remains 26 and Native Host remains 0.13.0.
+
 ## [0.39.5] - 2026-08-06
 
 ### Fixed

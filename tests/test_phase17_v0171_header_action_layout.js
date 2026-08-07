@@ -39,10 +39,10 @@ function assertHeadingActionOrder(section, actionIds, helpLabel) {
 const tabs = sectionByGroupId("tabs");
 assertHeadingActionOrder(
   tabs,
-  ["tabPrimaryQuickButton", "tabStopQuickButton", "refreshButton"],
-  "Tabs and sessions help"
+  ["tabPrimaryQuickButton", "tabStopQuickButton", "customizeSidebarButton", "refreshButton"],
+  "Tabs and runtime help"
 );
-assert.equal((tabs.match(/Tabs and sessions help/g) || []).length, 1);
+assert.equal((tabs.match(/Tabs and runtime help/g) || []).length, 1);
 
 const target = sectionByGroupId("target");
 assertHeadingActionOrder(

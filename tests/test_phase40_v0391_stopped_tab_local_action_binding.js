@@ -79,6 +79,7 @@ const sandbox = {
   CONFIG_MODE: { PROFILE: "profile" },
   appendLog() {},
   persistSession: async () => {},
+  replaceStoppedTabLocalActionChoice: async () => null
 };
 vm.createContext(sandbox);
 vm.runInContext(extractFunction(background, "async function saveTabLocalActionProfileId"), sandbox);

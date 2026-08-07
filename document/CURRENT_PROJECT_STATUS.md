@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 44 v0.39.5
+**Current baseline:** Phase 46 v0.39.7
 **Primary supported environment:** Firefox Desktop plus Chromium/Chrome/Edge packages; Native Host registration is provided for Linux Chromium browsers  
 **Native Host:** 0.13.0
 
@@ -28,7 +28,7 @@
 | Real Firefox E2E and version matrix | Complete | Opt-in runner covers tabs, title, badge, DOM action, navigation and optional Native Host download/shell; matrix emits JSON/Markdown per Firefox binary. |
 | Named saved working-session catalog | Complete | Multiple locally stored named sessions with search, update, rename, duplicate, delete, per-session/catalog JSON backup and controlled subset restore. |
 | Per-rule statistics dashboard | Complete | Session-isolated counts for match/click/verify/automatic-command outcomes, return-code frequencies, average target/pipeline timings, JSON export and reset. |
-| Source integrity and regression | Complete | Phase 04–44 contracts, syntax audits, Native Host tests, release-status, configuration/session scope and Stop/Start continuity gates, plus opt-in real-Firefox E2E/version-matrix tooling. |
+| Source integrity and regression | Complete | Phase 04–45 contracts, syntax audits, Native Host tests, release-status, configuration/session scope and Stop/Start continuity gates, plus opt-in real-Firefox E2E/version-matrix tooling. |
 
 ## Operator-provided deployment inputs
 
@@ -74,6 +74,21 @@ python .\tools\run_firefox_e2e.py --require-native
 
 
 
+
+## Phase 46 v0.39.7
+
+- Renamed the two profile systems to **Automation profiles** and **Local action profiles** with explicit, non-overlapping scopes.
+- Reordered the sidebar into a coherent automation → local action → session/support → setup flow.
+- Added an always-available feature chooser with Simple, Standard, All and Custom layouts persisted in sidebar UI storage.
+- Hidden groups retain all configuration and runtime data; only their controls are removed from view.
+- Moved automation save controls into Automation profiles and kept Backup and transfer limited to configuration transfer and recovery snapshots.
+
+## Phase 45 v0.39.6
+
+- Explicit Stop now suppresses trusted-URL auto-activation after reload and background/browser startup.
+- Local action Apply/Clear operations on a stopped tab rewrite the preserved Local action choice and discard the superseded stopped draft.
+- Manual configuration profile or URL-routing choices can intentionally bypass the snapshot, while failed Start attempts leave it intact.
+- Sidebar refresh displays the newly selected profile instead of silently repainting the old stopped snapshot.
 
 ## Phase 44 v0.39.5
 

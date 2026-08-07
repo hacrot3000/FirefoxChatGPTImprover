@@ -12,6 +12,7 @@
   // Phase 28 v0.28.22: bounded Native Host log retention with protected unread logs.
   // Phase 28 v0.28.23: tab-bound working local actions survive background restarts and reject stale sidebar syncs.
   // Phase 44 v0.39.5: Stop keeps a per-tab configuration snapshot for the next Start.
+  // Phase 45 v0.39.6: explicit stopped state blocks auto-activation and reconciles profile choices.
 
   const { MESSAGE, MODE, CONFIG_MODE, MONITOR_STATE } = globalThis.FCI_PROTOCOL;
   const Settings = globalThis.FCI_SETTINGS;
@@ -2112,6 +2113,9 @@
         : null,
       effectiveConfig,
       localActionProfileId,
+      localActionBinding: ["explicit-tab", "url-route", "default"].includes(source.localActionBinding)
+        ? source.localActionBinding
+        : "stopped-snapshot",
       localActionConfigMode,
       localActionTabConfig: localActionConfigMode === CONFIG_MODE.TAB
         ? LocalActions.normalizeConfig(source.localActionTabConfig || effectiveLocalActions)
@@ -2154,7 +2158,21 @@
     }
   }
 
-  function stoppedTabConfigSnapshot(session, store, localStore, rawDrafts = null) {
+  async function replaceStoppedTabLocalActionChoice(tabId, profile, binding) {
+    const snapshot = await loadStoppedTabConfigSnapshot(tabId);
+    if (!snapshot || !profile) return null;
+    return saveStoppedTabConfigSnapshot(tabId, {
+      ...snapshot,
+      localActionProfileId: profile.id,
+      localActionBinding: ["explicit-tab", "url-route", "default"].includes(binding) ? binding : "default",
+      localActionConfigMode: CONFIG_MODE.PROFILE,
+      localActionTabConfig: null,
+      localActionWorkingConfig: null,
+      effectiveLocalActions: profile.config
+    });
+  }
+
+  function stoppedTabConfigSnapshot(session, store, localStore, rawDrafts = null, localActionBinding = "stopped-snapshot") {
     if (!session) return null;
     const drafts = rawDrafts && typeof rawDrafts === "object" ? rawDrafts : {};
     const currentConfig = sessionConfig(session, store);
@@ -2178,6 +2196,7 @@
       tabConfig: configChanged ? draftedConfig : session.tabConfig,
       effectiveConfig: draftedConfig,
       localActionProfileId: session.localActionProfileId,
+      localActionBinding,
       localActionConfigMode: session.localActionConfigMode,
       localActionTabConfig: session.localActionTabConfig,
       localActionWorkingConfig: localChanged ? draftedLocalActions : existingWorking,
@@ -2242,7 +2261,9 @@
       const routed = LocalActions.routeProfile(localStore, tab.url || "");
       const replacementId = routed.profileId || localStore.defaultProfileId || localStore.profiles[0]?.id || null;
       if (replacementId) {
+        const replacementProfile = LocalActions.profileById(localStore, replacementId);
         await saveTabLocalActionProfileId(tab.id, replacementId);
+        await replaceStoppedTabLocalActionChoice(tab.id, replacementProfile, "explicit-tab");
       } else {
         await browser.sessions.removeTabValue(tab.id, TAB_LOCAL_ACTION_PROFILE_KEY).catch(() => {});
       }
@@ -3589,6 +3610,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     if (sessions.has(tab.id)) {
       return autoActivationDecision(tab, "skipped", { reason: "tab-already-active", source: reason });
     }
+    if (await loadStoppedTabConfigSnapshot(tab.id)) {
+      return autoActivationDecision(tab, "skipped", { reason: "tab-explicitly-stopped", source: reason });
+    }
     const store = await loadStore();
     const routing = Settings.routeAutoActivation(store, tab.url);
     if (!routing.matched || !routing.profileId) {
@@ -3666,7 +3690,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     }, Math.max(0, Number(delayMs) || 0));
   }
 
-  async function activateTab(tab, source, requestedProfileId = null, requestedLocalActionProfileId = null, forceStoppedRestore = false) {
+  async function activateTab(tab, source, requestedProfileId = null, requestedLocalActionProfileId = null, forceStoppedRestore = false, discardStoppedConfig = false) {
     if (!Number.isInteger(tab?.id)) {
       throw new Error("Could not determine the current tab.");
     }
@@ -3697,13 +3721,10 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     }
 
     const stoppedSnapshot = await loadStoppedTabConfigSnapshot(tab.id);
-    const restoreStoppedSnapshot = Boolean(stoppedSnapshot) && (
+    const restoreStoppedSnapshot = Boolean(stoppedSnapshot) && !discardStoppedConfig && (
       forceStoppedRestore || source !== "sidebar" || !requestedProfileId ||
       String(requestedProfileId) === String(stoppedSnapshot.profileId)
     );
-    if (stoppedSnapshot && !restoreStoppedSnapshot) {
-      await clearStoppedTabConfigSnapshot(tab.id);
-    }
     const routing = requestedProfileId || restoreStoppedSnapshot ? null : Settings.routeProfile(store, tab.url);
     const profile = Settings.profileById(store, restoreStoppedSnapshot ? stoppedSnapshot.profileId : requestedProfileId) ||
       routing?.profile ||
@@ -3763,7 +3784,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       });
       sessions.set(tab.id, session);
       await persistSession(session);
-      if (restoreStoppedSnapshot) await clearStoppedTabConfigSnapshot(tab.id);
+      if (stoppedSnapshot) await clearStoppedTabConfigSnapshot(tab.id);
       await updateBadge(session, store);
       await broadcast(restoreStoppedSnapshot ? "stopped-config-restored" : "activated", tab.id);
       return publicSession(session, store);
@@ -3823,7 +3844,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     const session = sessions.get(tabId);
     if (session) {
       const [store, localStore] = await Promise.all([loadStore(), loadLocalActionStore()]);
-      const snapshot = stoppedTabConfigSnapshot(session, store, localStore, rawDrafts);
+      const explicitLocalActionProfileId = await loadTabLocalActionProfileId(tabId, localStore);
+      const routedLocalActionProfile = LocalActions.routeProfile(localStore, session.url || "");
+      const localActionBinding = explicitLocalActionProfileId
+        ? "explicit-tab"
+        : (routedLocalActionProfile.matched ? "url-route" : "default");
+      const snapshot = stoppedTabConfigSnapshot(session, store, localStore, rawDrafts, localActionBinding);
       if (snapshot) await saveStoppedTabConfigSnapshot(tabId, snapshot);
     }
     try {
@@ -3918,6 +3944,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       const tab = await browser.tabs.get(numericTabId);
       if (!Number.isInteger(tab?.id)) throw new Error("The selected tab no longer exists.");
       await saveTabLocalActionProfileId(numericTabId, profile.id);
+      await replaceStoppedTabLocalActionChoice(numericTabId, profile, "explicit-tab");
       await broadcast("local-action-profile-bound", numericTabId);
       return { profileId: profile.id, pendingActivation: true };
     }
@@ -3952,8 +3979,10 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
     const session = sessions.get(numericTabId);
     if (!session) {
+      const binding = routed.matched ? "url-route" : "default";
+      await replaceStoppedTabLocalActionChoice(numericTabId, profile, binding);
       await broadcast("local-action-profile-binding-cleared", numericTabId);
-      return { profileId: profile.id, binding: routed.matched ? "url-route" : "default", pendingActivation: true };
+      return { profileId: profile.id, binding, pendingActivation: true };
     }
 
     clearWorkingLocalActionSnapshot(session);
@@ -4941,7 +4970,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     currentTabMeta.localActionProfileId = currentSession?.localActionProfileId || currentExplicitLocalActionProfileId || currentStoppedConfig?.localActionProfileId || currentFallbackLocalActionProfile?.id || null;
     currentTabMeta.localActionProfileBinding = currentExplicitLocalActionProfileId
       ? "explicit-tab"
-      : (currentStoppedConfig ? "stopped-snapshot" : (currentLocalActionRoute.matched ? "url-route" : "default"));
+      : (currentStoppedConfig?.localActionBinding || (currentStoppedConfig ? "stopped-snapshot" : (currentLocalActionRoute.matched ? "url-route" : "default")));
     const publicSessions = [];
     for (const session of [...sessions.values()].sort((left, right) => left.tabId - right.tabId)) {
       const publicValue = publicSession(session, store, localActionStore);
@@ -5055,7 +5084,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
             "sidebar",
             message.profileId || null,
             message.localActionProfileId || null,
-            message.restoreStoppedConfig === true
+            message.restoreStoppedConfig === true,
+            message.discardStoppedConfig === true
           );
           return { ok: true, dashboard: await dashboard() };
         }

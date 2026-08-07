@@ -1,6 +1,6 @@
 # FirefoxChatImprover — Kế hoạch triển khai
 
-> **Current implementation baseline:** Phase 44 v0.39.5.
+> **Current implementation baseline:** Phase 46 v0.39.7.
 
 
 ## 1. Mục tiêu dự án
@@ -712,3 +712,23 @@ Status: **Complete**
 - Profile bị chỉnh trong lúc tab stopped không âm thầm đổi cấu hình đã đóng băng; snapshot chuyển thành tab override khi cần.
 - Người dùng chọn profile khác khi tab stopped thì lựa chọn mới được ưu tiên.
 - Regression Phase 04–44 PASS.
+
+## Phase 45 — Explicit stopped-tab state reconciliation (v0.39.6)
+
+**Mục tiêu:** bảo đảm `Stop` là trạng thái chủ động, không bị auto-activation đảo ngược và mọi lựa chọn profile khi tab dừng được phản ánh nhất quán.
+
+- Chặn URL auto-activation khi còn stopped snapshot.
+- Cập nhật snapshot khi Apply/Clear Local action profile ở tab đã Stop.
+- Cho phép lựa chọn profile/routing mới bỏ qua snapshot một cách tường minh.
+- Chỉ xóa snapshot sau khi Start và persist session thành công.
+- Giữ nguyên snapshot nếu permission/content activation thất bại.
+
+## Phase 46 — Simplified sidebar and feature visibility (v0.39.7)
+
+**Status:** Complete.
+
+- Rename confusing profile and editor groups without changing storage schemas.
+- Reorder groups into a predictable task flow and colocate controls with the data they modify.
+- Provide persistent Simple, Standard, All and Custom visibility presets from an always-visible control.
+- Treat visibility as UI-only: no configuration deletion, runtime disablement or session mutation.
+- Enforce dependencies so routing requires Automation profiles and download/shell editors require Local action profiles.

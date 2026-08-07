@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.html"), "utf8");
+const sidebar = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.js"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8"));
 function section(groupId) {
   const token = `<section class="card" data-group-id="${groupId}"`;
@@ -18,9 +19,17 @@ const target = section("target");
 const download = section("download");
 const alerts = section("alerts");
 const localActions = section("local-actions");
-assert(target.start < download.start && download.start < alerts.start, "Managed download must be directly below New target element");
-const between = html.slice(target.start + target.text.length, alerts.start);
-assert.equal((between.match(/data-group-id=/g) || []).length, 1, "no other group may appear between target and alerts");
+assert(target.start >= 0 && download.start >= 0 && alerts.start >= 0 && localActions.start >= 0);
+const orderMatch = /const SIDEBAR_GROUP_ORDER = Object\.freeze\(\[([\s\S]*?)\]\);/.exec(sidebar);
+assert(orderMatch, "Missing runtime sidebar group-order registry");
+const runtimeOrder = [...orderMatch[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+for (const groupId of ["target", "alerts", "local-actions", "download", "shell"]) {
+  assert(runtimeOrder.includes(groupId), `Runtime order is missing ${groupId}`);
+}
+assert(runtimeOrder.indexOf("target") < runtimeOrder.indexOf("alerts"));
+assert(runtimeOrder.indexOf("alerts") < runtimeOrder.indexOf("local-actions"));
+assert(runtimeOrder.indexOf("local-actions") < runtimeOrder.indexOf("download"));
+assert(runtimeOrder.indexOf("download") < runtimeOrder.indexOf("shell"));
 for (const id of [
   "managedDownloadEnabled", "downloadDestinationDirectory", "downloadCaptureWindowSeconds",
   "downloadConflictAction", "showDownloadCompletionDialog", "downloadShellExecutionMode", "openShellLogAfterExecution",
@@ -29,6 +38,7 @@ for (const id of [
   assert(download.text.includes(`id="${id}"`), `${id} must be in Managed download group`);
   assert(!localActions.text.includes(`id="${id}"`), `${id} must not remain in Local action profile group`);
 }
+assert(download.text.includes('<h2 id="downloadHeading">Local action: managed download</h2>'));
 assert(download.text.includes('aria-label="Managed download help"'));
 assert(download.text.includes('class="group-heading-actions"'));
 const version = manifest.version.split(".").map(Number);

@@ -91,7 +91,7 @@ for (const id of [
   "exportTargetProfilesButton", "importTargetProfilesButton",
   "exportLocalActionProfilesButton", "importLocalActionProfilesButton", "profileImportFile"
 ]) assert(html.includes(`id="${id}"`), id);
-assert(html.includes("Import/export configuration"));
+assert(html.includes("Backup and transfer"));
 
 const background = read("extension/background/background.js");
 for (const token of [

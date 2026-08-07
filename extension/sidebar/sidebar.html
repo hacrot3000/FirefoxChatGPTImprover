@@ -23,13 +23,14 @@
   <main id="mainContent" tabindex="-1">
     <section class="card" data-group-id="tabs" aria-labelledby="tabsHeading">
       <div class="section-title-row">
-        <h2 id="tabsHeading">Tabs and sessions</h2>
-        <div class="group-heading-actions" role="group" aria-label="Tabs and sessions actions">
+        <h2 id="tabsHeading">Tabs and runtime</h2>
+        <div class="group-heading-actions" role="group" aria-label="Tabs and runtime actions">
           <button id="tabPrimaryQuickButton" type="button" class="compact icon-button collapsed-only" aria-label="Activate, resume, or pause this tab" title="Activate, resume, or pause this tab">▶</button>
           <button id="tabStopQuickButton" type="button" class="compact icon-button danger collapsed-only" aria-label="Stop this tab" title="Stop this tab">■</button>
+          <button id="customizeSidebarButton" type="button" class="compact icon-button" aria-label="Choose visible sidebar features" title="Choose visible sidebar features">⚙</button>
           <button id="refreshButton" type="button" class="compact icon-button" aria-label="Refresh status" title="Refresh status">↻</button>
           <details class="help-menu heading-help-menu">
-            <summary aria-label="Tabs and sessions help" title="Help">?</summary>
+            <summary aria-label="Tabs and runtime help" title="Help">?</summary>
             <div class="help-popover" role="tooltip">
               Each tab keeps its own session, profile, configuration, and runtime state by tab ID. The sidebar follows the active tab automatically. Firefox asks for site access the first time a site is activated.
             </div>
@@ -200,7 +201,7 @@
     </section>
 
     <section class="card" data-group-id="working-sessions" aria-labelledby="workingSessionsHeading">
-      <h2 id="workingSessionsHeading">Saved working sessions</h2>
+      <h2 id="workingSessionsHeading">Working session library</h2>
       <label class="filter-field">
         Find saved session
         <input id="workingSessionCatalogSearch" type="search" autocomplete="off" placeholder="Name, description, title, URL, or session ID">
@@ -243,9 +244,9 @@
     </section>
 
     <section class="card" data-group-id="profiles" aria-labelledby="profileHeading">
-      <h2 id="profileHeading">Configuration profiles</h2>
+      <h2 id="profileHeading">Automation profiles</h2>
       <label class="filter-field">
-        Find configuration profile
+        Find automation profile
         <input id="profileSearch" type="search" autocomplete="off" placeholder="Name, URL pattern, or profile ID">
         <small id="profileSearchResult" class="filter-result" aria-live="polite"></small>
       </label>
@@ -259,14 +260,20 @@
       </label>
       <div class="button-grid">
         <button id="assignProfileButton" type="button">Apply to tab</button>
-        <button id="newProfileButton" type="button">New profile</button>
+        <button id="newProfileButton" type="button">Save current as new</button>
         <button id="duplicateProfileButton" type="button">Duplicate</button>
         <button id="deleteProfileButton" type="button" class="danger">Delete profile</button>
       </div>
+      <div class="button-grid profile-save-actions" aria-label="Save automation configuration">
+        <button id="saveProfileButton" type="button" class="primary">Save current values</button>
+        <button id="saveTabButton" type="button">Save as tab override</button>
+        <button id="resetTabButton" type="button">Use profile for tab</button>
+      </div>
+      <small class="inline-result">Automation profiles contain rules, monitors, targets, alerts and routing. Local paths and shell commands stay in Local action profiles.</small>
     </section>
 
     <section class="card" data-group-id="activation" aria-labelledby="activationHeading">
-      <h2 id="activationHeading">URL activation</h2>
+      <h2 id="activationHeading">Automation profile routing</h2>
       <label class="check-row">
         <input id="autoProfileByUrl" type="checkbox">
         Automatically select a matching profile when activating an inactive tab
@@ -280,7 +287,7 @@
           <input id="routingEnabled" type="checkbox">
           Include this profile in URL routing
         </label>
-        <labelPriority
+        <label>Priority
           <input id="routingPriority" type="number" min="-1000" max="1000" step="1">
         </label>
       </div>
@@ -307,7 +314,7 @@
     </section>
 
     <section class="card" data-group-id="rules" aria-labelledby="rulesHeading">
-      <h2 id="rulesHeading">Automation rules</h2>
+      <h2 id="rulesHeading">Rule list</h2>
       <label>
         Selected rule
         <select id="ruleSelect"></select>
@@ -349,7 +356,7 @@
 
 
     <section class="card" data-group-id="rule-statistics" aria-labelledby="ruleStatisticsHeading">
-      <h2 id="ruleStatisticsHeading">Rule statistics</h2>
+      <h2 id="ruleStatisticsHeading">Rule diagnostics</h2>
       <dl class="summary-grid rule-statistics-summary">
         <div><dt>Rules</dt><dd id="statisticsRuleCount">—</dd></div>
         <div><dt>Matches</dt><dd id="statisticsMatchCount">—</dd></div>
@@ -374,7 +381,7 @@
     </section>
 
     <section class="card" data-group-id="monitor" aria-labelledby="monitorHeading">
-      <h2 id="monitorHeading">Monitor element</h2>
+      <h2 id="monitorHeading">Rule monitor</h2>
       <div class="component-profile-panel">
         <label class="filter-field">Find monitor profile<input id="monitorProfileSearch" type="search" autocomplete="off" placeholder="Name, selector, or profile ID"><small id="monitorProfileSearchResult" class="filter-result" aria-live="polite"></small></label>
         <label>Monitor profile<select id="monitorProfileSelect"></select></label>
@@ -449,7 +456,7 @@
 
     <section class="card" data-group-id="target" aria-labelledby="targetHeading">
       <div class="section-title-row">
-        <h2 id="targetHeading">New target element</h2>
+        <h2 id="targetHeading">Rule target action</h2>
         <div class="group-heading-actions" role="group" aria-label="New target element actions">
           <button id="targetClickQuickButton" type="button" class="compact icon-button collapsed-only" aria-label="Simulate a user click on the current target" title="Simulate a user click on the current target">☝</button>
           <details class="help-menu heading-help-menu">
@@ -498,6 +505,7 @@
       <div class="button-grid target-test-actions">
         <button id="targetDryRunTestButton" type="button">Dry run current target</button>
         <button id="targetClickTestButton" type="button" class="danger">Test click with confirmation</button>
+        <button id="clearHighlightsButton" type="button">Clear page highlights</button>
       </div>
       <div class="selector-grid">
         <label>Click strategy<select id="clickStrategy">
@@ -549,7 +557,7 @@
 
     <section class="card" data-group-id="download" aria-labelledby="downloadHeading">
       <div class="section-title-row">
-        <h2 id="downloadHeading">Managed download</h2>
+        <h2 id="downloadHeading">Local action: managed download</h2>
         <div class="group-heading-actions" role="group" aria-label="Managed download actions">
           <details class="help-menu heading-help-menu">
             <summary aria-label="Managed download help" title="Help">?</summary>
@@ -583,7 +591,7 @@
     </section>
 
     <section class="card" data-group-id="alerts" aria-labelledby="alertsHeading">
-      <h2 id="alertsHeading">Alerts</h2>
+      <h2 id="alertsHeading">Alert behavior</h2>
       <div class="checks-grid">
         <label class="check-row"><input id="titleBlink" type="checkbox">Blink tab title</label>
         <label class="check-row"><input id="badgeAlert" type="checkbox">Badge toolbar</label>
@@ -625,7 +633,7 @@
 
     <section class="card" data-group-id="activity" aria-labelledby="activityHeading">
       <div class="section-title-row">
-        <h2 id="activityHeading">Tab activity log</h2>
+        <h2 id="activityHeading">Activity and support</h2>
         <label class="inline-select">Channel<select id="logChannel">
             <option value="user">User</option>
             <option value="debug">Debug</option>
@@ -641,14 +649,14 @@
 
     <section class="card" data-group-id="local-actions" aria-labelledby="localActionsHeading">
       <div class="section-title-row">
-        <h2 id="localActionsHeading">Local action profile</h2>
+        <h2 id="localActionsHeading">Local action profiles</h2>
         <div class="group-heading-actions" role="group" aria-label="Local action profile status and help">
           <span id="localActionDraftStatus" class="native-status local-action-status-dot" data-state="warning" hidden role="status" aria-label="Unsaved tab-only edits" title="Unsaved tab-only edits; lost after reload."></span>
           <span id="localActionModeStatus" class="native-status" data-state="offline">Profile-based</span>
           <details class="help-menu heading-help-menu">
             <summary aria-label="Local action profile help" title="Help">?</summary>
             <div class="help-popover" role="tooltip">
-              <p>Local-action profiles are separate from automation profiles and contain both managed-download and shell settings. Use the dedicated Managed download group above and Shell command group below to edit those settings.</p>
+              <p>Local-action profiles are separate from automation profiles and contain both managed-download and shell settings. Use the dedicated managed-download and shell-command groups below to edit those settings.</p>
               <p>The source summary shows whether the current tab uses a tab override, an assigned profile, a URL-routed profile, or the default profile. Unsaved edits are protected when switching tabs or profiles.</p>
             </div>
           </details>
@@ -663,8 +671,8 @@
       <div class="button-grid">
         <button id="assignLocalActionProfileButton" type="button">Apply to tab</button>
         <button id="clearLocalActionProfileBindingButton" type="button">Use URL/default</button>
-        <button id="newLocalActionProfileButton" type="button">New profile</button>
-        <button id="saveLocalActionProfileButton" type="button" class="primary">Save profile</button>
+        <button id="newLocalActionProfileButton" type="button">Save current as new</button>
+        <button id="saveLocalActionProfileButton" type="button" class="primary">Save current values</button>
         <button id="deleteLocalActionProfileButton" type="button" class="danger">Delete profile</button>
       </div>
       <div class="two-column compact-fields">
@@ -681,7 +689,7 @@
 
     <section class="card" data-group-id="shell" aria-labelledby="shellHeading">
       <div class="section-title-row">
-        <h2 id="shellHeading">Shell command</h2>
+        <h2 id="shellHeading">Local action: shell command</h2>
         <div class="group-heading-actions" role="group" aria-label="Shell command actions">
           <span id="nativeHostStatus" class="native-status native-host-status" data-state="offline" role="status" aria-live="polite">Native: not checked</span>
           <button id="runShellQuickButton" type="button" class="compact icon-button collapsed-only" aria-label="Run command" title="Run command">▶</button>
@@ -766,7 +774,7 @@
     </section>
 
     <section class="card installation-guide" data-group-id="installation-guide" aria-labelledby="installationGuideHeading">
-      <h2 id="installationGuideHeading">Installation guide</h2>
+      <h2 id="installationGuideHeading">Setup and installation</h2>
       <p class="guide-intro">Install the patch runner once, then install or update the Native Messaging Host whenever its source changes.</p>
 
       <details class="installation-guide-item">
@@ -804,7 +812,7 @@ chmod +x ./native-host/install_native_host.sh \
           <ol class="guide-steps">
             <li>Reload the add-on or restart the <code>web-ext</code> development session.</li>
             <li>Reload tabs that use managed downloads or shell commands.</li>
-            <li>Open <strong>Shell command</strong> and click <strong>Check Native Host</strong>.</li>
+            <li>Open <strong>Local action: shell command</strong> and click <strong>Check Native Host</strong>.</li>
             <li>Re-run the installer after every update to <code>native_host.py</code> or its manifest.</li>
           </ol>
           <p>The installer creates the per-user host and manifest under:</p>
@@ -827,19 +835,15 @@ cd C:\absolute\path\to\FirefoxChatImprover
     </section>
 
     <section class="card" data-group-id="save" aria-labelledby="saveHeading">
-      <h2 id="saveHeading">Import/export configuration</h2>
-      <p class="inline-result">Configuration data only. Working-session data is managed separately in Saved working sessions.</p>
+      <h2 id="saveHeading">Backup and transfer</h2>
+      <p class="inline-result">Configuration data only. Working-session data is managed separately in the Working session library.</p>
       <div class="button-grid">
-        <button id="saveProfileButton" type="button" class="primary">Save to profile</button>
-        <button id="saveTabButton" type="button">Save for this tab</button>
-        <button id="resetTabButton" type="button">Use profile for tab</button>
         <button id="exportButton" type="button">Export all configuration</button>
         <button id="importButton" type="button">Import all configuration</button>
-        <button id="clearHighlightsButton" type="button">Clear highlights</button>
         <input id="importFile" type="file" accept="application/json,.json" hidden>
       </div>
       <div class="profile-io-list" aria-label="Profile import and export">
-        <div class="profile-io-row"><strong>Configuration profiles</strong><button id="exportConfigurationProfilesButton" type="button" aria-label="Export configuration profiles">Export</button><button id="importConfigurationProfilesButton" type="button" aria-label="Import configuration profiles">Import</button></div>
+        <div class="profile-io-row"><strong>Automation profiles</strong><button id="exportConfigurationProfilesButton" type="button" aria-label="Export automation profiles">Export</button><button id="importConfigurationProfilesButton" type="button" aria-label="Import automation profiles">Import</button></div>
         <div class="profile-io-row"><strong>Monitor profiles</strong><button id="exportMonitorProfilesButton" type="button" aria-label="Export monitor profiles">Export</button><button id="importMonitorProfilesButton" type="button" aria-label="Import monitor profiles">Import</button></div>
         <div class="profile-io-row"><strong>Target profiles</strong><button id="exportTargetProfilesButton" type="button" aria-label="Export target profiles">Export</button><button id="importTargetProfilesButton" type="button" aria-label="Import target profiles">Import</button></div>
         <div class="profile-io-row"><strong>Local action profiles</strong><button id="exportLocalActionProfilesButton" type="button" aria-label="Export local action profiles">Export</button><button id="importLocalActionProfilesButton" type="button" aria-label="Import local action profiles">Import</button></div>
@@ -861,6 +865,48 @@ cd C:\absolute\path\to\FirefoxChatImprover
     </section>
 
     <output id="messageBox" class="message-box" role="status" aria-live="polite" aria-atomic="true"></output>
+
+    <dialog id="sidebarFeaturesDialog" class="sidebar-features-dialog" aria-labelledby="sidebarFeaturesDialogTitle" aria-describedby="sidebarFeaturesDialogDescription">
+      <form method="dialog" class="dialog-panel sidebar-features-panel">
+        <div class="dialog-title-row">
+          <div>
+            <h2 id="sidebarFeaturesDialogTitle">Choose visible features</h2>
+            <p id="sidebarFeaturesDialogDescription" class="dialog-description">Hiding a feature hides only its sidebar controls. Existing settings, saved data and running automation remain unchanged.</p>
+          </div>
+          <button id="closeSidebarFeaturesDialogButton" type="submit" value="done" class="compact icon-button" aria-label="Close feature settings" title="Close">×</button>
+        </div>
+        <label>Layout preset
+          <select id="sidebarFeaturePresetSelect">
+            <option value="simple">Simple — core automation only</option>
+            <option value="standard">Standard — common automation and local actions</option>
+            <option value="full">All features</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <fieldset class="sidebar-feature-list">
+          <legend>Visible sidebar features</legend>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="automation-editor">Automation editor: rules, monitor and target</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="automation-profiles">Automation profiles</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="automation-routing">URL routing and auto-activation</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="alerts">Alert behavior</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="local-action-profiles">Local action profiles</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="managed-downloads">Managed downloads</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="shell-commands">Shell commands</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="working-sessions">Working session library</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="prompt-templates">Prompt templates</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="rule-diagnostics">Rule diagnostics</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="activity-log">Activity and support</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="keyboard-shortcuts">Keyboard shortcuts</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="backup-recovery">Backup and transfer</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="setup-guide">Setup and installation</label>
+        </fieldset>
+        <output id="sidebarFeatureStatus" class="selector-test-result" aria-live="polite"></output>
+        <div class="button-grid">
+          <button id="resetSidebarFeaturesButton" type="button">Use standard layout</button>
+          <button type="submit" value="done" class="primary">Done</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="shellLogDialog" class="shell-log-dialog" aria-labelledby="shellLogDialogTitle" aria-describedby="shellLogMetadata">
       <form method="dialog" class="dialog-panel shell-log-panel">

@@ -9,6 +9,7 @@
   // Phase 28 v0.28.3: volatile editor drafts are highest-priority runtime state.
   // Phase 28 v0.28.23: bind draft autosync to the originating tab/session and persist its working snapshot.
   // Phase 44 v0.39.5: Stop sends the current editor drafts so Start restores the same tab configuration.
+  // Phase 45 v0.39.6: deliberate profile/routing choices override the stopped snapshot without silent fallback.
   // Phase 28 v0.28.1: prompt-created presets and unrestricted direct execution.
   const RuntimeGuard = globalThis.FCI_SIDEBAR_RUNTIME_GUARD;
   const SupportBundle = globalThis.FCI_SUPPORT_BUNDLE;
@@ -17,8 +18,49 @@
   const PromptTemplates = globalThis.FCI_PROMPT_TEMPLATES;
   const SIDEBAR_UI_STORAGE_KEY = "firefoxChatImprover.sidebarUi.v1";
   const DEFAULT_COLLAPSED_GROUPS = Object.freeze({
+    "keyboard-shortcuts": true,
+    "prompt-templates": true,
+    "working-sessions": true,
+    activation: true,
+    "rule-statistics": true,
+    activity: true,
     "installation-guide": true,
     save: true
+  });
+  const SIDEBAR_GROUP_ORDER = Object.freeze([
+    "tabs", "profiles", "activation", "rules", "monitor", "target", "alerts",
+    "local-actions", "download", "shell", "working-sessions", "prompt-templates",
+    "rule-statistics", "activity", "keyboard-shortcuts", "save", "installation-guide"
+  ]);
+  const SIDEBAR_FEATURES = Object.freeze({
+    "automation-editor": Object.freeze({ groups: Object.freeze(["rules", "monitor", "target"]) }),
+    "automation-profiles": Object.freeze({ groups: Object.freeze(["profiles"]) }),
+    "automation-routing": Object.freeze({ groups: Object.freeze(["activation"]) }),
+    alerts: Object.freeze({ groups: Object.freeze(["alerts"]) }),
+    "local-action-profiles": Object.freeze({ groups: Object.freeze(["local-actions"]) }),
+    "managed-downloads": Object.freeze({ groups: Object.freeze(["download"]) }),
+    "shell-commands": Object.freeze({ groups: Object.freeze(["shell"]) }),
+    "working-sessions": Object.freeze({ groups: Object.freeze(["working-sessions"]) }),
+    "prompt-templates": Object.freeze({ groups: Object.freeze(["prompt-templates"]) }),
+    "rule-diagnostics": Object.freeze({ groups: Object.freeze(["rule-statistics"]) }),
+    "activity-log": Object.freeze({ groups: Object.freeze(["activity"]) }),
+    "keyboard-shortcuts": Object.freeze({ groups: Object.freeze(["keyboard-shortcuts"]) }),
+    "backup-recovery": Object.freeze({ groups: Object.freeze(["save"]) }),
+    "setup-guide": Object.freeze({ groups: Object.freeze(["installation-guide"]) })
+  });
+  const SIDEBAR_FEATURE_DEPENDENCIES = Object.freeze({
+    "automation-routing": Object.freeze(["automation-profiles"]),
+    "rule-diagnostics": Object.freeze(["automation-editor"]),
+    "managed-downloads": Object.freeze(["local-action-profiles"]),
+    "shell-commands": Object.freeze(["local-action-profiles"])
+  });
+  const SIDEBAR_FEATURE_PRESETS = Object.freeze({
+    simple: Object.freeze(["automation-editor", "alerts"]),
+    standard: Object.freeze([
+      "automation-editor", "automation-profiles", "alerts", "local-action-profiles",
+      "managed-downloads", "shell-commands", "working-sessions", "backup-recovery"
+    ]),
+    full: Object.freeze(Object.keys(SIDEBAR_FEATURES))
   });
   const $ = (selector) => document.querySelector(selector);
   const elements = {
@@ -26,7 +68,7 @@
     statusPill: $("#statusPill"), commandStatusIcon: $("#commandStatusIcon"), tabSearch: $("#tabSearch"), tabSearchResult: $("#tabSearchResult"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
     modeText: $("#modeText"), configModeText: $("#configModeText"), profileText: $("#profileText"), tabUrl: $("#tabUrl"), commandNoticeText: $("#commandNoticeText"),
     monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), ruleCountText: $("#ruleCountText"), matchedRuleCountText: $("#matchedRuleCountText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
-    activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"), customTabTitle: $("#customTabTitle"), saveCustomTabTitleButton: $("#saveCustomTabTitleButton"), clearCustomTabTitleButton: $("#clearCustomTabTitleButton"),
+    activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), customizeSidebarButton: $("#customizeSidebarButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"), customTabTitle: $("#customTabTitle"), saveCustomTabTitleButton: $("#saveCustomTabTitleButton"), clearCustomTabTitleButton: $("#clearCustomTabTitleButton"),
     promptTemplateSelect: $("#promptTemplateSelect"), promptTemplateName: $("#promptTemplateName"), promptTemplateText: $("#promptTemplateText"), fillPromptTemplateButton: $("#fillPromptTemplateButton"), copyPromptTemplateButton: $("#copyPromptTemplateButton"), newPromptTemplateButton: $("#newPromptTemplateButton"), savePromptTemplateButton: $("#savePromptTemplateButton"), deletePromptTemplateButton: $("#deletePromptTemplateButton"), promptTemplateStatus: $("#promptTemplateStatus"),
     profileSearch: $("#profileSearch"), profileSearchResult: $("#profileSearchResult"), profileSelect: $("#profileSelect"), profileName: $("#profileName"), assignProfileButton: $("#assignProfileButton"), newProfileButton: $("#newProfileButton"), duplicateProfileButton: $("#duplicateProfileButton"), deleteProfileButton: $("#deleteProfileButton"),
     ruleSelect: $("#ruleSelect"), ruleName: $("#ruleName"), ruleEnabled: $("#ruleEnabled"), newRuleButton: $("#newRuleButton"), duplicateRuleButton: $("#duplicateRuleButton"), deleteRuleButton: $("#deleteRuleButton"), ruleRuntimeSummary: $("#ruleRuntimeSummary"), ruleRuntimeBadge: $("#ruleRuntimeBadge"), ruleCommandEnabled: $("#ruleCommandEnabled"), ruleCommandPreset: $("#ruleCommandPreset"), ruleCommandTrigger: $("#ruleCommandTrigger"), ruleCommandAllowDryRun: $("#ruleCommandAllowDryRun"), ruleCommandStatus: $("#ruleCommandStatus"), statisticsRuleCount: $("#statisticsRuleCount"), statisticsMatchCount: $("#statisticsMatchCount"), statisticsClickCount: $("#statisticsClickCount"), statisticsVerifyCount: $("#statisticsVerifyCount"), statisticsCommandCount: $("#statisticsCommandCount"), ruleStatisticsRows: $("#ruleStatisticsRows"), selectedRuleStatistics: $("#selectedRuleStatistics"), ruleStatisticsStatus: $("#ruleStatisticsStatus"), exportRuleStatisticsButton: $("#exportRuleStatisticsButton"), resetRuleStatisticsButton: $("#resetRuleStatisticsButton"),
@@ -41,7 +83,7 @@
     nativeHostStatus: $("#nativeHostStatus"), shellRunStatus: $("#shellRunStatus"), shellRunPid: $("#shellRunPid"), shellRunId: $("#shellRunId"), shellOutput: $("#shellOutput"), checkNativeButton: $("#checkNativeButton"), runShellButton: $("#runShellButton"), stopShellButton: $("#stopShellButton"), clearShellOutputButton: $("#clearShellOutputButton"), openShellLogButton: $("#openShellLogButton"), runShellQuickButton: $("#runShellQuickButton"), stopShellQuickButton: $("#stopShellQuickButton"), openShellLogQuickButton: $("#openShellLogQuickButton"), nativeLogRetentionEnabled: $("#nativeLogRetentionEnabled"), nativeLogMaxAgeDays: $("#nativeLogMaxAgeDays"), nativeLogMaxTotalMiB: $("#nativeLogMaxTotalMiB"), nativeLogMaxFiles: $("#nativeLogMaxFiles"), nativeLogCleanupOnStartup: $("#nativeLogCleanupOnStartup"), nativeLogCleanupAfterCommand: $("#nativeLogCleanupAfterCommand"), saveNativeLogRetentionButton: $("#saveNativeLogRetentionButton"), runNativeLogCleanupButton: $("#runNativeLogCleanupButton"), nativeLogCleanupStatus: $("#nativeLogCleanupStatus"),
     shellLogDialog: $("#shellLogDialog"), shellLogDialogTitle: $("#shellLogDialogTitle"), shellLogMetadata: $("#shellLogMetadata"), shellLogViewer: $("#shellLogViewer"), shellLogPageInfo: $("#shellLogPageInfo"), closeShellLogDialogButton: $("#closeShellLogDialogButton"), shellLogFirstButton: $("#shellLogFirstButton"), shellLogPreviousButton: $("#shellLogPreviousButton"), shellLogNextButton: $("#shellLogNextButton"), shellLogLastButton: $("#shellLogLastButton"), copyShellLogSelectionButton: $("#copyShellLogSelectionButton"), copyShellLogPageButton: $("#copyShellLogPageButton"), copyShellLogAllButton: $("#copyShellLogAllButton"), exportShellLogArchiveButton: $("#exportShellLogArchiveButton"), refreshShellLogButton: $("#refreshShellLogButton"), deleteShellLogButton: $("#deleteShellLogButton"),
     workingSessionCatalogSearch: $("#workingSessionCatalogSearch"), workingSessionCatalogSearchResult: $("#workingSessionCatalogSearchResult"), workingSessionCatalogSelect: $("#workingSessionCatalogSelect"), workingSessionCatalogName: $("#workingSessionCatalogName"), workingSessionCatalogDescription: $("#workingSessionCatalogDescription"), workingSessionCatalogTabCount: $("#workingSessionCatalogTabCount"), workingSessionCatalogUpdatedAt: $("#workingSessionCatalogUpdatedAt"), workingSessionCatalogLastRestoredAt: $("#workingSessionCatalogLastRestoredAt"), newWorkingSessionEntryButton: $("#newWorkingSessionEntryButton"), updateWorkingSessionEntryButton: $("#updateWorkingSessionEntryButton"), restoreWorkingSessionEntryButton: $("#restoreWorkingSessionEntryButton"), renameWorkingSessionEntryButton: $("#renameWorkingSessionEntryButton"), duplicateWorkingSessionEntryButton: $("#duplicateWorkingSessionEntryButton"), deleteWorkingSessionEntryButton: $("#deleteWorkingSessionEntryButton"), exportWorkingSessionEntryButton: $("#exportWorkingSessionEntryButton"), importWorkingSessionEntryButton: $("#importWorkingSessionEntryButton"), exportWorkingSessionCatalogButton: $("#exportWorkingSessionCatalogButton"), importWorkingSessionCatalogButton: $("#importWorkingSessionCatalogButton"), importWorkingSessionEntryFile: $("#importWorkingSessionEntryFile"), importWorkingSessionCatalogFile: $("#importWorkingSessionCatalogFile"), workingSessionCatalogResult: $("#workingSessionCatalogResult"),
-    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), exportConfigurationProfilesButton: $("#exportConfigurationProfilesButton"), importConfigurationProfilesButton: $("#importConfigurationProfilesButton"), exportMonitorProfilesButton: $("#exportMonitorProfilesButton"), importMonitorProfilesButton: $("#importMonitorProfilesButton"), exportTargetProfilesButton: $("#exportTargetProfilesButton"), importTargetProfilesButton: $("#importTargetProfilesButton"), exportLocalActionProfilesButton: $("#exportLocalActionProfilesButton"), importLocalActionProfilesButton: $("#importLocalActionProfilesButton"), profileImportFile: $("#profileImportFile"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), shortcutOpenSidebar: $("#shortcutOpenSidebar"), shortcutToggleCurrentTab: $("#shortcutToggleCurrentTab"), shortcutAcknowledgeAlert: $("#shortcutAcknowledgeAlert"), shortcutRunTargetAction: $("#shortcutRunTargetAction"), shortcutOpenCommandLog: $("#shortcutOpenCommandLog"), shortcutStopCurrentTab: $("#shortcutStopCurrentTab"), refreshShortcutsButton: $("#refreshShortcutsButton"), manageShortcutsButton: $("#manageShortcutsButton"), resetShortcutsButton: $("#resetShortcutsButton"), shortcutStatus: $("#shortcutStatus"), messageBox: $("#messageBox")
+    saveProfileButton: $("#saveProfileButton"), saveTabButton: $("#saveTabButton"), resetTabButton: $("#resetTabButton"), exportButton: $("#exportButton"), importButton: $("#importButton"), exportConfigurationProfilesButton: $("#exportConfigurationProfilesButton"), importConfigurationProfilesButton: $("#importConfigurationProfilesButton"), exportMonitorProfilesButton: $("#exportMonitorProfilesButton"), importMonitorProfilesButton: $("#importMonitorProfilesButton"), exportTargetProfilesButton: $("#exportTargetProfilesButton"), importTargetProfilesButton: $("#importTargetProfilesButton"), exportLocalActionProfilesButton: $("#exportLocalActionProfilesButton"), importLocalActionProfilesButton: $("#importLocalActionProfilesButton"), profileImportFile: $("#profileImportFile"), clearHighlightsButton: $("#clearHighlightsButton"), importFile: $("#importFile"), settingsSnapshotSelect: $("#settingsSnapshotSelect"), createSettingsSnapshotButton: $("#createSettingsSnapshotButton"), restoreSettingsSnapshotButton: $("#restoreSettingsSnapshotButton"), deleteSettingsSnapshotButton: $("#deleteSettingsSnapshotButton"), settingsSnapshotInfo: $("#settingsSnapshotInfo"), sidebarFeaturesDialog: $("#sidebarFeaturesDialog"), sidebarFeaturePresetSelect: $("#sidebarFeaturePresetSelect"), sidebarFeatureStatus: $("#sidebarFeatureStatus"), resetSidebarFeaturesButton: $("#resetSidebarFeaturesButton"), closeSidebarFeaturesDialogButton: $("#closeSidebarFeaturesDialogButton"), workingSessionDialog: $("#workingSessionDialog"), workingSessionDialogTitle: $("#workingSessionDialogTitle"), workingSessionDialogDescription: $("#workingSessionDialogDescription"), workingSessionTabList: $("#workingSessionTabList"), workingSessionResult: $("#workingSessionResult"), confirmWorkingSessionButton: $("#confirmWorkingSessionButton"), cancelWorkingSessionButton: $("#cancelWorkingSessionButton"), closeWorkingSessionDialogButton: $("#closeWorkingSessionDialogButton"), shortcutOpenSidebar: $("#shortcutOpenSidebar"), shortcutToggleCurrentTab: $("#shortcutToggleCurrentTab"), shortcutAcknowledgeAlert: $("#shortcutAcknowledgeAlert"), shortcutRunTargetAction: $("#shortcutRunTargetAction"), shortcutOpenCommandLog: $("#shortcutOpenCommandLog"), shortcutStopCurrentTab: $("#shortcutStopCurrentTab"), refreshShortcutsButton: $("#refreshShortcutsButton"), manageShortcutsButton: $("#manageShortcutsButton"), resetShortcutsButton: $("#resetShortcutsButton"), shortcutStatus: $("#shortcutStatus"), messageBox: $("#messageBox")
   };
 
   const modeLabels = {
@@ -79,6 +121,8 @@
   let busy = false;
   let activeTabRefreshSerial = 0;
   let collapsedGroups = {};
+  let sidebarFeaturePreset = "standard";
+  let visibleSidebarFeatures = new Set(SIDEBAR_FEATURE_PRESETS.standard);
   let autoProfileByUrl = true;
   let listFilters = {
     tabs: "",
@@ -91,6 +135,7 @@
     workingSessions: ""
   };
   const manualProfileSelectionByTab = new Map();
+  const stoppedConfigBypassTabs = new Set();
   const pendingPickerResults = new Map();
   const lastShownDownloadCaptureByTab = new Map();
   const autoOpenedShellRunIds = new Set();
@@ -416,6 +461,8 @@
     return browser.storage.local.set({
       [SIDEBAR_UI_STORAGE_KEY]: {
         collapsedGroups: { ...collapsedGroups },
+        featurePreset: sidebarFeaturePreset,
+        visibleFeatures: [...visibleSidebarFeatures],
         autoProfileByUrl,
         selectedMonitorProfileId,
         selectedTargetProfileId,
@@ -424,6 +471,90 @@
         listFilters: { ...listFilters }
       }
     });
+  }
+
+  function normalizeSidebarFeatureSelection(rawFeatures, changedFeature = "", enabled = true) {
+    const selected = new Set(
+      (Array.isArray(rawFeatures) ? rawFeatures : [])
+        .filter((featureId) => Object.prototype.hasOwnProperty.call(SIDEBAR_FEATURES, featureId))
+    );
+    if (changedFeature && Object.prototype.hasOwnProperty.call(SIDEBAR_FEATURES, changedFeature)) {
+      if (enabled) selected.add(changedFeature);
+      else selected.delete(changedFeature);
+      if (!enabled) {
+        for (const [featureId, dependencies] of Object.entries(SIDEBAR_FEATURE_DEPENDENCIES)) {
+          if (dependencies.includes(changedFeature)) selected.delete(featureId);
+        }
+      }
+    }
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const featureId of [...selected]) {
+        for (const dependency of SIDEBAR_FEATURE_DEPENDENCIES[featureId] || []) {
+          if (!selected.has(dependency)) {
+            selected.add(dependency);
+            changed = true;
+          }
+        }
+      }
+    }
+    return [...selected];
+  }
+
+  function applySidebarFeatureVisibility() {
+    const visibleGroups = new Set(["tabs"]);
+    for (const featureId of visibleSidebarFeatures) {
+      for (const groupId of SIDEBAR_FEATURES[featureId]?.groups || []) visibleGroups.add(groupId);
+    }
+    const sections = [...document.querySelectorAll("section.card[data-group-id]")];
+    for (const section of sections) section.hidden = !visibleGroups.has(section.dataset.groupId);
+    const shown = sections.filter((section) => !section.hidden).length;
+    if (elements.customizeSidebarButton) {
+      elements.customizeSidebarButton.title = `Choose visible sidebar features (${shown} of ${sections.length} groups shown)`;
+      elements.customizeSidebarButton.setAttribute("aria-label", elements.customizeSidebarButton.title);
+    }
+    if (elements.sidebarFeatureStatus) {
+      elements.sidebarFeatureStatus.textContent = `Showing ${shown} of ${sections.length} sidebar groups. Hidden controls keep their data and runtime behavior.`;
+    }
+  }
+
+  function renderSidebarFeatureControls() {
+    if (!elements.sidebarFeaturePresetSelect) return;
+    elements.sidebarFeaturePresetSelect.value = sidebarFeaturePreset;
+    for (const checkbox of document.querySelectorAll("[data-sidebar-feature]")) {
+      checkbox.checked = visibleSidebarFeatures.has(checkbox.dataset.sidebarFeature);
+    }
+    applySidebarFeatureVisibility();
+  }
+
+  function setSidebarFeaturePreset(preset, persist = true) {
+    if (!Object.prototype.hasOwnProperty.call(SIDEBAR_FEATURE_PRESETS, preset)) preset = "standard";
+    sidebarFeaturePreset = preset;
+    visibleSidebarFeatures = new Set(normalizeSidebarFeatureSelection(SIDEBAR_FEATURE_PRESETS[preset]));
+    renderSidebarFeatureControls();
+    if (persist) void persistSidebarUi();
+  }
+
+  function setSidebarFeatureEnabled(featureId, enabled, persist = true) {
+    visibleSidebarFeatures = new Set(normalizeSidebarFeatureSelection([...visibleSidebarFeatures], featureId, enabled));
+    sidebarFeaturePreset = "custom";
+    renderSidebarFeatureControls();
+    if (persist) void persistSidebarUi();
+  }
+
+  function openSidebarFeaturesDialog() {
+    renderSidebarFeatureControls();
+    if (!elements.sidebarFeaturesDialog.open) elements.sidebarFeaturesDialog.showModal();
+  }
+
+  function organizeSidebarGroups() {
+    const main = elements.messageBox?.parentElement;
+    if (!main || !elements.messageBox) return;
+    for (const groupId of SIDEBAR_GROUP_ORDER) {
+      const section = main.querySelector(`:scope > section.card[data-group-id="${groupId}"]`);
+      if (section) main.insertBefore(section, elements.messageBox);
+    }
   }
 
   function setGroupCollapsed(section, collapsed, persist = false) {
@@ -459,6 +590,15 @@
     const storedUi = result?.[SIDEBAR_UI_STORAGE_KEY] || {};
     const stored = storedUi.collapsedGroups;
     collapsedGroups = stored && typeof stored === "object" ? { ...stored } : {};
+    const requestedPreset = typeof storedUi.featurePreset === "string" ? storedUi.featurePreset : "standard";
+    const hasStoredFeatures = Array.isArray(storedUi.visibleFeatures);
+    if (requestedPreset === "custom") {
+      sidebarFeaturePreset = "custom";
+      visibleSidebarFeatures = new Set(normalizeSidebarFeatureSelection(hasStoredFeatures ? storedUi.visibleFeatures : SIDEBAR_FEATURE_PRESETS.standard));
+    } else {
+      sidebarFeaturePreset = Object.prototype.hasOwnProperty.call(SIDEBAR_FEATURE_PRESETS, requestedPreset) ? requestedPreset : "standard";
+      visibleSidebarFeatures = new Set(normalizeSidebarFeatureSelection(hasStoredFeatures ? storedUi.visibleFeatures : SIDEBAR_FEATURE_PRESETS[sidebarFeaturePreset]));
+    }
     autoProfileByUrl = storedUi.autoProfileByUrl !== false;
     selectedMonitorProfileId = typeof storedUi.selectedMonitorProfileId === "string" ? storedUi.selectedMonitorProfileId : null;
     selectedTargetProfileId = typeof storedUi.selectedTargetProfileId === "string" ? storedUi.selectedTargetProfileId : null;
@@ -484,6 +624,7 @@
     elements.shellPresetSearch.value = listFilters.commandPresets;
     elements.shellHistorySearch.value = listFilters.commandHistory;
     elements.workingSessionCatalogSearch.value = listFilters.workingSessions;
+    renderSidebarFeatureControls();
 
     for (const section of document.querySelectorAll("section.card[data-group-id]")) {
       const directChildren = [...section.children];
@@ -2535,9 +2676,14 @@
     if (loadForm) {
       elements.profileName.value = profile?.name || "";
       elements.customTabTitle.value = String(tabMetadata?.customTitle || "");
-      writeConfig(session?.effectiveConfig || stoppedConfig?.effectiveConfig || profile?.config || Settings.defaultConfig());
+      const useStoppedConfig = Boolean(stoppedConfig) &&
+        !manualProfileSelectionByTab.has(Number(selectedTabId)) &&
+        !stoppedConfigBypassTabs.has(Number(selectedTabId));
+      writeConfig(session?.effectiveConfig || (useStoppedConfig ? stoppedConfig?.effectiveConfig : null) || profile?.config || Settings.defaultConfig());
       const localProfile = localActionProfileById(selectedLocalActionProfileId);
-      writeLocalActionConfig(session?.effectiveLocalActions || stoppedConfig?.effectiveLocalActions || localProfile?.config || LocalActions.defaultConfig());
+      const stoppedLocalChoiceMatches = Boolean(stoppedConfig) &&
+        String(stoppedConfig?.localActionProfileId || "") === String(selectedLocalActionProfileId || "");
+      writeLocalActionConfig(session?.effectiveLocalActions || (stoppedLocalChoiceMatches ? stoppedConfig?.effectiveLocalActions : null) || localProfile?.config || LocalActions.defaultConfig());
     }
   }
 
@@ -2677,7 +2823,12 @@
           : selectedProfileId,
         restoreStoppedConfig: Boolean(
           dashboard.currentTab?.stoppedConfig &&
-          !manualProfileSelectionByTab.has(Number(activationTabId))
+          !manualProfileSelectionByTab.has(Number(activationTabId)) &&
+          !stoppedConfigBypassTabs.has(Number(activationTabId))
+        ),
+        discardStoppedConfig: Boolean(
+          dashboard.currentTab?.stoppedConfig &&
+          stoppedConfigBypassTabs.has(Number(activationTabId))
         )
       });
       if (!response) {
@@ -2686,6 +2837,8 @@
       if (!response.ok) {
         throw new Error(response.error || "Could not activate the current tab.");
       }
+      stoppedConfigBypassTabs.delete(Number(activationTabId));
+      manualProfileSelectionByTab.delete(Number(activationTabId));
       if (response.dashboard && activeTabSerialAtStart === activeTabRefreshSerial) {
         render(response.dashboard, true, activationTabId);
       }
@@ -3629,6 +3782,7 @@ ${run.command || ""}`)) {
     selectedProfileId = elements.profileSelect.value;
     if (Number.isInteger(Number(selectedTabId)) && !selectedSession()) {
       manualProfileSelectionByTab.set(Number(selectedTabId), selectedProfileId);
+      if (dashboard.currentTab?.stoppedConfig) stoppedConfigBypassTabs.add(Number(selectedTabId));
     }
     const profile = profileById(selectedProfileId);
     elements.profileName.value = profile?.name || "";
@@ -3638,6 +3792,7 @@ ${run.command || ""}`)) {
     autoProfileByUrl = elements.autoProfileByUrl.checked;
     if (autoProfileByUrl) {
       manualProfileSelectionByTab.delete(Number(selectedTabId));
+      if (!selectedSession() && dashboard.currentTab?.stoppedConfig) stoppedConfigBypassTabs.add(Number(selectedTabId));
       const routing = renderUrlRoutingPreview();
       if (!selectedSession() && routing.profileId) {
         selectedProfileId = routing.profileId;
@@ -3646,6 +3801,8 @@ ${run.command || ""}`)) {
         elements.profileName.value = profile?.name || "";
         writeConfig(profile?.config || Settings.defaultConfig());
       }
+    } else {
+      stoppedConfigBypassTabs.delete(Number(selectedTabId));
     }
     void persistSidebarUi();
   });
@@ -3663,6 +3820,7 @@ ${run.command || ""}`)) {
       return;
     }
     manualProfileSelectionByTab.delete(Number(selectedTabId));
+    if (!selectedSession() && dashboard.currentTab?.stoppedConfig) stoppedConfigBypassTabs.add(Number(selectedTabId));
     selectedProfileId = routing.profileId;
     elements.profileSelect.value = selectedProfileId;
     const profile = profileById(selectedProfileId);
@@ -4531,6 +4689,24 @@ Cancel: keep editing without losing the changes.`);
   });
 
 
+  elements.customizeSidebarButton.addEventListener("click", openSidebarFeaturesDialog);
+  elements.sidebarFeaturePresetSelect.addEventListener("change", () => {
+    const preset = elements.sidebarFeaturePresetSelect.value;
+    if (preset === "custom") {
+      sidebarFeaturePreset = "custom";
+      renderSidebarFeatureControls();
+      void persistSidebarUi();
+    } else {
+      setSidebarFeaturePreset(preset);
+    }
+  });
+  for (const checkbox of document.querySelectorAll("[data-sidebar-feature]")) {
+    checkbox.addEventListener("change", () => {
+      setSidebarFeatureEnabled(checkbox.dataset.sidebarFeature, checkbox.checked);
+    });
+  }
+  elements.resetSidebarFeaturesButton.addEventListener("click", () => setSidebarFeaturePreset("standard"));
+
   elements.promptTemplateSelect.addEventListener("change", () => {
     promptTemplateEditorMode = "selected";
     selectedPromptTemplateId = elements.promptTemplateSelect.value || null;
@@ -4601,6 +4777,7 @@ Cancel: keep editing without losing the changes.`);
     RuntimeGuard?.clearStage("dashboard");
     RuntimeGuard?.clearStage("collapsible-groups");
     placeLocalActionProfileAfterConfigurationProfiles();
+    organizeSidebarGroups();
     ensureCommandPresetUi();
     await loadCommandPresetLibrary();
     let layoutFailure = null;

@@ -21,9 +21,10 @@ assert(html.includes('id="statusPill" class="status-pill" role="status" aria-liv
 assert(html.includes('id="messageBox" class="message-box" role="status"'));
 assert(html.includes('id="shellLogDialog" class="shell-log-dialog" aria-labelledby="shellLogDialogTitle" aria-describedby="shellLogMetadata"'));
 assert(html.includes('id="workingSessionDialog" class="working-session-dialog" aria-labelledby="workingSessionDialogTitle" aria-describedby="workingSessionDialogDescription"'));
+assert(html.includes('id="sidebarFeaturesDialog" class="sidebar-features-dialog" aria-labelledby="sidebarFeaturesDialogTitle" aria-describedby="sidebarFeaturesDialogDescription"'));
 assert(html.includes('id="downloadCompletionDialog" class="working-session-dialog download-completion-dialog" aria-labelledby="downloadCompletionDialogTitle" aria-describedby="downloadCompletionMessage"'));
 for (const label of [
-  "Export configuration profiles", "Import configuration profiles",
+  "Export automation profiles", "Import automation profiles",
   "Export monitor profiles", "Import monitor profiles",
   "Export target profiles", "Import target profiles",
   "Export local action profiles", "Import local action profiles",

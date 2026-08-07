@@ -71,7 +71,8 @@ const sandbox = {
   clearWorkingLocalActionSnapshot(session) { session.localActionWorkingConfig = null; },
   CONFIG_MODE: { PROFILE: "profile" },
   appendLog() {},
-  persistSession: async (session) => persisted.push(session.localActionProfileId)
+  persistSession: async (session) => persisted.push(session.localActionProfileId),
+  replaceStoppedTabLocalActionChoice: async () => null
 };
 vm.createContext(sandbox);
 vm.runInContext(extractFunction(background, "async function clearTabLocalActionProfileId"), sandbox);

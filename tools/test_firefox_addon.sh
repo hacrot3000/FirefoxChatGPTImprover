@@ -117,6 +117,10 @@ node tests/test_phase43_v0394_configuration_session_io_separation.js
 
 node tests/test_phase44_v0395_stop_start_tab_config_persistence.js
 
+node tests/test_phase45_v0396_explicit_stopped_state_reconciliation.js
+
+node tests/test_phase46_v0397_simplified_sidebar_feature_visibility.js
+
 if [ "${FCI_RUN_FIREFOX_E2E:-0}" = "1" ]; then
   python3 tools/run_firefox_e2e.py ${FCI_FIREFOX_E2E_ARGS:-}
 else
@@ -137,4 +141,4 @@ elif [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf '%s\n' 'PASS: FirefoxChatImprover Phase 04-44 v0.39.5 preserves complete per-tab configuration across Stop/Start, separates configuration/session import-export scopes, maintains release-status consistency, Local action binding controls, accessibility, Chromium/Chrome/Edge packaging, prompt templates, command-log export, per-rule statistics, full regression, trusted URL auto-activation, saved working sessions, custom tab titles, Linux/Windows Native Host runtime and protected command-log retention.'
+printf '%s\n' 'PASS: FirefoxChatImprover Phase 04-46 v0.39.7 adds simplified persistent sidebar feature visibility while preserving explicit stopped-tab state, complete per-tab configuration across Stop/Start, separated configuration/session scopes, Local action binding controls, accessibility, Chromium/Chrome/Edge packaging, prompt templates, command-log export, per-rule statistics, trusted URL auto-activation, saved working sessions, custom tab titles, Linux/Windows Native Host runtime and protected command-log retention.'
