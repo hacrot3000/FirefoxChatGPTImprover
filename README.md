@@ -899,3 +899,16 @@ Managed downloads now have an independent header indicator: **⇩** while the ca
 
 The documentation backlog was re-audited against the v0.41.5 source baseline before this change. Old v0.28.19 TODO entries that are already implemented are no longer reported as unfinished. macOS Native Host remains deferred, and external self-hosted update publication remains an operator/deployment dependency rather than an active code feature.
 <!-- FCI_PHASE65_COMPACT_READY_DOWNLOAD_STATUS_END -->
+
+<!-- FCI_PHASE66_STATUS_HARDENING_BEGIN -->
+## Compact ready/download status hardening (v0.41.7)
+
+This release completes edge handling for the existing Phase 65 status feature without starting another feature group. The managed-download header now shows **⇩** as soon as a capture is armed and throughout download/relocation, **✓** after verified relocation, and **!** when the capture expires or the download/relocation fails. The failure icon keeps the persisted error text in its tooltip/accessible label instead of making the download state disappear. Armed capture expiry is now driven by its own timer, rather than waiting for another browser download/webRequest event to notice the timeout.
+
+The content alert engine also advances its implementation version to **13**. This makes a runtime reattachment replace an already-loaded v12 engine, so the compact **RD** behavior is applied consistently without depending on a page reload. Protocol, settings schema, and Native Host versions are unchanged.
+<!-- FCI_PHASE66_STATUS_HARDENING_END -->
+
+## Managed-download terminal lifecycle cleanup (v0.41.8)
+
+Phase 67 remains inside the compact `RD` / managed-download status work. Completion UI is emitted once after shell state settles, terminal download/move routing keys are cleaned, and recovery clears stale armed captures before validating/restoring persisted state. Two redundant/unreachable statements found during the audit were also removed. No new feature group or protocol/schema/Native Host change is introduced.
+

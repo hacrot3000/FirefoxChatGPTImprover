@@ -39,7 +39,8 @@ assert.equal(sandbox.notice({ status: "downloading" }).state, "running");
 assert.equal(sandbox.notice({ status: "moving" }).state, "running");
 assert.equal(sandbox.notice({ status: "completed", destinationPath: "/tmp/a.zip" }).icon, "✓");
 assert.equal(sandbox.notice({ status: "completed" }).state, "completed");
-assert.equal(sandbox.notice({ status: "error" }).visible, false);
+assert.equal(sandbox.notice({ status: "error" }).visible, true);
+assert.equal(sandbox.notice({ status: "error" }).state, "error");
 
 const settingsSandbox = { console, crypto: webcrypto, URL, globalThis: null };
 settingsSandbox.globalThis = settingsSandbox;

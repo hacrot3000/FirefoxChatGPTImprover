@@ -1,6 +1,6 @@
 # FirefoxChatImprover — feature status / TODO
 
-**Baseline audited:** Phase 65 v0.41.6 (2026-08-08)  
+**Baseline audited:** Phase 67 v0.41.8 (2026-08-08)  
 **Authoritative release inventory:** `PROJECT_STATUS.md`  
 **Patch Tool public contract:** v6.7.9 (`tools/_patch_lib/docs/AI_USAGE_CONTRACT.md`, `PORTABLE_USAGE.md`)
 
@@ -8,12 +8,14 @@ This file previously contained the Phase 28 v0.28.19 audit. That snapshot is obs
 
 ## 1. Active implementation
 
-No feature is currently in active implementation after Phase 65.
+No feature is currently in active implementation after the Phase 65 status work and its Phase 66–67 hardening.
 
-Phase 65 completed the two requested status refinements:
+The current status feature is now closed with its error/recovery edges covered:
 
 - ready/matched display is compacted to `RD` / `⚠ RD`;
-- managed download has an independent header indicator (`⇩` while downloading/moving, `✓` after verified completion).
+- managed download shows `⇩` from armed/download/move, `✓` after verified completion, and `!` for expiry/failure; armed capture expiry is timer-driven instead of depending on a later browser event;
+- alert-engine implementation versioning now forces the compact-`RD` behavior to replace an already-loaded v12 engine during runtime reattachment;
+- completion rendering is single-shot after shell state settles, terminal routing keys are cleaned, and recovery removes any stale in-memory armed capture before restoring the persisted one.
 
 ## 2. Completed items that the old audit incorrectly marked unfinished
 

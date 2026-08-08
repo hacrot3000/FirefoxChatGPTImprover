@@ -57,6 +57,7 @@
   const SHELL_LOG_READ_MAX_BYTES = 256 * 1024;
   const shellRuns = new Map();
   const downloadCaptures = new Map();
+  const downloadCaptureExpiryTimers = new Map();
   const downloadJobs = new Map();
   const managedDownloadIds = new Set();
   const downloadMoveToTab = new Map();
@@ -387,10 +388,45 @@
     return /application\/(octet-stream|zip|x-zip|x-gzip|gzip|pdf|vnd\.|force-download)/.test(contentType);
   }
 
+  function clearDownloadCaptureExpiryTimer(tabId) {
+    const numericTabId = Number(tabId);
+    const timer = downloadCaptureExpiryTimers.get(numericTabId);
+    if (timer) {
+      clearTimeout(timer);
+      downloadCaptureExpiryTimers.delete(numericTabId);
+    }
+  }
+
+  function clearDownloadRoutingKeys(job, extraKey = null) {
+    if (extraKey !== null && extraKey !== undefined && extraKey !== "") {
+      downloadMoveToTab.delete(extraKey);
+    }
+    if (Number.isInteger(job?.downloadId)) {
+      downloadMoveToTab.delete(job.downloadId);
+    }
+    if (job?.moveId) {
+      downloadMoveToTab.delete(job.moveId);
+    }
+  }
+
+  function scheduleDownloadCaptureExpiry(capture) {
+    const numericTabId = Number(capture?.tabId);
+    const expiresAtMs = Number(capture?.expiresAtMs);
+    if (!Number.isInteger(numericTabId) || !Number.isFinite(expiresAtMs)) return;
+    clearDownloadCaptureExpiryTimer(numericTabId);
+    const delayMs = Math.max(0, expiresAtMs - Date.now());
+    const timer = setTimeout(() => {
+      downloadCaptureExpiryTimers.delete(numericTabId);
+      activeDownloadCapture(numericTabId);
+    }, delayMs + 10);
+    downloadCaptureExpiryTimers.set(numericTabId, timer);
+  }
+
   function activeDownloadCapture(tabId) {
     const capture = downloadCaptures.get(Number(tabId));
     if (!capture) return null;
-    if (Date.now() > capture.expiresAtMs) {
+    if (Date.now() >= capture.expiresAtMs) {
+      clearDownloadCaptureExpiryTimer(Number(tabId));
       downloadCaptures.delete(Number(tabId));
       const job = downloadJobs.get(Number(tabId));
       if (job?.status === "armed") {
@@ -436,6 +472,7 @@
       claimed: false
     };
     downloadCaptures.set(Number(tabId), capture);
+    scheduleDownloadCaptureExpiry(capture);
     downloadJobs.set(Number(tabId), {
       ...emptyDownloadState(Number(tabId)),
       captureId,
@@ -496,6 +533,7 @@
   async function claimDownload(capture, item, source = "browser-download") {
     if (!capture || capture.claimed) return;
     capture.claimed = true;
+    clearDownloadCaptureExpiryTimer(capture.tabId);
     downloadCaptures.delete(capture.tabId);
     const job = downloadJobs.get(capture.tabId) || emptyDownloadState(capture.tabId);
     Object.assign(job, {
@@ -569,6 +607,7 @@
   async function cancelAndRestartCapturedDownload(capture, item) {
     if (!capture || capture.claimed || capture.intercepting) return;
     capture.intercepting = true;
+    clearDownloadCaptureExpiryTimer(capture.tabId);
     downloadCaptures.delete(capture.tabId);
     const session = sessions.get(capture.tabId);
     const job = downloadJobs.get(capture.tabId) || emptyDownloadState(capture.tabId);
@@ -695,7 +734,7 @@
         await handleNativeDownloadMessage(response);
       }
     } catch (error) {
-      downloadMoveToTab.delete(moveId);
+      clearDownloadRoutingKeys(job, moveId);
       if (job.status === "completed") return;
       job.status = "error";
       job.error = error instanceof Error ? error.message : String(error);
@@ -891,7 +930,7 @@
       appendLog(session, "user", "download-completed", `Downloaded file moved to ${job.destinationPath}.`, {
         destinationPath: job.destinationPath, size: job.size
       });
-      downloadMoveToTab.delete(moveId);
+      clearDownloadRoutingKeys(job, moveId);
       if (Number.isInteger(job.downloadId)) {
         void browser.downloads.erase({ id: job.downloadId }).catch(() => []);
       }
@@ -913,7 +952,6 @@
         await persistSession(session);
         await persistDownloadState(tabId);
         await broadcast("download-shell-available", tabId);
-        await showDownloadCompletion(tabId, job, session);
         if (job.shellExecutionMode === "automatic") {
           try {
             await startDownloadShellForJob(job, session, "download-moved-automatic");
@@ -948,7 +986,7 @@
       completedAt: Settings.nowIso()
     });
     appendLog(session, "user", "download-error", job.error, { moveId });
-    downloadMoveToTab.delete(moveId);
+    clearDownloadRoutingKeys(job, moveId);
     if (session) {
       session.downloadJob = publicDownloadState(tabId);
       await persistSession(session);
@@ -965,6 +1003,7 @@
       return {};
     }
     capture.intercepting = true;
+    clearDownloadCaptureExpiryTimer(capture.tabId);
     downloadCaptures.delete(capture.tabId);
     const filename = contentDispositionFilename(details.responseHeaders) || "download.bin";
     void startManagedDownload(capture, details.url, filename).catch(async (error) => {
@@ -1004,6 +1043,7 @@
       job.retryable = false;
       job.error = String(delta.error.current);
       job.completedAt = Settings.nowIso();
+      clearDownloadRoutingKeys(job, delta.id);
       await persistDownloadState(tabId);
       await broadcast("download-error", tabId);
       return;
@@ -1062,6 +1102,9 @@
   }
 
   function restoreArmedDownloadCapture(session, job) {
+    const tabId = Number(session?.tabId);
+    clearDownloadCaptureExpiryTimer(tabId);
+    downloadCaptures.delete(tabId);
     const expiresAtMs = Date.parse(String(job.expiresAt || ""));
     if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
       job.status = "expired";
@@ -1083,7 +1126,7 @@
     if (!origin) {
       try { origin = new URL(pageUrl).origin; } catch (_error) { origin = ""; }
     }
-    downloadCaptures.set(Number(session.tabId), {
+    const restoredCapture = {
       captureId: job.captureId,
       tabId: Number(session.tabId),
       sessionToken: session.sessionToken,
@@ -1098,7 +1141,9 @@
       expiresAtMs,
       claimed: false,
       restored: true
-    });
+    };
+    downloadCaptures.set(Number(session.tabId), restoredCapture);
+    scheduleDownloadCaptureExpiry(restoredCapture);
     job.sessionToken = session.sessionToken;
     job.recoveryNote = "The managed download capture was restored after background restart.";
     job.error = null;
@@ -6357,6 +6402,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     }
     shellRuns.delete(tabId);
     pickerStates.delete(tabId);
+    clearDownloadCaptureExpiryTimer(tabId);
     downloadCaptures.delete(tabId);
     downloadJobs.delete(tabId);
     for (const [key, value] of downloadMoveToTab.entries()) {

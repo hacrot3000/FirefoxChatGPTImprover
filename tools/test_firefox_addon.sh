@@ -140,6 +140,8 @@ node tests/test_phase62_v0413_semantic_recovery_snapshot_deduplication.js
 node tests/test_phase63_v0414_manual_snapshot_promotion.js
 node tests/test_phase64_v0415_manual_preferred_snapshot_compaction.js
 node tests/test_phase65_v0416_compact_ready_download_status.js
+node tests/test_phase66_v0417_download_status_hardening.js
+node tests/test_phase67_v0418_download_terminal_lifecycle_cleanup.js
 
 if [ "${FCI_RUN_FIREFOX_E2E:-0}" = "1" ]; then
   python3 tools/run_firefox_e2e.py ${FCI_FIREFOX_E2E_ARGS:-}
@@ -161,4 +163,4 @@ elif [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf '%s\n' 'PASS: FirefoxChatImprover Phase 04-65 v0.41.6 compact RD and managed-download header status, manual-preferred snapshot compaction, safe configuration/session continuity, accessibility, Chromium/Chrome/Edge packaging, prompt templates, command-log export, per-rule statistics, trusted URL auto-activation, saved working sessions, custom tab titles, Linux/Windows Native Host runtime and protected command-log retention.'
+printf '%s\n' 'PASS: FirefoxChatImprover Phase 04-67 v0.41.8 compact RD and hardened managed-download header status, manual-preferred snapshot compaction, safe configuration/session continuity, accessibility, Chromium/Chrome/Edge packaging, prompt templates, command-log export, per-rule statistics, trusted URL auto-activation, saved working sessions, custom tab titles, Linux/Windows Native Host runtime and protected command-log retention.'

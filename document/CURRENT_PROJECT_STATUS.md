@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 65 v0.41.6
+**Current baseline:** Phase 67 v0.41.8
 **Primary supported environment:** Firefox Desktop plus Chromium/Chrome/Edge packages; Native Host registration is provided for Linux Chromium browsers  
 **Native Host:** 0.13.0
 
@@ -13,7 +13,7 @@
 | Persistent custom tab titles | Complete | User-defined per-tab names survive reload/navigation/background restart, preserve the original page title and remain compatible with AI READY/Running decorations. |
 | Configuration, URL routing and tab overrides | Complete | Includes protected drafts, snapshots, reusable Monitor/Target component profiles, typed per-profile JSON import/export and opt-in trusted-URL auto-activation with explicit permission gating. |
 | Command presets and rule-triggered commands | Complete | Includes per-tab execution, status, stop and history. |
-| Managed downloads | Complete | Capture, no-dialog restart, immutable snapshot, relocation, retry, post-download command and an independent header icon (`⇩` in progress, `✓` completed). |
+| Managed downloads | Complete | Capture, no-dialog restart, immutable snapshot, relocation, retry, post-download command and an independent header lifecycle icon (`⇩` armed/in progress, `✓` completed, `!` expired/error). |
 | Restart recovery for managed downloads | Complete | Armed captures resume while valid; moves replay by idempotent receipt. |
 | Full command logs | Complete | File-backed paging, persisted fallback and legacy `runId` discovery. |
 | Per-run compressed log export | Complete | ZIP export of the selected run with complete transcript, typed metadata, README, DEFLATE and explicit fallback completeness. |
@@ -235,3 +235,20 @@ Full configuration import/restore now writes the five reusable/global configurat
 ## Phase 39 v0.39.0
 
 Full accessibility audit completed: focus order, screen-reader semantics, contrast/motion preferences and keyboard-only picker flow. Protocol 25 and Native Host 0.13.0 remain unchanged.
+
+## Phase 66 v0.41.7 — Phase 65 status hardening
+
+- No new feature group was started. This phase closes edge cases in the compact-ready/download-status work introduced by Phase 65.
+- Managed-download header status now covers the existing job lifecycle instead of disappearing on failure: `armed`/`downloading`/`moving` use `⇩`, `completed` uses `✓`, and `expired`/`error` use `!` with the persisted error text. Armed capture expiry is timer-driven, so it cannot remain stuck forever when no later browser event arrives.
+- `FCI_ALERT_ENGINE` advances from implementation version 12 to 13 so content-runtime reattachment replaces the older engine and consistently renders the compact `RD` behavior without requiring a page reload.
+- Protocol remains 26; settings schema remains 18; Native Host remains 0.13.0.
+
+## Phase 67 v0.41.8 — managed-download terminal lifecycle cleanup
+
+- No new feature group. This phase continues the Phase 65/66 compact-ready/managed-download status hardening only.
+- Successful relocation now presents the completion surface once, after automatic/manual shell state is resolved, instead of replacing the page overlay twice.
+- Browser-download IDs and Native Host move IDs are removed from the routing table on completion and terminal errors.
+- Recovery clears any pre-existing armed capture/timer before validating the persisted capture, so an expired/incomplete restore cannot leave an older claimable capture alive.
+- Two audit-only code defects were removed: a redundant statistics-row append and an unreachable duplicate shell-log return.
+- Protocol remains 26; settings schema remains 18; Native Host remains 0.13.0.
+

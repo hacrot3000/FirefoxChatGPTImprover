@@ -54,7 +54,7 @@ const Alert = context.FCI_ALERT_ENGINE;
 
 assert(Settings.SCHEMA_VERSION >= 17);
 assert(Protocol.VERSION >= 21);
-assert.equal(Alert.VERSION, 12);
+assert(Alert.VERSION >= 12);
 assert.equal(Sound.VERSION, 1);
 
 const defaults = Settings.defaultConfig().alerts.sound;

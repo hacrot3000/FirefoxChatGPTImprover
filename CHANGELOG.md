@@ -15,6 +15,34 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
+## [0.41.8] - 2026-08-08
+
+### Fixed
+
+- Finalized Phase 65/66 managed-download lifecycle hardening by rendering the completion surface once after shell readiness/automatic-start state has settled, avoiding a duplicate page-overlay replacement/focus flicker on successful relocation.
+- Clear stale browser-download and Native Host move routing keys whenever a managed-download job reaches completion or a terminal download/relocation error, preventing per-tab routing-map buildup and late events from targeting a finished job.
+- Recovery now cancels/removes any pre-existing in-memory armed capture before validating/restoring the persisted capture, closing the short race where an invalid/expired restore could leave the old capture claimable.
+- Removed a redundant per-rule statistics row append and an unreachable duplicate shell-log return discovered during the same bug audit.
+
+### Compatibility
+
+- Bugfix/hardening only: no new feature group, protocol change, settings-schema change, or Native Host change.
+
+
+## [0.41.7] - 2026-08-08
+
+### Fixed
+
+- Completed the existing managed-download header status lifecycle: `armed`, `downloading`, and `moving` show the active `⇩` indicator; verified completion shows `✓`; capture expiry and relocation/download failures remain visible as `!` instead of silently disappearing.
+- Bumped the content alert-engine implementation version to 13 so a tab/runtime that still holds the previous v12 module cannot skip the Phase 65 compact-`RD` behavior during reattachment.
+- Added explicit status semantics to the download header indicator for assistive technology.
+- Fixed armed-capture expiry so the job transitions to `expired` on its own timer even when no later download/webRequest event occurs; the timer is cancelled when the capture is claimed/intercepted or the tab closes.
+
+### Compatibility
+
+- This is a Phase 65 hardening release only. No new feature group, protocol change, settings-schema change, or Native Host change is introduced.
+
+
 ## [0.41.6] - 2026-08-08
 
 ### Changed

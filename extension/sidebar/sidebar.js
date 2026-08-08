@@ -2678,14 +2678,16 @@
   function downloadHeaderNotice(rawState) {
     const state = rawState && typeof rawState === "object" ? rawState : {};
     const status = String(state.status || "idle");
-    if (status === "downloading" || status === "moving") {
+    if (status === "armed" || status === "downloading" || status === "moving") {
       return {
         visible: true,
         icon: "⇩",
         state: "running",
-        label: status === "moving"
-          ? "Download finished; moving the file to its configured destination."
-          : "Managed download in progress."
+        label: status === "armed"
+          ? "Managed download is armed and waiting for the browser download to start."
+          : (status === "moving"
+            ? "Download finished; moving the file to its configured destination."
+            : "Managed download in progress.")
       };
     }
     if (status === "completed") {
@@ -2696,6 +2698,17 @@
         label: state.destinationPath
           ? `Download completed: ${state.destinationPath}`
           : "Managed download completed."
+      };
+    }
+    if (status === "error" || status === "expired") {
+      const fallback = status === "expired"
+        ? "Managed download capture expired before a download was detected."
+        : "Managed download failed.";
+      return {
+        visible: true,
+        icon: "!",
+        state: "error",
+        label: String(state.error || fallback)
       };
     }
     return { visible: false, icon: "", state: "idle", label: "No active managed download notification." };

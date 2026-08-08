@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 12) {
+  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 13) {
     return;
   }
 
@@ -589,7 +589,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 12,
+      VERSION: 13,
       TITLE_BASE_ATTRIBUTE,
       TITLE_PREFIX_ATTRIBUTE,
       stripManagedTitleDecorations,

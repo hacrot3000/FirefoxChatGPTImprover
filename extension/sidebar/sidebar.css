@@ -19,6 +19,7 @@ body { margin: 0; min-width: 290px; background: Canvas; color: CanvasText; }
 .command-status-icon[data-state="running"], .download-status-icon[data-state="running"] { border-color: #0969da; color: #0969da; animation: fci-command-pulse .8s ease-in-out infinite alternate; }
 .command-status-icon[data-state="unread"] { border-color: var(--paused); color: var(--paused); }
 .download-status-icon[data-state="completed"] { border-color: var(--active); color: var(--active); }
+.download-status-icon[data-state="error"] { border-color: var(--error); color: var(--error); }
 h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 0; font-size: 18px; }
 h2 { margin-bottom: 10px; font-size: 14px; }

@@ -399,11 +399,11 @@ Phase 06 có thể bắt đầu sau Phase 01 nhưng chỉ tích hợp hoàn ch�
 
 ## 7. Trạng thái hiện tại
 
-- Baseline hiện tại: **Phase 65 v0.41.6**.
+- Baseline hiện tại: **Phase 67 v0.41.8**.
 - Required-feature backlog: **hoàn tất**.
 - Recommended-feature backlog: **hoàn tất**.
 - Phase 65 hoàn thiện phần hiển thị trạng thái đang có: ready được rút gọn thành `RD` / `⚠ RD`, managed download có icon tiến trình/hoàn tất độc lập ở header, và tài liệu tiến độ được đồng bộ lại.
-- Không có feature implementation nào đang active sau Phase 65. Native Host cho macOS vẫn **Deferred** theo quyết định dự án; self-hosted XPI update còn phụ thuộc XPI đã ký và hạ tầng HTTPS do operator cung cấp, không phải code backlog.
+- Không có feature implementation nào đang active sau Phase 67. Phase 66–67 chỉ harden Phase 65, không mở nhóm tính năng mới. Native Host cho macOS vẫn **Deferred** theo quyết định dự án; self-hosted XPI update còn phụ thuộc XPI đã ký và hạ tầng HTTPS do operator cung cấp, không phải code backlog.
 
 ## Trạng thái triển khai đến Phase 06
 
@@ -904,3 +904,32 @@ Status: **Complete**
 - Align AI-facing Patch Tool instructions with the v6.7.9 public contract without reintroducing SANDBOX/worktree execution.
 
 **Next:** No scheduled implementation item; accept focused bug reports or an explicit new feature request.
+
+## Phase 66 — Phase 65 compact-ready/download-status hardening
+
+**Status:** Completed in v0.41.7.
+
+Scope is intentionally limited to the in-progress Phase 65 status work:
+
+- cover `armed`, `expired`, and `error` in the managed-download header lifecycle;
+- make armed-capture expiry timer-driven and cancel the timer when the capture is consumed or the tab closes;
+- retain `⇩` for active download/move, `✓` for verified completion, and expose `!` for failure/expiry;
+- bump the alert-engine implementation guard so compact `RD` survives live runtime reattachment over an existing v12 engine;
+- add focused regression coverage and update release metadata.
+
+No new feature group is started. Protocol 26, settings schema 18, and Native Host 0.13.0 remain unchanged.
+
+## Phase 67 — Managed-download terminal lifecycle cleanup
+
+**Status:** Completed in v0.41.8.
+
+Scope remains limited to Phase 65/66 hardening:
+
+- render the completion surface once after shell readiness/automatic-start state settles;
+- remove browser-download/move routing keys on terminal success/failure;
+- clear an old in-memory armed capture/timer before persisted-capture recovery validation;
+- remove two obvious audit defects (redundant statistics append and unreachable duplicate return);
+- add focused regression coverage.
+
+No new feature group is started. Protocol 26, settings schema 18, and Native Host 0.13.0 remain unchanged.
+
