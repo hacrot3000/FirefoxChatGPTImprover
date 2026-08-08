@@ -65,7 +65,7 @@
   const $ = (selector) => document.querySelector(selector);
   const elements = {
     body: document.body,
-    statusPill: $("#statusPill"), commandStatusIcon: $("#commandStatusIcon"), tabSearch: $("#tabSearch"), tabSearchResult: $("#tabSearchResult"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
+    statusPill: $("#statusPill"), downloadStatusIcon: $("#downloadStatusIcon"), commandStatusIcon: $("#commandStatusIcon"), tabSearch: $("#tabSearch"), tabSearchResult: $("#tabSearchResult"), tabSelect: $("#tabSelect"), tabId: $("#tabId"),
     modeText: $("#modeText"), configModeText: $("#configModeText"), profileText: $("#profileText"), tabUrl: $("#tabUrl"), commandNoticeText: $("#commandNoticeText"),
     monitorStateText: $("#monitorStateText"), monitorCountText: $("#monitorCountText"), monitorMatchedText: $("#monitorMatchedText"), monitorCycleText: $("#monitorCycleText"), ruleCountText: $("#ruleCountText"), matchedRuleCountText: $("#matchedRuleCountText"), monitorTransitionText: $("#monitorTransitionText"), alertStateText: $("#alertStateText"), targetStateText: $("#targetStateText"), baselineCountText: $("#baselineCountText"), candidateCountText: $("#candidateCountText"), targetActionCountText: $("#targetActionCountText"), lastTargetActionText: $("#lastTargetActionText"),
     activateButton: $("#activateButton"), pauseButton: $("#pauseButton"), resumeButton: $("#resumeButton"), stopButton: $("#stopButton"), refreshButton: $("#refreshButton"), customizeSidebarButton: $("#customizeSidebarButton"), tabPrimaryQuickButton: $("#tabPrimaryQuickButton"), tabStopQuickButton: $("#tabStopQuickButton"), customTabTitle: $("#customTabTitle"), saveCustomTabTitleButton: $("#saveCustomTabTitleButton"), clearCustomTabTitleButton: $("#clearCustomTabTitleButton"),
@@ -2675,6 +2675,32 @@
     showMessage("Keyboard shortcuts reset to the manifest defaults. Unassigned optional commands remain available in Firefox settings.", "success");
   }
 
+  function downloadHeaderNotice(rawState) {
+    const state = rawState && typeof rawState === "object" ? rawState : {};
+    const status = String(state.status || "idle");
+    if (status === "downloading" || status === "moving") {
+      return {
+        visible: true,
+        icon: "⇩",
+        state: "running",
+        label: status === "moving"
+          ? "Download finished; moving the file to its configured destination."
+          : "Managed download in progress."
+      };
+    }
+    if (status === "completed") {
+      return {
+        visible: true,
+        icon: "✓",
+        state: "completed",
+        label: state.destinationPath
+          ? `Download completed: ${state.destinationPath}`
+          : "Managed download completed."
+      };
+    }
+    return { visible: false, icon: "", state: "idle", label: "No active managed download notification." };
+  }
+
   function renderDetails(loadForm = true) {
     const session = selectedSession();
     const currentIsSelected = Number(dashboard.currentTab.tabId) === Number(selectedTabId);
@@ -2687,9 +2713,18 @@
     elements.body.dataset.alert = sidebarAlertEnabled && alertActive ? "active" : "inactive";
     const shellNotice = selectedShellNotice();
     elements.body.dataset.command = shellNotice.status;
-    elements.statusPill.textContent = sidebarAlertEnabled && alertActive
-      ? "Condition matched"
+    elements.statusPill.textContent = mode === MODE.ACTIVE && runtime.monitorState === "matched"
+      ? "RD"
       : (modeLabels[mode] || mode);
+    elements.statusPill.title = mode === MODE.ACTIVE && runtime.monitorState === "matched"
+      ? "AI ready: the monitored condition is matched."
+      : (modeLabels[mode] || mode);
+    const downloadNotice = downloadHeaderNotice(selectedDownloadState());
+    elements.downloadStatusIcon.hidden = !downloadNotice.visible;
+    elements.downloadStatusIcon.textContent = downloadNotice.icon;
+    elements.downloadStatusIcon.dataset.state = downloadNotice.state;
+    elements.downloadStatusIcon.title = downloadNotice.label;
+    elements.downloadStatusIcon.setAttribute("aria-label", downloadNotice.label);
     const commandIcon = shellNotice.status === "running" ? "⌘" : (shellNotice.status === "unread" ? "✓" : "");
     elements.commandStatusIcon.hidden = !commandIcon;
     elements.commandStatusIcon.textContent = commandIcon;

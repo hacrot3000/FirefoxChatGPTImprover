@@ -1,5 +1,7 @@
 # Patch Tool v4 compatibility in Python Patch Tool v5.16
 
+> **HISTORICAL v5 DOCUMENT — NOT THE CURRENT PUBLIC WORKFLOW.** Python Patch Tool v6.7.9 supersedes any user-facing command, COLLECT-delivery, transaction or SANDBOX guidance below. Current normal operation is `./tools/run_python_patches.sh`; AI COLLECT requests are ZIP-only; public PATCH execution is in-place and SANDBOX/worktree execution is removed. See `AI_USAGE_CONTRACT.md`, `PORTABLE_USAGE.md` and `PYTHON_PATCH_STANDARD_PROMPT.md`.
+
 ## Scope
 
 Python Patch Tool v5.16 can execute patch files/packages created for the original Patch Tool v4 workflow. Compatibility is for consuming existing v4 patches; new AI-generated patches must continue to use the v5 ZIP + manifest standard.

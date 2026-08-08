@@ -231,7 +231,7 @@
       target: clone(rule.target),
       alerts: {
         titleBlink: true,
-        titlePrefix: "⚠ AI READY",
+        titlePrefix: "⚠ RD",
         blinkIntervalMs: 700,
         badge: true,
         sidebar: true,

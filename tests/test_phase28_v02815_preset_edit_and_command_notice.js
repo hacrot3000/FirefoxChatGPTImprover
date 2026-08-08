@@ -38,7 +38,7 @@ assert.doesNotMatch(css, /\.sticky-actions\s*\{[^}]*position:\s*sticky/);
 // Command notice is icon-only and independent from the AI/mode status pill.
 assert.match(html, /id="commandStatusIcon"/);
 assert.match(sidebar, /const commandIcon = shellNotice\.status === "running" \? "⌘" : \(shellNotice\.status === "unread" \? "✓" : ""\)/);
-assert.match(sidebar, /elements\.statusPill\.textContent = sidebarAlertEnabled && alertActive[\s\S]*\(modeLabels\[mode\] \|\| mode\)/);
+assert.match(sidebar, /elements\.statusPill\.textContent = mode === MODE\.ACTIVE && runtime\.monitorState === "matched"[\s\S]*\? "RD"/);
 assert.doesNotMatch(sidebar, /statusPill\.textContent[\s\S]{0,240}Command running/);
 assert.match(background, /applyBadge\(session\.tabId, "⌘"/);
 assert.match(background, /applyBadge\(session\.tabId, "✓"/);

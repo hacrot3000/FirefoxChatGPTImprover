@@ -33,7 +33,7 @@ const Alert = context.FCI_ALERT_ENGINE;
 
 const config = Settings.normalizeConfig({ alerts: { titleBlink: true } });
 assert(Settings.SCHEMA_VERSION >= 7);
-assert.equal(config.alerts.titlePrefix, "⚠ AI READY");
+assert.equal(config.alerts.titlePrefix, "⚠ RD");
 assert.equal(config.alerts.blinkIntervalMs, 700);
 assert.equal(config.alerts.dismissOnUserActivity, true);
 assert.equal(config.alerts.activeTabTimeoutSeconds, 10);
@@ -56,7 +56,7 @@ assert.equal(Alert.shouldAlert(
   config
 ), false);
 assert.equal(Alert.alertTitle("READY", "Internal AI"), "[READY] Internal AI");
-assert.equal(Alert.alertTitle("", ""), "[⚠ AI READY]");
+assert.equal(Alert.alertTitle("", ""), "[⚠ RD]");
 assert.equal(Alert.shouldSpinMonitorTitle(
   { monitorState: Protocol.MONITOR_STATE.WAITING },
   Protocol.MODE.ACTIVE

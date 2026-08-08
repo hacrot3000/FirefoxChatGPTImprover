@@ -1,5 +1,7 @@
 # Safe post-patch commands — Python Patch Tool v5.16
 
+> **HISTORICAL v5 DOCUMENT — NOT THE CURRENT PUBLIC WORKFLOW.** Python Patch Tool v6.7.9 supersedes any user-facing command, COLLECT-delivery, transaction or SANDBOX guidance below. Current normal operation is `./tools/run_python_patches.sh`; AI COLLECT requests are ZIP-only; public PATCH execution is in-place and SANDBOX/worktree execution is removed. See `AI_USAGE_CONTRACT.md`, `PORTABLE_USAGE.md` and `PYTHON_PATCH_STANDARD_PROMPT.md`.
+
 ## Mục tiêu
 
 Patch có thể yêu cầu chạy một hoặc nhiều command sau khi payload đã chạy. Runner không dùng shell string; mỗi command là một mảng `argv`, chạy trong transaction sandbox, được giới hạn timeout, lọc log, redaction và chỉ áp dụng delta về project thật sau khi validation PASS.

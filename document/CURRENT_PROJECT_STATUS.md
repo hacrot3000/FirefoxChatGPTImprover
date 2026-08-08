@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 64 v0.41.5
+**Current baseline:** Phase 65 v0.41.6
 **Primary supported environment:** Firefox Desktop plus Chromium/Chrome/Edge packages; Native Host registration is provided for Linux Chromium browsers  
 **Native Host:** 0.13.0
 
@@ -9,11 +9,11 @@
 | Area | Status | Notes |
 |---|---|---|
 | Multi-tab monitor and target automation | Complete | Independent tab/rule state, stability windows, baseline-only target action and recovery. |
-| AI READY / Running status | Complete | `matched` remains AI READY; only `waiting` displays Running; optional bounded sound alerts are available per profile/tab and default to off. |
+| Ready / Running status | Complete | `matched` remains the ready state but is displayed compactly as `RD`; only `waiting` displays Running; optional bounded sound alerts are available per profile/tab and default to off. |
 | Persistent custom tab titles | Complete | User-defined per-tab names survive reload/navigation/background restart, preserve the original page title and remain compatible with AI READY/Running decorations. |
 | Configuration, URL routing and tab overrides | Complete | Includes protected drafts, snapshots, reusable Monitor/Target component profiles, typed per-profile JSON import/export and opt-in trusted-URL auto-activation with explicit permission gating. |
 | Command presets and rule-triggered commands | Complete | Includes per-tab execution, status, stop and history. |
-| Managed downloads | Complete | Capture, no-dialog restart, immutable snapshot, relocation, retry and post-download command. |
+| Managed downloads | Complete | Capture, no-dialog restart, immutable snapshot, relocation, retry, post-download command and an independent header icon (`⇩` in progress, `✓` completed). |
 | Restart recovery for managed downloads | Complete | Armed captures resume while valid; moves replay by idempotent receipt. |
 | Full command logs | Complete | File-backed paging, persisted fallback and legacy `runId` discovery. |
 | Per-run compressed log export | Complete | ZIP export of the selected run with complete transcript, typed metadata, README, DEFLATE and explicit fallback completeness. |
@@ -28,7 +28,7 @@
 | Real Firefox E2E and version matrix | Complete | Opt-in runner covers tabs, title, badge, DOM action, navigation and optional Native Host download/shell; matrix emits JSON/Markdown per Firefox binary. |
 | Named saved working-session catalog | Complete | Multiple locally stored named sessions with search, update, rename, duplicate, delete, per-session/catalog JSON backup and controlled subset restore. |
 | Per-rule statistics dashboard | Complete | Session-isolated counts for match/click/verify/automatic-command outcomes, return-code frequencies, average target/pipeline timings, JSON export and reset. |
-| Source integrity and regression | Complete | Phase 04–64 contracts, syntax audits, Native Host tests, release-status, configuration/session scope and Stop/Start continuity gates, plus opt-in real-Firefox E2E/version-matrix tooling. |
+| Source integrity and regression | Complete | Phase 04–65 contracts, syntax audits, Native Host tests, release-status, configuration/session scope and Stop/Start continuity gates, plus opt-in real-Firefox E2E/version-matrix tooling. |
 
 ## Operator-provided deployment inputs
 
@@ -74,6 +74,13 @@ python .\tools\run_firefox_e2e.py --require-native
 
 
 
+
+## Phase 65 v0.41.6 — Compact ready/download header status
+
+- The matched state is presented as compact `RD` instead of the long default `AI READY` text; legacy default prefixes are compacted at render time while user-defined custom prefixes remain unchanged.
+- The sidebar header now exposes managed-download progress independently of shell-command status: `⇩` for `downloading`/`moving` and `✓` after verified `completed`.
+- The stale v0.28.19 TODO inventory and Phase 00 status marker were reconciled against the current implementation.
+- Python Patch Tool public guidance is aligned to v6.7.9: ZIP-only COLLECT requests, zero-argument launcher, readonly COLLECT and in-place PATCH routing.
 
 ## Phase 64 v0.41.5 — Manual-preferred snapshot compaction
 

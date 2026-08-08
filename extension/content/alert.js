@@ -22,6 +22,8 @@
       ...prefixes,
       "⚠ AI READY",
       "AI READY",
+      "⚠ RD",
+      "RD",
       "READY",
       "RUNNING",
       "MATCHED",
@@ -121,16 +123,23 @@
     return { action: active ? "keep" : "idle", cycle: knownCycle };
   }
 
+  function compactReadyPrefix(prefix) {
+    const clean = String(prefix || "⚠ RD").trim() || "⚠ RD";
+    if (/^⚠\s*AI\s+READY$/iu.test(clean)) return "⚠ RD";
+    if (/^AI\s+READY$/iu.test(clean)) return "RD";
+    return clean;
+  }
+
   function alertTitle(prefix, baseTitle) {
-    const cleanPrefix = String(prefix || "⚠ AI READY").trim() || "⚠ AI READY";
+    const cleanPrefix = compactReadyPrefix(prefix);
     const cleanBase = String(baseTitle || "").trim();
     return cleanBase ? `[${cleanPrefix}] ${cleanBase}` : `[${cleanPrefix}]`;
   }
 
   function quietAlertPrefix(prefix) {
-    const clean = String(prefix || "⚠ AI READY").trim() || "⚠ AI READY";
+    const clean = compactReadyPrefix(prefix);
     const quiet = clean.replace(/^[^\p{L}\p{N}]+/u, "").trim();
-    return quiet || "AI READY";
+    return quiet || "RD";
   }
 
   function commandTitlePrefix(runtime) {
@@ -141,7 +150,7 @@
 
   function combinedTitlePrefix(alertPrefix, runtime, includeAlert = true) {
     const parts = [];
-    if (includeAlert) parts.push(String(alertPrefix || "⚠ AI READY").trim() || "⚠ AI READY");
+    if (includeAlert) parts.push(compactReadyPrefix(alertPrefix));
     const command = commandTitlePrefix(runtime);
     if (command) parts.push(command);
     return parts.join(" · ");
@@ -185,7 +194,7 @@
     let monitorSpinIndex = 0;
     let titleObserver = null;
     let customTitle = "";
-    let baseTitle = storedBaseTitle("⚠ AI READY") || document.title || "";
+    let baseTitle = storedBaseTitle("⚠ RD") || document.title || "";
     let lastWrittenTitle = null;
     let alertStartedAt = null;
     let alertCycle = 0;
@@ -590,6 +599,7 @@
       shouldSpinMonitorTitle,
     shouldShowReadyTitle,
       deriveAlertDecision,
+      compactReadyPrefix,
       alertTitle,
       quietAlertPrefix,
       commandTitlePrefix,

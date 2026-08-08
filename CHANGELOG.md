@@ -15,6 +15,22 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
+## [0.41.6] - 2026-08-08
+
+### Changed
+
+- The matched/AI-ready presentation is compacted to `RD` in the tab title and sidebar status instead of the long `AI READY` label. Existing legacy default prefixes such as `⚠ AI READY` are compacted at render time without overwriting custom user prefixes.
+- The sidebar header now has an independent managed-download indicator: `⇩` while the immutable job is downloading or being relocated, then `✓` after verified completion. Command status remains a separate icon.
+
+### Documentation
+
+- Reconciled the stale v0.28.19 TODO audit with the v0.41.6 source baseline and separated completed code, external deployment inputs, physical legacy-log limits and explicitly deferred macOS work.
+- Updated the project implementation status from the obsolete Phase 00 marker to Phase 65 and aligned the bundled AI Patch Tool guidance with the v6.7.9 ZIP-only COLLECT / zero-argument / in-place contract.
+
+### Compatibility
+
+- No protocol or Native Host change. Existing custom alert title prefixes remain supported.
+
 ## [0.41.5] - 2026-08-07
 
 ### Fixed

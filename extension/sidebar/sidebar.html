@@ -15,6 +15,7 @@
       <p class="eyebrow">Firefox ChatAI Assistant</p>
     </div>
     <div class="header-status-cluster">
+      <span id="downloadStatusIcon" class="download-status-icon" data-state="idle" hidden aria-live="polite"></span>
       <span id="commandStatusIcon" class="command-status-icon" data-state="idle" hidden aria-live="polite"></span>
       <span id="statusPill" class="status-pill" role="status" aria-live="polite" aria-atomic="true">Inactive</span>
     </div>
@@ -605,7 +606,7 @@
         <label class="check-row"><input id="soundAlertEnabled" type="checkbox">Sound alert (opt-in)</label>
       </div>
       <div class="selector-grid">
-        <label>Title label<input id="titlePrefix" type="text" placeholder="⚠ AI READY"></label>
+        <label>Title label<input id="titlePrefix" type="text" placeholder="⚠ RD"></label>
         <label>Blink interval (ms)<input id="blinkIntervalMs" type="number" min="250" max="5000" step="50"></label>
       </div>
       <div class="selector-grid sound-alert-settings" id="soundAlertSettings">

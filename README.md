@@ -888,3 +888,14 @@ Automation save and tab-override controls now live in Automation profiles. **Bac
 ## Profile save continuity (v0.39.8)
 
 `Save current as new` captures the complete current Automation or Local action editor. The created or saved profile remains selected without applying Default or silently changing the profile bound to the tab.
+
+
+<!-- FCI_PHASE65_COMPACT_READY_DOWNLOAD_STATUS_BEGIN -->
+## Compact ready and download status (v0.41.6)
+
+The compact runtime header now uses **RD** for the matched/ready state instead of the longer **AI READY** label. The default browser-title alert prefix is likewise compacted to **⚠ RD** while preserving the existing blink/quiet-frame behavior; legacy saved `AI READY` prefixes are compacted at render time without rewriting custom prefixes.
+
+Managed downloads now have an independent header indicator: **⇩** while the captured file is downloading or being moved, then **✓** after the managed download completes. The indicator is independent from the command-running/unread icon, so download and shell-command state can be seen at the same time.
+
+The documentation backlog was re-audited against the v0.41.5 source baseline before this change. Old v0.28.19 TODO entries that are already implemented are no longer reported as unfinished. macOS Native Host remains deferred, and external self-hosted update publication remains an operator/deployment dependency rather than an active code feature.
+<!-- FCI_PHASE65_COMPACT_READY_DOWNLOAD_STATUS_END -->

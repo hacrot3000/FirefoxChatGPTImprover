@@ -14,10 +14,11 @@ body { margin: 0; min-width: 290px; background: Canvas; color: CanvasText; }
 .app-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
 .app-header > div { min-width: 0; }
 .header-status-cluster { display: inline-flex; flex: none; align-items: center; gap: 5px; }
-.command-status-icon { display: inline-grid; width: 20px; height: 20px; place-items: center; border: 1px solid var(--border); border-radius: 50%; font-size: 12px; font-weight: 800; line-height: 1; }
-.command-status-icon[hidden] { display: none; }
-.command-status-icon[data-state="running"] { border-color: #0969da; color: #0969da; animation: fci-command-pulse .8s ease-in-out infinite alternate; }
+.command-status-icon, .download-status-icon { display: inline-grid; width: 20px; height: 20px; place-items: center; border: 1px solid var(--border); border-radius: 50%; font-size: 12px; font-weight: 800; line-height: 1; }
+.command-status-icon[hidden], .download-status-icon[hidden] { display: none; }
+.command-status-icon[data-state="running"], .download-status-icon[data-state="running"] { border-color: #0969da; color: #0969da; animation: fci-command-pulse .8s ease-in-out infinite alternate; }
 .command-status-icon[data-state="unread"] { border-color: var(--paused); color: var(--paused); }
+.download-status-icon[data-state="completed"] { border-color: var(--active); color: var(--active); }
 h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 0; font-size: 18px; }
 h2 { margin-bottom: 10px; font-size: 14px; }

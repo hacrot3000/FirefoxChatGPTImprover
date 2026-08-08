@@ -1,0 +1,21 @@
+{
+  "id": "symbol-investigation",
+  "title": "Symbol definition/reference/call/dependency investigation",
+  "actions": [
+    {
+      "id": "core-symbols",
+      "type": "symbol_graph",
+      "paths": ["src"],
+      "symbols": ["ExampleFunction", "ExampleType"],
+      "context_lines": 8,
+      "include_references": true,
+      "include_callers": true,
+      "include_callees": true,
+      "include_dependencies": true,
+      "dependency_depth": 1,
+      "max_occurrences": 1000,
+      "max_callers": 250,
+      "max_callees": 40
+    }
+  ]
+}

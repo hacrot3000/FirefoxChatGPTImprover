@@ -1,0 +1,25 @@
+{
+  "id": "bounded-investigation",
+  "actions": [
+    {
+      "id": "main-investigation",
+      "type": "investigate",
+      "paths": [
+        "src"
+      ],
+      "queries": [
+        "serverList|GetServerUrl"
+      ],
+      "regex": true,
+      "symbols": [
+        "GetServerUrl"
+      ],
+      "max_rounds": 2,
+      "max_symbols": 60,
+      "max_new_symbols_per_round": 20,
+      "max_investigation_files": 300,
+      "dependency_depth": 1,
+      "context_lines": 8
+    }
+  ]
+}

@@ -399,14 +399,11 @@ Phase 06 có thể bắt đầu sau Phase 01 nhưng chỉ tích hợp hoàn ch�
 
 ## 7. Trạng thái hiện tại
 
-- Phase hiện tại: **Phase 00**.
-- Kết quả của patch Phase 00:
-  - kế hoạch triển khai;
-  - hướng dẫn cài/cập nhật;
-  - công cụ setup và chạy `web-ext`;
-  - công cụ lint/build;
-  - cập nhật README.
-- Phase tiếp theo dự kiến: **Phase 01 — Khung WebExtension và kích hoạt thủ công**.
+- Baseline hiện tại: **Phase 65 v0.41.6**.
+- Required-feature backlog: **hoàn tất**.
+- Recommended-feature backlog: **hoàn tất**.
+- Phase 65 hoàn thiện phần hiển thị trạng thái đang có: ready được rút gọn thành `RD` / `⚠ RD`, managed download có icon tiến trình/hoàn tất độc lập ở header, và tài liệu tiến độ được đồng bộ lại.
+- Không có feature implementation nào đang active sau Phase 65. Native Host cho macOS vẫn **Deferred** theo quyết định dự án; self-hosted XPI update còn phụ thuộc XPI đã ký và hạ tầng HTTPS do operator cung cấp, không phải code backlog.
 
 ## Trạng thái triển khai đến Phase 06
 
@@ -895,3 +892,15 @@ Status: **Complete**
 - Keep the newest duplicate within the same Manual/automatic class.
 - Preserve Phase 62 semantic fingerprint identity, Phase 63 add-time promotion and the existing 20-snapshot retention bound.
 
+
+
+## Phase 65 — Compact ready/download header status
+
+**Status:** Completed in v0.41.6.
+
+- Keep `matched` semantics unchanged but compact the default visible ready label to compact `RD` / `⚠ RD`.
+- Show managed-download state independently from command state in the sidebar header: progress during `downloading`/`moving`, completion after verified relocation.
+- Reconcile stale feature/TODO documentation with the current baseline.
+- Align AI-facing Patch Tool instructions with the v6.7.9 public contract without reintroducing SANDBOX/worktree execution.
+
+**Next:** No scheduled implementation item; accept focused bug reports or an explicit new feature request.

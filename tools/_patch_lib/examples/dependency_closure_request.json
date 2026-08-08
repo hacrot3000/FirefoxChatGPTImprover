@@ -1,0 +1,15 @@
+{
+  "id": "dependency-closure",
+  "title": "Recursive local dependency collection",
+  "actions": [
+    {
+      "id": "entry-deps",
+      "type": "dependency_closure",
+      "files": ["src/main.py"],
+      "paths": ["src"],
+      "depth": 3,
+      "max_dependency_files": 500,
+      "max_dependency_edges": 5000
+    }
+  ]
+}

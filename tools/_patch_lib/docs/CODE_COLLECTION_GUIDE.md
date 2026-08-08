@@ -1,211 +1,72 @@
-# Hướng dẫn nghiên cứu và thu thập code cho AI — Patch Tool v5.16
+# Hướng dẫn thu thập source/evidence cho AI — Python Patch Tool v6.7.9
+
+Tài liệu này mô tả **public workflow** hiện tại. Các lệnh `collect ...` trực tiếp xuất hiện trong tài liệu v5 cũ chỉ là chi tiết dispatcher lịch sử và **không phải hướng dẫn cho người dùng**.
 
 ## Entry point duy nhất
 
-Sau khi cài đặt, mọi chức năng dùng chung một file:
+Người dùng luôn chạy:
 
 ```bash
 ./tools/run_python_patches.sh
 ```
 
-Chạy patch như cũ, không tham số:
+Không thêm subcommand COLLECT hoặc đường dẫn request vào command line trong workflow thông thường.
 
-```bash
-./tools/run_python_patches.sh
-```
+## Khi AI cần thêm source/evidence
 
-Nhóm lệnh nghiên cứu/thu thập code:
-
-```bash
-./tools/run_python_patches.sh collect <command> [options]
-```
-
-Các module, tài liệu và ví dụ nằm trong `tools/_patch_lib/`; không chạy trực tiếp trừ khi đang sửa chính Patch Tool.
-
-## Thu thập tổng quan trước khi AI quyết định
-
-```bash
-./tools/run_python_patches.sh collect overview
-```
-
-ZIP kết quả chứa:
-
-- Danh sách thư mục gốc tương đương `ls`.
-- Cây thư mục có giới hạn tương đương `tree`.
-- Thống kê loại file.
-- Các file build/cấu hình quan trọng.
-- Git branch, status, recent log và diff stat khi project dùng Git.
-
-Nghiên cứu theo từ khóa, vừa lấy tổng quan vừa tìm code:
-
-```bash
-./tools/run_python_patches.sh collect research MFRC522 --path gate-rp2040
-```
-
-## Danh sách và cây thư mục
-
-```bash
-./tools/run_python_patches.sh collect ls .
-./tools/run_python_patches.sh collect ls main-esp32c3 --max-entries 500
-./tools/run_python_patches.sh collect tree . --max-depth 4
-./tools/run_python_patches.sh collect tree gate-rp2040 --max-depth 6
-```
-
-Collector không cần hệ thống cài lệnh `tree`; cây thư mục được tạo bằng Python và áp dụng chung exclude/security policy.
-
-## Tìm file theo tên hoặc glob
-
-Chỉ lập danh sách:
-
-```bash
-./tools/run_python_patches.sh collect find '*.c' '*.h' --path gate-rp2040
-```
-
-Tìm và đưa luôn file khớp vào ZIP:
-
-```bash
-./tools/run_python_patches.sh collect find 'CMakeLists.txt' '*.cmake' --path . --collect
-```
-
-## Thu thập file, một phần file, đầu hoặc cuối file
-
-```bash
-./tools/run_python_patches.sh collect file src/main.c
-./tools/run_python_patches.sh collect file src/main.c --start-line 120 --end-line 260
-./tools/run_python_patches.sh collect head build.log --lines 150
-./tools/run_python_patches.sh collect tail build.log --lines 250
-```
-
-## Thu thập symbol
-
-```bash
-./tools/run_python_patches.sh collect symbol src/runtime.c runtime_start
-```
-
-Tool cố lấy nguyên function/class/struct chứa symbol, tránh cắt giữa khối logic.
-
-## Tìm kiếm và references
-
-```bash
-./tools/run_python_patches.sh collect search runtime_start --path src --path include
-./tools/run_python_patches.sh collect search 'runtime_(start|stop)' --regex --path src
-./tools/run_python_patches.sh collect references runtime_start --path src --path include
-```
-
-Kết quả chỉ giữ các đoạn context quanh match thay vì gửi cả project.
-
-## Gom nhiều file hoặc thư mục thành một ZIP
-
-```bash
-./tools/run_python_patches.sh collect pack \
-  src/main.c \
-  include \
-  CMakeLists.txt
-```
-
-`pack` chấp nhận nhiều file/thư mục, giữ đường dẫn tương đối, áp dụng include/exclude, giới hạn dung lượng và redaction trước khi đóng một ZIP duy nhất.
-
-Thu thập một thư mục theo loại file:
-
-```bash
-./tools/run_python_patches.sh collect directory gate-rp2040 \
-  --include '**/*.c' \
-  --include '**/*.h' \
-  --exclude 'build/**'
-```
-
-## Git context an toàn
-
-```bash
-./tools/run_python_patches.sh collect git
-./tools/run_python_patches.sh collect git \
-  --section status \
-  --section log \
-  --section diff_stat \
-  --section diff
-```
-
-Chỉ các section cố định được phép; request không thể truyền shell command tùy ý.
-
-## File decompile lớn kiểu GM52/IDA/Ghidra
-
-Theo tên:
-
-```bash
-./tools/run_python_patches.sh collect decompile docs/GM_52_76.c \
-  --name sub_140123456 \
-  --match exact \
-  --neighbors-before 2 \
-  --neighbors-after 2 \
-  --references
-```
-
-Theo địa chỉ:
-
-```bash
-./tools/run_python_patches.sh collect decompile docs/GM_52_76.c \
-  --address 0x21E551A \
-  --references
-```
-
-Adapter này giữ cơ chế index SQLite của GM52 toolkit nhưng không giới hạn tên project hoặc tên file.
-
-## Request nhiều hành động, chạy không tham số
-
-Tạo `CODE_COLLECTION_REQUEST.json` ở project root:
-
-```json
-{
-  "id": "nfc-reader-research",
-  "title": "NFC reader evidence for AI",
-  "actions": [
-    {"type": "overview", "path": "gate-rp2040", "tree_depth": 4},
-    {"type": "find", "paths": ["gate-rp2040"], "patterns": ["*.c", "*.h"]},
-    {"type": "search", "query": "MFRC522", "paths": ["gate-rp2040"], "context_lines": 8},
-    {"type": "references", "symbol": "nfc_reader_poll", "paths": ["gate-rp2040"]},
-    {"type": "pack", "paths": ["gate-rp2040/CMakeLists.txt", "gate-rp2040/include"]}
-  ]
-}
-```
-
-Sau đó:
-
-```bash
-./tools/run_python_patches.sh collect
-```
-
-Kết quả mặc định:
+AI phải cung cấp **một request ZIP**, không cung cấp JSON rời:
 
 ```text
-artifacts/patch_tool_code_collections/<request-id>.zip
+CODE_COLLECTION_REQUEST_<purpose>_<timestamp>.zip
+└── CODE_COLLECTION_REQUEST_<purpose>_<timestamp>.json
 ```
 
-## Các action hỗ trợ trong JSON
+Yêu cầu bắt buộc:
 
-| Action | Mục đích |
-|---|---|
-| `overview` | Tổng quan project: ls, tree, thống kê, key files, Git |
-| `research` | Tổng quan cộng tìm kiếm theo câu hỏi/từ khóa |
-| `ls` | Danh sách trực tiếp của thư mục |
-| `tree` | Cây thư mục có giới hạn depth/entries |
-| `find` | Tìm path theo glob; tùy chọn thu luôn file |
-| `file` / `range` | File hoàn chỉnh hoặc đoạn dòng |
-| `head` / `tail` | N dòng đầu/cuối |
-| `symbol` | Function/class/struct-like block |
-| `search` | Text hoặc regex với context |
-| `references` | Tìm references của symbol |
-| `directory` | Thu source trong một thư mục theo include/exclude |
-| `pack` / `zip` | Gom nhiều file/thư mục vào một AI ZIP |
-| `git` | Git status/log/diff theo section cố định |
-| `decompile` / `ida` / `ghidra` | Trích function từ file decompile lớn |
+1. ZIP chứa chính xác một file có basename khớp `CODE_COLLECTION_REQUEST*.json`.
+2. Request chỉ mô tả thao tác đọc/thu thập evidence; COLLECT không sửa source/Git.
+3. Người dùng đặt **request ZIP** trực tiếp vào `<project>/patchs/`.
+4. Chạy `./tools/run_python_patches.sh`.
+5. Queue tự nhận diện và gắn nhãn `[COLLECT]`; nếu chỉ còn một item thì item đó được chọn sẵn để Enter chạy.
+6. Sau khi PASS, gửi **result collection ZIP** được tool đánh dấu `[PRIMARY - UPLOAD THIS FILE]` về AI.
 
-## An toàn và giới hạn
+Loose `CODE_COLLECTION_REQUEST*.json` trong `patchs/` bị reject có chủ đích.
 
-- Chỉ dùng đường dẫn tương đối trong project.
-- Chặn absolute path và `..` traversal.
-- Không thực thi shell command do request cung cấp.
-- Không tự lấy `.env`, private key, credential hoặc file nhạy cảm.
-- Secret trong source/log được redaction trước khi ghi ZIP.
-- Mặc định loại `.git`, `patchs`, build output, dependencies, `_patch_lib` và artifact collector cũ.
-- Request chỉ được giảm giới hạn, không được tăng vượt project policy.
-- ZIP ghi manifest, hash, file đã lấy, file bỏ qua và lỗi từng action.
+## Phân biệt hai ZIP
+
+- **Request ZIP**: AI tạo; chứa request JSON; đưa vào `patchs/`.
+- **Result collection ZIP**: tool tạo sau khi COLLECT thành công; chứa source/evidence; đây là file người dùng upload lại cho AI.
+
+Không được nhầm request ZIP với result ZIP và không dùng inner JSON thay cho request ZIP.
+
+## Output PASS chuẩn
+
+Kết quả COLLECT thành công được supervisor chuẩn hóa thành một block duy nhất:
+
+```text
+================ COLLECT RESULT ================
+[PRIMARY - UPLOAD THIS FILE]
+<absolute-path-to-result-collection.zip>
+Destination: ChatGPT / AI server
+================================================
+[INFO] REQUEST ARCHIVED: <request-zip-path>
+```
+
+Result ZIP chỉ được hiện một lần; request archive là metadata thông tin.
+
+## Tính chất readonly và tiến trình
+
+- COLLECT là readonly và không dùng transaction worktree.
+- TTY progress dùng một dòng, tự tính lại chiều rộng terminal và chặn text vượt width.
+- Invalid UTF-8/control characters được xử lý an toàn.
+- v6.7.9 đặt collector trong process group riêng và forward SIGINT/SIGTERM để tránh child process bị bỏ lại khi IDE/task runner dừng supervisor.
+
+## Nguồn chuẩn
+
+Khi có mâu thuẫn với tài liệu v5 lịch sử, ưu tiên theo thứ tự:
+
+1. `AI_USAGE_CONTRACT.md`
+2. `PORTABLE_USAGE.md`
+3. `COLLECT_PROGRESS_V6_7_9.md`
+4. `PYTHON_PATCH_TOOL_FEATURE_STATUS.md`
+5. `PYTHON_PATCH_STANDARD_PROMPT.md`

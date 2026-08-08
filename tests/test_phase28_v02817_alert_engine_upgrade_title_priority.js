@@ -117,7 +117,7 @@ matchedController.apply({
     dismissOnUserActivity: false
   }
 }, { monitorState: "matched", shellCommandState: "unread", alertActive: false }, "active", "matched-acknowledged");
-assert.match(matchedDocument.title, /^\[⚠ AI READY · ✓\] Project$/,
+assert.match(matchedDocument.title, /^\[⚠ RD · ✓\] Project$/,
   "after an alert is acknowledged or timed out, matched must remain a static AI READY state");
 assert.equal(matchedController.snapshot().monitorTitleSpinning, false);
 
@@ -142,10 +142,10 @@ alertController.apply({
   alertActive: true,
   shellCommandState: "unread"
 }, "active", "matched-alert");
-assert.match(alertDocument.title, /^\[⚠ AI READY · ✓\] Project$/);
+assert.match(alertDocument.title, /^\[⚠ RD · ✓\] Project$/);
 assert.ok(alertLoaded.intervals.length >= 1, "title blinking must install its interval");
 alertLoaded.intervals[0]();
-assert.match(alertDocument.title, /^\[AI READY · ✓\] Project$/,
+assert.match(alertDocument.title, /^\[RD · ✓\] Project$/,
   "the alternate alert frame must remain AI-primary and may never degrade to a tick-only title");
 assert.doesNotMatch(alertDocument.title, /^\[✓\]/);
 
