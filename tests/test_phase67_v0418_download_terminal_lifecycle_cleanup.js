@@ -23,11 +23,12 @@ function extractFunction(source, signature) {
 
 // Terminal routes must not retain browser download IDs or Native Host move IDs.
 const routingFunction = extractFunction(background, "function clearDownloadRoutingKeys");
-const routingSandbox = { Map, globalThis: null };
+const routingSandbox = { Map, Set, globalThis: null };
 routingSandbox.globalThis = routingSandbox;
 vm.createContext(routingSandbox);
-vm.runInContext(`const downloadMoveToTab = new Map([[17, 4], [\"move-4\", 4], [99, 8]]);\n${routingFunction}\nclearDownloadRoutingKeys({ downloadId: 17, moveId: \"move-4\" });\nthis.keys = [...downloadMoveToTab.keys()];`, routingSandbox);
+vm.runInContext(`const downloadMoveToTab = new Map([[17, 4], [\"move-4\", 4], [99, 8]]);\nconst managedDownloadIds = new Set([17, 99]);\n${routingFunction}\nclearDownloadRoutingKeys({ downloadId: 17, moveId: \"move-4\" });\nthis.keys = [...downloadMoveToTab.keys()];\nthis.managedIds = [...managedDownloadIds.values()];`, routingSandbox);
 assert.deepEqual(Array.from(routingSandbox.keys), [99]);
+assert.deepEqual(Array.from(routingSandbox.managedIds), [99]);
 assert.match(background, /clearDownloadRoutingKeys\(job, moveId\);[\s\S]*browser\.downloads\.erase/);
 assert.match(background, /if \(delta\.error\?\.current\)[\s\S]*clearDownloadRoutingKeys\(job, delta\.id\);/);
 

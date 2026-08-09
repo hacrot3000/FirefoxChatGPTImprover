@@ -15,6 +15,75 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
+## [0.41.13] - 2026-08-08
+
+### Fixed
+
+- Fail closed while an extension-managed replacement download is being created, so an early `downloads.onCreated` event cannot be attributed to another armed tab before `downloads.download()` returns its ID.
+- Keep the newer in-memory terminal download state authoritative during same-capture navigation recovery; stale persisted `downloading` snapshots can no longer resurrect failed/expired jobs.
+- Remove Native Host pending-request/timer entries immediately when `postMessage()` fails synchronously, clear a broken cached native port when its initial ping cannot be sent so the next operation reconnects, and converge failed Native Host status/stop sends instead of leaving active runs stuck.
+- Converge automation command runtime/statistics to `failed` when the Native Host cannot start the command at all instead of leaving automation state at `starting`.
+
+### Compatibility
+
+- Bugfix/hardening only. No new feature group, protocol change, settings-storage schema change, content-engine version change, or Native Host change.
+
+## [0.41.12] - 2026-08-08
+
+### Fixed
+
+- Treat `CK`/`armed` as an active managed-download state: a second target click can no longer replace an armed capture before Firefox emits the corresponding download event.
+- Fail closed when `downloads.onCreated` matches multiple armed tabs from the same origin; the add-on no longer guesses by recency and risks relocating one tab's file with another tab's destination/shell snapshot.
+- Convert Native Host disconnects during active shell runs into complete terminal errors: shell history/notices are synchronized, download-shell jobs leave `running`, automation runtime/statistics record failure, pending native requests are rejected, and cleanup is scheduled.
+
+### Compatibility
+
+- Bugfix/hardening only. No new feature group, protocol change, settings-storage schema change, content-engine version change, or Native Host change.
+
+## [0.41.11] - 2026-08-08
+
+### Fixed
+
+- Correlate Native Host relocation responses by the active immutable `moveId`; delayed responses from an older move can no longer flip the current tab job to completed/error merely because they carry the same `tabId`.
+- Correlate Firefox download-manager events by the current `downloadId`, ignore stale events after relocation starts, and continue completion from captured filename metadata if `downloads.search()` temporarily fails instead of leaving the header stuck at `DL`.
+- Transition `CK` to `DL` immediately when the blocking HTTP response is positively identified as a download, before Firefox finishes creating the managed replacement.
+- Prevent a second managed target click while the previous job is still `DL`/`MV`; the attempted action becomes a safe dry-run instead of overwriting the active per-tab job.
+- Preserve legitimate page titles such as `RD Station`; compact `RD` is stripped only when it appears in the bracketed decoration written by the add-on (`[RD] ...`).
+- Advance Alert Engine to 15, Target Engine to 5 and the content runtime to 29 so already-open tabs can adopt these hardening changes on reattachment.
+
+### Compatibility
+
+- Bugfix/hardening only. No new feature group, protocol change, settings-storage schema change, or Native Host change.
+
+## [0.41.10] - 2026-08-08
+
+### Fixed
+
+- Removed warning/error semantics from the normal matched-ready presentation: built-in/legacy `⚠ AI READY`, `AI READY`, `READY`, and `⚠ RD` labels normalize to stable `RD`.
+- The default matched-ready tab title no longer alternates a warning triangle on/off. A normalized `RD` frame is static even when the historical title-blink option is enabled; custom user prefixes still retain their existing behavior.
+- The extension toolbar badge now shows `RD` for a normal matched alert instead of `!`; `!` is reserved for the actual `MODE.ERROR` path.
+- The sidebar matched-ready highlight no longer uses error color or pulse animation, keeping `RD` visually distinct from `CK` / `DL` / `MV` / `✓` managed-download states.
+- Kept settings schema 18 unchanged; Alert Engine implementation advances to v14 so already-open tabs can replace the old ready-title behavior safely.
+
+### Compatibility
+
+- Bugfix/hardening only. No new feature group, protocol change, settings-storage schema change, or Native Host change.
+
+## [0.41.9] - 2026-08-08
+
+### Fixed
+
+- Replaced the ambiguous animated managed-download warning/progress glyph with stable explicit header states: `CK` while the ready tab is checking/waiting for a download, `DL` while Firefox is downloading, `MV` while Native Host relocation is running, `✓` after verified completion, `NO` when the capture window ends without a download, and `×` only for a real failure.
+- Download-state badges no longer pulse/fade, so `RD + CK`, `RD + DL`, `RD + MV`, and `RD + ✓` remain visually distinguishable. The independent command-running icon keeps its existing animation.
+- Managed download IDs are removed from in-memory ownership/routing sets on completion, failure and tab cleanup; restart recovery now rebuilds routing only for genuinely active browser downloads and fails closed when Firefox no longer has the persisted item.
+- Early move validation failures clear stale routing, and download startup tolerates a transient `downloads.search()` failure after Firefox has already returned a valid managed download ID.
+- Native Host connection/start failures now persist and broadcast a terminal download-shell error instead of leaving the completed-download shell state stuck at `starting`.
+
+### Compatibility
+
+- No new feature group, protocol change, settings-schema change, or Native Host change.
+
+
 ## [0.41.8] - 2026-08-08
 
 ### Fixed

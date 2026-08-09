@@ -399,11 +399,11 @@ Phase 06 có thể bắt đầu sau Phase 01 nhưng chỉ tích hợp hoàn ch�
 
 ## 7. Trạng thái hiện tại
 
-- Baseline hiện tại: **Phase 67 v0.41.8**.
+- Baseline hiện tại: **Phase 72 v0.41.13**.
 - Required-feature backlog: **hoàn tất**.
 - Recommended-feature backlog: **hoàn tất**.
-- Phase 65 hoàn thiện phần hiển thị trạng thái đang có: ready được rút gọn thành `RD` / `⚠ RD`, managed download có icon tiến trình/hoàn tất độc lập ở header, và tài liệu tiến độ được đồng bộ lại.
-- Không có feature implementation nào đang active sau Phase 67. Phase 66–67 chỉ harden Phase 65, không mở nhóm tính năng mới. Native Host cho macOS vẫn **Deferred** theo quyết định dự án; self-hosted XPI update còn phụ thuộc XPI đã ký và hạ tầng HTTPS do operator cung cấp, không phải code backlog.
+- Phase 65 bắt đầu phần hiển thị compact `RD`; Phase 69 đã loại bỏ warning/exclamation semantics còn sót của READY; Phase 70 khóa correlation theo `downloadId`/`moveId`, chặn overlap `DL/MV` và bảo vệ page title bắt đầu bằng `RD`. Managed download giữ badge độc lập `CK` / `DL` / `MV` / `✓` / `NO` / `×`.
+- Không có feature implementation mới nào đang active sau Phase 72. Phase 66–72 chỉ harden Phase 65, không mở nhóm tính năng mới. Native Host cho macOS vẫn **Deferred** theo quyết định dự án; self-hosted XPI update còn phụ thuộc XPI đã ký và hạ tầng HTTPS do operator cung cấp, không phải code backlog.
 
 ## Trạng thái triển khai đến Phase 06
 
@@ -933,3 +933,77 @@ Scope remains limited to Phase 65/66 hardening:
 
 No new feature group is started. Protocol 26, settings schema 18, and Native Host 0.13.0 remain unchanged.
 
+## Phase 68 — Explicit managed-download state clarity
+
+**Status:** Completed in v0.41.9.
+
+Scope remains limited to the Phase 65–67 status/download lifecycle:
+
+- replace ambiguous/fading download glyphs with stable explicit states: `CK`, `DL`, `MV`, `✓`, `NO`, `×`;
+- keep the compact `RD` ready state independent from the download badge;
+- reserve the error state for real download/relocation failures instead of treating capture expiry as the same warning;
+- close managed-download ID/routing leaks and terminal-state recovery regressions;
+- make Native Host shell-start failure terminal and persisted instead of leaving `starting` stuck;
+- keep protocol/settings/Native Host contracts unchanged.
+
+No new feature group is started.
+
+
+
+## Phase 69 — Ready alert visual semantics cleanup
+
+**Status:** Completed in v0.41.10.
+
+Scope remains limited to the Phase 65–68 compact-ready/download-status work:
+
+- normalize historical built-in warning READY labels to stable `RD`;
+- stop the default READY title from alternating a warning glyph;
+- use `RD` rather than `!` for a normal matched toolbar badge and reserve `!` for actual runtime error;
+- remove error-colored/pulsing sidebar treatment from normal matched-ready state;
+- bump only the alert-engine implementation guard for safe reattachment, without changing protocol, settings storage schema or Native Host.
+
+No new feature group is started.
+
+
+## Phase 70 — Download correlation and compact-RD title safety
+
+**Status:** Completed in v0.41.11.
+
+Scope remains the existing Phase 65 status/download feature only:
+
+- require the current `moveId` before accepting Native Host relocation success/error;
+- require the current `downloadId` before consuming Firefox download-manager events;
+- use captured file metadata if completion-time `downloads.search()` transiently fails;
+- enter `DL` immediately after a blocking response is positively identified as a download;
+- suppress a second managed target click while the current job is `DL`/`MV`;
+- preserve legitimate unbracketed page titles beginning with `RD`;
+- bump only implementation guards required for live reattachment (Alert 15, Target 5, runtime 29).
+
+No protocol, settings schema, Native Host or new feature group is introduced.
+
+## Phase 71 — Capture ownership and Native Host disconnect convergence
+
+**Status:** Completed in v0.41.12.
+
+Scope remains the existing Phase 65 status/download/shell feature only:
+
+- treat `armed`/`CK` as active and block a second managed target click before the first capture resolves;
+- fail closed when Firefox fallback download events ambiguously match multiple same-origin armed tabs;
+- on Native Host disconnect, converge shell run/history/notice, completed-download shell state, automation runtime/statistics and pending native requests to terminal error;
+- keep protocol 26, settings schema 18, Alert Engine 15, Target Engine 5, content runtime 29 and Native Host 0.13.0 unchanged.
+
+No new feature group is introduced.
+
+## Phase 72 — Managed replacement and Native request race convergence
+
+**Status:** Completed in v0.41.13.
+
+Scope remains the existing Phase 65 status/download/shell feature only:
+
+- protect extension-managed replacement creation before Firefox returns the new `downloadId`;
+- preserve newer same-capture in-memory terminal state over stale persisted recovery snapshots;
+- clean pending Native Host requests immediately on synchronous send failure, clear a cached port that fails its initial ping, and converge failed status/stop sends through disconnect handling;
+- converge automation command start failure to terminal `failed` runtime/statistics;
+- keep protocol 26, settings schema 18, Alert Engine 15, Target Engine 5, content runtime 29 and Native Host 0.13.0 unchanged.
+
+No new feature group is introduced.

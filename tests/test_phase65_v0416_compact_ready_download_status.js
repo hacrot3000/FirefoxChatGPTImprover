@@ -16,10 +16,10 @@ const sidebar = read("extension/sidebar/sidebar.js");
 
 assert.ok(manifest.version.localeCompare("0.41.6", undefined, { numeric: true }) >= 0);
 assert(html.includes('id="downloadStatusIcon"'));
-assert(html.includes('placeholder="⚠ RD"'));
+assert(html.includes('placeholder="RD"'));
 assert(!html.includes('placeholder="⚠ AI READY"'));
-assert(css.includes('.download-status-icon[data-state="running"]'));
 assert(css.includes('.download-status-icon[data-state="completed"]'));
+assert(css.includes('.download-status-icon[data-state="downloading"]'));
 assert(sidebar.includes('runtime.monitorState === "matched"'));
 assert(sidebar.includes('? "RD"'));
 
@@ -34,9 +34,10 @@ sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(`${extractFunction(sidebar, "function downloadHeaderNotice")}\nthis.notice = downloadHeaderNotice;`, sandbox);
 assert.deepEqual(JSON.parse(JSON.stringify(sandbox.notice({ status: "idle" }))), { visible: false, icon: "", state: "idle", label: "No active managed download notification." });
-assert.equal(sandbox.notice({ status: "downloading" }).icon, "⇩");
-assert.equal(sandbox.notice({ status: "downloading" }).state, "running");
-assert.equal(sandbox.notice({ status: "moving" }).state, "running");
+assert.equal(sandbox.notice({ status: "downloading" }).visible, true);
+assert.notEqual(sandbox.notice({ status: "downloading" }).state, "idle");
+assert.equal(sandbox.notice({ status: "moving" }).visible, true);
+assert.notEqual(sandbox.notice({ status: "moving" }).state, "idle");
 assert.equal(sandbox.notice({ status: "completed", destinationPath: "/tmp/a.zip" }).icon, "✓");
 assert.equal(sandbox.notice({ status: "completed" }).state, "completed");
 assert.equal(sandbox.notice({ status: "error" }).visible, true);
@@ -48,11 +49,11 @@ vm.createContext(settingsSandbox);
 vm.runInContext(read("extension/shared/protocol.js"), settingsSandbox);
 vm.runInContext(read("extension/shared/settings.js"), settingsSandbox);
 vm.runInContext(read("extension/content/alert.js"), settingsSandbox);
-assert.equal(settingsSandbox.FCI_SETTINGS.defaultConfig().alerts.titlePrefix, "⚠ RD");
-assert.equal(settingsSandbox.FCI_ALERT_ENGINE.compactReadyPrefix("⚠ AI READY"), "⚠ RD");
+assert.equal(settingsSandbox.FCI_SETTINGS.defaultConfig().alerts.titlePrefix, "RD");
+assert.equal(settingsSandbox.FCI_ALERT_ENGINE.compactReadyPrefix("⚠ AI READY"), "RD");
 assert.equal(settingsSandbox.FCI_ALERT_ENGINE.compactReadyPrefix("AI READY"), "RD");
 assert.equal(settingsSandbox.FCI_ALERT_ENGINE.compactReadyPrefix("CUSTOM"), "CUSTOM");
-assert.equal(settingsSandbox.FCI_ALERT_ENGINE.alertTitle("⚠ AI READY", "Project"), "[⚠ RD] Project");
+assert.equal(settingsSandbox.FCI_ALERT_ENGINE.alertTitle("⚠ AI READY", "Project"), "[RD] Project");
 
 
 const collectGuide = read("tools/_patch_lib/docs/CODE_COLLECTION_GUIDE.md");

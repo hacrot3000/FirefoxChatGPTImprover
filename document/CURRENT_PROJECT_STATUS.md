@@ -1,6 +1,6 @@
 # FirefoxChatImprover current project status
 
-**Current baseline:** Phase 67 v0.41.8
+**Current baseline:** Phase 72 v0.41.13
 **Primary supported environment:** Firefox Desktop plus Chromium/Chrome/Edge packages; Native Host registration is provided for Linux Chromium browsers  
 **Native Host:** 0.13.0
 
@@ -9,11 +9,11 @@
 | Area | Status | Notes |
 |---|---|---|
 | Multi-tab monitor and target automation | Complete | Independent tab/rule state, stability windows, baseline-only target action and recovery. |
-| Ready / Running status | Complete | `matched` remains the ready state but is displayed compactly as `RD`; only `waiting` displays Running; optional bounded sound alerts are available per profile/tab and default to off. |
-| Persistent custom tab titles | Complete | User-defined per-tab names survive reload/navigation/background restart, preserve the original page title and remain compatible with AI READY/Running decorations. |
+| Ready / Running status | Complete | `matched` is stable `RD` without warning/exclamation semantics; only `waiting` displays Running; `!` is reserved for real runtime error mode. |
+| Persistent custom tab titles | Complete | User-defined per-tab names survive reload/navigation/background restart, preserve the original page title and remain compatible with compact RD/Running decorations. |
 | Configuration, URL routing and tab overrides | Complete | Includes protected drafts, snapshots, reusable Monitor/Target component profiles, typed per-profile JSON import/export and opt-in trusted-URL auto-activation with explicit permission gating. |
 | Command presets and rule-triggered commands | Complete | Includes per-tab execution, status, stop and history. |
-| Managed downloads | Complete | Capture, no-dialog restart, immutable snapshot, relocation, retry, post-download command and an independent header lifecycle icon (`⇩` armed/in progress, `✓` completed, `!` expired/error). |
+| Managed downloads | Complete | Capture, no-dialog restart, immutable snapshot, relocation, retry, post-download command and independent stable header states (`CK`, `DL`, `MV`, `✓`, `NO`, `×`). |
 | Restart recovery for managed downloads | Complete | Armed captures resume while valid; moves replay by idempotent receipt. |
 | Full command logs | Complete | File-backed paging, persisted fallback and legacy `runId` discovery. |
 | Per-run compressed log export | Complete | ZIP export of the selected run with complete transcript, typed metadata, README, DEFLATE and explicit fallback completeness. |
@@ -28,7 +28,7 @@
 | Real Firefox E2E and version matrix | Complete | Opt-in runner covers tabs, title, badge, DOM action, navigation and optional Native Host download/shell; matrix emits JSON/Markdown per Firefox binary. |
 | Named saved working-session catalog | Complete | Multiple locally stored named sessions with search, update, rename, duplicate, delete, per-session/catalog JSON backup and controlled subset restore. |
 | Per-rule statistics dashboard | Complete | Session-isolated counts for match/click/verify/automatic-command outcomes, return-code frequencies, average target/pipeline timings, JSON export and reset. |
-| Source integrity and regression | Complete | Phase 04–65 contracts, syntax audits, Native Host tests, release-status, configuration/session scope and Stop/Start continuity gates, plus opt-in real-Firefox E2E/version-matrix tooling. |
+| Source integrity and regression | Complete | Phase 04–70 contracts, syntax audits, Native Host tests, release-status, configuration/session scope and Stop/Start continuity gates, plus opt-in real-Firefox E2E/version-matrix tooling. |
 
 ## Operator-provided deployment inputs
 
@@ -252,3 +252,48 @@ Full accessibility audit completed: focus order, screen-reader semantics, contra
 - Two audit-only code defects were removed: a redundant statistics-row append and an unreachable duplicate shell-log return.
 - Protocol remains 26; settings schema remains 18; Native Host remains 0.13.0.
 
+## Phase 68 v0.41.9 — explicit download-state badges and lifecycle leak fixes
+
+- No new feature group. This phase responds to runtime feedback that the Phase 66/67 download indicator was visually ambiguous.
+- The header now distinguishes the existing states without fading: `CK` = capture/checking, `DL` = browser downloading, `MV` = relocating, `✓` = verified completion, `NO` = capture window ended without a download, `×` = actual error.
+- `expired` is no longer presented as the same warning as a real failure. Only the separate command-running indicator retains its pulse animation.
+- Managed-download ID/routing ownership is cleaned on terminal paths and tab cleanup; recovery rebuilds routing only for active `downloading` jobs and converts missing/lost persisted browser downloads into explicit terminal errors.
+- Native Host shell-start failures now terminate/persist the download-shell state instead of leaving `starting` stuck.
+- Protocol remains 26; settings schema remains 18; Native Host remains 0.13.0.
+
+
+## Phase 69 v0.41.10 — ready alert visual semantics cleanup
+
+- No new feature group. This phase fixes the remaining warning/exclamation semantics in the existing compact `RD` status.
+- Built-in and legacy ready labels (`⚠ AI READY`, `AI READY`, `READY`, `⚠ RD`) normalize to static `RD`; the default title no longer blinks a warning triangle.
+- The toolbar badge uses `RD` for a normal matched alert; `!` remains only for actual `MODE.ERROR`.
+- Sidebar matched-ready highlighting uses active styling without error color/pulse, so `RD` is not confused with managed-download `CK`/`DL`/`MV`/`✓` states.
+- Alert Engine advances to v14 for live replacement. Protocol remains 26; settings schema remains 18; Native Host remains 0.13.0.
+
+
+## Phase 70 v0.41.11 — download correlation and RD title safety
+
+- No new feature group. This phase continues Phase 65–69 status/download hardening only.
+- Native Host relocation responses must match the current immutable `moveId`; stale responses for the same tab are ignored.
+- Firefox download-manager events must match the active `downloadId`; stale events cannot mutate a newer job, and a transient completion-time `downloads.search()` failure falls back to already captured filename metadata.
+- A positively identified intercepted HTTP download changes the header from `CK` to `DL` immediately while Firefox creates the managed replacement.
+- A second managed target click is suppressed while the previous job is `DL` or `MV`, preventing per-tab job overwrite/state churn.
+- Compact `RD` no longer strips legitimate unbracketed page titles such as `RD Station`; only add-on-owned `[RD] ...` decoration is removed.
+- Alert Engine 15, Target Engine 5 and content runtime 29 allow safe live reattachment. Protocol 26, settings schema 18 and Native Host 0.13.0 are unchanged.
+
+## Phase 71 v0.41.12 — capture ownership and disconnect terminal convergence
+
+- No new feature group. This phase continues Phase 65–70 status/download/shell hardening only.
+- `armed`/`CK` now blocks another managed target click, preventing a second click from replacing the still-waiting capture.
+- `downloads.onCreated` fallback no longer guesses between multiple same-origin armed tabs when Firefox omits `tabId`; ambiguous attribution fails closed.
+- Native Host disconnect terminates active shell runs coherently: history and notices persist the error, download-shell state becomes `error`, automation runtime/statistics record failure, pending requests reject, and cleanup is scheduled.
+- Protocol 26, settings schema 18, Alert Engine 15, Target Engine 5, content runtime 29 and Native Host 0.13.0 are unchanged.
+
+## Phase 72 v0.41.13 — managed replacement and Native request race convergence
+
+- No new feature group. This phase continues Phase 65–71 status/download/shell hardening only.
+- Track extension-managed replacement creation before `downloads.download()` returns its ID so early `downloads.onCreated` cannot be misattributed to another armed tab.
+- Same-capture navigation recovery always preserves the newer in-memory state, including `error`/`expired`, instead of resurrecting stale persisted `downloading` state.
+- Synchronous Native Host request-send failure removes pending request/timer state immediately; an initial ping failure clears the cached broken port so later work reconnects; failed status/stop sends converge through terminal disconnect handling.
+- Automation command start failure now records terminal `failed` runtime/statistics instead of remaining `starting`.
+- Protocol 26, settings schema 18, Alert Engine 15, Target Engine 5, content runtime 29 and Native Host 0.13.0 are unchanged.

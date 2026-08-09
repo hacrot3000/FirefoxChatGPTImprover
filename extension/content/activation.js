@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatImproverRuntimeV6";
-  const RUNTIME_VERSION = 28;
+  const RUNTIME_VERSION = 29;
   const previousRuntime = globalThis[INSTANCE_KEY];
   if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
@@ -490,7 +490,10 @@
         return (async () => {
           try {
             if (message.payload?.click) {
-              await armDownloadCapture({ ruleId: state.config?.activeRuleId || null, cycle: state.runtime.cycle || 0, targetCount: 1 });
+              const capture = await armDownloadCapture({ ruleId: state.config?.activeRuleId || null, cycle: state.runtime.cycle || 0, targetCount: 1 });
+              if (capture?.blocked) {
+                return { ok: false, error: `Target click was skipped because a managed download is already ${capture.status || "active"} for this tab.` };
+              }
             }
             return {
               ok: true,

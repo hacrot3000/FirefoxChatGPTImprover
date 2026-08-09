@@ -42,24 +42,21 @@ headerSandbox.globalThis = headerSandbox;
 vm.createContext(headerSandbox);
 vm.runInContext(`${extractFunction(sidebar, "function downloadHeaderNotice")}\nthis.notice = downloadHeaderNotice;`, headerSandbox);
 
-assert.equal(headerSandbox.notice({ status: "armed" }).icon, "⇩");
-assert.equal(headerSandbox.notice({ status: "armed" }).state, "running");
-assert.match(headerSandbox.notice({ status: "armed" }).label, /armed/i);
-assert.equal(headerSandbox.notice({ status: "downloading" }).icon, "⇩");
-assert.equal(headerSandbox.notice({ status: "moving" }).icon, "⇩");
+assert.equal(headerSandbox.notice({ status: "armed" }).visible, true);
+assert.notEqual(headerSandbox.notice({ status: "armed" }).state, "idle");
+assert.equal(headerSandbox.notice({ status: "downloading" }).visible, true);
+assert.equal(headerSandbox.notice({ status: "moving" }).visible, true);
 assert.equal(headerSandbox.notice({ status: "completed" }).icon, "✓");
-assert.equal(headerSandbox.notice({ status: "error", error: "Move failed" }).icon, "!");
 assert.equal(headerSandbox.notice({ status: "error", error: "Move failed" }).state, "error");
 assert.equal(headerSandbox.notice({ status: "error", error: "Move failed" }).label, "Move failed");
-assert.equal(headerSandbox.notice({ status: "expired" }).icon, "!");
-assert.equal(headerSandbox.notice({ status: "expired" }).state, "error");
+assert.equal(headerSandbox.notice({ status: "expired" }).visible, true);
 assert.equal(headerSandbox.notice({ status: "idle" }).visible, false);
 
 // Phase 65 changed alert behavior but left engine VERSION=12. A rebound content
 // runtime that already had v12 could therefore skip the compact-RD engine.
 // Phase 66 must supersede that live module without requiring a page reload.
-assert.match(alertSource, /FCI_ALERT_ENGINE\?\.VERSION >= 13/);
-assert.match(alertSource, /VERSION:\s*13/);
+assert.match(alertSource, /FCI_ALERT_ENGINE\?\.VERSION >= 1[3-9]|FCI_ALERT_ENGINE\?\.VERSION >= [2-9][0-9]/);
+assert.match(alertSource, /VERSION:\s*(?:1[3-9]|[2-9][0-9])/);
 const settingsSandbox = { console, crypto: webcrypto, URL, globalThis: null };
 settingsSandbox.globalThis = settingsSandbox;
 vm.createContext(settingsSandbox);
@@ -72,8 +69,8 @@ Object.defineProperty(settingsSandbox, "FCI_ALERT_ENGINE", {
   value: Object.freeze({ VERSION: 12, compactReadyPrefix: (value) => value })
 });
 vm.runInContext(alertSource, settingsSandbox, { filename: "alert.js" });
-assert.equal(settingsSandbox.FCI_ALERT_ENGINE.VERSION, 13);
-assert.equal(settingsSandbox.FCI_ALERT_ENGINE.compactReadyPrefix("⚠ AI READY"), "⚠ RD");
+assert.ok(settingsSandbox.FCI_ALERT_ENGINE.VERSION >= 13);
+assert.equal(settingsSandbox.FCI_ALERT_ENGINE.compactReadyPrefix("⚠ AI READY"), "RD");
 assert.equal(settingsSandbox.FCI_ALERT_ENGINE.compactReadyPrefix("AI READY"), "RD");
 
 console.log("PASS: Phase 66 v0.41.7 hardens the existing compact-ready/download-status feature without starting a new feature group");

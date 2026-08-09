@@ -912,3 +912,36 @@ The content alert engine also advances its implementation version to **13**. Thi
 
 Phase 67 remains inside the compact `RD` / managed-download status work. Completion UI is emitted once after shell state settles, terminal download/move routing keys are cleaned, and recovery clears stale armed captures before validating/restoring persisted state. Two redundant/unreachable statements found during the audit were also removed. No new feature group or protocol/schema/Native Host change is introduced.
 
+## Explicit managed-download state badges (v0.41.9)
+
+Phase 68 stays within the existing compact `RD` / managed-download status feature. Runtime feedback showed that the previous animated active/warning glyphs were too ambiguous. The header now keeps `RD` for ready and adds a stable independent download badge: **CK** while checking/waiting for the download, **DL** while Firefox is downloading, **MV** while the completed browser download is being relocated, **✓** after the final destination is verified, **NO** when the capture window ends without a download, and **×** only for an actual failure. Download badges no longer fade or pulse.
+
+The same hardening also clears managed-download IDs/routing ownership on terminal paths, avoids rebuilding terminal routes during recovery, converts a persisted-but-missing browser download to an explicit error, tolerates a transient post-create `downloads.search()` failure, and makes Native Host shell-start failures terminate the download-shell state instead of leaving it at `starting`. No new feature group or protocol/schema/Native Host change is introduced.
+
+
+
+## Stable ready state without warning glyphs (v0.41.10)
+
+Phase 69 remains inside the Phase 65–68 `RD` / managed-download status hardening. Runtime feedback confirmed that the old matched-alert presentation still supplied warning semantics independently of the new download badges. Built-in and legacy ready prefixes (`⚠ AI READY`, `AI READY`, `READY`, `⚠ RD`) now normalize to a stable **RD**. The default tab title does not blink a warning triangle, the toolbar uses **RD** rather than `!` for a normal matched alert, and the sidebar matched highlight uses the normal active styling without an error-colored pulse. `!` remains reserved for an actual runtime error.
+
+The download-state contract is unchanged: **CK** = checking/waiting, **DL** = downloading, **MV** = relocating, **✓** = verified complete, **NO** = capture ended without a download, **×** = managed-download failure. Alert Engine advances to implementation version 14 for safe live replacement; protocol 26, settings schema 18 and Native Host 0.13.0 are unchanged.
+
+
+## Download correlation and compact-RD title safety (v0.41.11)
+
+Phase 70 remains inside the Phase 65–69 status/download hardening. Native Host relocation completion/error is accepted only for the current immutable `moveId`, Firefox download-manager events are accepted only for the current `downloadId`, and a transient completion-time `downloads.search()` failure falls back to already captured file metadata rather than leaving `DL` stuck. Once a blocking HTTP response is positively identified as a download, the header transitions `CK → DL` immediately while Firefox creates the managed replacement.
+
+A second managed target click is safely suppressed while the prior job is still `DL` or `MV`, preventing one tab from overwriting its active download job. Compact `RD` title cleanup is also constrained to the bracketed decoration written by the add-on, so real page titles such as `RD Station` remain intact. Alert Engine 15, Target Engine 5 and content runtime 29 enable live replacement; protocol 26, settings schema 18 and Native Host 0.13.0 are unchanged.
+
+## Managed-download capture ownership and Native Host disconnect convergence (v0.41.12)
+
+Phase 71 remains inside the Phase 65–70 status/download hardening. `CK`/armed is now treated as an active managed-download job, so a second target action cannot replace the capture while the add-on is still waiting for Firefox to create the download. For fallback `downloads.onCreated` events that do not expose a tab ID, same-origin attribution is accepted only when exactly one armed capture matches; ambiguous multi-tab matches fail closed instead of guessing by recency.
+
+Native Host disconnect is now a complete terminal shell event. Active shell runs become error, history/notices are synchronized and persisted, completed-download shell state becomes error rather than remaining running, automation runtime/statistics record the failure, pending Native Host requests are rejected, and log cleanup is scheduled. Protocol 26, settings schema 18, Alert Engine 15, Target Engine 5, content runtime 29 and Native Host 0.13.0 are unchanged. No new feature group is introduced.
+
+## Managed replacement and Native request race convergence (v0.41.13)
+
+Phase 72 remains inside the Phase 65–71 status/download/shell hardening. An extension-created managed replacement is tracked before `browser.downloads.download()` resolves, preventing an early `downloads.onCreated` event from being claimed by another armed tab. Same-capture navigation recovery now always keeps the in-memory job authoritative, including `error` and `expired`, so stale persisted `downloading` state cannot resurrect a terminal job.
+
+Native Messaging failure paths are also terminal and retry-safe: synchronous request `postMessage()` failure removes its pending timer/request immediately, initial ping failure clears the cached broken port so the next action reconnects, failed status/stop sends converge through disconnect handling instead of leaving a run stuck, and automation command start failure records `failed` runtime/statistics instead of leaving `starting`. Protocol 26, settings schema 18, Alert Engine 15, Target Engine 5, content runtime 29 and Native Host 0.13.0 are unchanged. No new feature group is introduced.
+

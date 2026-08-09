@@ -14,10 +14,14 @@ body { margin: 0; min-width: 290px; background: Canvas; color: CanvasText; }
 .app-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
 .app-header > div { min-width: 0; }
 .header-status-cluster { display: inline-flex; flex: none; align-items: center; gap: 5px; }
-.command-status-icon, .download-status-icon { display: inline-grid; width: 20px; height: 20px; place-items: center; border: 1px solid var(--border); border-radius: 50%; font-size: 12px; font-weight: 800; line-height: 1; }
+.command-status-icon, .download-status-icon { display: inline-grid; min-width: 20px; height: 20px; place-items: center; border: 1px solid var(--border); border-radius: 999px; font-size: 10px; font-weight: 800; line-height: 1; }
+.command-status-icon { width: 20px; }
+.download-status-icon { width: auto; padding: 0 4px; }
 .command-status-icon[hidden], .download-status-icon[hidden] { display: none; }
-.command-status-icon[data-state="running"], .download-status-icon[data-state="running"] { border-color: #0969da; color: #0969da; animation: fci-command-pulse .8s ease-in-out infinite alternate; }
+.command-status-icon[data-state="running"] { border-color: #0969da; color: #0969da; animation: fci-command-pulse .8s ease-in-out infinite alternate; }
 .command-status-icon[data-state="unread"] { border-color: var(--paused); color: var(--paused); }
+.download-status-icon[data-state="checking"], .download-status-icon[data-state="expired"] { border-color: var(--paused); color: var(--paused); }
+.download-status-icon[data-state="downloading"], .download-status-icon[data-state="moving"] { border-color: #0969da; color: #0969da; }
 .download-status-icon[data-state="completed"] { border-color: var(--active); color: var(--active); }
 .download-status-icon[data-state="error"] { border-color: var(--error); color: var(--error); }
 h1, h2, p { margin-top: 0; }
@@ -128,20 +132,15 @@ button.compact { min-height: 27px; padding: 4px 7px; font-size: 11px; }
 .selector-test-detail { color: var(--muted); font-size: 10px; }
 
 body[data-alert="active"] .app-header {
-  background: color-mix(in srgb, var(--error) 14%, Canvas);
-  box-shadow: inset 4px 0 0 var(--error);
+  background: color-mix(in srgb, var(--active) 10%, Canvas);
+  box-shadow: inset 4px 0 0 var(--active);
 }
 body[data-alert="active"] .status-pill {
-  border-color: var(--error);
-  background: color-mix(in srgb, var(--error) 12%, Canvas);
-  color: var(--error);
-  animation: fci-sidebar-pulse 1s ease-in-out infinite alternate;
+  border-color: var(--active);
+  background: color-mix(in srgb, var(--active) 9%, Canvas);
+  color: var(--active);
 }
-body[data-alert="active"] .status-pill::before { background: var(--error); }
-@keyframes fci-sidebar-pulse {
-  from { transform: scale(1); }
-  to { transform: scale(1.04); }
-}
+body[data-alert="active"] .status-pill::before { background: var(--active); }
 .target-test-actions { margin: 0 0 9px; }
 .inline-select { display: flex; align-items: center; gap: 6px; margin: 0; }
 .inline-select select { width: auto; min-width: 92px; }

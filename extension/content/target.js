@@ -123,6 +123,7 @@
   }
 
   function effectiveDryRunForCapture(requestedDryRun, captureResult) {
+    if (captureResult?.blocked) return true;
     return Boolean(requestedDryRun) && !Boolean(captureResult?.armed);
   }
 
@@ -558,7 +559,9 @@
         }
       }
       const effectiveDryRun = effectiveDryRunForCapture(config.target.dryRun, captureResult);
-      if (config.target.dryRun && !effectiveDryRun) {
+      if (captureResult?.blocked && !lastError) {
+        lastError = `Target click was skipped because a managed download is already ${captureResult.status || "active"} for this tab.`;
+      } else if (config.target.dryRun && !effectiveDryRun) {
         lastError = null;
       } else if (config.target.dryRun && captureResult?.reason === "disabled" && !lastError) {
         lastError = "Target remained in dry-run mode because managed download capture is disabled in the saved local-action settings.";
@@ -837,7 +840,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 4,
+      VERSION: 5,
       targetObserverOptionsForConfig,
       elementFingerprint,
       elementEnabled,

@@ -1,6 +1,6 @@
 # FirefoxChatImprover — feature status / TODO
 
-**Baseline audited:** Phase 67 v0.41.8 (2026-08-08)  
+**Baseline audited:** Phase 72 v0.41.13 (2026-08-08)  
 **Authoritative release inventory:** `PROJECT_STATUS.md`  
 **Patch Tool public contract:** v6.7.9 (`tools/_patch_lib/docs/AI_USAGE_CONTRACT.md`, `PORTABLE_USAGE.md`)
 
@@ -8,14 +8,17 @@ This file previously contained the Phase 28 v0.28.19 audit. That snapshot is obs
 
 ## 1. Active implementation
 
-No feature is currently in active implementation after the Phase 65 status work and its Phase 66–67 hardening.
+No feature is currently in active implementation after the Phase 65 status work and its Phase 66–72 hardening.
 
 The current status feature is now closed with its error/recovery edges covered:
 
-- ready/matched display is compacted to `RD` / `⚠ RD`;
-- managed download shows `⇩` from armed/download/move, `✓` after verified completion, and `!` for expiry/failure; armed capture expiry is timer-driven instead of depending on a later browser event;
-- alert-engine implementation versioning now forces the compact-`RD` behavior to replace an already-loaded v12 engine during runtime reattachment;
-- completion rendering is single-shot after shell state settles, terminal routing keys are cleaned, and recovery removes any stale in-memory armed capture before restoring the persisted one.
+- ready/matched display is stable `RD`; legacy built-in warning variants normalize to `RD`, while `!` is reserved for real error mode;
+- managed download now uses stable explicit states: `CK` checking, `DL` downloading, `MV` relocating, `✓` verified complete, `NO` capture ended without a download, and `×` only for a real failure; armed capture expiry remains timer-driven;
+- Alert Engine v15 retains the stable warning-free `RD` behavior and compact-title safety during runtime reattachment;
+- Phase 70 correlates browser/native download events to the active IDs, blocks overlapping managed clicks, moves `CK → DL` as soon as an intercepted response is known to be a download, and preserves legitimate plain page titles beginning with `RD`;
+- Phase 71 also treats `CK` itself as active, refuses ambiguous same-origin fallback attribution when Firefox omits tab ownership, and makes Native Host disconnect a fully persisted terminal shell/download/automation error instead of leaving related state running;
+- Phase 72 closes remaining creation/recovery/native-start races: extension-managed replacement creation is protected before its `downloadId` is known, same-capture terminal in-memory state wins over stale persisted snapshots, broken Native Host ports/pending requests are cleaned immediately, failed status/stop sends converge terminally, and automation start failure converges to `failed`;
+- completion rendering is single-shot after shell state settles; terminal browser/move ownership is cleaned; recovery routes only truly active downloads; missing persisted browser items and Native Host shell-start failures become explicit terminal errors.
 
 ## 2. Completed items that the old audit incorrectly marked unfinished
 

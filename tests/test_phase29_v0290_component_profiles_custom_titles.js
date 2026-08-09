@@ -166,7 +166,7 @@ controller.apply(alertConfig, {
   monitorState: "matched", cycle: 1, alertCycle: 1, alertActive: true,
   customTitle: "Naruto server patch", pageTitle: "Page title", shellCommandState: "idle"
 }, "active", "custom-title");
-assert.equal(document.title, "[⚠ RD] Naruto server patch");
+assert.equal(document.title, "[RD] Naruto server patch");
 controller.stop("reset-before-waiting");
 controller.apply(alertConfig, {
   monitorState: "waiting", alertActive: false,

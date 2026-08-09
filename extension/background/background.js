@@ -60,6 +60,7 @@
   const downloadCaptureExpiryTimers = new Map();
   const downloadJobs = new Map();
   const managedDownloadIds = new Set();
+  const managedDownloadStarts = new Map();
   const downloadMoveToTab = new Map();
   const runToTab = new Map();
   const shellBroadcastTimers = new Map();
@@ -400,9 +401,11 @@
   function clearDownloadRoutingKeys(job, extraKey = null) {
     if (extraKey !== null && extraKey !== undefined && extraKey !== "") {
       downloadMoveToTab.delete(extraKey);
+      if (Number.isInteger(extraKey)) managedDownloadIds.delete(extraKey);
     }
     if (Number.isInteger(job?.downloadId)) {
       downloadMoveToTab.delete(job.downloadId);
+      managedDownloadIds.delete(job.downloadId);
     }
     if (job?.moveId) {
       downloadMoveToTab.delete(job.moveId);
@@ -443,13 +446,24 @@
   }
 
   async function armDownloadCapture(tabId, metadata = {}) {
-    const session = sessions.get(Number(tabId));
+    const numericTabId = Number(tabId);
+    const session = sessions.get(numericTabId);
     if (!session) throw new Error("This tab is not activated.");
     const localStore = await loadLocalActionStore();
     const resolution = sessionLocalActionResolution(session, localStore);
     const config = resolution.config;
     if (!config.download.enabled) {
       return { armed: false, reason: "disabled" };
+    }
+    const activeJob = downloadJobs.get(numericTabId);
+    if (activeJob && ["armed", "downloading", "moving"].includes(activeJob.status)) {
+      return {
+        armed: false,
+        blocked: true,
+        reason: "download-active",
+        status: activeJob.status,
+        captureId: activeJob.captureId || null
+      };
     }
     const captureId = `download-${tabId}-${crypto.randomUUID()}`;
     const seconds = config.download.captureWindowSeconds;
@@ -520,8 +534,15 @@
     const matching = captures.filter((capture) =>
       (capture.origin && (referrer.startsWith(capture.origin) || url.startsWith(capture.origin)))
     );
-    if (matching.length) {
-      return matching.sort((left, right) => right.armedAtMs - left.armedAtMs)[0] || null;
+    if (matching.length === 1) {
+      return matching[0];
+    }
+    if (matching.length > 1) {
+      // downloads.onCreated does not expose the originating tab. When two
+      // armed tabs share the same origin, guessing by recency could relocate
+      // one tab's file with another tab's destination/shell snapshot. Fail
+      // closed and let each capture expire independently instead.
+      return null;
     }
     // Firefox download-manager fallback events do not expose a tabId. Falling
     // back is safe only when exactly one capture is armed globally; otherwise
@@ -594,14 +615,48 @@
     return request;
   }
 
+  function managedDownloadStartMatches(item) {
+    const now = Date.now();
+    const itemUrls = new Set([String(item?.url || ""), String(item?.finalUrl || "")].filter(Boolean));
+    let matched = false;
+    for (const [captureId, pending] of managedDownloadStarts.entries()) {
+      if (!pending || now - Number(pending.startedAtMs || 0) > 30000) {
+        managedDownloadStarts.delete(captureId);
+        continue;
+      }
+      if (itemUrls.has(String(pending.url || ""))) matched = true;
+    }
+    return matched;
+  }
+
   async function startManagedDownload(capture, url, filename, sourceItem = null) {
     if (!capture || capture.claimed) return;
-    const downloadId = await browser.downloads.download(
-      managedDownloadRequest(capture, url, filename, sourceItem)
-    );
-    managedDownloadIds.add(downloadId);
-    const results = await browser.downloads.search({ id: downloadId });
-    await claimDownload(capture, results[0] || { id: downloadId, url, filename: "" }, "managed-http-download");
+    const captureId = String(capture.captureId || "");
+    if (captureId) {
+      managedDownloadStarts.set(captureId, {
+        captureId,
+        tabId: Number(capture.tabId),
+        url: String(url || ""),
+        startedAtMs: Date.now()
+      });
+    }
+    try {
+      const downloadId = await browser.downloads.download(
+        managedDownloadRequest(capture, url, filename, sourceItem)
+      );
+      managedDownloadIds.add(downloadId);
+      let claimedItem = { id: downloadId, url, filename: "" };
+      try {
+        const results = await browser.downloads.search({ id: downloadId });
+        if (results[0]) claimedItem = results[0];
+      } catch (_error) {
+        // The download itself was already created. Keep the job correlated even
+        // if Firefox cannot immediately return its metadata from downloads.search.
+      }
+      await claimDownload(capture, claimedItem, "managed-http-download");
+    } finally {
+      if (captureId) managedDownloadStarts.delete(captureId);
+    }
   }
 
   async function cancelAndRestartCapturedDownload(capture, item) {
@@ -670,6 +725,7 @@
       job.retryable = false;
       job.error = "The captured download job does not contain a valid absolute destination.";
       job.completedAt = Settings.nowIso();
+      clearDownloadRoutingKeys(job, downloadItem?.id);
       await persistDownloadState(numericTabId);
       await broadcast("download-move-error", numericTabId);
       return;
@@ -680,6 +736,7 @@
       job.retryable = false;
       job.error = "Firefox did not report the downloaded file path.";
       job.completedAt = Settings.nowIso();
+      clearDownloadRoutingKeys(job, downloadItem?.id);
       await persistDownloadState(numericTabId);
       await broadcast("download-move-error", numericTabId);
       return;
@@ -842,13 +899,29 @@
     job.shellReturnCode = null;
     job.shellStartedAt = Settings.nowIso();
     job.shellCompletedAt = null;
-    const run = await startShellRunForSession(session, config, { ...shell, mode: "background" }, {
-      source: "download",
-      trigger,
-      captureId: job.captureId,
-      downloadPath: job.destinationPath,
-      environment: downloadShellEnvironment(job)
-    });
+    let run;
+    try {
+      run = await startShellRunForSession(session, config, { ...shell, mode: "background" }, {
+        source: "download",
+        trigger,
+        captureId: job.captureId,
+        downloadPath: job.destinationPath,
+        environment: downloadShellEnvironment(job)
+      });
+    } catch (error) {
+      const failedRun = shellRunForTab(job.tabId);
+      if (failedRun?.source === "download" && failedRun.captureId === job.captureId) {
+        job.shellRunId = failedRun.runId || null;
+        job.shellLogId = failedRun.logId || null;
+        job.shellLogBytes = Math.max(0, Number(failedRun.logBytes) || 0);
+      }
+      job.shellStatus = "error";
+      job.shellError = error instanceof Error ? error.message : String(error);
+      job.shellCompletedAt = Settings.nowIso();
+      await persistDownloadState(job.tabId);
+      await broadcast("download-shell-error", job.tabId);
+      throw error;
+    }
     job.shellRunId = run.runId;
     job.shellStatus = run.status === "exited"
       ? (Number(run.returnCode || 0) === 0 ? "completed" : "error")
@@ -899,7 +972,18 @@
       }
     }
     if (!Number.isInteger(tabId)) return;
-    const job = downloadJobs.get(tabId) || emptyDownloadState(tabId);
+    const job = downloadJobs.get(tabId);
+    if (!job) {
+      if (moveId) downloadMoveToTab.delete(moveId);
+      return;
+    }
+    // A delayed response from an older relocation must never mutate the
+    // current job merely because the Native Host still reports the same tab.
+    // Correlation is owned by the immutable moveId, not by tabId alone.
+    if (!moveId || String(job.moveId || "") !== moveId) {
+      if (moveId) downloadMoveToTab.delete(moveId);
+      return;
+    }
     const session = sessions.get(tabId);
     if (message.event === "download_moved") {
       const verifiedDestinationPath = String(message.destinationPath || message.path || message.targetPath || "").trim();
@@ -1005,6 +1089,21 @@
     capture.intercepting = true;
     clearDownloadCaptureExpiryTimer(capture.tabId);
     downloadCaptures.delete(capture.tabId);
+    const job = downloadJobs.get(capture.tabId) || emptyDownloadState(capture.tabId);
+    Object.assign(job, {
+      captureId: capture.captureId,
+      status: "downloading",
+      sourceUrl: String(details.url || "") || null,
+      downloadId: null,
+      error: null,
+      retryable: false
+    });
+    downloadJobs.set(capture.tabId, job);
+    // The response has already been positively identified as a download and
+    // the page request is about to be cancelled. Show DL immediately instead
+    // of leaving the header in CK while Firefox creates the managed restart.
+    void persistDownloadState(capture.tabId);
+    void broadcast("download-restarting", capture.tabId);
     const filename = contentDispositionFilename(details.responseHeaders) || "download.bin";
     void startManagedDownload(capture, details.url, filename).catch(async (error) => {
       const job = downloadJobs.get(capture.tabId) || emptyDownloadState(capture.tabId);
@@ -1024,6 +1123,12 @@
 
   async function onBrowserDownloadCreated(item) {
     if (managedDownloadIds.has(item.id) || item?.byExtensionId === browser.runtime.id) return;
+    // downloads.onCreated may be delivered before browser.downloads.download()
+    // resolves with its ID. During that short interval another armed tab on
+    // the same origin must not claim the extension-created replacement.
+    // Failing closed for the exact in-flight URL is safer than relocating a
+    // file with another tab's destination/shell snapshot.
+    if (managedDownloadStartMatches(item)) return;
     const capture = captureForDownloadItem(item);
     if (!capture) return;
     await cancelAndRestartCapturedDownload(capture, item);
@@ -1031,9 +1136,32 @@
 
   async function onBrowserDownloadChanged(delta) {
     const tabId = downloadMoveToTab.get(delta.id);
-    if (!Number.isInteger(tabId)) return;
+    if (!Number.isInteger(tabId)) {
+      if (delta.error?.current || delta.state?.current === "complete") {
+        managedDownloadIds.delete(delta.id);
+      }
+      return;
+    }
     const job = downloadJobs.get(tabId);
-    if (!job) return;
+    if (!job) {
+      downloadMoveToTab.delete(delta.id);
+      managedDownloadIds.delete(delta.id);
+      return;
+    }
+    // A late browser event from a superseded download must not mutate the
+    // current tab job. Browser download ownership is correlated by downloadId.
+    if (!Number.isInteger(job.downloadId) || job.downloadId !== delta.id) {
+      downloadMoveToTab.delete(delta.id);
+      managedDownloadIds.delete(delta.id);
+      return;
+    }
+    // Once relocation starts the browser download is already terminal; any
+    // later Firefox download-manager notification is stale for this state.
+    if (job.status === "moving") return;
+    if (job.status !== "downloading") {
+      clearDownloadRoutingKeys(job, delta.id);
+      return;
+    }
     if (delta.filename?.current) {
       job.sourcePath = delta.filename.current;
       job.filename = cleanDownloadFilename(delta.filename.current);
@@ -1049,7 +1177,14 @@
       return;
     }
     if (delta.state?.current !== "complete") return;
-    const results = await browser.downloads.search({ id: delta.id });
+    let results = [];
+    try {
+      results = await browser.downloads.search({ id: delta.id });
+    } catch (_error) {
+      // Completion itself is authoritative. If Firefox temporarily cannot
+      // search its download database, continue with the path captured from
+      // earlier onChanged/onCreated metadata instead of leaving DL stuck.
+    }
     await moveCompletedDownload(tabId, results[0] || { id: delta.id, filename: job.sourcePath });
   }
 
@@ -1136,6 +1271,8 @@
       origin,
       localActionProfileId: job.localActionProfileId,
       localActionRevision: job.localActionRevision,
+      localActionSource: job.localActionSource || null,
+      localActionFingerprint: job.localActionFingerprint || null,
       config: LocalActions.createExecutionSnapshot(config),
       armedAtMs: Date.parse(String(job.armedAt || "")) || Date.now(),
       expiresAtMs,
@@ -1153,6 +1290,7 @@
   async function resumeInterruptedDownloadMove(session, job) {
     const tabId = Number(session.tabId);
     if (!job.moveId || !job.sourcePath || !job.destinationDirectory) {
+      clearDownloadRoutingKeys(job, job.moveId);
       job.status = "error";
       job.retryable = Boolean(job.sourcePath);
       job.error = "The interrupted relocation is missing persisted transaction fields.";
@@ -1181,7 +1319,7 @@
       job.moveRecoveredAt = Settings.nowIso();
       return job.status === "completed";
     } catch (error) {
-      downloadMoveToTab.delete(job.moveId);
+      clearDownloadRoutingKeys(job, job.moveId);
       job.status = "error";
       job.error = `Automatic relocation recovery failed: ${error instanceof Error ? error.message : String(error)}`;
       job.retryable = Boolean(job.sourcePath) && !/source.*does not exist|neither the relocation source/i.test(job.error);
@@ -1244,33 +1382,59 @@
     const storedJob = normalizeDownloadState(session.downloadJob, tabId);
     const inMemoryJob = downloadJobs.get(tabId);
     const sameCapture = Boolean(inMemoryJob?.captureId && inMemoryJob.captureId === storedJob.captureId);
-    const activeInMemory = Boolean(sameCapture && ["downloading", "moving", "completed"].includes(inMemoryJob.status));
-    // A navigation-triggered session restore must not replace a newer live job
-    // with an older persisted snapshot from the same tab.
-    const job = activeInMemory ? inMemoryJob : storedJob;
+    // In-memory state is authoritative for the same capture during navigation.
+    // This includes terminal error/expired states: an older persisted
+    // `downloading` snapshot must never resurrect a job that already failed or
+    // expired while persistSession() was still in flight. Background-start
+    // recovery still uses storedJob because there is no in-memory job yet.
+    const job = sameCapture ? inMemoryJob : storedJob;
     if (session.sessionToken) job.sessionToken = session.sessionToken;
     downloadJobs.set(tabId, job);
-    if (Number.isInteger(job.downloadId)) {
-      downloadMoveToTab.set(job.downloadId, tabId);
-    }
     if (job.status === "armed") {
       restoreArmedDownloadCapture(session, job);
     } else if (job.status === "moving") {
       await resumeInterruptedDownloadMove(session, job);
       if (job.status === "completed") return;
+    } else if (job.status === "downloading" && !Number.isInteger(job.downloadId)) {
+      job.status = "error";
+      job.retryable = false;
+      job.error = "The persisted active download is missing its Firefox download ID. Trigger the target again to create a new download.";
+      job.completedAt = Settings.nowIso();
+      clearDownloadRoutingKeys(job);
     } else if (job.status === "downloading" && Number.isInteger(job.downloadId)) {
-      const results = await browser.downloads.search({ id: job.downloadId }).catch(() => []);
+      downloadMoveToTab.set(job.downloadId, tabId);
+      managedDownloadIds.add(job.downloadId);
+      let results;
+      try {
+        results = await browser.downloads.search({ id: job.downloadId });
+      } catch (error) {
+        job.status = "error";
+        job.retryable = false;
+        job.error = `Firefox could not restore the active browser download: ${error instanceof Error ? error.message : String(error)}`;
+        job.completedAt = Settings.nowIso();
+        clearDownloadRoutingKeys(job, job.downloadId);
+        results = [];
+      }
       const item = results[0];
-      if (item?.state === "complete") {
+      if (job.status === "downloading" && item?.state === "complete") {
         await moveCompletedDownload(tabId, item, { recovery: true, force: true });
         return;
       }
-      if (item?.state === "interrupted") {
+      if (job.status === "downloading" && item?.state === "interrupted") {
         job.status = "error";
         job.retryable = false;
         job.error = item.error || "The browser download was interrupted.";
         job.completedAt = Settings.nowIso();
+        clearDownloadRoutingKeys(job, job.downloadId);
+      } else if (job.status === "downloading" && !item) {
+        job.status = "error";
+        job.retryable = false;
+        job.error = "Firefox no longer has the active browser download that was persisted for this tab. Trigger the target again to create a new download.";
+        job.completedAt = Settings.nowIso();
+        clearDownloadRoutingKeys(job, job.downloadId);
       }
+    } else {
+      clearDownloadRoutingKeys(job);
     }
     session.downloadJob = publicDownloadState(tabId);
     await persistSession(session);
@@ -1426,7 +1590,15 @@
         reject(new Error(`Native Host request timed out after ${timeoutMs}ms: ${action}`));
       }, timeoutMs);
       pendingNativeRequests.set(requestId, { resolve, reject, timer, action });
-      port.postMessage({ action, requestId, ...payload });
+      try {
+        port.postMessage({ action, requestId, ...payload });
+      } catch (error) {
+        clearTimeout(timer);
+        pendingNativeRequests.delete(requestId);
+        const message = error instanceof Error ? error.message : String(error);
+        void handleNativeDisconnect(port, message);
+        reject(error);
+      }
     });
   }
 
@@ -1597,46 +1769,92 @@
     await broadcast("native-shell-event", tabId);
   }
 
-  function handleNativeDisconnect(port) {
+  async function handleNativeDisconnect(port, errorOverride = null) {
     if (nativePort !== port) {
       return;
     }
     nativePort = null;
-    const lastError = browser.runtime.lastError?.message || "The Native Host disconnected.";
+    const lastError = String(errorOverride || browser.runtime.lastError?.message || "The Native Host disconnected.");
     nativeState = {
       ...nativeState,
       connected: false,
       lastError,
       lastSeenAt: Settings.nowIso()
     };
-    for (const run of shellRuns.values()) {
-      if (["starting", "running", "terminal", "stopping"].includes(run.status)) {
-        run.status = "error";
-        run.error = lastError;
-        run.endedAt = Settings.nowIso();
-        appendShellOutput(run, "stderr", `[native disconnected] ${lastError}\n`);
-        const session = sessions.get(Number(run.tabId));
-        if (session) {
-          syncShellNoticeFromRun(session, run, "error");
-          void publishShellNotice(session, { reason: "native-disconnected" });
-        }
-      }
-    }
-    runToTab.clear();
     for (const [requestId, pending] of pendingNativeRequests.entries()) {
       clearTimeout(pending.timer);
       pending.reject(new Error(lastError));
       pendingNativeRequests.delete(requestId);
     }
-    void broadcast("native-disconnected");
+    let localStore = null;
+    try {
+      localStore = await loadLocalActionStore();
+    } catch (_error) {
+      // Session-specific terminal state still has to be published even if the
+      // reusable Local action store cannot be read during disconnect cleanup.
+    }
+    for (const run of shellRuns.values()) {
+      if (!["starting", "running", "terminal", "stopping"].includes(run.status)) continue;
+      run.status = "error";
+      run.error = lastError;
+      run.endedAt = Settings.nowIso();
+      appendShellOutput(run, "stderr", `[native disconnected] ${lastError}\n`);
+      if (run.runId) runToTab.delete(run.runId);
+      const session = sessions.get(Number(run.tabId));
+      if (!session) continue;
+      const historyConfig = localStore
+        ? sessionLocalActionConfig(session, localStore)
+        : { shell: { rememberHistory: Boolean(run.historyId), historyLimit: 100 } };
+      syncShellHistory(session, run, historyConfig);
+      syncShellNoticeFromRun(session, run, "error");
+      if (run.source === "download") {
+        const job = downloadJobs.get(Number(run.tabId));
+        if (job && job.shellRunId === run.runId) {
+          job.shellStatus = "error";
+          job.shellReturnCode = null;
+          job.shellLogId = run.logId || job.shellLogId || null;
+          job.shellLogBytes = Math.max(Number(job.shellLogBytes) || 0, Number(run.logBytes) || 0);
+          job.shellError = lastError;
+          job.shellCompletedAt = run.endedAt;
+          session.downloadJob = publicDownloadState(Number(run.tabId));
+        }
+      }
+      if (run.source === "automation") {
+        recordRuleCommandStatistics(session, run, "error");
+        session.runtime = {
+          ...session.runtime,
+          automationCommandState: "failed",
+          lastAutomationCommandError: lastError,
+          lastAutomationCommandRun: {
+            runId: run.runId,
+            ruleId: run.ruleId || null,
+            ruleName: run.ruleName || null,
+            trigger: run.trigger || null,
+            cycle: run.cycle ?? null,
+            presetId: run.presetId || null,
+            presetName: run.presetName || null,
+            status: run.status,
+            returnCode: null,
+            endedAt: run.endedAt || null
+          }
+        };
+      }
+      appendLog(session, "user", "shell-error", lastError, { runId: run.runId, source: run.source, nativeDisconnect: true });
+      await persistSession(session);
+      await publishShellNotice(session, { persist: false, reason: "native-disconnected" });
+    }
+    runToTab.clear();
+    scheduleNativeLogCleanup("native-disconnected", 1800);
+    await broadcast("native-disconnected");
   }
 
   function ensureNativePort() {
     if (nativePort) {
       return nativePort;
     }
+    let port = null;
     try {
-      const port = browser.runtime.connectNative(NATIVE_HOST_NAME);
+      port = browser.runtime.connectNative(NATIVE_HOST_NAME);
       nativePort = port;
       nativeState = {
         ...nativeState,
@@ -1647,10 +1865,12 @@
       port.onMessage.addListener((message) => {
         void handleNativeMessage(message);
       });
-      port.onDisconnect.addListener(() => handleNativeDisconnect(port));
+      port.onDisconnect.addListener(() => { void handleNativeDisconnect(port); });
       port.postMessage({ action: "ping" });
       return port;
     } catch (error) {
+      if (port && nativePort === port) nativePort = null;
+      try { port?.disconnect(); } catch (_disconnectError) { /* already unusable */ }
       nativeState = {
         ...nativeState,
         connected: false,
@@ -1746,7 +1966,12 @@
   async function checkNativeStatus(sender) {
     assertSidebarSender(sender);
     const port = ensureNativePort();
-    port.postMessage({ action: "ping" });
+    try {
+      port.postMessage({ action: "ping" });
+    } catch (error) {
+      await handleNativeDisconnect(port, error instanceof Error ? error.message : String(error));
+      throw error;
+    }
     return nativeDashboardState();
   }
 
@@ -1833,10 +2058,24 @@
       trigger: metadata.trigger || null, cycle: metadata.cycle ?? null
     });
     await persistSession(session);
-    const port = ensureNativePort();
-    port.postMessage({ action: "run", runId, tabId, cwd, command, mode, environment: run.environment });
-    await publishShellNotice(session, { persist: false, reason: "native-shell-starting" });
-    return publicShellRun(tabId);
+    try {
+      const port = ensureNativePort();
+      port.postMessage({ action: "run", runId, tabId, cwd, command, mode, environment: run.environment });
+      await publishShellNotice(session, { persist: false, reason: "native-shell-starting" });
+      return publicShellRun(tabId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      run.status = "error";
+      run.error = message;
+      run.endedAt = Settings.nowIso();
+      appendShellOutput(run, "stderr", `[native start failed] ${message}\n`);
+      syncShellHistory(session, run, config);
+      syncShellNoticeFromRun(session, run, "error");
+      runToTab.delete(runId);
+      await persistSession(session);
+      await publishShellNotice(session, { persist: false, reason: "native-shell-start-error" });
+      throw error;
+    }
   }
 
   async function runShell(message, sender) {
@@ -1910,19 +2149,48 @@
       lastAutomationCommandError: null,
       lastAutomationCommandRequest: { ...clone(request), requestId }
     };
-    return startShellRunForSession(session, localConfig, {
-      tabId: session.tabId,
-      cwd: preset.workingDirectory,
-      command: preset.command,
-      mode: preset.mode,
-      preset
-    }, {
-      source: "automation",
-      ruleId,
-      ruleName: rule.name,
-      trigger: action.trigger,
-      cycle: ruleCycle
-    });
+    try {
+      return await startShellRunForSession(session, localConfig, {
+        tabId: session.tabId,
+        cwd: preset.workingDirectory,
+        command: preset.command,
+        mode: preset.mode,
+        preset
+      }, {
+        source: "automation",
+        ruleId,
+        ruleName: rule.name,
+        trigger: action.trigger,
+        cycle: ruleCycle
+      });
+    } catch (error) {
+      const failedRun = shellRunForTab(session.tabId);
+      const message = error instanceof Error ? error.message : String(error);
+      if (failedRun?.source === "automation" && failedRun.ruleId === ruleId && failedRun.cycle === ruleCycle) {
+        recordRuleCommandStatistics(session, failedRun, "error");
+        session.runtime = {
+          ...session.runtime,
+          automationCommandState: "failed",
+          lastAutomationCommandError: message,
+          lastAutomationCommandRun: {
+            runId: failedRun.runId || null,
+            ruleId: failedRun.ruleId || ruleId,
+            ruleName: failedRun.ruleName || rule.name,
+            trigger: failedRun.trigger || action.trigger,
+            cycle: failedRun.cycle ?? ruleCycle,
+            presetId: failedRun.presetId || preset.id,
+            presetName: failedRun.presetName || preset.name,
+            status: failedRun.status || "error",
+            returnCode: failedRun.returnCode ?? null,
+            endedAt: failedRun.endedAt || Settings.nowIso()
+          }
+        };
+        appendLog(session, "user", "automation-command-error", message, { requestId, ruleId, runId: failedRun.runId || null, nativeStartFailure: true });
+        await persistSession(session);
+        await broadcast("automation-command-error", session.tabId);
+      }
+      throw error;
+    }
   }
 
   async function stopShell(message, sender) {
@@ -1934,7 +2202,12 @@
     }
     const port = ensureNativePort();
     run.status = "stopping";
-    port.postMessage({ action: "stop", runId: run.runId, tabId });
+    try {
+      port.postMessage({ action: "stop", runId: run.runId, tabId });
+    } catch (error) {
+      await handleNativeDisconnect(port, error instanceof Error ? error.message : String(error));
+      throw error;
+    }
     await broadcast("native-shell-stopping", tabId);
     return publicShellRun(tabId);
   }
@@ -3183,7 +3456,7 @@
       return;
     }
     if (session.mode === MODE.ACTIVE && session.runtime?.alertActive && config.alerts.badge) {
-      await applyBadge(session.tabId, "!", "#cf222e");
+      await applyBadge(session.tabId, "RD", "#238636");
       return;
     }
     if (session.mode === MODE.ACTIVE) {
@@ -6404,9 +6677,17 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     pickerStates.delete(tabId);
     clearDownloadCaptureExpiryTimer(tabId);
     downloadCaptures.delete(tabId);
+    for (const [captureId, pending] of managedDownloadStarts.entries()) {
+      if (Number(pending?.tabId) === Number(tabId)) managedDownloadStarts.delete(captureId);
+    }
+    const removedDownloadJob = downloadJobs.get(tabId);
+    clearDownloadRoutingKeys(removedDownloadJob);
     downloadJobs.delete(tabId);
     for (const [key, value] of downloadMoveToTab.entries()) {
-      if (Number(value) === Number(tabId)) downloadMoveToTab.delete(key);
+      if (Number(value) === Number(tabId)) {
+        downloadMoveToTab.delete(key);
+        if (Number.isInteger(key)) managedDownloadIds.delete(key);
+      }
     }
     const timer = shellBroadcastTimers.get(tabId);
     if (timer) {

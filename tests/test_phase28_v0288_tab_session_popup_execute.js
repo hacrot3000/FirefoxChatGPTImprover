@@ -60,8 +60,9 @@ assert.match(nativeDownloadBlock, /job\.sessionToken = session\.sessionToken/);
 assert.match(nativeDownloadBlock, /broadcast\("download-shell-available", tabId\)/);
 assert.match(nativeDownloadBlock, /broadcast\("download-shell-fallback-available", tabId\)/);
 assert.doesNotMatch(nativeDownloadBlock, /Automatic shell execution was skipped because the original download session is no longer current/);
-assert.match(recoverBlock, /activeInMemory/);
 assert.match(recoverBlock, /sameCapture/);
+assert.match(recoverBlock, /const job = sameCapture \? inMemoryJob : storedJob/);
+assert.doesNotMatch(recoverBlock, /activeInMemory/);
 
 assert.match(activation, /Phase 28 v0\.28\.8: popup shell readiness follows run state, not editor mode/);
 assert.match(activation, /const RUNTIME_VERSION = (?:2[0-9]|[3-9][0-9])/);

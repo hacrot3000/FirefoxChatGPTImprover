@@ -117,7 +117,7 @@ matchedController.apply({
     dismissOnUserActivity: false
   }
 }, { monitorState: "matched", shellCommandState: "unread", alertActive: false }, "active", "matched-acknowledged");
-assert.match(matchedDocument.title, /^\[⚠ RD · ✓\] Project$/,
+assert.match(matchedDocument.title, /^\[RD · ✓\] Project$/,
   "after an alert is acknowledged or timed out, matched must remain a static AI READY state");
 assert.equal(matchedController.snapshot().monitorTitleSpinning, false);
 
@@ -142,11 +142,10 @@ alertController.apply({
   alertActive: true,
   shellCommandState: "unread"
 }, "active", "matched-alert");
-assert.match(alertDocument.title, /^\[⚠ RD · ✓\] Project$/);
-assert.ok(alertLoaded.intervals.length >= 1, "title blinking must install its interval");
-alertLoaded.intervals[0]();
+assert.match(alertDocument.title, /^\[RD · ✓\] Project$/);
+assert.equal(alertLoaded.intervals.length, 0, "the normalized RD default must not install a meaningless warning/blink interval");
 assert.match(alertDocument.title, /^\[RD · ✓\] Project$/,
-  "the alternate alert frame must remain AI-primary and may never degrade to a tick-only title");
+  "the matched-ready title remains stable while the unread command marker stays secondary");
 assert.doesNotMatch(alertDocument.title, /^\[✓\]/);
 
 console.log("PASS: Phase 28 v0.28.19 keeps matched as AI READY and reserves the spinner for waiting");

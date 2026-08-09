@@ -48,6 +48,17 @@
     return Math.min(max, Math.max(min, number));
   }
 
+  function normalizeAlertTitlePrefix(value, fallback = "RD") {
+    const clean = safeString(value, fallback).trim() || fallback;
+    // Historical built-in READY labels used a warning glyph even though
+    // matched/ready is not an error condition. Normalize only those known
+    // defaults; user-authored custom prefixes remain untouched.
+    if (/^(?:⚠️?\s*)?(?:AI\s+READY|READY|RD)$/iu.test(clean)) {
+      return "RD";
+    }
+    return clean;
+  }
+
   function makeId(prefix = "profile") {
     const random = crypto.getRandomValues(new Uint32Array(2));
     return `${prefix}-${Date.now().toString(36)}-${random[0].toString(36)}${random[1].toString(36)}`;
@@ -231,7 +242,7 @@
       target: clone(rule.target),
       alerts: {
         titleBlink: true,
-        titlePrefix: "⚠ RD",
+        titlePrefix: "RD",
         blinkIntervalMs: 700,
         badge: true,
         sidebar: true,
@@ -475,7 +486,7 @@
       target: clone(activeRule.target),
       alerts: {
         titleBlink: safeBoolean(alerts.titleBlink, true),
-        titlePrefix: safeString(alerts.titlePrefix, defaults.alerts.titlePrefix).trim() || defaults.alerts.titlePrefix,
+        titlePrefix: normalizeAlertTitlePrefix(alerts.titlePrefix, defaults.alerts.titlePrefix),
         blinkIntervalMs: safeInteger(alerts.blinkIntervalMs, defaults.alerts.blinkIntervalMs, 250, 5000),
         badge: safeBoolean(alerts.badge, true),
         sidebar: safeBoolean(alerts.sidebar, true),
@@ -972,6 +983,7 @@
       clone,
       nowIso,
       makeId,
+      normalizeAlertTitlePrefix,
       defaultConfig,
       defaultRule,
       defaultMonitorConfig,

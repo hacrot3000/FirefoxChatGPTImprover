@@ -69,8 +69,8 @@ const controller = harness.Alert.createAlertController();
 const config = { alerts: { titleBlink: true, badge: true, sidebar: true, notification: false, titlePrefix: "⚠ AI READY", activeTabTimeoutSeconds: 10, blinkIntervalMs: 500, dismissOnUserActivity: false } };
 const matched = { monitorState: "matched", cycle: 149, alertCycle: 149, alertActive: true, shellCommandState: "idle" };
 controller.apply(config, matched, "active", "matched");
-assert.match(harness.document.title, /^\[⚠ RD\] Research - OTA$/);
-assert.equal(controller.snapshot().titleBlinking, true);
+assert.match(harness.document.title, /^\[RD\] Research - OTA$/);
+assert.equal(controller.snapshot().titleBlinking, false);
 assert.ok(harness.timeouts.length >= 1, "matched alert must schedule active-tab acknowledgement");
 
 harness.timeouts[0]();
@@ -78,11 +78,11 @@ const afterTimeout = controller.snapshot();
 assert.equal(afterTimeout.alertActive, false);
 assert.equal(afterTimeout.alertDismissReason, "active-tab-timeout");
 assert.equal(afterTimeout.monitorTitleSpinning, false, "matched must not become running after timeout");
-assert.equal(harness.document.title, "[⚠ RD] Research - OTA");
+assert.equal(harness.document.title, "[RD] Research - OTA");
 
 controller.apply(config, { ...matched, alertActive: false, alertAcknowledgedAt: afterTimeout.alertAcknowledgedAt, alertDismissReason: "active-tab-timeout" }, "active", "post-timeout");
 assert.equal(controller.snapshot().monitorTitleSpinning, false);
-assert.equal(harness.document.title, "[⚠ RD] Research - OTA");
+assert.equal(harness.document.title, "[RD] Research - OTA");
 
 controller.apply(config, { monitorState: "waiting", shellCommandState: "idle" }, "active", "waiting");
 assert.equal(controller.snapshot().monitorTitleSpinning, true, "only waiting is AI running");

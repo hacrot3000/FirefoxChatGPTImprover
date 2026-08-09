@@ -34,7 +34,7 @@ for (const token of [
   "configSnapshot", "jobExecutionConfig", "recoverDownloadJob", "retryDownloadMove",
   "captures.length === 1 ? captures[0] : null",
   "const sameCapture = Boolean(inMemoryJob?.captureId && inMemoryJob.captureId === storedJob.captureId)",
-  "const activeInMemory = Boolean(sameCapture && [\"downloading\", \"moving\", \"completed\"].includes(inMemoryJob.status))",
+  "const job = sameCapture ? inMemoryJob : storedJob",
   "if (session.sessionToken) job.sessionToken = session.sessionToken",
   "Number(job.tabId) !== Number(session.tabId)",
   "restoreArmedDownloadCapture", "resumeInterruptedDownloadMove",

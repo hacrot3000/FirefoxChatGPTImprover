@@ -2678,16 +2678,28 @@
   function downloadHeaderNotice(rawState) {
     const state = rawState && typeof rawState === "object" ? rawState : {};
     const status = String(state.status || "idle");
-    if (status === "armed" || status === "downloading" || status === "moving") {
+    if (status === "armed") {
       return {
         visible: true,
-        icon: "⇩",
-        state: "running",
-        label: status === "armed"
-          ? "Managed download is armed and waiting for the browser download to start."
-          : (status === "moving"
-            ? "Download finished; moving the file to its configured destination."
-            : "Managed download in progress.")
+        icon: "CK",
+        state: "checking",
+        label: "Ready; checking for a managed download to start."
+      };
+    }
+    if (status === "downloading") {
+      return {
+        visible: true,
+        icon: "DL",
+        state: "downloading",
+        label: "Managed download is currently downloading in Firefox."
+      };
+    }
+    if (status === "moving") {
+      return {
+        visible: true,
+        icon: "MV",
+        state: "moving",
+        label: "Browser download finished; moving the file to its configured destination."
       };
     }
     if (status === "completed") {
@@ -2700,15 +2712,20 @@
           : "Managed download completed."
       };
     }
-    if (status === "error" || status === "expired") {
-      const fallback = status === "expired"
-        ? "Managed download capture expired before a download was detected."
-        : "Managed download failed.";
+    if (status === "expired") {
       return {
         visible: true,
-        icon: "!",
+        icon: "NO",
+        state: "expired",
+        label: String(state.error || "No managed download was detected before the capture window ended.")
+      };
+    }
+    if (status === "error") {
+      return {
+        visible: true,
+        icon: "×",
         state: "error",
-        label: String(state.error || fallback)
+        label: String(state.error || "Managed download failed.")
       };
     }
     return { visible: false, icon: "", state: "idle", label: "No active managed download notification." };

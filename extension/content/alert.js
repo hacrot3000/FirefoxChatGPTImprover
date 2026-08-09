@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 13) {
+  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 15) {
     return;
   }
 
@@ -42,7 +42,13 @@
       for (const prefix of exactPrefixes) {
         const escaped = escapeRegExp(prefix);
         title = title.replace(new RegExp(`^\\[${escaped}\\]\\s*`, "iu"), "").trimStart();
-        title = title.replace(new RegExp(`^${escaped}(?:\\s*[-:|·]\\s*|\\s+)`, "iu"), "").trimStart();
+        // RD is intentionally compact and therefore too generic to treat as
+        // an unbracketed managed prefix. The extension writes it as [RD].
+        // Preserving plain titles such as "RD Station" avoids corrupting the
+        // real page title while still cleaning our own decoration.
+        if (!/^RD$/iu.test(prefix)) {
+          title = title.replace(new RegExp(`^${escaped}(?:\\s*[-:|·]\\s*|\\s+)`, "iu"), "").trimStart();
+        }
       }
       title = title.replace(/^\[[^\]]*(?:READY|RUNNING|MATCHED|MONITORING|ALERT|COMMAND|CMD|LOG)[^\]]*\]\s*/iu, "").trimStart();
       title = title.replace(/^(?:AI\s*)?(?:READY|RUNNING|MATCHED|MONITORING|COMMAND\s+RUNNING|COMMAND\s+LOG)\s*(?:[-:|·]\s*)/iu, "").trimStart();
@@ -124,9 +130,8 @@
   }
 
   function compactReadyPrefix(prefix) {
-    const clean = String(prefix || "⚠ RD").trim() || "⚠ RD";
-    if (/^⚠\s*AI\s+READY$/iu.test(clean)) return "⚠ RD";
-    if (/^AI\s+READY$/iu.test(clean)) return "RD";
+    const clean = String(prefix || "RD").trim() || "RD";
+    if (/^(?:⚠️?\s*)?(?:AI\s+READY|READY|RD)$/iu.test(clean)) return "RD";
     return clean;
   }
 
@@ -140,6 +145,10 @@
     const clean = compactReadyPrefix(prefix);
     const quiet = clean.replace(/^[^\p{L}\p{N}]+/u, "").trim();
     return quiet || "RD";
+  }
+
+  function hasDistinctTitleBlinkFrame(prefix) {
+    return compactReadyPrefix(prefix) !== quietAlertPrefix(prefix);
   }
 
   function commandTitlePrefix(runtime) {
@@ -194,7 +203,7 @@
     let monitorSpinIndex = 0;
     let titleObserver = null;
     let customTitle = "";
-    let baseTitle = storedBaseTitle("⚠ RD") || document.title || "";
+    let baseTitle = storedBaseTitle("RD") || document.title || "";
     let lastWrittenTitle = null;
     let alertStartedAt = null;
     let alertCycle = 0;
@@ -290,7 +299,7 @@
       return {
         alertActive: active,
         alertCycle,
-        titleBlinking: Boolean(active && config.alerts.titleBlink),
+        titleBlinking: Boolean(active && config.alerts.titleBlink && hasDistinctTitleBlinkFrame(config.alerts.titlePrefix)),
         monitorTitleSpinning: Boolean(monitorSpinTimer),
         originalTitle: baseTitle,
         displayedTitle: document.title || "",
@@ -342,7 +351,7 @@
 
     function applyCurrentTitleFrame() {
       const commandPrefix = commandTitlePrefix(runtime);
-      if (active && config.alerts.titleBlink) {
+      if (active && config.alerts.titleBlink && hasDistinctTitleBlinkFrame(config.alerts.titlePrefix)) {
         const primaryPrefix = blinkOn
           ? config.alerts.titlePrefix
           : quietAlertPrefix(config.alerts.titlePrefix);
@@ -364,7 +373,7 @@
     }
 
     function refreshTitlePresentation() {
-      if (active && config.alerts.titleBlink) {
+      if (active && config.alerts.titleBlink && hasDistinctTitleBlinkFrame(config.alerts.titlePrefix)) {
         clearMonitorSpinTimer();
         ensureTitleObserver();
         if (!blinkTimer) {
@@ -589,7 +598,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 13,
+      VERSION: 15,
       TITLE_BASE_ATTRIBUTE,
       TITLE_PREFIX_ATTRIBUTE,
       stripManagedTitleDecorations,
@@ -602,6 +611,7 @@
       compactReadyPrefix,
       alertTitle,
       quietAlertPrefix,
+      hasDistinctTitleBlinkFrame,
       commandTitlePrefix,
       combinedTitlePrefix,
       monitorTitle,

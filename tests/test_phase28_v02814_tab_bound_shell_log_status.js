@@ -37,7 +37,7 @@ assert.equal(Alert.commandTitlePrefix({ shellCommandState: "unread" }), "✓");
 assert.equal(Alert.commandTitlePrefix({ shellCommandState: "idle" }), "");
 assert.equal(
   Alert.combinedTitlePrefix("⚠ AI READY", { shellCommandState: "running" }, true),
-  "⚠ RD · ⌘"
+  "RD · ⌘"
 );
 assert.equal(
   Alert.stripManagedTitleDecorations("[✓] Project", ["⚠ AI READY"]),
