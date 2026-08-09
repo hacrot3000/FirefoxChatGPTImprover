@@ -1,0 +1,863 @@
+{
+  "format": "firefox-chat-improver-configuration",
+  "version": 1,
+  "exportedAt": "2026-08-09T05:02:39.476Z",
+  "automationStore": {
+    "schemaVersion": 18,
+    "revision": 19,
+    "defaultProfileId": "default",
+    "defaultMonitorProfileId": "monitor-default",
+    "defaultTargetProfileId": "target-default",
+    "nativeLogRetention": {
+      "enabled": true,
+      "maxAgeDays": 90,
+      "maxTotalMiB": 512,
+      "maxFiles": 500,
+      "runOnStartup": true,
+      "runAfterCommand": true
+    },
+    "profiles": [
+      {
+        "id": "default",
+        "name": "Default",
+        "createdAt": "2026-07-22T11:49:37.560Z",
+        "updatedAt": "2026-08-05T09:59:28.658Z",
+        "config": {
+          "activation": {
+            "requireUrlMatch": false,
+            "urlPatterns": [],
+            "routingEnabled": true,
+            "routingPriority": 0,
+            "autoActivate": false
+          },
+          "activeRuleId": "rule-default",
+          "rules": [
+            {
+              "id": "rule-default",
+              "name": "Rule 1",
+              "enabled": true,
+              "monitor": {
+                "selector": {
+                  "tag": "button",
+                  "kind": "attribute",
+                  "value": "Start Voice",
+                  "attributeName": "aria-label"
+                },
+                "visibilityTransition": "none",
+                "matchStableMs": 0,
+                "resetStableMs": 0,
+                "conditionJoin": "all",
+                "conditions": [
+                  {
+                    "enabled": false,
+                    "attribute": "aria-label",
+                    "operator": "contains",
+                    "value": "Start Voice",
+                    "caseSensitive": false
+                  }
+                ]
+              },
+              "target": {
+                "enabled": true,
+                "selector": {
+                  "tag": "button",
+                  "kind": "class",
+                  "value": "behavior-btn entity-underline cursor-pointer appearance-none align-baseline",
+                  "attributeName": ""
+                },
+                "clickStrategy": "newest",
+                "visibleOnly": true,
+                "enabledOnly": true,
+                "dryRun": true,
+                "maxClicksPerCycle": 1,
+                "fingerprintAttributes": [
+                  "data-message-id",
+                  "data-testid",
+                  "id",
+                  "href",
+                  "aria-label"
+                ],
+                "pipeline": {
+                  "enabled": false,
+                  "preActionDelayMs": 0,
+                  "postActionDelayMs": 0,
+                  "verifyEnabled": false,
+                  "verifySelector": {
+                    "tag": "button",
+                    "kind": "css",
+                    "value": "",
+                    "attributeName": ""
+                  },
+                  "verifyExpectation": "exists",
+                  "verifyTimeoutMs": 5000,
+                  "verifyPollIntervalMs": 150
+                }
+              },
+              "commandAction": {
+                "enabled": false,
+                "presetId": "",
+                "trigger": "on_match",
+                "allowDryRun": false
+              }
+            }
+          ],
+          "monitor": {
+            "selector": {
+              "tag": "button",
+              "kind": "attribute",
+              "value": "Start Voice",
+              "attributeName": "aria-label"
+            },
+            "visibilityTransition": "none",
+            "matchStableMs": 0,
+            "resetStableMs": 0,
+            "conditionJoin": "all",
+            "conditions": [
+              {
+                "enabled": false,
+                "attribute": "aria-label",
+                "operator": "contains",
+                "value": "Start Voice",
+                "caseSensitive": false
+              }
+            ]
+          },
+          "target": {
+            "enabled": true,
+            "selector": {
+              "tag": "button",
+              "kind": "class",
+              "value": "behavior-btn entity-underline cursor-pointer appearance-none align-baseline",
+              "attributeName": ""
+            },
+            "clickStrategy": "newest",
+            "visibleOnly": true,
+            "enabledOnly": true,
+            "dryRun": true,
+            "maxClicksPerCycle": 1,
+            "fingerprintAttributes": [
+              "data-message-id",
+              "data-testid",
+              "id",
+              "href",
+              "aria-label"
+            ],
+            "pipeline": {
+              "enabled": false,
+              "preActionDelayMs": 0,
+              "postActionDelayMs": 0,
+              "verifyEnabled": false,
+              "verifySelector": {
+                "tag": "button",
+                "kind": "css",
+                "value": "",
+                "attributeName": ""
+              },
+              "verifyExpectation": "exists",
+              "verifyTimeoutMs": 5000,
+              "verifyPollIntervalMs": 150
+            }
+          },
+          "alerts": {
+            "titleBlink": true,
+            "titlePrefix": "RD",
+            "blinkIntervalMs": 700,
+            "badge": true,
+            "sidebar": true,
+            "notification": true,
+            "sound": {
+              "enabled": false,
+              "tone": "soft-chime",
+              "volume": 0.45,
+              "repeatCount": 1,
+              "repeatIntervalMs": 900
+            },
+            "dismissOnUserActivity": true,
+            "activeTabTimeoutSeconds": 10
+          },
+          "shell": {
+            "workingDirectory": "",
+            "command": "",
+            "mode": "terminal",
+            "confirmBeforeRun": true,
+            "requirePresetMatch": false,
+            "rememberHistory": true,
+            "historyLimit": 20,
+            "selectedPresetId": "",
+            "presets": []
+          }
+        }
+      },
+      {
+        "id": "profile-mshe8qlp-lnrrz1fa538k",
+        "name": "MongoDB",
+        "createdAt": "2026-08-06T10:49:22.861Z",
+        "updatedAt": "2026-08-06T10:49:22.861Z",
+        "config": {
+          "activation": {
+            "requireUrlMatch": false,
+            "urlPatterns": [],
+            "routingEnabled": true,
+            "routingPriority": 0,
+            "autoActivate": false
+          },
+          "activeRuleId": "rule-default",
+          "rules": [
+            {
+              "id": "rule-default",
+              "name": "Rule 1",
+              "enabled": true,
+              "monitor": {
+                "selector": {
+                  "tag": "button",
+                  "kind": "attribute",
+                  "value": "Start Voice",
+                  "attributeName": "aria-label"
+                },
+                "visibilityTransition": "none",
+                "matchStableMs": 0,
+                "resetStableMs": 0,
+                "conditionJoin": "all",
+                "conditions": [
+                  {
+                    "enabled": false,
+                    "attribute": "aria-label",
+                    "operator": "contains",
+                    "value": "Start Voice",
+                    "caseSensitive": false
+                  }
+                ]
+              },
+              "target": {
+                "enabled": true,
+                "selector": {
+                  "tag": "button",
+                  "kind": "class",
+                  "value": "behavior-btn entity-underline cursor-pointer appearance-none align-baseline",
+                  "attributeName": ""
+                },
+                "clickStrategy": "newest",
+                "visibleOnly": true,
+                "enabledOnly": true,
+                "dryRun": true,
+                "maxClicksPerCycle": 1,
+                "fingerprintAttributes": [
+                  "data-message-id",
+                  "data-testid",
+                  "id",
+                  "href",
+                  "aria-label"
+                ],
+                "pipeline": {
+                  "enabled": false,
+                  "preActionDelayMs": 0,
+                  "postActionDelayMs": 0,
+                  "verifyEnabled": false,
+                  "verifySelector": {
+                    "tag": "button",
+                    "kind": "css",
+                    "value": "",
+                    "attributeName": ""
+                  },
+                  "verifyExpectation": "exists",
+                  "verifyTimeoutMs": 5000,
+                  "verifyPollIntervalMs": 150
+                }
+              },
+              "commandAction": {
+                "enabled": false,
+                "presetId": "",
+                "trigger": "on_match",
+                "allowDryRun": false
+              }
+            }
+          ],
+          "monitor": {
+            "selector": {
+              "tag": "button",
+              "kind": "attribute",
+              "value": "Start Voice",
+              "attributeName": "aria-label"
+            },
+            "visibilityTransition": "none",
+            "matchStableMs": 0,
+            "resetStableMs": 0,
+            "conditionJoin": "all",
+            "conditions": [
+              {
+                "enabled": false,
+                "attribute": "aria-label",
+                "operator": "contains",
+                "value": "Start Voice",
+                "caseSensitive": false
+              }
+            ]
+          },
+          "target": {
+            "enabled": true,
+            "selector": {
+              "tag": "button",
+              "kind": "class",
+              "value": "behavior-btn entity-underline cursor-pointer appearance-none align-baseline",
+              "attributeName": ""
+            },
+            "clickStrategy": "newest",
+            "visibleOnly": true,
+            "enabledOnly": true,
+            "dryRun": true,
+            "maxClicksPerCycle": 1,
+            "fingerprintAttributes": [
+              "data-message-id",
+              "data-testid",
+              "id",
+              "href",
+              "aria-label"
+            ],
+            "pipeline": {
+              "enabled": false,
+              "preActionDelayMs": 0,
+              "postActionDelayMs": 0,
+              "verifyEnabled": false,
+              "verifySelector": {
+                "tag": "button",
+                "kind": "css",
+                "value": "",
+                "attributeName": ""
+              },
+              "verifyExpectation": "exists",
+              "verifyTimeoutMs": 5000,
+              "verifyPollIntervalMs": 150
+            }
+          },
+          "alerts": {
+            "titleBlink": true,
+            "titlePrefix": "RD",
+            "blinkIntervalMs": 700,
+            "badge": true,
+            "sidebar": true,
+            "notification": true,
+            "sound": {
+              "enabled": false,
+              "tone": "soft-chime",
+              "volume": 0.45,
+              "repeatCount": 1,
+              "repeatIntervalMs": 900
+            },
+            "dismissOnUserActivity": true,
+            "activeTabTimeoutSeconds": 10
+          },
+          "shell": {
+            "workingDirectory": "",
+            "command": "",
+            "mode": "terminal",
+            "confirmBeforeRun": true,
+            "requirePresetMatch": false,
+            "rememberHistory": true,
+            "historyLimit": 20,
+            "selectedPresetId": "",
+            "presets": []
+          }
+        }
+      }
+    ],
+    "monitorProfiles": [
+      {
+        "id": "monitor-default",
+        "name": "ChatGPT",
+        "createdAt": "2026-08-05T08:50:34.782Z",
+        "updatedAt": "2026-08-05T08:51:59.284Z",
+        "monitor": {
+          "selector": {
+            "tag": "button",
+            "kind": "attribute",
+            "value": "Start Voice",
+            "attributeName": "aria-label"
+          },
+          "visibilityTransition": "none",
+          "matchStableMs": 0,
+          "resetStableMs": 0,
+          "conditionJoin": "all",
+          "conditions": [
+            {
+              "enabled": false,
+              "attribute": "aria-label",
+              "operator": "contains",
+              "value": "Start Voice",
+              "caseSensitive": false
+            }
+          ]
+        }
+      }
+    ],
+    "targetProfiles": [
+      {
+        "id": "target-default",
+        "name": "ChatGPT",
+        "createdAt": "2026-08-05T08:50:34.782Z",
+        "updatedAt": "2026-08-05T08:52:16.939Z",
+        "target": {
+          "enabled": true,
+          "selector": {
+            "tag": "button",
+            "kind": "class",
+            "value": "behavior-btn entity-underline cursor-pointer appearance-none align-baseline",
+            "attributeName": ""
+          },
+          "clickStrategy": "newest",
+          "visibleOnly": true,
+          "enabledOnly": true,
+          "dryRun": true,
+          "maxClicksPerCycle": 1,
+          "fingerprintAttributes": [
+            "data-message-id",
+            "data-testid",
+            "id",
+            "href",
+            "aria-label"
+          ],
+          "pipeline": {
+            "enabled": false,
+            "preActionDelayMs": 0,
+            "postActionDelayMs": 0,
+            "verifyEnabled": false,
+            "verifySelector": {
+              "tag": "button",
+              "kind": "css",
+              "value": "",
+              "attributeName": ""
+            },
+            "verifyExpectation": "exists",
+            "verifyTimeoutMs": 5000,
+            "verifyPollIntervalMs": 150
+          }
+        }
+      }
+    ]
+  },
+  "localActionStore": {
+    "schemaVersion": 2,
+    "revision": 24,
+    "defaultProfileId": "local-default",
+    "profiles": [
+      {
+        "id": "local-default",
+        "name": "Default local actions",
+        "createdAt": "2026-07-23T10:03:44.280Z",
+        "updatedAt": "2026-07-24T02:38:42.222Z",
+        "config": {
+          "routing": {
+            "enabled": true,
+            "priority": 0,
+            "urlPatterns": []
+          },
+          "download": {
+            "enabled": true,
+            "destinationDirectory": "/home/duongtc/BleToNfc/patchs",
+            "captureWindowSeconds": 20,
+            "conflictAction": "uniquify",
+            "showCompletionDialog": true,
+            "shellExecutionMode": "disabled",
+            "openShellLogAfterExecution": true,
+            "executeShellAfterMove": false
+          },
+          "shell": {
+            "workingDirectory": "",
+            "command": "",
+            "mode": "terminal",
+            "confirmBeforeRun": true,
+            "requirePresetMatch": false,
+            "rememberHistory": true,
+            "historyLimit": 20,
+            "selectedPresetId": "",
+            "presets": []
+          }
+        }
+      },
+      {
+        "id": "local-profile-mrybcvj6-59xqt71krjm25",
+        "name": "FirefoxChatImprover patchs",
+        "createdAt": "2026-07-24T02:20:59.682Z",
+        "updatedAt": "2026-07-24T03:16:21.135Z",
+        "config": {
+          "routing": {
+            "enabled": true,
+            "priority": 0,
+            "urlPatterns": []
+          },
+          "download": {
+            "enabled": true,
+            "destinationDirectory": "/home/duongtc/FirefoxChatImprover/patchs",
+            "captureWindowSeconds": 20,
+            "conflictAction": "uniquify",
+            "showCompletionDialog": true,
+            "shellExecutionMode": "disabled",
+            "openShellLogAfterExecution": true,
+            "executeShellAfterMove": false
+          },
+          "shell": {
+            "workingDirectory": "",
+            "command": "",
+            "mode": "terminal",
+            "confirmBeforeRun": true,
+            "requirePresetMatch": false,
+            "rememberHistory": true,
+            "historyLimit": 20,
+            "selectedPresetId": "",
+            "presets": []
+          }
+        }
+      },
+      {
+        "id": "local-profile-mrybz1au-1b5yqrv1owt93l",
+        "name": "BLEPatchs",
+        "createdAt": "2026-07-24T02:38:13.590Z",
+        "updatedAt": "2026-08-05T08:48:38.134Z",
+        "config": {
+          "routing": {
+            "enabled": true,
+            "priority": 0,
+            "urlPatterns": []
+          },
+          "download": {
+            "enabled": true,
+            "destinationDirectory": "/home/duongtc/BleToNfc/patchs",
+            "captureWindowSeconds": 20,
+            "conflictAction": "uniquify",
+            "showCompletionDialog": true,
+            "shellExecutionMode": "disabled",
+            "openShellLogAfterExecution": true,
+            "executeShellAfterMove": false
+          },
+          "shell": {
+            "workingDirectory": "",
+            "command": "",
+            "mode": "terminal",
+            "confirmBeforeRun": true,
+            "requirePresetMatch": false,
+            "rememberHistory": true,
+            "historyLimit": 20,
+            "selectedPresetId": "",
+            "presets": []
+          }
+        }
+      },
+      {
+        "id": "local-profile-mryeu5v4-7jhtyh1rdbagg",
+        "name": "No download",
+        "createdAt": "2026-07-24T03:58:25.072Z",
+        "updatedAt": "2026-07-24T03:58:30.125Z",
+        "config": {
+          "routing": {
+            "enabled": true,
+            "priority": 0,
+            "urlPatterns": []
+          },
+          "download": {
+            "enabled": false,
+            "destinationDirectory": "/home/duongtc/BleToNfc/patchs",
+            "captureWindowSeconds": 20,
+            "conflictAction": "uniquify",
+            "showCompletionDialog": true,
+            "shellExecutionMode": "disabled",
+            "openShellLogAfterExecution": true,
+            "executeShellAfterMove": false
+          },
+          "shell": {
+            "workingDirectory": "",
+            "command": "",
+            "mode": "terminal",
+            "confirmBeforeRun": true,
+            "requirePresetMatch": false,
+            "rememberHistory": true,
+            "historyLimit": 20,
+            "selectedPresetId": "",
+            "presets": []
+          }
+        }
+      },
+      {
+        "id": "local-profile-mryn8u7g-xe9fxc143zhw7",
+        "name": "GM PHP server",
+        "createdAt": "2026-07-24T07:53:46.732Z",
+        "updatedAt": "2026-08-05T04:07:20.321Z",
+        "config": {
+          "routing": {
+            "enabled": true,
+            "priority": 0,
+            "urlPatterns": []
+          },
+          "download": {
+            "enabled": true,
+            "destinationDirectory": "/home/duongtc/<MyCompanyName>/Naruto/server-dockerize/patchs",
+            "captureWindowSeconds": 20,
+            "conflictAction": "uniquify",
+            "showCompletionDialog": true,
+            "shellExecutionMode": "disabled",
+            "openShellLogAfterExecution": true,
+            "executeShellAfterMove": false
+          },
+          "shell": {
+            "workingDirectory": "",
+            "command": "",
+            "mode": "terminal",
+            "confirmBeforeRun": true,
+            "requirePresetMatch": false,
+            "rememberHistory": true,
+            "historyLimit": 20,
+            "selectedPresetId": "",
+            "presets": []
+          }
+        }
+      },
+      {
+        "id": "local-profile-msfkfm4g-19mzxhd153m4ol",
+        "name": "Server Dockerizes",
+        "createdAt": "2026-08-05T04:07:08.992Z",
+        "updatedAt": "2026-08-05T04:07:08.992Z",
+        "config": {
+          "routing": {
+            "enabled": true,
+            "priority": 0,
+            "urlPatterns": []
+          },
+          "download": {
+            "enabled": true,
+            "destinationDirectory": "/home/duongtc/<MyCompanyName>/Naruto/gm_php_server_source/patchs",
+            "captureWindowSeconds": 20,
+            "conflictAction": "uniquify",
+            "showCompletionDialog": true,
+            "shellExecutionMode": "disabled",
+            "openShellLogAfterExecution": true,
+            "executeShellAfterMove": false
+          },
+          "shell": {
+            "workingDirectory": "",
+            "command": "",
+            "mode": "terminal",
+            "confirmBeforeRun": true,
+            "requirePresetMatch": false,
+            "rememberHistory": true,
+            "historyLimit": 20,
+            "selectedPresetId": "",
+            "presets": []
+          }
+        }
+      },
+      {
+        "id": "local-profile-msh64btu-1pm5zfs141djkt",
+        "name": "RSAHelp",
+        "createdAt": "2026-08-06T07:02:00.162Z",
+        "updatedAt": "2026-08-06T07:02:06.014Z",
+        "config": {
+          "routing": {
+            "enabled": true,
+            "priority": 0,
+            "urlPatterns": []
+          },
+          "download": {
+            "enabled": true,
+            "destinationDirectory": "/home/duongtc/<MyCompanyName>/RSAHelp/patchs",
+            "captureWindowSeconds": 20,
+            "conflictAction": "uniquify",
+            "showCompletionDialog": true,
+            "shellExecutionMode": "disabled",
+            "openShellLogAfterExecution": true,
+            "executeShellAfterMove": false
+          },
+          "shell": {
+            "workingDirectory": "",
+            "command": "",
+            "mode": "terminal",
+            "confirmBeforeRun": true,
+            "requirePresetMatch": false,
+            "rememberHistory": true,
+            "historyLimit": 20,
+            "selectedPresetId": "",
+            "presets": []
+          }
+        }
+      },
+      {
+        "id": "local-profile-msh870j9-13rhcn9n0lbtu",
+        "name": "M3 patchs",
+        "createdAt": "2026-08-06T08:00:04.725Z",
+        "updatedAt": "2026-08-06T08:00:14.861Z",
+        "config": {
+          "routing": {
+            "enabled": true,
+            "priority": 0,
+            "urlPatterns": []
+          },
+          "download": {
+            "enabled": true,
+            "destinationDirectory": "/home/duongtc/<MyCompanyName>/M3/patchs",
+            "captureWindowSeconds": 20,
+            "conflictAction": "uniquify",
+            "showCompletionDialog": true,
+            "shellExecutionMode": "disabled",
+            "openShellLogAfterExecution": true,
+            "executeShellAfterMove": false
+          },
+          "shell": {
+            "workingDirectory": "",
+            "command": "",
+            "mode": "terminal",
+            "confirmBeforeRun": true,
+            "requirePresetMatch": false,
+            "rememberHistory": true,
+            "historyLimit": 20,
+            "selectedPresetId": "",
+            "presets": []
+          }
+        }
+      },
+      {
+        "id": "local-profile-msi9n22c-lwqy8i12m9x4p",
+        "name": "Patch tool",
+        "createdAt": "2026-08-07T01:28:18.996Z",
+        "updatedAt": "2026-08-07T01:28:49.226Z",
+        "config": {
+          "routing": {
+            "enabled": true,
+            "priority": 0,
+            "urlPatterns": []
+          },
+          "download": {
+            "enabled": true,
+            "destinationDirectory": "/home/duongtc/BleToNfc/tools/patchtool",
+            "captureWindowSeconds": 20,
+            "conflictAction": "uniquify",
+            "showCompletionDialog": true,
+            "shellExecutionMode": "disabled",
+            "openShellLogAfterExecution": true,
+            "executeShellAfterMove": false
+          },
+          "shell": {
+            "workingDirectory": "",
+            "command": "",
+            "mode": "terminal",
+            "confirmBeforeRun": true,
+            "requirePresetMatch": false,
+            "rememberHistory": true,
+            "historyLimit": 20,
+            "selectedPresetId": "",
+            "presets": []
+          }
+        }
+      }
+    ]
+  },
+  "commandPresetStore": {
+    "schemaVersion": 1,
+    "revision": 22,
+    "presets": [
+      {
+        "id": "command-preset-mrypiw1i-d3u19uskrt0i",
+        "name": "ChatAI",
+        "enabled": true,
+        "workingDirectory": "/home/duongtc/FirefoxChatImprover",
+        "command": "./tools/run_python_patches.sh -a -y --zip-failed --keep-failed-zip --move && ./tools/test_firefox_addon.sh && ./tools/build_firefox_addon.s",
+        "mode": "background",
+        "confirmBeforeRun": true,
+        "updatedAt": "2026-07-24T08:58:21.185Z"
+      },
+      {
+        "id": "command-preset-mrypw8q0-jtavvfg1rfef",
+        "name": "Apply patch only",
+        "enabled": true,
+        "workingDirectory": "/home/duongtc/BleToNfc",
+        "command": "./tools/run_python_patches.sh -a -y --zip-failed --keep-failed-zip --move",
+        "mode": "background",
+        "confirmBeforeRun": false,
+        "updatedAt": "2026-07-24T09:08:36.638Z"
+      },
+      {
+        "id": "command-preset-mryq0yuv-1mqkmyb1qb8ivj",
+        "name": "Tomux",
+        "enabled": true,
+        "workingDirectory": "/home/duongtc/<MyCompanyName>/Naruto/server-dockerize",
+        "command": "./tools/run_python_patches.sh && ./apps/phpfpm/scripts_tool/compile_and_test.sh",
+        "mode": "background",
+        "confirmBeforeRun": true,
+        "updatedAt": "2026-07-24T10:54:55.918Z"
+      },
+      {
+        "id": "command-preset-mryqt2ei-1ve7jsbkp70fm",
+        "name": "Apply & commit",
+        "enabled": true,
+        "workingDirectory": "/home/duongtc/BleToNfc",
+        "command": "./tools/run_python_patches.sh -a -y --zip-failed --keep-failed-zip --move &&  git add . && git commit -m \"Research NFC\" && git push",
+        "mode": "background",
+        "confirmBeforeRun": false,
+        "updatedAt": "2026-07-24T09:33:57.392Z"
+      },
+      {
+        "id": "command-preset-mryreqi2-c40ydl10mbzkg",
+        "name": "NFC improve",
+        "enabled": true,
+        "workingDirectory": "/home/duongtc/BleToNfc",
+        "command": " ./tools/run_python_patches.sh && python3 tools/test_nfc_gateway_phases.py",
+        "mode": "background",
+        "confirmBeforeRun": false,
+        "updatedAt": "2026-07-24T09:50:34.708Z"
+      },
+      {
+        "id": "command-preset-mryrgpbh-ijaii5uudvm1",
+        "name": "OTA impoement",
+        "enabled": true,
+        "workingDirectory": "/home/duongtc/BleToNfc",
+        "command": "./tools/run_python_patches.sh && ./test_ble_ota_commands.py",
+        "mode": "background",
+        "confirmBeforeRun": false,
+        "updatedAt": "2026-07-24T09:52:06.534Z"
+      },
+      {
+        "id": "command-preset-mryrhoqr-55wteb1vtailo",
+        "name": "Research NFC",
+        "enabled": true,
+        "workingDirectory": "/home/duongtc/BleToNfc",
+        "command": "./tools/run_python_patches.sh -a -y --zip-failed --keep-failed-zip --move &&  git add . && git commit -m \"Research NFC\" && git push",
+        "mode": "background",
+        "confirmBeforeRun": false,
+        "updatedAt": "2026-07-24T09:52:53.897Z"
+      }
+    ]
+  },
+  "promptTemplateStore": {
+    "schema": 1,
+    "customTemplates": []
+  },
+  "sidebarPreferences": {
+    "collapsedGroups": {
+      "tabs": true,
+      "profiles": true,
+      "activation": true,
+      "monitor": true,
+      "target": true,
+      "alerts": true,
+      "activity": true,
+      "shell": true,
+      "save": false,
+      "rules": true,
+      "local-actions": true,
+      "download": true,
+      "installation-guide": true,
+      "working-sessions": true,
+      "keyboard-shortcuts": true,
+      "prompt-templates": true,
+      "rule-statistics": true
+    },
+    "featurePreset": "custom",
+    "visibleFeatures": [
+      "automation-editor",
+      "automation-profiles",
+      "alerts",
+      "local-action-profiles",
+      "managed-downloads",
+      "working-sessions",
+      "backup-recovery",
+      "prompt-templates"
+    ],
+    "autoProfileByUrl": true
+  }
+}
