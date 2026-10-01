@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Python Patch Tool v6.7.9 public launcher.
+# Python Patch Tool v6.17.14 public launcher.
 # SANDBOX/worktree transaction mode is permanently disabled at this boundary.
 set -euo pipefail
 TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -7,10 +7,24 @@ PROJECT_ROOT="$(cd "$TOOLS_DIR/.." && pwd)"
 LIB_DIR="$TOOLS_DIR/_patch_lib"
 RUNNER="$LIB_DIR/python_patch_runner.py"
 COLLECTOR="$LIB_DIR/python_patch_readonly_collector.py"
+COLLECT_COMPAT="$LIB_DIR/python_patch_collect_compat.py"
 DISPATCHER="$LIB_DIR/python_patch_queue_dispatcher.py"
 COLLECT_PROGRESS="$LIB_DIR/python_patch_collect_progress_v6_7.py"
+COLLECT_REGEX_WORKER="$LIB_DIR/python_patch_collect_regex_worker.py"
 
 export PYTHONPATH="$LIB_DIR${PYTHONPATH:+:$PYTHONPATH}"
+# Keep the installed tool tree immutable during normal execution so Tool Health
+# does not warn about bytecode caches created by the tool itself.
+export PYTHONDONTWRITEBYTECODE=1
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "ERROR: Python 3.10+ is required but python3 was not found in PATH." >&2
+  exit 2
+fi
+if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 3)' >/dev/null 2>&1; then
+  echo "ERROR: Python 3.10+ is required. Current python3 is too old." >&2
+  exit 2
+fi
 
 if [ "$#" -eq 0 ]; then
   if [ ! -f "$DISPATCHER" ]; then
@@ -20,17 +34,27 @@ if [ "$#" -eq 0 ]; then
   exec python3 "$DISPATCHER" --project-root "$PROJECT_ROOT"
 fi
 
+if [ "${1:-}" = "report" ] || [ "${1:-}" = "run" ] || [ "${1:-}" = "resume" ] || [ "${1:-}" = "plan" ]; then
+  command="$1"
+  shift
+  exec python3 "$DISPATCHER" --project-root "$PROJECT_ROOT" "$command" "$@"
+fi
+
 if [ "${1:-}" = "collect" ]; then
-  if [ ! -f "$COLLECTOR" ]; then
-    echo "ERROR: Missing readonly collector: $COLLECTOR" >&2
+  if [ ! -f "$COLLECT_COMPAT" ]; then
+    echo "ERROR: Missing COLLECT compatibility layer: $COLLECT_COMPAT" >&2
     exit 2
   fi
   if [ ! -f "$COLLECT_PROGRESS" ]; then
     echo "ERROR: Missing collect progress supervisor: $COLLECT_PROGRESS" >&2
     exit 2
   fi
+  if [ ! -f "$COLLECT_REGEX_WORKER" ]; then
+    echo "ERROR: Missing COLLECT regex worker: $COLLECT_REGEX_WORKER" >&2
+    exit 2
+  fi
   shift
-  exec python3 "$COLLECT_PROGRESS" --project-root "$PROJECT_ROOT" --collector "$COLLECTOR" -- "$@"
+  exec python3 "$COLLECT_PROGRESS" --project-root "$PROJECT_ROOT" --collector "$COLLECT_COMPAT" -- "$@"
 fi
 
 if [ ! -f "$RUNNER" ]; then
@@ -38,7 +62,7 @@ if [ ! -f "$RUNNER" ]; then
   exit 2
 fi
 
-# v6.7.9 invariant: SANDBOX/Git-worktree transaction execution is removed.
+# v6.17.14 invariant: SANDBOX/Git-worktree transaction execution is removed.
 # The installed private core may still expose historical transaction options,
 # so every documented PATCH execution route is forced to --transaction off.
 # Utility-only routes such as paths/help remain untouched.
@@ -83,6 +107,21 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+# Any non-utility legacy invocation may execute PATCH work even when it uses
+# short/historical flags unknown to this overlay (for example `-a -y`).
+# Fail closed toward in-place execution: only a small documented utility
+# allowlist is permitted to reach the core without `--transaction off`.
+if [ "$force_inplace" -eq 0 ] && [ "${#filtered[@]}" -gt 0 ]; then
+  first_lower="${filtered[0],,}"
+  case "$first_lower" in
+    paths|help|--help|-h|version|--version)
+      ;;
+    *)
+      force_inplace=1
+      ;;
+  esac
+fi
 
 if [ "$force_inplace" -eq 1 ]; then
   exec python3 "$RUNNER" "${filtered[@]}" --transaction off

@@ -472,10 +472,13 @@
         </div>
       </div>
       <div class="component-profile-panel">
+        <output id="targetProfileSourceSummary" class="selector-test-result" data-state="idle">Target profile source is not available.</output>
         <label class="filter-field">Find target profile<input id="targetProfileSearch" type="search" autocomplete="off" placeholder="Name, selector, or profile ID"><small id="targetProfileSearchResult" class="filter-result" aria-live="polite"></small></label>
-        <label>Target profile<select id="targetProfileSelect"></select></label>
-        <label>Profile name<input id="targetProfileName" type="text" autocomplete="off"></label>
-        <div class="button-grid four">
+        <div class="selector-grid compact-fields">
+          <label>Target profile<select id="targetProfileSelect"></select></label>
+          <label>Profile name<input id="targetProfileName" type="text" autocomplete="off"></label>
+        </div>
+        <div class="button-grid">
           <button id="applyTargetProfileButton" type="button">Apply selected to rule</button>
           <button id="newTargetProfileButton" type="button">Save as new profile</button>
           <button id="saveTargetProfileButton" type="button">Save changes</button>
@@ -485,29 +488,40 @@
         <small class="inline-result">Save as new profile creates and selects a new library item from the current rule values. To rename, edit Profile name and choose Save changes. Make default changes only the library fallback and does not modify the current rule.</small>
       </div>
       <label class="check-row"><input id="targetEnabled" type="checkbox">Process new targets while the monitor is MATCHED</label>
-      <div class="selector-grid">
-        <label>Tag<select id="targetTag">
-            <option>*</option>
-            <option>button</option>
-            <option>div</option>
-            <option>span</option>
-            <option>input</option>
-            <option>a</option>
-          </select></label>
-        <label>Type<select id="targetKind">
-            <option value="css">CSS selector</option>
-            <option value="id">ID</option>
-            <option value="class">Class</option>
-            <option value="attribute">Attribute</option>
+      <div class="selector-grid target-preset-row">
+        <label>Target preset<select id="targetPreset">
+            <option value="custom">Custom</option>
+            <option value="chatgpt1">ChatGPT 1 (classic button)</option>
+            <option value="chatgpt2">ChatGPT 2 (file reference link)</option>
+            <option value="chatgpt3">ChatGPT 3 (agent inline file mention)</option>
           </select></label>
       </div>
-      <label>Attribute name<input id="targetAttributeName" type="text" placeholder="data-testid"></label>
-      <label>Selector value<input id="targetValue" type="text" placeholder="class-name or CSS selector"></label>
-      <div class="button-grid selector-picker-actions">
-        <button id="targetPickerButton" type="button">Pick on page</button>
-        <button id="targetTestButton" type="button">Test and highlight</button>
+      <div id="targetPresetInfo" class="target-preset-info" hidden></div>
+      <div id="targetCustomFields">
+        <div class="selector-grid">
+          <label>Tag<select id="targetTag">
+              <option>*</option>
+              <option>button</option>
+              <option>div</option>
+              <option>span</option>
+              <option>input</option>
+              <option>a</option>
+            </select></label>
+          <label>Type<select id="targetKind">
+              <option value="css">CSS selector</option>
+              <option value="id">ID</option>
+              <option value="class">Class</option>
+              <option value="attribute">Attribute</option>
+            </select></label>
+        </div>
+        <label>Attribute name<input id="targetAttributeName" type="text" placeholder="data-testid"></label>
+        <label>Selector value<input id="targetValue" type="text" placeholder="class-name or CSS selector"></label>
+        <div class="button-grid selector-picker-actions">
+          <button id="targetPickerButton" type="button">Pick on page</button>
+          <button id="targetTestButton" type="button">Test and highlight</button>
+        </div>
+        <output id="targetTestResult" class="selector-test-result"></output>
       </div>
-      <output id="targetTestResult" class="selector-test-result"></output>
       <div class="button-grid target-test-actions">
         <button id="targetDryRunTestButton" type="button">Dry run current target</button>
         <button id="targetClickTestButton" type="button" class="danger">Test click with confirmation</button>

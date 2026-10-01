@@ -74,7 +74,7 @@
     ruleSelect: $("#ruleSelect"), ruleName: $("#ruleName"), ruleEnabled: $("#ruleEnabled"), newRuleButton: $("#newRuleButton"), duplicateRuleButton: $("#duplicateRuleButton"), deleteRuleButton: $("#deleteRuleButton"), ruleRuntimeSummary: $("#ruleRuntimeSummary"), ruleRuntimeBadge: $("#ruleRuntimeBadge"), ruleCommandEnabled: $("#ruleCommandEnabled"), ruleCommandPreset: $("#ruleCommandPreset"), ruleCommandTrigger: $("#ruleCommandTrigger"), ruleCommandAllowDryRun: $("#ruleCommandAllowDryRun"), ruleCommandStatus: $("#ruleCommandStatus"), statisticsRuleCount: $("#statisticsRuleCount"), statisticsMatchCount: $("#statisticsMatchCount"), statisticsClickCount: $("#statisticsClickCount"), statisticsVerifyCount: $("#statisticsVerifyCount"), statisticsCommandCount: $("#statisticsCommandCount"), ruleStatisticsRows: $("#ruleStatisticsRows"), selectedRuleStatistics: $("#selectedRuleStatistics"), ruleStatisticsStatus: $("#ruleStatisticsStatus"), exportRuleStatisticsButton: $("#exportRuleStatisticsButton"), resetRuleStatisticsButton: $("#resetRuleStatisticsButton"),
     autoProfileByUrl: $("#autoProfileByUrl"), autoActivateMatchingUrls: $("#autoActivateMatchingUrls"), routingEnabled: $("#routingEnabled"), routingPriority: $("#routingPriority"), requireUrlMatch: $("#requireUrlMatch"), urlPatterns: $("#urlPatterns"), testUrlRoutingButton: $("#testUrlRoutingButton"), useRoutedProfileButton: $("#useRoutedProfileButton"), grantAutoActivationAccessButton: $("#grantAutoActivationAccessButton"), runAutoActivationScanButton: $("#runAutoActivationScanButton"), urlRoutingResult: $("#urlRoutingResult"), autoActivationResult: $("#autoActivationResult"),
     monitorProfileSearch: $("#monitorProfileSearch"), monitorProfileSearchResult: $("#monitorProfileSearchResult"), monitorProfileSelect: $("#monitorProfileSelect"), monitorProfileName: $("#monitorProfileName"), applyMonitorProfileButton: $("#applyMonitorProfileButton"), newMonitorProfileButton: $("#newMonitorProfileButton"), saveMonitorProfileButton: $("#saveMonitorProfileButton"), setDefaultMonitorProfileButton: $("#setDefaultMonitorProfileButton"), deleteMonitorProfileButton: $("#deleteMonitorProfileButton"), monitorTag: $("#monitorTag"), monitorKind: $("#monitorKind"), monitorAttributeName: $("#monitorAttributeName"), monitorValue: $("#monitorValue"), monitorVisibilityTransition: $("#monitorVisibilityTransition"), matchStableMs: $("#matchStableMs"), resetStableMs: $("#resetStableMs"), monitorPickerButton: $("#monitorPickerButton"), monitorTestButton: $("#monitorTestButton"), monitorTestResult: $("#monitorTestResult"), conditionJoin: $("#conditionJoin"), addConditionButton: $("#addConditionButton"), conditionsList: $("#conditionsList"), conditionTemplate: $("#conditionTemplate"),
-    targetProfileSearch: $("#targetProfileSearch"), targetProfileSearchResult: $("#targetProfileSearchResult"), targetProfileSelect: $("#targetProfileSelect"), targetProfileName: $("#targetProfileName"), applyTargetProfileButton: $("#applyTargetProfileButton"), newTargetProfileButton: $("#newTargetProfileButton"), saveTargetProfileButton: $("#saveTargetProfileButton"), setDefaultTargetProfileButton: $("#setDefaultTargetProfileButton"), deleteTargetProfileButton: $("#deleteTargetProfileButton"), targetEnabled: $("#targetEnabled"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
+    targetProfileSearch: $("#targetProfileSearch"), targetProfileSearchResult: $("#targetProfileSearchResult"), targetProfileSelect: $("#targetProfileSelect"), targetProfileName: $("#targetProfileName"), targetProfileSourceSummary: $("#targetProfileSourceSummary"), applyTargetProfileButton: $("#applyTargetProfileButton"), newTargetProfileButton: $("#newTargetProfileButton"), saveTargetProfileButton: $("#saveTargetProfileButton"), setDefaultTargetProfileButton: $("#setDefaultTargetProfileButton"), deleteTargetProfileButton: $("#deleteTargetProfileButton"), targetEnabled: $("#targetEnabled"), targetPreset: $("#targetPreset"), targetPresetInfo: $("#targetPresetInfo"), targetCustomFields: $("#targetCustomFields"), targetTag: $("#targetTag"), targetKind: $("#targetKind"), targetAttributeName: $("#targetAttributeName"), targetValue: $("#targetValue"), targetPickerButton: $("#targetPickerButton"), targetTestButton: $("#targetTestButton"), targetTestResult: $("#targetTestResult"), targetDryRunTestButton: $("#targetDryRunTestButton"), targetClickTestButton: $("#targetClickTestButton"), targetClickQuickButton: $("#targetClickQuickButton"), clickStrategy: $("#clickStrategy"), maxClicksPerCycle: $("#maxClicksPerCycle"), visibleOnly: $("#visibleOnly"), enabledOnly: $("#enabledOnly"), dryRun: $("#dryRun"), fingerprintAttributes: $("#fingerprintAttributes"), pipelineEnabled: $("#pipelineEnabled"), preActionDelayMs: $("#preActionDelayMs"), postActionDelayMs: $("#postActionDelayMs"), verifyEnabled: $("#verifyEnabled"), verifyTag: $("#verifyTag"), verifyKind: $("#verifyKind"), verifyAttributeName: $("#verifyAttributeName"), verifyValue: $("#verifyValue"), verifyPickerButton: $("#verifyPickerButton"), verifyTestButton: $("#verifyTestButton"), verifyTestResult: $("#verifyTestResult"), verifyExpectation: $("#verifyExpectation"), verifyTimeoutMs: $("#verifyTimeoutMs"), verifyPollIntervalMs: $("#verifyPollIntervalMs"), pipelineRuntimeText: $("#pipelineRuntimeText"),
     titleBlink: $("#titleBlink"), titlePrefix: $("#titlePrefix"), blinkIntervalMs: $("#blinkIntervalMs"), badgeAlert: $("#badgeAlert"), sidebarAlert: $("#sidebarAlert"), notificationAlert: $("#notificationAlert"), soundAlertEnabled: $("#soundAlertEnabled"), soundAlertSettings: $("#soundAlertSettings"), soundAlertTone: $("#soundAlertTone"), soundAlertVolume: $("#soundAlertVolume"), soundAlertRepeatCount: $("#soundAlertRepeatCount"), soundAlertRepeatIntervalMs: $("#soundAlertRepeatIntervalMs"), testSoundAlertButton: $("#testSoundAlertButton"), soundAlertTestResult: $("#soundAlertTestResult"), dismissOnUserActivity: $("#dismissOnUserActivity"), activeTabTimeoutSeconds: $("#activeTabTimeoutSeconds"),
     logChannel: $("#logChannel"), activityLog: $("#activityLog"), copyLogsButton: $("#copyLogsButton"), exportSupportBundleButton: $("#exportSupportBundleButton"), clearLogsButton: $("#clearLogsButton"),
     localActionProfileSearch: $("#localActionProfileSearch"), localActionProfileSearchResult: $("#localActionProfileSearchResult"), localActionProfileSelect: $("#localActionProfileSelect"), localActionProfileName: $("#localActionProfileName"), localActionModeStatus: $("#localActionModeStatus"), localActionDraftStatus: $("#localActionDraftStatus"), localActionSourceSummary: $("#localActionSourceSummary"), assignLocalActionProfileButton: $("#assignLocalActionProfileButton"), clearLocalActionProfileBindingButton: $("#clearLocalActionProfileBindingButton"), newLocalActionProfileButton: $("#newLocalActionProfileButton"), saveLocalActionProfileButton: $("#saveLocalActionProfileButton"), setDefaultLocalActionProfileButton: $("#setDefaultLocalActionProfileButton"), deleteLocalActionProfileButton: $("#deleteLocalActionProfileButton"), localActionRoutingEnabled: $("#localActionRoutingEnabled"), localActionRoutingPriority: $("#localActionRoutingPriority"), localActionUrlPatterns: $("#localActionUrlPatterns"), managedDownloadEnabled: $("#managedDownloadEnabled"), downloadDestinationDirectory: $("#downloadDestinationDirectory"), downloadCaptureWindowSeconds: $("#downloadCaptureWindowSeconds"), downloadConflictAction: $("#downloadConflictAction"), showDownloadCompletionDialog: $("#showDownloadCompletionDialog"), downloadShellExecutionMode: $("#downloadShellExecutionMode"), openShellLogAfterExecution: $("#openShellLogAfterExecution"), downloadStateSummary: $("#downloadStateSummary"), downloadShellStateSummary: $("#downloadShellStateSummary"), retryDownloadMoveButton: $("#retryDownloadMoveButton"), saveTabLocalActionsButton: $("#saveTabLocalActionsButton"), resetTabLocalActionsButton: $("#resetTabLocalActionsButton"), revertLocalActionDraftButton: $("#revertLocalActionDraftButton"), downloadCompletionMessage: $("#downloadCompletionMessage"), downloadCompletionPath: $("#downloadCompletionPath"), downloadCompletionDialog: $("#downloadCompletionDialog"), executeShellAfterDownloadButton: $("#executeShellAfterDownloadButton"), acknowledgeDownloadButton: $("#acknowledgeDownloadButton"),
@@ -1584,6 +1584,54 @@
         : "Automatic command is disabled for this rule.");
   }
 
+  // ----- Target selector presets -----
+  const TARGET_PRESETS = {
+    chatgpt1: {
+      label: "ChatGPT 1 — classic download button",
+      description: "Matches the legacy ChatGPT download button by class names.",
+      selector: { tag: "button", kind: "class", attributeName: "", value: "behavior-btn entity-underline cursor-pointer appearance-none align-baseline" }
+    },
+    chatgpt2: {
+      label: "ChatGPT 2 — file reference link (new UI)",
+      description: "Matches the new ChatGPT file-reference inline element (aria-label starts with 'Download ').",
+      selector: { tag: "*", kind: "css", attributeName: "", value: "span[data-file-reference='true'][aria-label^='Download ']" }
+    },
+    chatgpt3: {
+      label: "ChatGPT 3 — agent inline file mention",
+      description: "Matches inline PATCH/COLLECT ZIP links in ChatGPT agent responses via structural attributes (data-inline-mention-interactive + data-file-reference). More stable than ChatGPT 2 — does not rely on aria-label text. Preferred for clicking PATCH or COLLECT files delivered inline in assistant messages.",
+      selector: { tag: "*", kind: "css", attributeName: "", value: "span[data-file-reference='true'][data-inline-mention-interactive]" }
+    }
+  };
+
+  function applyTargetPreset(presetId) {
+    const preset = TARGET_PRESETS[presetId];
+    const isCustom = !preset;
+    elements.targetCustomFields.hidden = !isCustom;
+    if (preset) {
+      elements.targetPresetInfo.hidden = false;
+      elements.targetPresetInfo.innerHTML =
+        `<strong>${preset.label}</strong>${preset.description}<br><code>${preset.selector.value}</code>`;
+      // Mirror preset values into hidden fields so readSelector always works
+      elements.targetTag.value = preset.selector.tag;
+      elements.targetKind.value = preset.selector.kind;
+      elements.targetAttributeName.value = preset.selector.attributeName;
+      elements.targetValue.value = preset.selector.value;
+    } else {
+      elements.targetPresetInfo.hidden = true;
+    }
+  }
+
+  function detectTargetPreset(selector) {
+    for (const [id, preset] of Object.entries(TARGET_PRESETS)) {
+      const s = preset.selector;
+      if (selector.tag === s.tag && selector.kind === s.kind &&
+          selector.attributeName === s.attributeName && selector.value === s.value) {
+        return id;
+      }
+    }
+    return "custom";
+  }
+
   function readRuleParts() {
     return {
       monitor: {
@@ -1642,6 +1690,11 @@
     elements.targetKind.value = value.target.selector.kind;
     elements.targetAttributeName.value = value.target.selector.attributeName;
     elements.targetValue.value = value.target.selector.value;
+    {
+      const detectedPreset = detectTargetPreset(value.target.selector);
+      elements.targetPreset.value = detectedPreset;
+      applyTargetPreset(detectedPreset);
+    }
     elements.clickStrategy.value = value.target.clickStrategy;
     elements.maxClicksPerCycle.value = String(value.target.maxClicksPerCycle);
     elements.visibleOnly.checked = value.target.visibleOnly;
@@ -2146,6 +2199,24 @@
     elements.targetProfileSelect.value = selectedTargetProfileId || "";
     elements.targetProfileName.value = targetProfileById(selectedTargetProfileId)?.name || "";
     renderFilterResult(elements.targetProfileSearchResult, { ...targetResult, query: listFilters.targetProfiles });
+    if (elements.targetProfileSourceSummary) {
+      const selectedProfile = targetProfileById(selectedTargetProfileId);
+      const currentRule = ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId) || null;
+      const ruleTarget = currentRule?.target;
+      // Detect which library profile matches the rule's current target selector
+      const matchedProfile = ruleTarget ? targetProfiles.find((p) => {
+        const s = p.target?.selector;
+        return s && s.tag === ruleTarget.selector?.tag && s.kind === ruleTarget.selector?.kind &&
+          s.attributeName === ruleTarget.selector?.attributeName && s.value === ruleTarget.selector?.value;
+      }) : null;
+      const selectedDiffers = selectedProfile && matchedProfile && selectedProfile.id !== matchedProfile.id;
+      const isDefault = selectedProfile?.id === dashboard.store.defaultTargetProfileId;
+      elements.targetProfileSourceSummary.hidden = false;
+      elements.targetProfileSourceSummary.dataset.state = selectedDiffers ? "warning" : (isDefault ? "idle" : "ok");
+      const ruleLabel = currentRule ? `Rule: "${currentRule.name || "Rule"}"` : "No rule selected";
+      const matchedLabel = matchedProfile ? `"${matchedProfile.name}"` : (ruleTarget ? "Custom (no matching profile)" : "—");
+      elements.targetProfileSourceSummary.textContent = `${ruleLabel} uses: ${matchedLabel} · Editing: ${selectedProfile?.name || "—"}${selectedDiffers ? " (not applied)" : ""}`;
+    }
   }
 
   function workingSessionCatalogEntries() {
@@ -4160,6 +4231,11 @@ ${run.command || ""}`)) {
   elements.addConditionButton.addEventListener("click", () => addConditionRow());
   elements.monitorPickerButton.addEventListener("click", () => toggleElementPicker("monitor"));
   elements.monitorTestButton.addEventListener("click", () => testSelector("monitor"));
+  elements.targetPreset.addEventListener("change", () => {
+    const presetId = elements.targetPreset.value;
+    applyTargetPreset(presetId);
+    commitCurrentRuleDraft();
+  });
   elements.targetPickerButton.addEventListener("click", () => toggleElementPicker("target"));
   elements.targetTestButton.addEventListener("click", () => testSelector("target"));
   elements.verifyPickerButton.addEventListener("click", () => toggleElementPicker("verify"));
