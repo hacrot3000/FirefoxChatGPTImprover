@@ -2238,61 +2238,118 @@
     return routing;
   }
 
+  function selectedComponentBindings() {
+    const session = selectedSession();
+    const currentSelected = Number(dashboard.currentTab?.tabId) === Number(selectedTabId);
+    const source = session?.componentBindings || (currentSelected ? dashboard.currentTab?.componentBindings : null) || {};
+    return {
+      ruleListProfileId: source.ruleListProfileId || null,
+      alertProfileId: source.alertProfileId || null,
+      rules: source.rules && typeof source.rules === "object" ? source.rules : {}
+    };
+  }
+
+  function componentSourceSummary(element, appliedProfile, selectedProfile, fallbackLabel, scopeLabel) {
+    if (!element) return;
+    const appliedLabel = appliedProfile ? appliedProfile.name : fallbackLabel;
+    const selectedDiffers = Boolean(selectedProfile && (!appliedProfile || selectedProfile.id !== appliedProfile.id));
+    element.hidden = false;
+    element.dataset.state = selectedDiffers ? "warning" : (appliedProfile ? "ok" : "idle");
+    element.textContent = scopeLabel + " uses: " + appliedLabel + " · Editing: " + (selectedProfile?.name || "—") + (selectedDiffers ? " (not applied)" : "");
+  }
+
+  function profileOptions(selectedId, defaultId, result) {
+    return result.items.map((profile) => {
+      const suffix = profile.id === defaultId ? " (default)" : "";
+      const kept = result.selectedKept && String(profile.id) === String(selectedId) ? " (selected; outside filter)" : "";
+      return new Option(profile.name + suffix + kept, profile.id);
+    });
+  }
+
   function renderComponentProfileOptions() {
-    const monitorProfiles = Array.isArray(dashboard.store?.monitorProfiles) ? dashboard.store.monitorProfiles : [];
+    const store = dashboard.store || Settings.defaultStore();
+    const bindings = selectedComponentBindings();
+    const selectedTabExists = Boolean(selectedSession()) || Number(dashboard.currentTab?.tabId) === Number(selectedTabId);
+    const currentRule = ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId) || null;
+    const ruleBinding = currentRule ? (bindings.rules?.[currentRule.id] || {}) : {};
+
+    const ruleListProfiles = Array.isArray(store.ruleListProfiles) ? store.ruleListProfiles : [];
+    selectedRuleListProfileId = ruleListProfiles.some((profile) => profile.id === selectedRuleListProfileId)
+      ? selectedRuleListProfileId
+      : (store.defaultRuleListProfileId || ruleListProfiles[0]?.id || null);
+    const ruleListResult = filteredWithSelection(
+      ruleListProfiles, listFilters.ruleListProfiles, selectedRuleListProfileId,
+      (profile) => filterMatches(listFilters.ruleListProfiles, profile.id, profile.name, profile.rules?.map((rule) => [rule.id, rule.name, rule.enabled, rule.commandAction?.presetId, rule.commandAction?.trigger]))
+    );
+    elements.ruleListProfileSelect.replaceChildren(...profileOptions(selectedRuleListProfileId, store.defaultRuleListProfileId, ruleListResult));
+    elements.ruleListProfileSelect.value = selectedRuleListProfileId || "";
+    elements.ruleListProfileName.value = ruleListProfileById(selectedRuleListProfileId)?.name || "";
+    renderFilterResult(elements.ruleListProfileSearchResult, { ...ruleListResult, query: listFilters.ruleListProfiles });
+    const appliedRuleList = bindings.ruleListProfileId ? Settings.ruleListProfileById(store, bindings.ruleListProfileId) : null;
+    componentSourceSummary(elements.ruleListProfileSourceSummary, appliedRuleList, ruleListProfileById(selectedRuleListProfileId), "Automation compatibility snapshot", "Tab");
+    elements.applyRuleListProfileButton.disabled = busy || !selectedTabExists || !selectedRuleListProfileId;
+    elements.clearRuleListProfileBindingButton.disabled = busy || !selectedTabExists || !bindings.ruleListProfileId;
+
+    const monitorProfiles = Array.isArray(store.monitorProfiles) ? store.monitorProfiles : [];
     selectedMonitorProfileId = monitorProfiles.some((profile) => profile.id === selectedMonitorProfileId)
       ? selectedMonitorProfileId
-      : (dashboard.store.defaultMonitorProfileId || monitorProfiles[0]?.id || null);
+      : (store.defaultMonitorProfileId || monitorProfiles[0]?.id || null);
     const monitorResult = filteredWithSelection(
-      monitorProfiles,
-      listFilters.monitorProfiles,
-      selectedMonitorProfileId,
+      monitorProfiles, listFilters.monitorProfiles, selectedMonitorProfileId,
       (profile) => filterMatches(listFilters.monitorProfiles, profile.id, profile.name, profile.monitor?.selector?.tag, profile.monitor?.selector?.kind, profile.monitor?.selector?.value, profile.monitor?.selector?.attributeName, profile.monitor?.visibilityTransition, profile.monitor?.conditions?.map((condition) => [condition.attribute, condition.operator, condition.value]))
     );
-    elements.monitorProfileSelect.replaceChildren(...monitorResult.items.map((profile) => {
-      const suffix = profile.id === dashboard.store.defaultMonitorProfileId ? " (default)" : "";
-      const kept = monitorResult.selectedKept && String(profile.id) === String(selectedMonitorProfileId) ? " (selected; outside filter)" : "";
-      return new Option(`${profile.name}${suffix}${kept}`, profile.id);
-    }));
+    elements.monitorProfileSelect.replaceChildren(...profileOptions(selectedMonitorProfileId, store.defaultMonitorProfileId, monitorResult));
     elements.monitorProfileSelect.value = selectedMonitorProfileId || "";
     elements.monitorProfileName.value = monitorProfileById(selectedMonitorProfileId)?.name || "";
     renderFilterResult(elements.monitorProfileSearchResult, { ...monitorResult, query: listFilters.monitorProfiles });
+    const appliedMonitor = ruleBinding.monitorProfileId ? Settings.monitorProfileById(store, ruleBinding.monitorProfileId) : null;
+    componentSourceSummary(elements.monitorProfileSourceSummary, appliedMonitor, monitorProfileById(selectedMonitorProfileId), "Rule compatibility snapshot", currentRule ? "Rule “" + (currentRule.name || "Rule") + "”" : "Selected rule");
+    elements.applyMonitorProfileButton.disabled = busy || !selectedTabExists || !currentRule || !selectedMonitorProfileId;
+    elements.clearMonitorProfileBindingButton.disabled = busy || !selectedTabExists || !currentRule || !ruleBinding.monitorProfileId;
 
-    const targetProfiles = Array.isArray(dashboard.store?.targetProfiles) ? dashboard.store.targetProfiles : [];
+    const targetProfiles = Array.isArray(store.targetProfiles) ? store.targetProfiles : [];
     selectedTargetProfileId = targetProfiles.some((profile) => profile.id === selectedTargetProfileId)
       ? selectedTargetProfileId
-      : (dashboard.store.defaultTargetProfileId || targetProfiles[0]?.id || null);
+      : (store.defaultTargetProfileId || targetProfiles[0]?.id || null);
     const targetResult = filteredWithSelection(
-      targetProfiles,
-      listFilters.targetProfiles,
-      selectedTargetProfileId,
-      (profile) => filterMatches(listFilters.targetProfiles, profile.id, profile.name, profile.target?.selector?.tag, profile.target?.selector?.kind, profile.target?.selector?.value, profile.target?.selector?.attributeName, profile.target?.clickStrategy, profile.target?.pipeline?.verifySelector?.tag, profile.target?.pipeline?.verifySelector?.kind, profile.target?.pipeline?.verifySelector?.value, profile.target?.pipeline?.verifyExpectation)
+      targetProfiles, listFilters.targetProfiles, selectedTargetProfileId,
+      (profile) => filterMatches(listFilters.targetProfiles, profile.id, profile.name, profile.target?.selector?.tag, profile.target?.selector?.kind, profile.target?.selector?.value, profile.target?.selector?.attributeName, profile.target?.clickStrategy, profile.target?.pipeline?.verifySelector?.value, profile.target?.pipeline?.verifyExpectation)
     );
-    elements.targetProfileSelect.replaceChildren(...targetResult.items.map((profile) => {
-      const suffix = profile.id === dashboard.store.defaultTargetProfileId ? " (default)" : "";
-      const kept = targetResult.selectedKept && String(profile.id) === String(selectedTargetProfileId) ? " (selected; outside filter)" : "";
-      return new Option(`${profile.name}${suffix}${kept}`, profile.id);
-    }));
+    elements.targetProfileSelect.replaceChildren(...profileOptions(selectedTargetProfileId, store.defaultTargetProfileId, targetResult));
     elements.targetProfileSelect.value = selectedTargetProfileId || "";
     elements.targetProfileName.value = targetProfileById(selectedTargetProfileId)?.name || "";
     renderFilterResult(elements.targetProfileSearchResult, { ...targetResult, query: listFilters.targetProfiles });
-    if (elements.targetProfileSourceSummary) {
-      const selectedProfile = targetProfileById(selectedTargetProfileId);
-      const currentRule = ruleById(Settings.normalizeConfig(formConfigDraft), selectedRuleId) || null;
-      const ruleTarget = currentRule?.target;
-      // Detect which library profile matches the rule's current target selector
-      const matchedProfile = ruleTarget ? targetProfiles.find((p) => {
-        const s = p.target?.selector;
-        return s && s.tag === ruleTarget.selector?.tag && s.kind === ruleTarget.selector?.kind &&
-          s.attributeName === ruleTarget.selector?.attributeName && s.value === ruleTarget.selector?.value;
-      }) : null;
-      const selectedDiffers = selectedProfile && matchedProfile && selectedProfile.id !== matchedProfile.id;
-      const isDefault = selectedProfile?.id === dashboard.store.defaultTargetProfileId;
-      elements.targetProfileSourceSummary.hidden = false;
-      elements.targetProfileSourceSummary.dataset.state = selectedDiffers ? "warning" : (isDefault ? "idle" : "ok");
-      const ruleLabel = currentRule ? `Rule: "${currentRule.name || "Rule"}"` : "No rule selected";
-      const matchedLabel = matchedProfile ? `"${matchedProfile.name}"` : (ruleTarget ? "Custom (no matching profile)" : "—");
-      elements.targetProfileSourceSummary.textContent = `${ruleLabel} uses: ${matchedLabel} · Editing: ${selectedProfile?.name || "—"}${selectedDiffers ? " (not applied)" : ""}`;
+    const appliedTarget = ruleBinding.targetProfileId ? Settings.targetProfileById(store, ruleBinding.targetProfileId) : null;
+    componentSourceSummary(elements.targetProfileSourceSummary, appliedTarget, targetProfileById(selectedTargetProfileId), "Rule compatibility snapshot", currentRule ? "Rule “" + (currentRule.name || "Rule") + "”" : "Selected rule");
+    elements.applyTargetProfileButton.disabled = busy || !selectedTabExists || !currentRule || !selectedTargetProfileId;
+    elements.clearTargetProfileBindingButton.disabled = busy || !selectedTabExists || !currentRule || !ruleBinding.targetProfileId;
+
+    const alertProfiles = Array.isArray(store.alertProfiles) ? store.alertProfiles : [];
+    selectedAlertProfileId = alertProfiles.some((profile) => profile.id === selectedAlertProfileId)
+      ? selectedAlertProfileId
+      : (store.defaultAlertProfileId || alertProfiles[0]?.id || null);
+    const alertResult = filteredWithSelection(
+      alertProfiles, listFilters.alertProfiles, selectedAlertProfileId,
+      (profile) => filterMatches(listFilters.alertProfiles, profile.id, profile.name, profile.alerts?.titlePrefix, profile.alerts?.sound?.tone, profile.alerts?.notification, profile.alerts?.activeTabTimeoutSeconds)
+    );
+    elements.alertProfileSelect.replaceChildren(...profileOptions(selectedAlertProfileId, store.defaultAlertProfileId, alertResult));
+    elements.alertProfileSelect.value = selectedAlertProfileId || "";
+    elements.alertProfileName.value = alertProfileById(selectedAlertProfileId)?.name || "";
+    renderFilterResult(elements.alertProfileSearchResult, { ...alertResult, query: listFilters.alertProfiles });
+    const appliedAlert = bindings.alertProfileId ? Settings.alertProfileById(store, bindings.alertProfileId) : null;
+    componentSourceSummary(elements.alertProfileSourceSummary, appliedAlert, alertProfileById(selectedAlertProfileId), "Automation compatibility snapshot", "Tab");
+    elements.applyAlertProfileButton.disabled = busy || !selectedTabExists || !selectedAlertProfileId;
+    elements.clearAlertProfileBindingButton.disabled = busy || !selectedTabExists || !bindings.alertProfileId;
+
+    const generic = [
+      [ruleListProfileById(selectedRuleListProfileId), store.ruleListProfiles, store.defaultRuleListProfileId, elements.setDefaultRuleListProfileButton, elements.deleteRuleListProfileButton],
+      [monitorProfileById(selectedMonitorProfileId), store.monitorProfiles, store.defaultMonitorProfileId, elements.setDefaultMonitorProfileButton, elements.deleteMonitorProfileButton],
+      [targetProfileById(selectedTargetProfileId), store.targetProfiles, store.defaultTargetProfileId, elements.setDefaultTargetProfileButton, elements.deleteTargetProfileButton],
+      [alertProfileById(selectedAlertProfileId), store.alertProfiles, store.defaultAlertProfileId, elements.setDefaultAlertProfileButton, elements.deleteAlertProfileButton]
+    ];
+    for (const [profile, profiles, defaultId, defaultButton, deleteButton] of generic) {
+      if (defaultButton) defaultButton.disabled = busy || !profile || profile.id === defaultId;
+      if (deleteButton) deleteButton.disabled = busy || !profile || (profiles?.length || 0) <= 1 || profile.id === defaultId;
     }
   }
 
