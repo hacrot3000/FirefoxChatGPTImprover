@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_TARGET_ENGINE?.VERSION >= 5) {
+  if (globalThis.FCI_TARGET_ENGINE?.VERSION >= 6) {
     return;
   }
 
@@ -313,6 +313,7 @@
     let actionsThisCycle = 0;
     let clickedThisCycle = 0;
     let dryRunThisCycle = 0;
+    let managedCurrentAttemptedThisCycle = false;
     let targetState = TARGET_STATE.DISABLED;
     let lastSignature = "";
     let lastRuntime = null;
@@ -419,6 +420,7 @@
       actionsThisCycle = 0;
       clickedThisCycle = 0;
       dryRunThisCycle = 0;
+      managedCurrentAttemptedThisCycle = false;
     }
 
     function establishBaseline(reason = "baseline") {
@@ -528,7 +530,8 @@
       return selected.slice(0, remainingLimit);
     }
 
-    async function performAction(selected) {
+    async function performAction(selected, options = {}) {
+      const requireManagedCapture = Boolean(options.requireManagedCapture);
       let lastError = null;
       let captureResult = { armed: false, reason: "unavailable" };
       const actedElements = [];
@@ -558,6 +561,19 @@
           lastError = `Download capture could not be armed: ${error instanceof Error ? error.message : String(error)}`;
         }
       }
+      if (requireManagedCapture && !captureResult?.armed) {
+        if (captureResult?.blocked && !lastError) {
+          lastError = `Target click was skipped because a managed download is already ${captureResult.status || "active"} for this tab.`;
+        }
+        return {
+          actedElements: [],
+          lastError,
+          dryRun: true,
+          captureArmed: false,
+          captureReason: String(captureResult?.reason || "unavailable")
+        };
+      }
+
       const effectiveDryRun = effectiveDryRunForCapture(config.target.dryRun, captureResult);
       if (captureResult?.blocked && !lastError) {
         lastError = `Target click was skipped because a managed download is already ${captureResult.status || "active"} for this tab.`;
@@ -584,7 +600,8 @@
         actedElements,
         lastError,
         dryRun: effectiveDryRun,
-        captureArmed: Boolean(captureResult?.armed)
+        captureArmed: Boolean(captureResult?.armed),
+        captureReason: String(captureResult?.reason || (captureResult?.armed ? "armed" : "unavailable"))
       };
     }
 
@@ -592,14 +609,17 @@
       return token !== pipelineToken || stopped || !monitorMatched;
     }
 
-    async function runPipeline(selected, reason) {
+    async function runPipeline(selected, reason, options = {}) {
+      const requireManagedCapture = Boolean(options.requireManagedCapture);
       const pipeline = config.target.pipeline || Settings.defaultConfig().target.pipeline;
       const token = ++pipelineToken;
       pipelineBusy = true;
       pipelineState = pipeline.preActionDelayMs > 0 ? "pre-delay" : "acting";
       pipelineStartedAt = new Date().toISOString();
       verifyResult = null;
-      selected.forEach(reserveHandled);
+      if (!requireManagedCapture) {
+        selected.forEach(reserveHandled);
+      }
       emit({ lastTargetAction: `pipeline-start:${selected.length}` }, true);
 
       try {
@@ -609,9 +629,25 @@
         }
         pipelineState = "acting";
         emit({ lastTargetAction: reason }, true);
-        const action = await performAction(selected);
+        const action = await performAction(selected, options);
+        if (requireManagedCapture && action.captureArmed) {
+          for (const item of selected) {
+            if (action.actedElements.includes(item.element)) {
+              reserveHandled(item);
+            }
+          }
+        }
         if (action.lastError) {
           emit({ lastTargetError: action.lastError }, true);
+        }
+        if (requireManagedCapture && !action.captureArmed) {
+          pipelineState = "idle";
+          targetState = TARGET_STATE.ARMED;
+          emit({
+            lastTargetAction: `managed-current-skip:${action.captureReason || "unavailable"}`,
+            lastTargetError: action.lastError
+          }, true);
+          return;
         }
         if (!action.actedElements.length) {
           pipelineState = "failed";
@@ -672,19 +708,30 @@
       }
     }
 
-    async function runImmediate(selected, reason) {
-      selected.forEach(reserveHandled);
-      const action = await performAction(selected);
+    async function runImmediate(selected, reason, options = {}) {
+      const requireManagedCapture = Boolean(options.requireManagedCapture);
+      if (!requireManagedCapture) {
+        selected.forEach(reserveHandled);
+      }
+      const action = await performAction(selected, options);
+      if (requireManagedCapture && action.captureArmed) {
+        for (const item of selected) {
+          if (action.actedElements.includes(item.element)) {
+            reserveHandled(item);
+          }
+        }
+      }
       if (!action.actedElements.length) {
         targetState = TARGET_STATE.ARMED;
       }
+      const managedSkip = requireManagedCapture && !action.captureArmed;
       emit({
         lastTargetAction: action.actedElements.length
           ? (action.dryRun ? `dry-run:${action.actedElements.length}` : `click:${action.actedElements.length}`)
-          : reason,
+          : (managedSkip ? `managed-current-skip:${action.captureReason || "unavailable"}` : reason),
         lastTargetAt: action.actedElements.length ? new Date().toISOString() : lastRuntime?.lastTargetAt || null,
         lastTargetError: action.lastError
-      }, Boolean(action.actedElements.length || action.lastError));
+      }, Boolean(action.actedElements.length || action.lastError || managedSkip));
     }
 
     function scan(reason = "target-mutation") {
@@ -714,6 +761,25 @@
 
         const selected = selectCandidates(candidates);
         if (!selected.length) {
+          if (!managedCurrentAttemptedThisCycle && actionsThisCycle === 0 && eligible.length) {
+            const currentTargets = eligible
+              .filter((element) => !handledNodes.has(element))
+              .map((element) => ({
+                element,
+                fingerprint: elementFingerprint(element, config.target.fingerprintAttributes)
+              }));
+            const managedSelected = selectCandidates(currentTargets);
+            if (managedSelected.length) {
+              managedCurrentAttemptedThisCycle = true;
+              const managedOptions = { requireManagedCapture: true };
+              if (config.target.pipeline?.enabled) {
+                void runPipeline(managedSelected, "managed-current-target", managedOptions);
+              } else {
+                void runImmediate(managedSelected, "managed-current-target", managedOptions);
+              }
+              return;
+            }
+          }
           if (targetState !== TARGET_STATE.ERROR) {
             targetState = TARGET_STATE.ARMED;
           }
@@ -840,7 +906,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 5,
+      VERSION: 6,
       targetObserverOptionsForConfig,
       elementFingerprint,
       elementEnabled,
