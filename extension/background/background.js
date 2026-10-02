@@ -4596,12 +4596,16 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     if (!validation.ok) {
       throw new Error(validation.errors.join("\n"));
     }
-    if (!Settings.urlAllowed(validation.config, session.url)) {
+    const currentAutomation = automationConfigForSession(session, store);
+    const automationOnlyConfig = Settings.normalizeConfig({
+      ...currentAutomation,
+      activation: Settings.clone(validation.config.activation)
+    });
+    if (!Settings.urlAllowed(automationOnlyConfig, session.url)) {
       throw new Error("The tab URL does not match the tab configuration allowlist.");
     }
     session.configMode = CONFIG_MODE.TAB;
-    session.tabConfig = validation.config;
-    session.componentBaseConfig = Settings.normalizeConfig(validation.config);
+    session.tabConfig = automationOnlyConfig;
     session.configRevision += 1;
     await applySessionToContent(session, store);
     await persistSession(session);
@@ -4814,6 +4818,30 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     }
   }
 
+  async function updateComponentProfileSessions(type, profileId, store) {
+    for (const session of sessions.values()) {
+      const bindings = normalizeComponentBindings(session.componentBindings);
+      const directlyBound = type === "rule-list"
+        ? bindings.ruleListProfileId === profileId
+        : (type === "alerts"
+          ? bindings.alertProfileId === profileId
+          : Object.values(bindings.rules).some((binding) =>
+              type === "monitor" ? binding.monitorProfileId === profileId : binding.targetProfileId === profileId
+            ));
+      if (!directlyBound) continue;
+      session.configRevision += 1;
+      try {
+        await applySessionToContent(session, store);
+        await persistSession(session);
+        await updateBadge(session, store);
+      } catch (error) {
+        session.mode = MODE.ERROR;
+        session.error = error instanceof Error ? error.message : String(error);
+        await updateBadge(session, store);
+      }
+    }
+  }
+
   function componentProfileSpec(type) {
     if (type === "rule-list") {
       return {
@@ -4938,7 +4966,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     profile.updatedAt = Settings.nowIso();
     await createSettingsSnapshot("before_component_profile_save", `Before saving ${type} profile: ${collection[index].name}`, store);
     collection[index] = profile;
-    await saveStore(store);
+    const saved = await saveStore(store);
+    await updateComponentProfileSessions(type, profile.id, saved);
     await broadcast(`${type}-profile-saved`);
     return profile;
   }
