@@ -5111,10 +5111,15 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
   async function createProfile(name, baseProfileId = null, rawConfig = null) {
     const store = await loadStore();
     const base = Settings.profileById(store, baseProfileId);
-    const validation = Settings.validateConfig(rawConfig || base?.config || Settings.defaultConfig());
+    const baseConfig = Settings.normalizeConfig(base?.config || Settings.defaultConfig());
+    const validation = Settings.validateConfig(rawConfig || baseConfig);
     if (!validation.ok) throw new Error(validation.errors.join("\n"));
+    const automationOnlyConfig = Settings.normalizeConfig({
+      ...baseConfig,
+      activation: Settings.clone(validation.config.activation)
+    });
     const profileName = manualProfileName(store.profiles, name, null, "Automation", "New profile");
-    const profile = Settings.createProfile(profileName, validation.config);
+    const profile = Settings.createProfile(profileName, automationOnlyConfig);
     store.profiles.push(profile);
     const saved = await saveStore(store);
     await broadcast("profile-created");
@@ -5128,15 +5133,19 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     if (!validation.ok) {
       throw new Error(validation.errors.join("\n"));
     }
-    incoming.config = validation.config;
-    incoming.updatedAt = Settings.nowIso();
     const index = store.profiles.findIndex((profile) => profile.id === incoming.id);
     if (index < 0) {
       throw new Error("Could not find the profile to save.");
     }
-    incoming.name = manualProfileName(store.profiles, incoming.name, incoming.id, "Automation", store.profiles[index].name);
-    incoming.createdAt = store.profiles[index].createdAt;
-    await createSettingsSnapshot("before_profile_save", `Before saving profile: ${store.profiles[index].name}`, store);
+    const previous = store.profiles[index];
+    incoming.config = Settings.normalizeConfig({
+      ...previous.config,
+      activation: Settings.clone(validation.config.activation)
+    });
+    incoming.updatedAt = Settings.nowIso();
+    incoming.name = manualProfileName(store.profiles, incoming.name, incoming.id, "Automation", previous.name);
+    incoming.createdAt = previous.createdAt;
+    await createSettingsSnapshot("before_profile_save", `Before saving profile: ${previous.name}`, store);
     store.profiles[index] = incoming;
     const saved = await saveStore(store);
     const persistedProfile = Settings.profileById(saved, incoming.id);
