@@ -47,7 +47,8 @@
     "activity-log": Object.freeze({ groups: Object.freeze(["activity"]) }),
     "keyboard-shortcuts": Object.freeze({ groups: Object.freeze(["keyboard-shortcuts"]) }),
     "backup-recovery": Object.freeze({ groups: Object.freeze(["save"]) }),
-    "setup-guide": Object.freeze({ groups: Object.freeze(["installation-guide", "native-host-restart"]) })
+    "setup-guide": Object.freeze({ groups: Object.freeze(["installation-guide"]) }),
+    "native-host-restart-help": Object.freeze({ groups: Object.freeze(["native-host-restart"]) })
   });
   const SIDEBAR_FEATURE_DEPENDENCIES = Object.freeze({
     "automation-routing": Object.freeze(["automation-profiles"]),
@@ -59,7 +60,8 @@
     simple: Object.freeze(["automation-editor", "alerts"]),
     standard: Object.freeze([
       "automation-editor", "automation-profiles", "alerts", "local-action-profiles",
-      "managed-downloads", "shell-commands", "working-sessions", "backup-recovery"
+      "managed-downloads", "shell-commands", "working-sessions", "backup-recovery",
+      "native-host-restart-help"
     ]),
     full: Object.freeze(Object.keys(SIDEBAR_FEATURES))
   });
@@ -698,6 +700,15 @@
     } else {
       sidebarFeaturePreset = Object.prototype.hasOwnProperty.call(SIDEBAR_FEATURE_PRESETS, requestedPreset) ? requestedPreset : "standard";
       visibleSidebarFeatures = new Set(normalizeSidebarFeatureSelection(hasStoredFeatures ? storedUi.visibleFeatures : SIDEBAR_FEATURE_PRESETS[sidebarFeaturePreset]));
+      // v0.41.16 migration: older saved Standard/All layouts predate the dedicated
+      // Native Host restart-help feature. Make it visible once after update; turning
+      // it off uses the normal feature toggle path, switches to Custom, and persists.
+      if (
+        (sidebarFeaturePreset === "standard" || sidebarFeaturePreset === "full") &&
+        SIDEBAR_FEATURE_PRESETS[sidebarFeaturePreset].includes("native-host-restart-help")
+      ) {
+        visibleSidebarFeatures.add("native-host-restart-help");
+      }
     }
     autoProfileByUrl = storedUi.autoProfileByUrl !== false;
     selectedMonitorProfileId = typeof storedUi.selectedMonitorProfileId === "string" ? storedUi.selectedMonitorProfileId : null;
