@@ -2,7 +2,7 @@
 
 <!-- FCI_PROJECT_STATUS_SCHEMA: 1 -->
 
-- Current add-on version: **0.41.14**
+- Current add-on version: **0.41.15**
 - Native Host version: **0.13.0**
 - Status updated: **2026-10-02**
 - Required-feature backlog: **completed**
@@ -35,7 +35,7 @@ This file is the release-facing feature inventory. Every feature patch must upda
 | Monitor and target profiles | Reusable Monitor element and New target element profile libraries with typed JSON import/export | **100%** | Released in v0.29.0 |
 | Automation engine | Multiple rules, monitor conditions, stability window, new-target baseline, picker, selector tests and action pipeline | **100%** | Released |
 | Alerts and titles | Compact `RD`/running indicators, desktop notification, optional bounded sound alerts, badge/title lifecycle and persistent custom tab names | **100%** | Ready label compacted in v0.41.6; reattachment hardened in v0.41.7; download-state lifecycle hardened through v0.41.9; normal RD warning/exclamation semantics removed in v0.41.10; move/download correlation and RD-title safety hardened in v0.41.11; CK overlap, ambiguous same-origin fallback attribution and Native Host disconnect terminal convergence hardened in v0.41.12; managed replacement/native-request/recovery start races hardened in v0.41.13 |
-| Sidebar organization | Search/filter plus persistent Simple, Standard, All and Custom feature visibility; hidden groups retain their data and runtime behavior | **100%** | Simplified in v0.39.7 |
+| Sidebar organization | Search/filter plus persistent Simple, Standard, All and Custom feature visibility; hidden groups retain their data and runtime behavior | **100%** | Simplified in v0.39.7; v0.41.15 compacts the internal header and makes Native Host restart help a bottom, collapsible, hideable group |
 | Keyboard shortcuts | Firefox-managed shortcuts for sidebar, tab lifecycle, alert acknowledgement, target action and command-log access | **100%** | Released in v0.34.0 |
 | Per-rule statistics | Session-isolated match/click/verify/command counts, return-code frequencies, timing diagnostics, JSON export and reset | **100%** | Released in v0.35.0 |
 | Command-run log archives | Per-run ZIP with complete paged transcript, metadata, README, DEFLATE compression and explicit fallback completeness | **100%** | Released in v0.36.0 |
