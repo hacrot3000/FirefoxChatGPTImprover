@@ -102,13 +102,20 @@
     return {
       schemaVersion: store.schemaVersion,
       defaultProfileId: store.defaultProfileId,
+      defaultRuleListProfileId: store.defaultRuleListProfileId,
       defaultMonitorProfileId: store.defaultMonitorProfileId,
       defaultTargetProfileId: store.defaultTargetProfileId,
+      defaultAlertProfileId: store.defaultAlertProfileId,
       nativeLogRetention: store.nativeLogRetention,
       profiles: store.profiles.map((profile) => ({
         id: profile.id,
         name: profile.name,
         config: profile.config
+      })),
+      ruleListProfiles: store.ruleListProfiles.map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        rules: profile.rules
       })),
       monitorProfiles: store.monitorProfiles.map((profile) => ({
         id: profile.id,
@@ -119,6 +126,11 @@
         id: profile.id,
         name: profile.name,
         target: profile.target
+      })),
+      alertProfiles: store.alertProfiles.map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        alerts: profile.alerts
       }))
     };
   }
