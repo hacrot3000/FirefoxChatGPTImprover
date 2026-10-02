@@ -378,8 +378,9 @@
       onRuntime?.({ ...next, lastEventAt: new Date().toISOString() });
     }
 
-    function queryTargetElements() {
-      if (!config.target.enabled) {
+    function queryTargetElements(options = {}) {
+      const includeDisabled = Boolean(options.includeDisabled);
+      if (!config.target.enabled && !includeDisabled) {
         currentCss = "";
         return [];
       }
@@ -642,7 +643,7 @@
         }
         if (requireManagedCapture && !action.captureArmed) {
           pipelineState = "idle";
-          targetState = TARGET_STATE.ARMED;
+          targetState = config.target.enabled ? TARGET_STATE.ARMED : TARGET_STATE.DISABLED;
           emit({
             lastTargetAction: `managed-current-skip:${action.captureReason || "unavailable"}`,
             lastTargetError: action.lastError
@@ -722,7 +723,7 @@
         }
       }
       if (!action.actedElements.length) {
-        targetState = TARGET_STATE.ARMED;
+        targetState = config.target.enabled ? TARGET_STATE.ARMED : TARGET_STATE.DISABLED;
       }
       const managedSkip = requireManagedCapture && !action.captureArmed;
       emit({
@@ -735,13 +736,19 @@
     }
 
     function scan(reason = "target-mutation") {
-      if (stopped || !config.target.enabled) {
+      if (stopped) {
+        return;
+      }
+      const managedProbeAllowed = monitorMatched && !managedCurrentAttemptedThisCycle && actionsThisCycle === 0;
+      if (!config.target.enabled && !managedProbeAllowed) {
         return;
       }
       try {
-        const elements = queryTargetElements();
+        const elements = queryTargetElements({ includeDisabled: managedProbeAllowed });
         const eligible = eligibleElements(elements);
-        const candidates = collectCandidates(elements).filter((item) => eligible.includes(item.element));
+        const candidates = config.target.enabled
+          ? collectCandidates(elements).filter((item) => eligible.includes(item.element))
+          : [];
         const counts = {
           baselineCount: [...baselineCounts.values()].reduce((sum, count) => sum + count, 0),
           targetTotalCount: elements.length,
@@ -750,7 +757,7 @@
         };
 
         if (!monitorMatched) {
-          targetState = TARGET_STATE.WAITING;
+          targetState = config.target.enabled ? TARGET_STATE.WAITING : TARGET_STATE.DISABLED;
           emit({ ...counts, lastTargetAction: reason });
           return;
         }
@@ -761,7 +768,7 @@
 
         const selected = selectCandidates(candidates);
         if (!selected.length) {
-          if (!managedCurrentAttemptedThisCycle && actionsThisCycle === 0 && eligible.length) {
+          if (managedProbeAllowed && eligible.length) {
             const currentTargets = eligible
               .filter((element) => !handledNodes.has(element))
               .map((element) => ({
@@ -781,7 +788,7 @@
             }
           }
           if (targetState !== TARGET_STATE.ERROR) {
-            targetState = TARGET_STATE.ARMED;
+            targetState = config.target.enabled ? TARGET_STATE.ARMED : TARGET_STATE.DISABLED;
           }
           emit({ ...counts, lastTargetAction: reason });
           return;
