@@ -4602,42 +4602,112 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     }
   }
 
-  function normalizeComponentProfile(type, rawProfile) {
-    if (type === "monitor") return Settings.normalizeMonitorProfile(rawProfile);
-    if (type === "target") return Settings.normalizeTargetProfile(rawProfile);
+  function componentProfileSpec(type) {
+    if (type === "rule-list") {
+      return {
+        collectionKey: "ruleListProfiles",
+        defaultKey: "defaultRuleListProfileId",
+        label: "Rule list",
+        fallbackName: "New rule list profile",
+        normalize: Settings.normalizeRuleListProfile,
+        create: Settings.createRuleListProfile,
+        valueKey: "rules",
+        defaultValue: () => Settings.defaultConfig().rules.map((rule) => ({
+          id: rule.id,
+          name: rule.name,
+          enabled: rule.enabled,
+          commandAction: Settings.clone(rule.commandAction)
+        }))
+      };
+    }
+    if (type === "monitor") {
+      return {
+        collectionKey: "monitorProfiles",
+        defaultKey: "defaultMonitorProfileId",
+        label: "Monitor",
+        fallbackName: "New monitor profile",
+        normalize: Settings.normalizeMonitorProfile,
+        create: Settings.createMonitorProfile,
+        valueKey: "monitor",
+        defaultValue: Settings.defaultMonitorConfig
+      };
+    }
+    if (type === "target") {
+      return {
+        collectionKey: "targetProfiles",
+        defaultKey: "defaultTargetProfileId",
+        label: "Target",
+        fallbackName: "New target profile",
+        normalize: Settings.normalizeTargetProfile,
+        create: Settings.createTargetProfile,
+        valueKey: "target",
+        defaultValue: Settings.defaultTargetConfig
+      };
+    }
+    if (type === "alerts") {
+      return {
+        collectionKey: "alertProfiles",
+        defaultKey: "defaultAlertProfileId",
+        label: "Alert",
+        fallbackName: "New alert profile",
+        normalize: Settings.normalizeAlertProfile,
+        create: Settings.createAlertProfile,
+        valueKey: "alerts",
+        defaultValue: Settings.defaultAlertConfig
+      };
+    }
     throw new Error(`Unsupported component profile type: ${type}.`);
+  }
+
+  function normalizeComponentProfile(type, rawProfile) {
+    const spec = componentProfileSpec(type);
+    return spec.normalize(rawProfile);
   }
 
   function validateComponentProfile(type, profile) {
     const config = Settings.defaultConfig();
-    if (type === "monitor") config.monitor = Settings.clone(profile.monitor);
-    if (type === "target") config.target = Settings.clone(profile.target);
-    config.rules = [{
-      ...config.rules[0],
-      monitor: Settings.clone(config.monitor),
-      target: Settings.clone(config.target)
-    }];
+    if (type === "monitor") {
+      config.monitor = Settings.clone(profile.monitor);
+      config.rules = [{
+        ...config.rules[0],
+        monitor: Settings.clone(config.monitor)
+      }];
+    } else if (type === "target") {
+      config.target = Settings.clone(profile.target);
+      config.rules = [{
+        ...config.rules[0],
+        target: Settings.clone(config.target)
+      }];
+    } else if (type === "rule-list") {
+      config.rules = profile.rules.map((entry, index) => {
+        const fallback = Settings.defaultRule(entry.name || `Rule ${index + 1}`, entry.id || `rule-${index + 1}`);
+        return {
+          ...fallback,
+          id: entry.id,
+          name: entry.name,
+          enabled: entry.enabled,
+          commandAction: Settings.clone(entry.commandAction)
+        };
+      });
+      config.activeRuleId = config.rules[0]?.id || config.activeRuleId;
+      config.monitor = Settings.clone(config.rules[0]?.monitor || config.monitor);
+      config.target = Settings.clone(config.rules[0]?.target || config.target);
+    } else if (type === "alerts") {
+      config.alerts = Settings.normalizeAlertConfig(profile.alerts);
+    }
     const validation = Settings.validateConfig(config);
     if (!validation.ok) throw new Error(validation.errors.join("\n"));
   }
 
   async function createComponentProfile(type, name, rawConfig) {
     const store = await loadStore();
-    const collection = type === "monitor" ? store.monitorProfiles : (type === "target" ? store.targetProfiles : null);
-    if (!collection) throw new Error(`Unsupported component profile type: ${type}.`);
-    const label = type === "monitor" ? "Monitor" : "Target";
-    const fallbackName = type === "monitor" ? "New monitor profile" : "New target profile";
-    const profileName = manualProfileName(collection, name, null, label, fallbackName);
-    let profile;
-    if (type === "monitor") {
-      profile = Settings.createMonitorProfile(profileName, rawConfig || Settings.defaultMonitorConfig());
-      validateComponentProfile(type, profile);
-      store.monitorProfiles.push(profile);
-    } else {
-      profile = Settings.createTargetProfile(profileName, rawConfig || Settings.defaultTargetConfig());
-      validateComponentProfile(type, profile);
-      store.targetProfiles.push(profile);
-    }
+    const spec = componentProfileSpec(type);
+    const collection = store[spec.collectionKey];
+    const profileName = manualProfileName(collection, name, null, spec.label, spec.fallbackName);
+    const value = rawConfig === undefined || rawConfig === null ? spec.defaultValue() : rawConfig;
+    const profile = spec.create(profileName, value);
+    validateComponentProfile(type, profile);
+    collection.push(profile);
     await saveStore(store);
     await broadcast(`${type}-profile-created`);
     return profile;
@@ -4645,13 +4715,13 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
   async function saveComponentProfile(type, rawProfile) {
     const store = await loadStore();
-    const profile = normalizeComponentProfile(type, rawProfile);
+    const spec = componentProfileSpec(type);
+    const profile = spec.normalize(rawProfile);
     validateComponentProfile(type, profile);
-    const collection = type === "monitor" ? store.monitorProfiles : store.targetProfiles;
+    const collection = store[spec.collectionKey];
     const index = collection.findIndex((item) => item.id === profile.id);
-    if (index < 0) throw new Error(`${type === "monitor" ? "Monitor" : "Target"} profile not found.`);
-    const label = type === "monitor" ? "Monitor" : "Target";
-    profile.name = manualProfileName(collection, profile.name, profile.id, label, collection[index].name);
+    if (index < 0) throw new Error(`${spec.label} profile not found.`);
+    profile.name = manualProfileName(collection, profile.name, profile.id, spec.label, collection[index].name);
     profile.createdAt = collection[index].createdAt;
     profile.updatedAt = Settings.nowIso();
     await createSettingsSnapshot("before_component_profile_save", `Before saving ${type} profile: ${collection[index].name}`, store);
@@ -4663,33 +4733,29 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
   async function setDefaultComponentProfile(type, profileId) {
     const store = await loadStore();
-    const collectionKey = type === "monitor" ? "monitorProfiles" : (type === "target" ? "targetProfiles" : null);
-    const defaultKey = type === "monitor" ? "defaultMonitorProfileId" : (type === "target" ? "defaultTargetProfileId" : null);
-    if (!collectionKey) throw new Error(`Unsupported component profile type: ${type}.`);
-    const profile = store[collectionKey].find((item) => item.id === profileId) || null;
-    if (!profile) throw new Error(`${type === "monitor" ? "Monitor" : "Target"} profile not found.`);
-    if (store[defaultKey] === profile.id) return { store, profile };
+    const spec = componentProfileSpec(type);
+    const profile = store[spec.collectionKey].find((item) => item.id === profileId) || null;
+    if (!profile) throw new Error(`${spec.label} profile not found.`);
+    if (store[spec.defaultKey] === profile.id) return { store, profile };
     await createSettingsSnapshot("before_component_default_change", `Before setting default ${type} profile: ${profile.name}`, store);
-    store[defaultKey] = profile.id;
+    store[spec.defaultKey] = profile.id;
     const saved = await saveStore(store);
     await broadcast(`${type}-default-profile-changed`);
-    return { store: saved, profile: saved[collectionKey].find((item) => item.id === profile.id) || profile };
+    return { store: saved, profile: saved[spec.collectionKey].find((item) => item.id === profile.id) || profile };
   }
 
   async function deleteComponentProfile(type, profileId) {
     const store = await loadStore();
-    const collectionKey = type === "monitor" ? "monitorProfiles" : (type === "target" ? "targetProfiles" : null);
-    const defaultKey = type === "monitor" ? "defaultMonitorProfileId" : (type === "target" ? "defaultTargetProfileId" : null);
-    if (!collectionKey) throw new Error(`Unsupported component profile type: ${type}.`);
-    const collection = store[collectionKey];
+    const spec = componentProfileSpec(type);
+    const collection = store[spec.collectionKey];
     if (collection.length <= 1) throw new Error(`At least one ${type} profile must remain.`);
-    if (store[defaultKey] === profileId) {
-      throw new Error(`Choose another default ${type === "monitor" ? "Monitor" : "Target"} profile before deleting this one.`);
+    if (store[spec.defaultKey] === profileId) {
+      throw new Error(`Choose another default ${spec.label} profile before deleting this one.`);
     }
     const profileToDelete = collection.find((item) => item.id === profileId);
-    if (!profileToDelete) throw new Error(`${type} profile not found.`);
+    if (!profileToDelete) throw new Error(`${spec.label} profile not found.`);
     await createSettingsSnapshot("before_component_profile_delete", `Before deleting ${type} profile: ${profileToDelete.name}`, store);
-    store[collectionKey] = collection.filter((item) => item.id !== profileId);
+    store[spec.collectionKey] = collection.filter((item) => item.id !== profileId);
     await saveStore(store);
     await broadcast(`${type}-profile-deleted`);
   }
