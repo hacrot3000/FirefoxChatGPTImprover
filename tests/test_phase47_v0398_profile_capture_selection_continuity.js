@@ -29,7 +29,7 @@ assert(html.includes('id="saveLocalActionProfileButton" type="button" class="pri
 assert(sidebar.includes("const profileEditorSelectionByTab = new Map();"));
 assert(sidebar.includes("const localActionProfileEditorSelectionByTab = new Map();"));
 assert(sidebar.includes("async function createProfileFromCurrentForm()"));
-assert(sidebar.includes('assertSavedConfig(validation.config, response.savedProfile?.config, "Create profile")'));
+assert(sidebar.includes('assertSavedAutomationConfig(validation.config, response.savedProfile?.config, "Create Automation profile")'));
 assert(
   sidebar.includes("profileEditorSelectionByTab.set(Number(selectedTabId), selectedProfileId)") ||
   sidebar.includes("setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId)")
@@ -55,7 +55,7 @@ const localEditorCheck = sidebar.indexOf("profile.id === editorLocalActionProfil
 const localSessionPriority = sidebar.indexOf("session?.localActionProfileId ||", localEditorCheck);
 assert(localEditorPriority >= 0 && localEditorCheck > localEditorPriority && localSessionPriority > localEditorCheck);
 assert(background.includes("async function createProfile(name, baseProfileId = null, rawConfig = null)"));
-assert(background.includes("Settings.validateConfig(rawConfig || base?.config || Settings.defaultConfig())"));
+assert(background.includes("Settings.validateConfig(rawConfig || baseConfig)"));
 assert(background.includes("createProfile(message.name, message.baseProfileId, message.config)"));
 assert(background.includes("savedProfile: Settings.profileById(result.store, result.profileId)"));
 assert(background.includes("async function createLocalActionProfile(name, baseProfileId = null, rawConfig = null)"));
