@@ -4219,7 +4219,13 @@ ${run.command || ""}`)) {
   }
 
   elements.ruleListProfileSelect.addEventListener("change", () => {
-    selectedRuleListProfileId = elements.ruleListProfileSelect.value;
+    const nextProfileId = elements.ruleListProfileSelect.value;
+    const previousProfileId = selectedRuleListProfileId;
+    if (nextProfileId !== previousProfileId && !confirmDiscardComponentEditor("rule-list", "switching profiles")) {
+      elements.ruleListProfileSelect.value = previousProfileId || "";
+      return;
+    }
+    selectedRuleListProfileId = nextProfileId;
     loadSelectedComponentProfileIntoEditor("rule-list");
     renderComponentProfileOptions();
     void persistSidebarUi();
@@ -4232,7 +4238,13 @@ ${run.command || ""}`)) {
   elements.deleteRuleListProfileButton.addEventListener("click", () => void deleteSelectedComponentProfile("rule-list"));
 
   elements.monitorProfileSelect.addEventListener("change", () => {
-    selectedMonitorProfileId = elements.monitorProfileSelect.value;
+    const nextProfileId = elements.monitorProfileSelect.value;
+    const previousProfileId = selectedMonitorProfileId;
+    if (nextProfileId !== previousProfileId && !confirmDiscardComponentEditor("monitor", "switching profiles")) {
+      elements.monitorProfileSelect.value = previousProfileId || "";
+      return;
+    }
+    selectedMonitorProfileId = nextProfileId;
     loadSelectedComponentProfileIntoEditor("monitor");
     renderComponentProfileOptions();
     void persistSidebarUi();
@@ -4245,7 +4257,13 @@ ${run.command || ""}`)) {
   elements.deleteMonitorProfileButton.addEventListener("click", () => void deleteSelectedComponentProfile("monitor"));
 
   elements.targetProfileSelect.addEventListener("change", () => {
-    selectedTargetProfileId = elements.targetProfileSelect.value;
+    const nextProfileId = elements.targetProfileSelect.value;
+    const previousProfileId = selectedTargetProfileId;
+    if (nextProfileId !== previousProfileId && !confirmDiscardComponentEditor("target", "switching profiles")) {
+      elements.targetProfileSelect.value = previousProfileId || "";
+      return;
+    }
+    selectedTargetProfileId = nextProfileId;
     loadSelectedComponentProfileIntoEditor("target");
     renderComponentProfileOptions();
     void persistSidebarUi();
@@ -4258,7 +4276,13 @@ ${run.command || ""}`)) {
   elements.deleteTargetProfileButton.addEventListener("click", () => void deleteSelectedComponentProfile("target"));
 
   elements.alertProfileSelect.addEventListener("change", () => {
-    selectedAlertProfileId = elements.alertProfileSelect.value;
+    const nextProfileId = elements.alertProfileSelect.value;
+    const previousProfileId = selectedAlertProfileId;
+    if (nextProfileId !== previousProfileId && !confirmDiscardComponentEditor("alerts", "switching profiles")) {
+      elements.alertProfileSelect.value = previousProfileId || "";
+      return;
+    }
+    selectedAlertProfileId = nextProfileId;
     loadSelectedComponentProfileIntoEditor("alerts");
     renderComponentProfileOptions();
     void persistSidebarUi();
@@ -4565,6 +4589,24 @@ ${run.command || ""}`)) {
     throw new Error("Unsupported component profile type: " + type);
   }
 
+  function componentEditorDirty(type) {
+    const spec = componentEditorSpec(type);
+    const profile = spec.profile(spec.selectedId());
+    if (!profile) return false;
+    const currentName = spec.nameElement.value.trim() || profile.name;
+    return currentName !== profile.name ||
+      JSON.stringify(spec.readValue()) !== JSON.stringify(profile[spec.valueKey]);
+  }
+
+  function confirmDiscardComponentEditor(type, action) {
+    const spec = componentEditorSpec(type);
+    if (!componentEditorDirty(type)) return true;
+    return confirm(
+      spec.label + " profile has unsaved editor changes. Discard them before " + action + "?\n\n" +
+      "OK: discard the unsaved editor changes and continue.\nCancel: keep editing."
+    );
+  }
+
   function loadSelectedComponentProfileIntoEditor(type) {
     const spec = componentEditorSpec(type);
     const profile = spec.profile(spec.selectedId());
@@ -4581,6 +4623,8 @@ ${run.command || ""}`)) {
       showMessage("Select a " + spec.label + " profile first.", "error");
       return;
     }
+    if (!confirmDiscardComponentEditor(type, "applying the saved profile to this tab")) return;
+    if (componentEditorDirty(type)) loadSelectedComponentProfileIntoEditor(type);
     const ruleId = type === "monitor" || type === "target" ? selectedRuleId : null;
     if ((type === "monitor" || type === "target") && !ruleId) {
       showMessage("Select a rule before applying the " + spec.label + " profile.", "error");
@@ -4598,6 +4642,8 @@ ${run.command || ""}`)) {
 
   async function clearSelectedComponentProfileBinding(type) {
     const spec = componentEditorSpec(type);
+    if (!confirmDiscardComponentEditor(type, "clearing this tab assignment")) return;
+    if (componentEditorDirty(type)) loadSelectedComponentProfileIntoEditor(type);
     const ruleId = type === "monitor" || type === "target" ? selectedRuleId : null;
     const response = await request(MESSAGE.CLEAR_COMPONENT_PROFILE_BINDING, {
       tabId: selectedTabId,
