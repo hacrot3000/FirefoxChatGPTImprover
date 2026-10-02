@@ -35,7 +35,7 @@ assert(background.includes("workingSessionAutomationRestorePlan"));
 assert(background.includes("workingSessionLocalActionRestorePlan"));
 assert(!background.includes("before_working_session_import"));
 assert(sidebar.includes("commitSelectedShellPresetDraft"));
-assert(sidebar.includes("assertSavedConfig"));
+assert(sidebar.includes("assertSavedAutomationConfig"));
 assert(html.includes('id="workingSessionDialog"'));
 assert(html.includes('id="newWorkingSessionEntryButton"'));
 assert(html.includes('id="importWorkingSessionEntryButton"'));
