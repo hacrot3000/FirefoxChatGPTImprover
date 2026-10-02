@@ -1837,18 +1837,64 @@
       : `Sound preview unavailable: ${result?.reason || "unknown error"}`;
   }
 
-  function writeConfig(config) {
+  function writeAutomationEditorConfig(config) {
     const value = Settings.normalizeConfig(config);
-    formConfigDraft = value;
-    selectedRuleId = value.activeRuleId;
     elements.routingEnabled.checked = value.activation.routingEnabled;
     elements.routingPriority.value = String(value.activation.routingPriority);
     elements.autoActivateMatchingUrls.checked = value.activation.autoActivate;
     elements.requireUrlMatch.checked = value.activation.requireUrlMatch;
     elements.urlPatterns.value = value.activation.urlPatterns.join("\n");
+  }
+
+  function componentValueFingerprint(value) {
+    return JSON.stringify(value || null);
+  }
+
+  function syncComponentSelectionsForEffectiveConfig(config) {
+    const value = Settings.normalizeConfig(config);
+    const bindings = selectedComponentBindings();
+    const store = dashboard.store || Settings.defaultStore();
+    const rule = ruleById(value, selectedRuleId) || value.rules[0] || null;
+    const ruleBinding = rule ? (bindings.rules?.[rule.id] || {}) : {};
+
+    const ruleListValue = value.rules.map((item) => ({
+      id: item.id,
+      name: item.name,
+      enabled: item.enabled,
+      commandAction: Settings.clone(item.commandAction)
+    }));
+    const matchedRuleList = (store.ruleListProfiles || []).find((profile) =>
+      componentValueFingerprint(profile.rules) === componentValueFingerprint(ruleListValue)
+    );
+    selectedRuleListProfileId = bindings.ruleListProfileId || matchedRuleList?.id || selectedRuleListProfileId;
+
+    if (rule) {
+      const matchedMonitor = (store.monitorProfiles || []).find((profile) =>
+        componentValueFingerprint(profile.monitor) === componentValueFingerprint(rule.monitor)
+      );
+      const matchedTarget = (store.targetProfiles || []).find((profile) =>
+        componentValueFingerprint(profile.target) === componentValueFingerprint(rule.target)
+      );
+      selectedMonitorProfileId = ruleBinding.monitorProfileId || matchedMonitor?.id || selectedMonitorProfileId;
+      selectedTargetProfileId = ruleBinding.targetProfileId || matchedTarget?.id || selectedTargetProfileId;
+    }
+
+    const matchedAlert = (store.alertProfiles || []).find((profile) =>
+      componentValueFingerprint(profile.alerts) === componentValueFingerprint(value.alerts)
+    );
+    selectedAlertProfileId = bindings.alertProfileId || matchedAlert?.id || selectedAlertProfileId;
+  }
+
+  function writeConfig(config) {
+    const value = Settings.normalizeConfig(config);
+    formConfigDraft = value;
+    selectedRuleId = value.activeRuleId;
+    writeAutomationEditorConfig(value);
     renderRuleOptions();
     writeRuleFields(ruleById(value, selectedRuleId));
     writeAlertEditorConfig(value.alerts);
+    syncComponentSelectionsForEffectiveConfig(value);
+    renderComponentProfileOptions();
     renderShellHistory();
     renderRuleRuntimeSummary();
   }
@@ -4285,7 +4331,7 @@ ${run.command || ""}`)) {
     void persistSidebarUi();
     const profile = profileById(selectedProfileId);
     elements.profileName.value = profile?.name || "";
-    writeConfig(profile?.config || Settings.defaultConfig());
+    writeAutomationEditorConfig(profile?.config || Settings.defaultConfig());
   });
   elements.autoProfileByUrl.addEventListener("change", () => {
     autoProfileByUrl = elements.autoProfileByUrl.checked;
@@ -4299,7 +4345,7 @@ ${run.command || ""}`)) {
         elements.profileSelect.value = selectedProfileId;
         const profile = profileById(selectedProfileId);
         elements.profileName.value = profile?.name || "";
-        writeConfig(profile?.config || Settings.defaultConfig());
+        writeAutomationEditorConfig(profile?.config || Settings.defaultConfig());
       }
     } else {
       setStoppedConfigBypass(selectedTabId, false);
@@ -4326,7 +4372,7 @@ ${run.command || ""}`)) {
     elements.profileSelect.value = selectedProfileId;
     const profile = profileById(selectedProfileId);
     elements.profileName.value = profile?.name || "";
-    writeConfig(profile?.config || Settings.defaultConfig());
+    writeAutomationEditorConfig(profile?.config || Settings.defaultConfig());
     void persistSidebarUi();
     showMessage(`Selected profile “${routing.profileName}” by URL.`, "success");
   });
