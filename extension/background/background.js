@@ -6137,6 +6137,13 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       ? await loadStoppedTabConfigSnapshot(tab.id)
       : null;
     currentTabMeta.stoppedConfig = currentStoppedConfig ? clone(currentStoppedConfig) : null;
+    currentTabMeta.componentBindings = Number.isInteger(tab?.id)
+      ? normalizeComponentBindings(
+          currentSession?.componentBindings ||
+          currentStoppedConfig?.componentBindings ||
+          await loadTabComponentBindings(tab.id)
+        )
+      : normalizeComponentBindings(null);
     const currentExplicitLocalActionProfileId = Number.isInteger(tab?.id)
       ? await loadTabLocalActionProfileId(tab.id, localActionStore)
       : null;
@@ -6345,6 +6352,25 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         case MESSAGE.SET_DEFAULT_COMPONENT_PROFILE: {
           const result = await setDefaultComponentProfile(message.profileType, message.profileId);
           return { ok: true, profileType: message.profileType, componentProfileId: result.profile.id, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.ASSIGN_COMPONENT_PROFILE: {
+          const assignment = await assignComponentProfile(
+            Number(message.tabId),
+            message.profileType,
+            message.profileId,
+            message.ruleId || null
+          );
+          return { ok: true, profileType: message.profileType, assignment, dashboard: await dashboard() };
+        }
+
+        case MESSAGE.CLEAR_COMPONENT_PROFILE_BINDING: {
+          const assignment = await clearComponentProfileBinding(
+            Number(message.tabId),
+            message.profileType,
+            message.ruleId || null
+          );
+          return { ok: true, profileType: message.profileType, assignment, dashboard: await dashboard() };
         }
 
         case MESSAGE.EXPORT_PROFILE_BUNDLE: {
