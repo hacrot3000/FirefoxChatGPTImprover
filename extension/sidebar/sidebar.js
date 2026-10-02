@@ -3188,10 +3188,16 @@
         profile.id, profile.name
       ]),
       defaultProfileId: data.store?.defaultProfileId || null,
+      ruleListProfiles: (Array.isArray(data.store?.ruleListProfiles) ? data.store.ruleListProfiles : []).map((profile) => [profile.id, profile.name, profile.updatedAt]),
+      defaultRuleListProfileId: data.store?.defaultRuleListProfileId || null,
       monitorProfiles: (Array.isArray(data.store?.monitorProfiles) ? data.store.monitorProfiles : []).map((profile) => [profile.id, profile.name, profile.updatedAt]),
       defaultMonitorProfileId: data.store?.defaultMonitorProfileId || null,
       targetProfiles: (Array.isArray(data.store?.targetProfiles) ? data.store.targetProfiles : []).map((profile) => [profile.id, profile.name, profile.updatedAt]),
       defaultTargetProfileId: data.store?.defaultTargetProfileId || null,
+      alertProfiles: (Array.isArray(data.store?.alertProfiles) ? data.store.alertProfiles : []).map((profile) => [profile.id, profile.name, profile.updatedAt]),
+      defaultAlertProfileId: data.store?.defaultAlertProfileId || null,
+      componentBindings: (Array.isArray(data.sessions) ? data.sessions : []).map((session) => [session.tabId, JSON.stringify(session.componentBindings || {})]),
+      currentComponentBindings: JSON.stringify(data.currentTab?.componentBindings || {}),
       localSessions: (Array.isArray(data.sessions) ? data.sessions : []).map((session) => [
         session.tabId, session.localActionProfileId, session.localActionConfigMode
       ]),
@@ -4147,6 +4153,8 @@ ${run.command || ""}`)) {
     });
     renderRuleOptions();
     writeRuleFields(rule);
+    syncComponentSelectionsForEffectiveConfig(current);
+    renderComponentProfileOptions();
     renderRuleRuntimeSummary();
     renderRuleStatistics();
   }
@@ -4180,7 +4188,7 @@ ${run.command || ""}`)) {
     renderRuleOptions();
     writeRuleFields(nextRule);
     renderRuleRuntimeSummary();
-    showMessage(`Added rule “${nextRule.name}” to the draft. Save the profile or save for this tab to apply it.`, "success");
+    showMessage(`Added rule “${nextRule.name}” to the Rule-list editor. Save the Rule-list profile, then Apply it to the tab when ready.`, "success");
   }
 
   function deleteSelectedRule() {
@@ -4207,7 +4215,7 @@ ${run.command || ""}`)) {
     renderRuleOptions();
     writeRuleFields(nextRule);
     renderRuleRuntimeSummary();
-    showMessage(`Removed rule “${rule.name}” from the draft.`, "success");
+    showMessage(`Removed rule “${rule.name}” from the Rule-list editor. Save the Rule-list profile to keep this change.`, "success");
   }
 
   elements.ruleListProfileSelect.addEventListener("change", () => {
