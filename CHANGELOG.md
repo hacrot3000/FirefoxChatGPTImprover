@@ -15,6 +15,19 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
+## [0.41.14] - 2026-10-02
+
+### Fixed
+
+- When **Capture the next target-triggered download** is enabled and the monitor becomes MATCHED, a currently eligible target that was already present in the target baseline can now trigger the managed download automatically. The content runtime probes that current target once per MATCHED cycle and clicks it only after the background confirms the managed-download capture is armed.
+- Managed-download fallback does not weaken normal baseline behavior: when capture is disabled, unavailable, or blocked by another active download job, the existing baseline target is not clicked.
+- The fallback preserves the configured target pipeline/delay/verification path and keeps the one-action-per-cycle accounting/duplicate guards intact.
+
+### Compatibility
+
+- Target Engine advances to 6, Rule Engine to 4, and the content runtime to 30 so already-open tabs reattach to the corrected behavior. Native Host remains 0.13.0 and does not need to be reinstalled.
+
+
 ## [0.41.13] - 2026-08-08
 
 ### Fixed
