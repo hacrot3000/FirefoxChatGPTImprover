@@ -5487,14 +5487,16 @@ Cancel: keep editing without losing the changes.`);
       const details = preview.scope === "all-configuration"
         ? [
             `${preview.automationProfiles} Automation`,
+            `${preview.ruleListProfiles || 0} Rule-list`,
             `${preview.monitorProfiles} Monitor`,
             `${preview.targetProfiles} Target`,
+            `${preview.alertProfiles || 0} Alert`,
             `${preview.localActionProfiles} Local action`,
             `${preview.commandPresets} command preset(s)`,
             `${preview.customPromptTemplates} custom prompt template(s)`,
             `sidebar preset: ${preview.sidebarFeaturePreset || "standard"}`
           ].join(", ")
-        : `${preview.automationProfiles} Automation, ${preview.monitorProfiles} Monitor, ${preview.targetProfiles} Target profile(s)`;
+        : `${preview.automationProfiles} Automation, ${preview.ruleListProfiles || 0} Rule-list, ${preview.monitorProfiles} Monitor, ${preview.targetProfiles} Target, ${preview.alertProfiles || 0} Alert profile(s)`;
       const scopeText = preview.scope === "all-configuration"
         ? "FULL configuration bundle"
         : "LEGACY Automation-only configuration";
