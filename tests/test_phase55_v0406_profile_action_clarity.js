@@ -21,9 +21,9 @@ function versionAtLeast(actual, minimum) {
 assert(versionAtLeast(manifest.version, "0.40.6"));
 for (const label of ["Save as new profile", "Save changes", "Make default", "Delete profile"]) assert(html.includes(label));
 assert(html.includes("Assign selected to tab"));
-assert(html.includes("Apply selected to rule"));
+assert(html.includes("Apply to tab / selected rule"));
 assert(html.includes("Clear tab assignment"));
-assert(html.includes("Remove tab override"));
+assert(html.includes("Remove routing override"));
 assert(!html.includes('id="duplicateProfileButton"'));
 assert(!sidebar.includes("duplicateProfileButton"));
 assert(!sidebar.includes("async function duplicateSelectedProfile"));
@@ -31,7 +31,7 @@ assert(background.includes("function manualProfileName(collection, rawName, excl
 assert(background.includes('`${label} profile “${name}” already exists. Choose a different name.`'));
 assert(background.includes('manualProfileName(store.profiles, name, null, "Automation", "New profile")'));
 assert(background.includes('manualProfileName(store.profiles, name, null, "Local action", "New local actions")'));
-assert(background.includes('profile.name = manualProfileName(collection, profile.name, profile.id, label, collection[index].name)'));
+assert(background.includes('profile.name = manualProfileName(collection, profile.name, profile.id, spec.label, collection[index].name)'));
 assert(background.includes('incoming.name = manualProfileName(store.profiles, incoming.name, incoming.id, "Automation", store.profiles[index].name)'));
 assert((background.match(/manualProfileName[(]/g) || []).length >= 7);
 console.log("PASS: Phase 55 removes redundant profile duplication, clarifies profile actions and rejects ambiguous duplicate names");
