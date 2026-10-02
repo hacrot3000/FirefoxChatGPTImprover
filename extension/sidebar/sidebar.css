@@ -11,12 +11,12 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 290px; background: Canvas; color: CanvasText; }
-.app-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.app-header { display: flex; align-items: center; justify-content: space-between; gap: 5px; min-height: 24px; padding: 2px 8px; border-bottom: 1px solid var(--border); }
 .app-header > div { min-width: 0; }
-.header-status-cluster { display: inline-flex; flex: none; align-items: center; gap: 5px; }
-.command-status-icon, .download-status-icon { display: inline-grid; min-width: 20px; height: 20px; place-items: center; border: 1px solid var(--border); border-radius: 999px; font-size: 10px; font-weight: 800; line-height: 1; }
-.command-status-icon { width: 20px; }
-.download-status-icon { width: auto; padding: 0 4px; }
+.header-status-cluster { display: inline-flex; flex: none; align-items: center; gap: 4px; }
+.command-status-icon, .download-status-icon { display: inline-grid; min-width: 18px; height: 18px; place-items: center; border: 1px solid var(--border); border-radius: 999px; font-size: 9px; font-weight: 800; line-height: 1; }
+.command-status-icon { width: 18px; }
+.download-status-icon { width: auto; padding: 0 3px; }
 .command-status-icon[hidden], .download-status-icon[hidden] { display: none; }
 .command-status-icon[data-state="running"] { border-color: #0969da; color: #0969da; animation: fci-command-pulse .8s ease-in-out infinite alternate; }
 .command-status-icon[data-state="unread"] { border-color: var(--paused); color: var(--paused); }
@@ -27,11 +27,11 @@ body { margin: 0; min-width: 290px; background: Canvas; color: CanvasText; }
 h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 0; font-size: 18px; }
 h2 { margin-bottom: 10px; font-size: 14px; }
-.eyebrow { margin: 0; overflow: hidden; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .035em; line-height: 1.15; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
-main { display: grid; gap: 10px; padding: 10px; }
+.eyebrow { margin: 0; overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .03em; line-height: 1.1; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+main { display: grid; gap: 8px; padding: 6px 8px 8px; }
 .card { position: relative; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
-.status-pill { display: inline-flex; flex: none; align-items: center; gap: 4px; min-height: 18px; padding: 1px 6px; overflow: hidden; border: 1px solid var(--border); border-radius: 999px; font-size: 10px; font-weight: 700; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
-.status-pill::before { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--muted); content: ""; }
+.status-pill { display: inline-flex; flex: none; align-items: center; gap: 3px; min-height: 16px; padding: 0 5px; overflow: hidden; border: 1px solid var(--border); border-radius: 999px; font-size: 9px; font-weight: 700; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
+.status-pill::before { width: 5px; height: 5px; flex: none; border-radius: 50%; background: var(--muted); content: ""; }
 body[data-mode="active"] .status-pill { border-color: var(--active); color: var(--active); }
 body[data-mode="active"] .status-pill::before { background: var(--active); }
 body[data-mode="paused"] .status-pill { border-color: var(--paused); color: var(--paused); }
@@ -231,6 +231,10 @@ body[data-alert="active"] .status-pill::before { background: var(--active); }
 .card[data-collapsed="true"] > :not(.group-heading):not(.help-menu) { display: none !important; }
 .card[data-collapsed="true"] .group-heading h2 { margin-bottom: 0; }
 
+.native-host-restart-note .inline-result { min-height: 0; }
+.native-host-restart-note .inline-result p { margin-bottom: 7px; }
+.native-host-restart-note .guide-command { margin: 5px 0 8px; }
+
 /* Phase 10: compact visual element-picker controls. */
 .selector-picker-actions { margin: 8px 0; }
 .selector-picker-actions button[data-picker-active="true"] { border-color: #a855f7; color: #9333ea; box-shadow: inset 0 0 0 1px #a855f7; }
@@ -312,6 +316,17 @@ body[data-alert="active"] .status-pill::before { background: var(--active); }
   font-size: 13px;
   line-height: 1;
   place-items: center;
+}
+
+/* Keep add-on-rendered close buttons compact. Firefox's native sidebar close button
+   belongs to browser chrome and cannot be styled by the WebExtension page. */
+.dialog-title-row > .icon-button,
+.working-session-header > .icon-button {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  min-height: 20px;
+  font-size: 11px;
 }
 .collapsed-only { display: none; }
 .card[data-collapsed="true"] .collapsed-only { display: inline-grid; }
