@@ -2513,6 +2513,8 @@
     const configMode = source.configMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE;
     const localActionConfigMode = source.localActionConfigMode === CONFIG_MODE.TAB ? CONFIG_MODE.TAB : CONFIG_MODE.PROFILE;
     const effectiveConfig = Settings.normalizeConfig(source.effectiveConfig || source.tabConfig || Settings.defaultConfig());
+    const componentBaseConfig = Settings.normalizeConfig(source.componentBaseConfig || effectiveConfig);
+    const componentBindings = normalizeComponentBindings(source.componentBindings);
     const effectiveLocalActions = LocalActions.normalizeConfig(
       source.effectiveLocalActions || source.localActionWorkingConfig || source.localActionTabConfig || LocalActions.defaultConfig()
     );
@@ -2526,6 +2528,8 @@
         ? Settings.normalizeConfig(source.tabConfig || effectiveConfig)
         : null,
       effectiveConfig,
+      componentBaseConfig,
+      componentBindings,
       localActionProfileId,
       localActionBinding: ["explicit-tab", "url-route", "default"].includes(source.localActionBinding)
         ? source.localActionBinding
@@ -2609,6 +2613,8 @@
       configMode: configChanged ? CONFIG_MODE.TAB : session.configMode,
       tabConfig: configChanged ? draftedConfig : session.tabConfig,
       effectiveConfig: draftedConfig,
+      componentBaseConfig: Settings.normalizeConfig(session.componentBaseConfig || currentConfig),
+      componentBindings: normalizeComponentBindings(session.componentBindings),
       localActionProfileId: session.localActionProfileId,
       localActionBinding,
       localActionConfigMode: session.localActionConfigMode,
@@ -2631,6 +2637,9 @@
       session.configMode = CONFIG_MODE.PROFILE;
       session.tabConfig = null;
     }
+
+    session.componentBaseConfig = Settings.normalizeConfig(snapshot.componentBaseConfig || snapshot.effectiveConfig);
+    session.componentBindings = normalizeComponentBindings(snapshot.componentBindings);
 
     const localProfile = LocalActions.profileById(localStore, snapshot.localActionProfileId);
     session.localActionProfileId = localProfile?.id || localStore.defaultProfileId || localStore.profiles[0]?.id;
