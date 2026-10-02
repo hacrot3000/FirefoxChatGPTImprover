@@ -36,6 +36,7 @@
   const TAB_SESSION_KEY = "firefoxChatImprover.tabSession.v2";
   const TAB_CUSTOM_TITLE_KEY = "firefoxChatImprover.customTabTitle.v1";
   const TAB_LOCAL_ACTION_PROFILE_KEY = "firefoxChatImprover.localActionProfile.v1";
+  const TAB_COMPONENT_BINDINGS_KEY = "firefoxChatImprover.componentBindings.v1";
   const TAB_STOPPED_CONFIG_KEY = "firefoxChatImprover.stoppedTabConfig.v1";
   const sessions = new Map();
   const pickerStates = new Map();
@@ -2406,6 +2407,99 @@
     }
   }
 
+  function componentProfileForBinding(store, type, profileId) {
+    if (type === "rule-list") return Settings.ruleListProfileById(store, profileId);
+    if (type === "monitor") return Settings.monitorProfileById(store, profileId);
+    if (type === "target") return Settings.targetProfileById(store, profileId);
+    if (type === "alerts") return Settings.alertProfileById(store, profileId);
+    throw new Error(`Unsupported component profile type: ${type}.`);
+  }
+
+  async function assignComponentProfile(tabId, type, profileId, ruleId = null) {
+    const numericTabId = Number(tabId);
+    if (!Number.isInteger(numericTabId)) throw new Error("The selected tab has no valid tab ID.");
+    const store = await loadStore();
+    const profile = componentProfileForBinding(store, type, profileId);
+    if (!profile) throw new Error(`${type} profile not found.`);
+
+    const session = sessions.get(numericTabId);
+    const currentBindings = session
+      ? normalizeComponentBindings(session.componentBindings)
+      : await loadTabComponentBindings(numericTabId);
+    const bindings = normalizeComponentBindings(currentBindings);
+    if (type === "rule-list") {
+      bindings.ruleListProfileId = profile.id;
+    } else if (type === "alerts") {
+      bindings.alertProfileId = profile.id;
+    } else {
+      const normalizedRuleId = String(ruleId || "").trim();
+      if (!normalizedRuleId) throw new Error(`A rule must be selected before applying the ${type} profile.`);
+      const previous = bindings.rules[normalizedRuleId] || {};
+      bindings.rules[normalizedRuleId] = {
+        monitorProfileId: type === "monitor" ? profile.id : (previous.monitorProfileId || null),
+        targetProfileId: type === "target" ? profile.id : (previous.targetProfileId || null)
+      };
+    }
+
+    await saveTabComponentBindings(numericTabId, bindings);
+    if (!session) {
+      await broadcast("component-profile-bound", numericTabId);
+      return { bindings, pendingActivation: true };
+    }
+
+    if (!session.componentBaseConfig) {
+      session.componentBaseConfig = sessionConfig(session, store);
+    }
+    session.componentBindings = bindings;
+    session.configRevision += 1;
+    await applySessionToContent(session, store);
+    await persistSession(session);
+    await updateBadge(session, store);
+    appendLog(session, "user", "component-profile-assigned", `${type} profile “${profile.name}” applied independently to this tab${ruleId ? ` / rule ${ruleId}` : ""}.`);
+    await broadcast("component-profile-assigned", numericTabId);
+    return { bindings, pendingActivation: false };
+  }
+
+  async function clearComponentProfileBinding(tabId, type, ruleId = null) {
+    const numericTabId = Number(tabId);
+    if (!Number.isInteger(numericTabId)) throw new Error("The selected tab has no valid tab ID.");
+    const store = await loadStore();
+    const session = sessions.get(numericTabId);
+    const bindings = normalizeComponentBindings(session?.componentBindings || await loadTabComponentBindings(numericTabId));
+    if (type === "rule-list") {
+      bindings.ruleListProfileId = null;
+    } else if (type === "alerts") {
+      bindings.alertProfileId = null;
+    } else if (type === "monitor" || type === "target") {
+      const normalizedRuleId = String(ruleId || "").trim();
+      if (!normalizedRuleId) throw new Error(`A rule must be selected before clearing the ${type} binding.`);
+      const previous = bindings.rules[normalizedRuleId] || {};
+      bindings.rules[normalizedRuleId] = {
+        monitorProfileId: type === "monitor" ? null : (previous.monitorProfileId || null),
+        targetProfileId: type === "target" ? null : (previous.targetProfileId || null)
+      };
+      if (!bindings.rules[normalizedRuleId].monitorProfileId && !bindings.rules[normalizedRuleId].targetProfileId) {
+        delete bindings.rules[normalizedRuleId];
+      }
+    } else {
+      throw new Error(`Unsupported component profile type: ${type}.`);
+    }
+
+    await saveTabComponentBindings(numericTabId, bindings);
+    if (!session) {
+      await broadcast("component-profile-binding-cleared", numericTabId);
+      return { bindings, pendingActivation: true };
+    }
+    session.componentBindings = bindings;
+    session.configRevision += 1;
+    await applySessionToContent(session, store);
+    await persistSession(session);
+    await updateBadge(session, store);
+    appendLog(session, "user", "component-profile-binding-cleared", `${type} profile binding cleared for this tab${ruleId ? ` / rule ${ruleId}` : ""}.`);
+    await broadcast("component-profile-binding-cleared", numericTabId);
+    return { bindings, pendingActivation: false };
+  }
+
 
   function configFingerprint(rawConfig) {
     return WorkingSession.configFingerprint(Settings.normalizeConfig(rawConfig));
@@ -2938,13 +3032,110 @@
     return saved.snapshots.map(Snapshots.summary);
   }
 
-  function sessionConfig(session, store) {
+  function automationConfigForSession(session, store) {
     if (session.configMode === CONFIG_MODE.TAB && session.tabConfig) {
       return Settings.normalizeConfig(session.tabConfig);
     }
     const profile = Settings.profileById(store, session.profileId) ||
       Settings.profileById(store, store.defaultProfileId) || store.profiles[0];
-    return Settings.normalizeConfig(profile.config);
+    return Settings.normalizeConfig(profile?.config || Settings.defaultConfig());
+  }
+
+  function normalizeComponentBindings(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const rules = source.rules && typeof source.rules === "object" ? source.rules : {};
+    const normalizedRules = {};
+    for (const [ruleId, value] of Object.entries(rules)) {
+      const id = String(ruleId || "").trim();
+      if (!id || !value || typeof value !== "object") continue;
+      const monitorProfileId = String(value.monitorProfileId || "").trim();
+      const targetProfileId = String(value.targetProfileId || "").trim();
+      if (!monitorProfileId && !targetProfileId) continue;
+      normalizedRules[id] = {
+        monitorProfileId: monitorProfileId || null,
+        targetProfileId: targetProfileId || null
+      };
+    }
+    return {
+      schema: 1,
+      ruleListProfileId: String(source.ruleListProfileId || "").trim() || null,
+      alertProfileId: String(source.alertProfileId || "").trim() || null,
+      rules: normalizedRules
+    };
+  }
+
+  async function loadTabComponentBindings(tabId) {
+    const numericTabId = Number(tabId);
+    if (!Number.isInteger(numericTabId)) return normalizeComponentBindings(null);
+    try {
+      return normalizeComponentBindings(
+        await browser.sessions.getTabValue(numericTabId, TAB_COMPONENT_BINDINGS_KEY)
+      );
+    } catch (_error) {
+      return normalizeComponentBindings(null);
+    }
+  }
+
+  async function saveTabComponentBindings(tabId, rawBindings) {
+    const numericTabId = Number(tabId);
+    if (!Number.isInteger(numericTabId)) throw new Error("The selected tab has no valid tab ID.");
+    const bindings = normalizeComponentBindings(rawBindings);
+    await browser.sessions.setTabValue(numericTabId, TAB_COMPONENT_BINDINGS_KEY, bindings);
+    return bindings;
+  }
+
+  function sessionConfig(session, store) {
+    const automationConfig = automationConfigForSession(session, store);
+    const componentBase = Settings.normalizeConfig(session?.componentBaseConfig || automationConfig);
+    const bindings = normalizeComponentBindings(session?.componentBindings);
+
+    const ruleListProfile = bindings.ruleListProfileId
+      ? Settings.ruleListProfileById(store, bindings.ruleListProfileId)
+      : null;
+    const skeletons = ruleListProfile?.rules?.length
+      ? ruleListProfile.rules
+      : componentBase.rules.map((rule) => ({
+          id: rule.id,
+          name: rule.name,
+          enabled: rule.enabled,
+          commandAction: Settings.clone(rule.commandAction)
+        }));
+
+    const rules = skeletons.map((entry, index) => {
+      const fallback = componentBase.rules.find((rule) => rule.id === entry.id) ||
+        Settings.defaultRule(entry.name || `Rule ${index + 1}`, entry.id || `rule-${index + 1}`);
+      const ruleBinding = bindings.rules[entry.id] || {};
+      const monitorProfile = ruleBinding.monitorProfileId
+        ? Settings.monitorProfileById(store, ruleBinding.monitorProfileId)
+        : null;
+      const targetProfile = ruleBinding.targetProfileId
+        ? Settings.targetProfileById(store, ruleBinding.targetProfileId)
+        : null;
+      return {
+        ...fallback,
+        id: entry.id,
+        name: entry.name,
+        enabled: entry.enabled,
+        commandAction: Settings.clone(entry.commandAction),
+        monitor: Settings.clone(monitorProfile?.monitor || fallback.monitor),
+        target: Settings.clone(targetProfile?.target || fallback.target)
+      };
+    });
+
+    const alertProfile = bindings.alertProfileId
+      ? Settings.alertProfileById(store, bindings.alertProfileId)
+      : null;
+    const activeRuleId = rules.some((rule) => rule.id === componentBase.activeRuleId)
+      ? componentBase.activeRuleId
+      : (rules[0]?.id || componentBase.activeRuleId);
+
+    return Settings.normalizeConfig({
+      ...componentBase,
+      activation: Settings.clone(automationConfig.activation),
+      activeRuleId,
+      rules,
+      alerts: Settings.clone(alertProfile?.alerts || componentBase.alerts)
+    });
   }
 
   function profileName(session, store) {
@@ -3357,6 +3548,8 @@
       configMode: CONFIG_MODE.PROFILE,
       tabConfig: null,
       configRevision: 1,
+      componentBaseConfig: null,
+      componentBindings: normalizeComponentBindings(null),
       localActionProfileId: localActionProfileId || LocalActions.DEFAULT_PROFILE_ID,
       localActionConfigMode: CONFIG_MODE.PROFILE,
       localActionTabConfig: null,
@@ -4240,6 +4433,12 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     const localActionProfile = boundLocalActionProfile || localRouting?.profile ||
       LocalActions.profileById(localStore, localStore.defaultProfileId) || localStore.profiles[0];
     const session = makeSession(tab, profile.id, source, localActionProfile.id);
+    session.componentBaseConfig = Settings.normalizeConfig(
+      restoreStoppedSnapshot?.componentBaseConfig || restoreStoppedSnapshot?.effectiveConfig || profile.config
+    );
+    session.componentBindings = normalizeComponentBindings(
+      restoreStoppedSnapshot?.componentBindings || await loadTabComponentBindings(tab.id)
+    );
     if (restoreStoppedSnapshot) {
       applyStoppedTabConfigSnapshot(session, stoppedSnapshot, store, localStore);
       if (!useStoppedLocalActions && boundLocalActionProfile) {
@@ -4365,6 +4564,9 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     if (!Settings.urlAllowed(profile.config, session.url)) {
       throw new Error("The tab URL does not match the profile allowlist.");
     }
+    if (!session.componentBaseConfig) {
+      session.componentBaseConfig = sessionConfig(session, store);
+    }
     session.profileId = profile.id;
     session.configMode = CONFIG_MODE.PROFILE;
     session.tabConfig = null;
@@ -4390,6 +4592,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     }
     session.configMode = CONFIG_MODE.TAB;
     session.tabConfig = validation.config;
+    session.componentBaseConfig = Settings.normalizeConfig(validation.config);
     session.configRevision += 1;
     await applySessionToContent(session, store);
     await persistSession(session);
