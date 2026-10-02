@@ -42,7 +42,10 @@ function extractFunction(source, signature) {
 }
 
 async function main() {
-  assert.equal(manifest.version, "0.41.13");
+  assert.ok(
+    manifest.version.localeCompare("0.41.13", undefined, { numeric: true }) >= 0,
+    `Phase 72 requires add-on version >= 0.41.13, got ${manifest.version}`
+  );
 
   // An extension-created replacement can emit downloads.onCreated before
   // downloads.download() resolves. Its URL hint must suppress attribution to
