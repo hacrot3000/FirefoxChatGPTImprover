@@ -4460,11 +4460,13 @@ ${run.command || ""}`)) {
   elements.targetDryRunTestButton.addEventListener("click", () => testTargetAction(false));
   elements.targetClickTestButton.addEventListener("click", () => testTargetAction(true));
   elements.targetClickQuickButton.addEventListener("click", () => testTargetAction(true));
-  function assertSavedConfig(expected, actual, label) {
-    const expectedFingerprint = WorkingSession.configFingerprint(expected);
-    const actualFingerprint = WorkingSession.configFingerprint(actual);
-    if (expectedFingerprint !== actualFingerprint) {
-      throw new Error(`${label}: Firefox storage returned different configuration data.`);
+  function automationScopeFingerprint(rawConfig) {
+    return JSON.stringify(Settings.normalizeConfig(rawConfig).activation);
+  }
+
+  function assertSavedAutomationConfig(expected, actual, label) {
+    if (automationScopeFingerprint(expected) !== automationScopeFingerprint(actual)) {
+      throw new Error(`${label}: Firefox storage returned different Automation routing data.`);
     }
   }
 
@@ -4743,7 +4745,7 @@ ${run.command || ""}`)) {
         config: validation.config
       });
       if (!response?.ok) throw new Error(response?.error || "Could not create the profile.");
-      assertSavedConfig(validation.config, response.savedProfile?.config, "Create profile");
+      assertSavedAutomationConfig(validation.config, response.savedProfile?.config, "Create Automation profile");
       dashboard = response.dashboard || dashboard;
       selectedProfileId = response.profileId;
       setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId);
@@ -4752,7 +4754,7 @@ ${run.command || ""}`)) {
       renderSelectors(selectedTabId);
       elements.profileName.value = response.savedProfile?.name || name;
       renderDetails(false);
-      showMessage(`Profile “${response.savedProfile?.name || name}” created from the current values.`, "success");
+      showMessage(`Automation profile “${response.savedProfile?.name || name}” created from the current routing values.`, "success");
     } catch (error) {
       showMessage(error instanceof Error ? error.message : String(error), "error");
     } finally {
@@ -4904,7 +4906,7 @@ ${run.command || ""}`)) {
         profile: { ...profile, name: elements.profileName.value.trim() || profile.name, config: validation.config }
       });
       if (!response?.ok) throw new Error(response?.error || "Could not save the profile.");
-      assertSavedConfig(validation.config, response.savedProfile?.config, "Save profile");
+      assertSavedAutomationConfig(validation.config, response.savedProfile?.config, "Save Automation profile");
       dashboard = response.dashboard || dashboard;
       selectedProfileId = response.savedProfile.id;
       setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId);
@@ -4913,7 +4915,7 @@ ${run.command || ""}`)) {
       renderSelectors(selectedTabId);
       elements.profileName.value = response.savedProfile.name;
       renderDetails(false);
-      showMessage(`Profile “${response.savedProfile.name}” saved and verified.`, "success");
+      showMessage(`Automation profile “${response.savedProfile.name}” routing saved and verified.`, "success");
     } catch (error) {
       showMessage(error instanceof Error ? error.message : String(error), "error");
     } finally {
@@ -4941,13 +4943,13 @@ ${run.command || ""}`)) {
         config: validation.config
       });
       if (!response?.ok) throw new Error(response?.error || "Could not save the tab configuration.");
-      assertSavedConfig(validation.config, response.savedSession?.effectiveConfig, "Save tab configuration");
+      assertSavedAutomationConfig(validation.config, response.savedSession?.effectiveConfig, "Save Automation tab routing");
       dashboard = response.dashboard || dashboard;
       formConfigDraft = Settings.normalizeConfig(response.savedSession.effectiveConfig);
       writeConfig(formConfigDraft);
       renderSelectors(selectedTabId);
       renderDetails(false);
-      showMessage(`Configuration for tab ${selectedTabId} saved and verified.`, "success");
+      showMessage(`Automation routing override for tab ${selectedTabId} saved and verified.`, "success");
     } catch (error) {
       showMessage(error instanceof Error ? error.message : String(error), "error");
     } finally {
