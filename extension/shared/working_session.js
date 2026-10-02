@@ -1,12 +1,12 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_WORKING_SESSION?.VERSION >= 4) {
+  if (globalThis.FCI_WORKING_SESSION?.VERSION >= 5) {
     return;
   }
 
   const FORMAT = "firefox-chat-assistant-working-session";
-  const VERSION = 4;
+  const VERSION = 5;
   const MAX_TABS = 200;
   const CATALOG_FORMAT = "firefox-chat-assistant-working-session-catalog";
   const CATALOG_VERSION = 1;
@@ -107,6 +107,28 @@
     };
   }
 
+  function normalizeComponentBindings(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const rawRules = source.rules && typeof source.rules === "object" ? source.rules : {};
+    const rules = {};
+    for (const [ruleId, rawBinding] of Object.entries(rawRules)) {
+      const id = safeString(ruleId).trim();
+      const binding = rawBinding && typeof rawBinding === "object" ? rawBinding : {};
+      if (!id) continue;
+      const monitorProfileId = safeString(binding.monitorProfileId).trim() || null;
+      const targetProfileId = safeString(binding.targetProfileId).trim() || null;
+      if (monitorProfileId || targetProfileId) {
+        rules[id] = { monitorProfileId, targetProfileId };
+      }
+    }
+    return {
+      schema: 1,
+      ruleListProfileId: safeString(source.ruleListProfileId).trim() || null,
+      alertProfileId: safeString(source.alertProfileId).trim() || null,
+      rules
+    };
+  }
+
   function normalizeTab(rawTab, index = 0) {
     const Settings = globalThis.FCI_SETTINGS;
     const source = rawTab && typeof rawTab === "object" ? rawTab : {};
@@ -133,6 +155,10 @@
         ? Settings.normalizeConfig(source.tabConfig || effectiveConfig)
         : (configMode === "tab" ? clone(source.tabConfig || effectiveConfig) : null),
       effectiveConfig,
+      componentBaseConfig: Settings?.normalizeConfig
+        ? Settings.normalizeConfig(source.componentBaseConfig || effectiveConfig)
+        : clone(source.componentBaseConfig || effectiveConfig),
+      componentBindings: normalizeComponentBindings(source.componentBindings),
       localActionProfileId: safeString(source.localActionProfileId),
       localActionProfile: normalizeLocalActionProfile(source.localActionProfile || {}, safeString(source.localActionProfileId) || null),
       localActionConfigMode: source.localActionConfigMode === "tab" ? "tab" : "profile",
@@ -168,7 +194,7 @@
     if (source.format !== FORMAT) {
       throw new Error("The selected JSON file is not a Firefox ChatAI Assistant working session.");
     }
-    if (![1, 2, 3, VERSION].includes(Number(source.version))) {
+    if (![1, 2, 3, 4, VERSION].includes(Number(source.version))) {
       throw new Error(`Unsupported working session version: ${source.version}.`);
     }
     return build(source.tabs, {
@@ -376,6 +402,7 @@
       isSupportedUrl,
       configFingerprint,
       localActionConfigFingerprint,
+      normalizeComponentBindings,
       normalizeTab,
       build,
       normalize,
