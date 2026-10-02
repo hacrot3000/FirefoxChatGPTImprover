@@ -55,7 +55,7 @@ assert.throws(
   () => Settings.parseProfileBundle(JSON.stringify(monitorBundle), "target"),
   /contains monitor profiles, not target profiles/
 );
-for (const type of ["configuration", "monitor", "target", "local-action"]) {
+for (const type of ["configuration", "rule-list", "monitor", "target", "alerts", "local-action"]) {
   assert.equal(Settings.parseProfileBundle(JSON.stringify(Settings.buildProfileBundle(type, [])), type).profileType, type);
 }
 
@@ -111,8 +111,8 @@ assert(background.includes("MutationObserver"));
 
 const sidebar = read("extension/sidebar/sidebar.js");
 for (const token of [
-  "applyComponentProfileToRule", "createComponentProfileFromRule", "saveSelectedComponentProfile",
-  "deleteSelectedComponentProfile", "saveCustomTabTitle", "exportProfileType", "chooseProfileImport",
+  "applySelectedComponentProfile", "createComponentProfileFromEditor", "saveSelectedComponentProfile",
+  "deleteSelectedComponentProfile", "clearSelectedComponentProfileBinding", "saveCustomTabTitle", "exportProfileType", "chooseProfileImport",
   "browser.permissions.contains", "browser.permissions.request"
 ]) assert(sidebar.includes(token), token);
 
