@@ -15,6 +15,19 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
+## [0.41.15] - 2026-10-02
+
+### Changed
+
+- Moved **Native Host after restart** into the normal sidebar group flow at the very bottom. It now defaults to collapsed, remembers its collapse state, and can be hidden completely through the existing **Setup, installation, and restart help** visibility control.
+- Reduced the add-on's internal sidebar header footprint: 24px minimum height, 2px vertical header padding, smaller status indicators, and less empty space between the header and first card.
+- Reduced add-on-rendered dialog close buttons to a compact 20px footprint. Firefox's own native sidebar close button remains browser chrome and is not styleable by WebExtension page CSS.
+
+### Compatibility
+
+- UI-only patch. No settings schema, automation engine, Native Host protocol, or stored configuration migration change.
+
+
 ## [0.41.14] - 2026-10-02
 
 ### Fixed
