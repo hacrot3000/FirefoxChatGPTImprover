@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_RULE_ENGINE?.VERSION >= 3) {
+  if (globalThis.FCI_RULE_ENGINE?.VERSION >= 4) {
     return;
   }
 
@@ -317,7 +317,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 3,
+      VERSION: 4,
       ruleConfig,
       createRuleAutomation
     })
