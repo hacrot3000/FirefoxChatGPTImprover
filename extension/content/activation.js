@@ -2,7 +2,7 @@
   "use strict";
 
   const INSTANCE_KEY = "__firefoxChatImproverRuntimeV6";
-  const RUNTIME_VERSION = 29;
+  const RUNTIME_VERSION = 30;
   const previousRuntime = globalThis[INSTANCE_KEY];
   if (previousRuntime?.VERSION >= RUNTIME_VERSION) {
     return;
