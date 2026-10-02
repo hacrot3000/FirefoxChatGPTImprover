@@ -9,11 +9,11 @@ const vm = require("node:vm");
 const root = path.resolve(__dirname, "..");
 const source = fs.readFileSync(path.join(root, "extension/content/target.js"), "utf8");
 
-function config() {
+function config(targetEnabled = true) {
   return {
     activeRuleId: "rule-download",
     target: {
-      enabled: true,
+      enabled: Boolean(targetEnabled),
       selector: { tag: "button", kind: "css", value: ".download", attributeName: "" },
       clickStrategy: "newest",
       visibleOnly: true,
@@ -147,6 +147,16 @@ async function flush() {
   assert.equal(armed.automation.snapshot().clickedCount, 1);
   assert.match(String(armed.automation.snapshot().lastTargetAction), /^click:1$/);
 
+  const managedOnly = createHarness({ armed: true, reason: "armed" });
+  managedOnly.automation.start(config(false), "test-managed-only");
+  assert.equal(managedOnly.automation.snapshot().targetState, "disabled", "Normal target processing may remain disabled before MATCHED.");
+  managedOnly.automation.handleMonitorRuntime({ monitorState: "matched", cycle: 1 });
+  await flush();
+  assert.equal(managedOnly.captureCalls, 1, "Managed download must probe the configured current target even when normal new-target processing is disabled.");
+  assert.equal(managedOnly.clickCount, 1, "Managed download enablement alone must be sufficient to trigger the configured current target after capture arms.");
+  assert.equal(managedOnly.automation.snapshot().clickedCount, 1);
+  assert.equal(managedOnly.automation.snapshot().targetState, "acted");
+
   const disabled = createHarness({ armed: false, reason: "disabled" });
   disabled.automation.start(config(), "test-baseline");
   disabled.automation.handleMonitorRuntime({ monitorState: "matched", cycle: 1 });
@@ -167,7 +177,7 @@ async function flush() {
   assert.match(rules, /VERSION: 4,/);
   assert.match(activation, /const RUNTIME_VERSION = 30;/);
 
-  console.log("PASS: managed download auto-clicks an existing baseline target exactly once when capture is armed");
+  console.log("PASS: managed download alone auto-clicks the configured current/baseline target exactly once when capture is armed");
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
