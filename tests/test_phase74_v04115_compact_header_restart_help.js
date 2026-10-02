@@ -24,7 +24,8 @@ assert(restartIndex >= 0, "Native Host restart help must be a sidebar group.");
 assert(messageIndex > restartIndex, "Native Host restart help must stay at the bottom of normal sidebar cards.");
 assert(!html.includes('<aside class="card native-host-restart-note"'), "Restart help must use the standard collapsible section contract.");
 assert(html.includes(">Native Host after restart</h2>"));
-assert(html.includes('data-sidebar-feature="setup-guide">Setup, installation, and restart help</label>'));
+assert(html.includes('data-sidebar-feature="setup-guide">Setup and installation</label>'));
+assert(html.includes('data-sidebar-feature="native-host-restart-help">Native Host after restart guide</label>'));
 
 assert(sidebar.includes('"native-host-restart": true'), "Restart help must default to collapsed.");
 assert(
@@ -32,8 +33,8 @@ assert(
   "Restart help must be the final ordered sidebar group."
 );
 assert(
-  sidebar.includes('"setup-guide": Object.freeze({ groups: Object.freeze(["installation-guide", "native-host-restart"]) })'),
-  "Setup visibility must be able to hide restart help completely."
+  sidebar.includes('"native-host-restart-help": Object.freeze({ groups: Object.freeze(["native-host-restart"]) })'),
+  "Restart help must have an independent visibility feature."
 );
 
 assert(
