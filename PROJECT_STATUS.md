@@ -2,9 +2,9 @@
 
 <!-- FCI_PROJECT_STATUS_SCHEMA: 1 -->
 
-- Current add-on version: **0.41.13**
+- Current add-on version: **0.41.14**
 - Native Host version: **0.13.0**
-- Status updated: **2026-08-08**
+- Status updated: **2026-10-02**
 - Required-feature backlog: **completed**
 - Recommended-feature backlog: **completed**
 
@@ -47,7 +47,7 @@ This file is the release-facing feature inventory. Every feature patch must upda
 | Stopped-tab Local action binding | Explicit Local action profile assignment before activation, persisted selection across sidebar refresh and Stop/Start cycles, safe deleted-profile fallback | **100%** | Fixed in v0.39.1 |
 | Explicit stopped-tab state | User Stop blocks trusted-URL auto-activation across reload/startup; manual configuration/routing and Local action binding changes reconcile the preserved snapshot and consume it only after successful Start | **100%** | Completed in v0.39.6 |
 | Local action binding controls | Accurate effective-source display and explicit binding removal back to URL routing/default on stopped or active tabs | **100%** | Added in v0.39.2 |
-| Managed downloads | Dialog-free capture, immutable per-tab jobs, relocation receipts, restart recovery, correlated Native Host responses and independent header lifecycle indicator | **100%** | Header lifecycle hardened through v0.41.9; download/move correlation, overlap/ownership and recovery races hardened through v0.41.13 (`CK`, `DL`, `MV`, `✓`, `NO`, `×`) |
+| Managed downloads | Dialog-free capture, immutable per-tab jobs, relocation receipts, restart recovery, correlated Native Host responses and independent header lifecycle indicator | **100%** | Header lifecycle hardened through v0.41.9; download/move correlation, overlap/ownership and recovery races hardened through v0.41.13; v0.41.14 makes enabled managed capture auto-trigger the current eligible baseline target once on MATCHED after capture arms successfully (`CK`, `DL`, `MV`, `✓`, `NO`, `×`) |
 | Shell execution | Manual/automatic execution, reusable presets, full stdout/stderr, per-tab history, recovery and stop semantics | **100%** | Released; Native Host disconnect/start-failure terminal convergence hardened in v0.41.12–0.41.13 |
 | Native Host platforms | Linux and Windows installer/runtime, process-tree control, path handling, relocation and bounded log retention | **100%** | Released in v0.28.25 |
 | Release quality | Full regression suite, real-Firefox E2E tooling, version matrix, support bundles, signed update-channel tooling, release-status gates, configuration/session/UI-scope regressions and Stop/Start configuration-continuity regression | **100%** | Hardened in v0.39.7 |
