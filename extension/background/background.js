@@ -5016,8 +5016,10 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     const profileToDelete = collection.find((item) => item.id === profileId);
     if (!profileToDelete) throw new Error(`${spec.label} profile not found.`);
     await createSettingsSnapshot("before_component_profile_delete", `Before deleting ${type} profile: ${profileToDelete.name}`, store);
+    const previousStore = Settings.normalizeStore(store);
     store[spec.collectionKey] = collection.filter((item) => item.id !== profileId);
-    await saveStore(store);
+    const saved = await saveStore(store);
+    await reconcileComponentBindingsForStore(previousStore, saved, `Deleted ${spec.label} profile “${profileToDelete.name}”`);
     await broadcast(`${type}-profile-deleted`);
   }
 
@@ -5306,6 +5308,108 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return report;
   }
 
+  function componentProfileValue(store, type, profileId) {
+    if (!profileId) return null;
+    const spec = componentProfileSpec(type);
+    const profile = store?.[spec.collectionKey]?.find((item) => item.id === profileId) || null;
+    return profile ? profile[spec.valueKey] : null;
+  }
+
+  function componentProfileEquivalent(previousStore, savedStore, type, profileId) {
+    const previousValue = componentProfileValue(previousStore, type, profileId);
+    const savedValue = componentProfileValue(savedStore, type, profileId);
+    return previousValue !== null && savedValue !== null &&
+      JSON.stringify(previousValue) === JSON.stringify(savedValue);
+  }
+
+  function reconcileComponentBindingsValue(rawBindings, previousStore, savedStore) {
+    const bindings = normalizeComponentBindings(rawBindings);
+    const next = normalizeComponentBindings(bindings);
+    let cleared = 0;
+
+    if (next.ruleListProfileId &&
+        !componentProfileEquivalent(previousStore, savedStore, "rule-list", next.ruleListProfileId)) {
+      next.ruleListProfileId = null;
+      cleared += 1;
+    }
+    if (next.alertProfileId &&
+        !componentProfileEquivalent(previousStore, savedStore, "alerts", next.alertProfileId)) {
+      next.alertProfileId = null;
+      cleared += 1;
+    }
+
+    for (const [ruleId, binding] of Object.entries(next.rules)) {
+      if (binding.monitorProfileId &&
+          !componentProfileEquivalent(previousStore, savedStore, "monitor", binding.monitorProfileId)) {
+        binding.monitorProfileId = null;
+        cleared += 1;
+      }
+      if (binding.targetProfileId &&
+          !componentProfileEquivalent(previousStore, savedStore, "target", binding.targetProfileId)) {
+        binding.targetProfileId = null;
+        cleared += 1;
+      }
+      if (!binding.monitorProfileId && !binding.targetProfileId) delete next.rules[ruleId];
+    }
+    return { bindings: normalizeComponentBindings(next), cleared };
+  }
+
+  async function reconcileComponentBindingsForStore(previousStore, savedStore, reason = "component profile library replacement") {
+    const report = { preservedActiveTabs: 0, preservedStoppedTabs: 0, clearedBindings: 0 };
+    const tabs = await browser.tabs.query({});
+    for (const tab of tabs) {
+      if (!Number.isInteger(tab?.id)) continue;
+      const session = sessions.get(tab.id);
+      if (session) {
+        const previousEffective = Settings.normalizeConfig(sessionConfig(session, previousStore));
+        const result = reconcileComponentBindingsValue(session.componentBindings, previousStore, savedStore);
+        if (!result.cleared) continue;
+        session.componentBaseConfig = previousEffective;
+        session.componentBindings = result.bindings;
+        session.configRevision += 1;
+        report.clearedBindings += result.cleared;
+        report.preservedActiveTabs += 1;
+        appendLog(
+          session,
+          "user",
+          "component-library-replaced-config-preserved",
+          reason + ": current Rule/Monitor/Target/Alert values were preserved while stale component bindings were cleared."
+        );
+        await Promise.all([
+          saveTabComponentBindings(tab.id, result.bindings),
+          persistSession(session)
+        ]);
+        await updateBadge(session, savedStore);
+        continue;
+      }
+
+      const snapshot = await loadStoppedTabConfigSnapshot(tab.id);
+      const rawBindings = snapshot?.componentBindings || await loadTabComponentBindings(tab.id);
+      const result = reconcileComponentBindingsValue(rawBindings, previousStore, savedStore);
+      if (!result.cleared) continue;
+      report.clearedBindings += result.cleared;
+      await saveTabComponentBindings(tab.id, result.bindings);
+      if (!snapshot) continue;
+
+      const componentBaseConfig = Settings.normalizeConfig(snapshot.effectiveConfig);
+      const effectiveConfig = sessionConfig({
+        profileId: snapshot.profileId,
+        configMode: snapshot.configMode,
+        tabConfig: snapshot.tabConfig,
+        componentBaseConfig,
+        componentBindings: result.bindings
+      }, savedStore);
+      await saveStoppedTabConfigSnapshot(tab.id, {
+        ...snapshot,
+        componentBaseConfig,
+        componentBindings: result.bindings,
+        effectiveConfig
+      });
+      report.preservedStoppedTabs += 1;
+    }
+    return report;
+  }
+
   async function refreshSessionsForLocalActionStore(previousStore, savedStore, reason = "Local action configuration replacement") {
     // Full configuration replacement changes the global Local action library, but it must
     // not silently change download/shell values for tabs that are already active or stopped.
@@ -5477,14 +5581,24 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
 
   async function replaceFullConfigurationBundle(bundle, reason = "Full configuration replacement") {
     const committed = await commitFullConfigurationBundle(bundle);
-    const [automationPreservation, localActionPreservation] = await Promise.all([
-      refreshSessionsForStore(committed.previousAutomationStore, committed.savedAutomationStore, reason),
+    const automationPreservation = await refreshSessionsForStore(
+      committed.previousAutomationStore,
+      committed.savedAutomationStore,
+      reason
+    );
+    const [componentPreservation, localActionPreservation] = await Promise.all([
+      reconcileComponentBindingsForStore(
+        committed.previousAutomationStore,
+        committed.savedAutomationStore,
+        reason
+      ),
       refreshSessionsForLocalActionStore(committed.previousLocalActionStore, committed.savedLocalActionStore, reason)
     ]);
     return {
       store: committed.savedAutomationStore,
       localActionStore: committed.savedLocalActionStore,
       automationPreservation,
+      componentPreservation,
       localActionPreservation
     };
   }
