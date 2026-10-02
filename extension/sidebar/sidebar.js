@@ -4048,7 +4048,11 @@ ${run.command || ""}`)) {
     elements.targetProfileName.value = targetProfileById(selectedTargetProfileId)?.name || "";
     void persistSidebarUi();
   });
-  elements.applyTargetProfileButton.addEventListener("click", () => applyComponentProfileToRule("target"));
+  elements.applyTargetProfileButton.addEventListener("click", () => {
+    applyComponentProfileToRule("target");
+    // Auto-save the automation profile so the preset/target change persists immediately.
+    void saveProfileConfiguration();
+  });
   elements.newTargetProfileButton.addEventListener("click", () => void createComponentProfileFromRule("target"));
   elements.saveTargetProfileButton.addEventListener("click", () => void saveSelectedComponentProfile("target"));
   elements.setDefaultTargetProfileButton.addEventListener("click", () => void setSelectedComponentProfileAsDefault("target"));
@@ -4266,10 +4270,18 @@ ${run.command || ""}`)) {
       showMessage(`Select a ${type} profile first.`, "error");
       return;
     }
+    // For target profiles: preserve the current form selector (set by the preset dropdown).
+    // Only apply behavioral settings from the profile (clickStrategy, pipeline, etc.).
+    // This prevents "Apply selected to rule" from overwriting the preset selection.
+    let appliedTarget;
+    if (type === "target") {
+      const profileTarget = Settings.clone(profile.target);
+      appliedTarget = { ...profileTarget, selector: Settings.clone(rule.target.selector), enabled: rule.target.enabled };
+    }
     const nextRule = {
       ...rule,
       monitor: type === "monitor" ? Settings.clone(profile.monitor) : Settings.clone(rule.monitor),
-      target: type === "target" ? Settings.clone(profile.target) : Settings.clone(rule.target)
+      target: type === "target" ? appliedTarget : Settings.clone(rule.target)
     };
     const rules = config.rules.map((item) => item.id === rule.id ? nextRule : item);
     formConfigDraft = Settings.normalizeConfig({
@@ -4281,7 +4293,11 @@ ${run.command || ""}`)) {
     });
     writeRuleFields(nextRule);
     renderRuleRuntimeSummary();
-    showMessage(`${type === "monitor" ? "Monitor" : "Target"} profile “${profile.name}” applied to rule “${nextRule.name}”. Save the Automation profile or save for this tab to persist it.`, "success");
+    if (type === "target") {
+      showMessage(`Target profile “${profile.name}” applied to rule “${nextRule.name}”. Saving automation profile…`, "success");
+    } else {
+      showMessage(`Monitor profile “${profile.name}” applied to rule “${nextRule.name}”. Save the Automation profile or save for this tab to persist it.`, "success");
+    }
   }
 
   function captureComponentProfileEditorDraft() {
