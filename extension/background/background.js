@@ -5026,13 +5026,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     if (type === "configuration") {
       return Settings.buildProfileBundle(type, store.profiles, { defaultProfileId: store.defaultProfileId });
     }
-    if (type === "monitor") {
-      return Settings.buildProfileBundle(type, store.monitorProfiles, { defaultProfileId: store.defaultMonitorProfileId });
-    }
-    if (type === "target") {
-      return Settings.buildProfileBundle(type, store.targetProfiles, { defaultProfileId: store.defaultTargetProfileId });
-    }
-    throw new Error(`Unsupported profile type: ${type}.`);
+    const spec = componentProfileSpec(type);
+    return Settings.buildProfileBundle(type, store[spec.collectionKey], { defaultProfileId: store[spec.defaultKey] });
   }
 
   async function importProfileBundle(type, text) {
@@ -5060,9 +5055,6 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         }
       });
       store.profiles = merged.profiles;
-      // Imported profile data must not erase per-tab working drafts or frozen download/shell values.
-      // Profile-bundle import is intentionally non-destructive: keep the local default,
-      // existing profile IDs and running tabs.
       await saveLocalActionStore(store);
       await broadcast("local-action-profiles-imported");
       return merged;
@@ -5091,48 +5083,27 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         }
       });
       store.profiles = merged.profiles;
-    } else if (type === "monitor") {
-      merged = mergeImportedProfilesSafely(store.monitorProfiles, bundle.profiles, {
-        normalize(item) {
-          const profile = Settings.normalizeMonitorProfile(item);
-          validateComponentProfile(type, profile);
-          return profile;
-        },
-        fingerprint(profile) {
-          return JSON.stringify(profile.monitor);
-        },
-        makeId() {
-          return Settings.makeId("monitor-profile");
-        },
-        create(profile, id, name) {
-          return Settings.createMonitorProfile(name, profile.monitor, id);
-        }
-      });
-      store.monitorProfiles = merged.profiles;
-    } else if (type === "target") {
-      merged = mergeImportedProfilesSafely(store.targetProfiles, bundle.profiles, {
-        normalize(item) {
-          const profile = Settings.normalizeTargetProfile(item);
-          validateComponentProfile(type, profile);
-          return profile;
-        },
-        fingerprint(profile) {
-          return JSON.stringify(profile.target);
-        },
-        makeId() {
-          return Settings.makeId("target-profile");
-        },
-        create(profile, id, name) {
-          return Settings.createTargetProfile(name, profile.target, id);
-        }
-      });
-      store.targetProfiles = merged.profiles;
     } else {
-      throw new Error(`Unsupported profile type: ${type}.`);
+      const spec = componentProfileSpec(type);
+      merged = mergeImportedProfilesSafely(store[spec.collectionKey], bundle.profiles, {
+        normalize(item) {
+          const profile = spec.normalize(item);
+          validateComponentProfile(type, profile);
+          return profile;
+        },
+        fingerprint(profile) {
+          return JSON.stringify(profile[spec.valueKey]);
+        },
+        makeId() {
+          return Settings.makeId(`${type}-profile`);
+        },
+        create(profile, id, name) {
+          return spec.create(name, profile[spec.valueKey], id);
+        }
+      });
+      store[spec.collectionKey] = merged.profiles;
     }
     await saveStore(store);
-    // Do not adopt the bundle's default profile and do not refresh active sessions.
-    // Imports add safe library copies only; applying a profile remains explicit.
     await broadcast(`${type}-profiles-imported`);
     return merged;
   }
