@@ -91,7 +91,8 @@ const headings = new Map([
   ["working-sessions", "Working session library"],
   ["activity", "Activity and support"],
   ["save", "Backup and transfer"],
-  ["installation-guide", "Setup and installation"]
+  ["installation-guide", "Setup and installation"],
+  ["native-host-restart", "Native Host after restart"]
 ]);
 for (const [groupId, heading] of headings) assert(section(groupId).includes(`>${heading}</h2>`), `${groupId} heading is still ambiguous`);
 
@@ -140,6 +141,11 @@ assert.deepEqual(Object.keys(sandbox.FEATURES).sort(), [...featureIds].sort(), "
 assert.equal(sandbox.PRESETS.simple.includes("automation-profiles"), false, "Simple mode must allow the default automation profile without profile-management clutter");
 assert(sandbox.PRESETS.standard.includes("local-action-profiles"), "Standard mode must keep Local action profiles visible");
 assert.equal(sandbox.PRESETS.full.length, featureIds.length, "All-features preset is incomplete");
+assert.deepEqual(
+  Array.from(sandbox.FEATURES["setup-guide"].groups),
+  ["installation-guide", "native-host-restart"],
+  "Setup visibility must cover both installation and restart help"
+);
 
 const normalize = (features, changed = "", enabled = true) => Array.from(sandbox.normalize(features, changed, enabled));
 assert(normalize(["shell-commands"]).includes("local-action-profiles"), "Shell commands require Local action profiles");
