@@ -1,16 +1,18 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 18) {
+  if (globalThis.FCI_SETTINGS?.SCHEMA_VERSION >= 19) {
     return;
   }
 
-  const SCHEMA_VERSION = 18;
+  const SCHEMA_VERSION = 19;
   // Keep the v2 storage key so existing profiles migrate in place.
   const STORAGE_KEY = "firefoxChatImprover.settings.v2";
   const DEFAULT_PROFILE_ID = "default";
   const DEFAULT_MONITOR_PROFILE_ID = "monitor-default";
   const DEFAULT_TARGET_PROFILE_ID = "target-default";
+  const DEFAULT_RULE_LIST_PROFILE_ID = "rule-list-default";
+  const DEFAULT_ALERT_PROFILE_ID = "alert-default";
   const SELECTOR_KINDS = new Set(["css", "id", "class", "attribute"]);
   const VISIBILITY_TRANSITIONS = new Set(["none", "hidden_to_visible", "visible_to_hidden"]);
   const CONDITION_OPERATORS = new Set([
@@ -169,6 +171,26 @@
     };
   }
 
+  function defaultAlertConfig() {
+    return {
+      titleBlink: true,
+      titlePrefix: "RD",
+      blinkIntervalMs: 700,
+      badge: true,
+      sidebar: true,
+      notification: false,
+      sound: {
+        enabled: false,
+        tone: "soft-chime",
+        volume: 0.45,
+        repeatCount: 1,
+        repeatIntervalMs: 900
+      },
+      dismissOnUserActivity: true,
+      activeTabTimeoutSeconds: 10
+    };
+  }
+
   function defaultCommandAction() {
     return {
       enabled: false,
@@ -240,23 +262,7 @@
       // Legacy projections keep older tools/tests and single-rule consumers compatible.
       monitor: clone(rule.monitor),
       target: clone(rule.target),
-      alerts: {
-        titleBlink: true,
-        titlePrefix: "RD",
-        blinkIntervalMs: 700,
-        badge: true,
-        sidebar: true,
-        notification: false,
-        sound: {
-          enabled: false,
-          tone: "soft-chime",
-          volume: 0.45,
-          repeatCount: 1,
-          repeatIntervalMs: 900
-        },
-        dismissOnUserActivity: true,
-        activeTabTimeoutSeconds: 10
-      },
+      alerts: defaultAlertConfig(),
       shell: {
         workingDirectory: "",
         command: "",
@@ -359,6 +365,34 @@
     if (name === "Mặc định") return "Default";
     if (name === "Profile mới") return "New profile";
     return name;
+  }
+
+  function normalizeAlertConfig(raw, fallback = defaultAlertConfig()) {
+    const alerts = raw && typeof raw === "object" ? raw : {};
+    const fallbackValue = fallback && typeof fallback === "object" ? fallback : defaultAlertConfig();
+    const sound = alerts.sound && typeof alerts.sound === "object" ? alerts.sound : {};
+    const fallbackSound = fallbackValue.sound && typeof fallbackValue.sound === "object" ? fallbackValue.sound : defaultAlertConfig().sound;
+    const tone = ["soft-chime", "double-beep", "urgent"].includes(sound.tone)
+      ? sound.tone
+      : fallbackSound.tone;
+    const volume = Number(sound.volume);
+    return {
+      titleBlink: safeBoolean(alerts.titleBlink, fallbackValue.titleBlink),
+      titlePrefix: normalizeAlertTitlePrefix(alerts.titlePrefix, fallbackValue.titlePrefix),
+      blinkIntervalMs: safeInteger(alerts.blinkIntervalMs, fallbackValue.blinkIntervalMs, 250, 5000),
+      badge: safeBoolean(alerts.badge, fallbackValue.badge),
+      sidebar: safeBoolean(alerts.sidebar, fallbackValue.sidebar),
+      notification: safeBoolean(alerts.notification, fallbackValue.notification),
+      sound: {
+        enabled: safeBoolean(sound.enabled, fallbackSound.enabled),
+        tone,
+        volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : fallbackSound.volume,
+        repeatCount: safeInteger(sound.repeatCount, fallbackSound.repeatCount, 1, 5),
+        repeatIntervalMs: safeInteger(sound.repeatIntervalMs, fallbackSound.repeatIntervalMs, 250, 10000)
+      },
+      dismissOnUserActivity: safeBoolean(alerts.dismissOnUserActivity, fallbackValue.dismissOnUserActivity),
+      activeTabTimeoutSeconds: safeInteger(alerts.activeTabTimeoutSeconds, fallbackValue.activeTabTimeoutSeconds, 0, 3600)
+    };
   }
 
   function normalizeCommandAction(raw) {
@@ -484,30 +518,7 @@
       rules,
       monitor: clone(activeRule.monitor),
       target: clone(activeRule.target),
-      alerts: {
-        titleBlink: safeBoolean(alerts.titleBlink, true),
-        titlePrefix: normalizeAlertTitlePrefix(alerts.titlePrefix, defaults.alerts.titlePrefix),
-        blinkIntervalMs: safeInteger(alerts.blinkIntervalMs, defaults.alerts.blinkIntervalMs, 250, 5000),
-        badge: safeBoolean(alerts.badge, true),
-        sidebar: safeBoolean(alerts.sidebar, true),
-        notification: safeBoolean(alerts.notification, false),
-        sound: (() => {
-          const sound = alerts.sound && typeof alerts.sound === "object" ? alerts.sound : {};
-          const tone = ["soft-chime", "double-beep", "urgent"].includes(sound.tone)
-            ? sound.tone
-            : defaults.alerts.sound.tone;
-          const volume = Number(sound.volume);
-          return {
-            enabled: safeBoolean(sound.enabled, defaults.alerts.sound.enabled),
-            tone,
-            volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : defaults.alerts.sound.volume,
-            repeatCount: safeInteger(sound.repeatCount, defaults.alerts.sound.repeatCount, 1, 5),
-            repeatIntervalMs: safeInteger(sound.repeatIntervalMs, defaults.alerts.sound.repeatIntervalMs, 250, 10000)
-          };
-        })(),
-        dismissOnUserActivity: safeBoolean(alerts.dismissOnUserActivity, true),
-        activeTabTimeoutSeconds: safeInteger(alerts.activeTabTimeoutSeconds, defaults.alerts.activeTabTimeoutSeconds, 0, 3600)
-      },
+      alerts: normalizeAlertConfig(alerts, defaults.alerts),
       shell: {
         workingDirectory: safeString(shell.workingDirectory).trim(),
         command: safeString(shell.command),
@@ -579,6 +590,77 @@
     throw new Error("The selector type is not supported.");
   }
 
+  function normalizeRuleListEntry(raw, index = 0) {
+    const rule = normalizeRule(raw, index);
+    return {
+      id: rule.id,
+      name: rule.name,
+      enabled: rule.enabled,
+      commandAction: clone(rule.commandAction)
+    };
+  }
+
+  function normalizeRuleList(rawRules) {
+    const source = Array.isArray(rawRules) && rawRules.length ? rawRules : [defaultRule()];
+    const rules = [];
+    const usedIds = new Set();
+    source.forEach((item, index) => {
+      const entry = normalizeRuleListEntry(item, index);
+      let id = entry.id;
+      let suffix = 2;
+      while (usedIds.has(id)) id = `${entry.id}-${suffix++}`;
+      usedIds.add(id);
+      rules.push({ ...entry, id });
+    });
+    return rules.length ? rules : [normalizeRuleListEntry(defaultRule(), 0)];
+  }
+
+  function createRuleListProfile(name = "Default rule list", rules = null, id = null) {
+    const timestamp = nowIso();
+    return {
+      id: id || makeId("rule-list-profile"),
+      name: safeString(name, "Rule list profile").trim() || "Rule list profile",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      rules: normalizeRuleList(rules)
+    };
+  }
+
+  function normalizeRuleListProfile(raw, fallbackId = null) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const timestamp = nowIso();
+    return {
+      id: safeString(source.id, fallbackId || makeId("rule-list-profile")).trim() || makeId("rule-list-profile"),
+      name: safeString(source.name, "Rule list profile").trim() || "Rule list profile",
+      createdAt: safeString(source.createdAt, timestamp),
+      updatedAt: safeString(source.updatedAt, timestamp),
+      rules: normalizeRuleList(source.rules || source.config?.rules)
+    };
+  }
+
+  function createAlertProfile(name = "Default alerts", alerts = null, id = null) {
+    const timestamp = nowIso();
+    return {
+      id: id || makeId("alert-profile"),
+      name: safeString(name, "Alert profile").trim() || "Alert profile",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      alerts: normalizeAlertConfig(alerts || defaultAlertConfig())
+    };
+  }
+
+  function normalizeAlertProfile(raw, fallbackId = null) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const timestamp = nowIso();
+    return {
+      id: safeString(source.id, fallbackId || makeId("alert-profile")).trim() || makeId("alert-profile"),
+      name: safeString(source.name, "Alert profile").trim() || "Alert profile",
+      createdAt: safeString(source.createdAt, timestamp),
+      updatedAt: safeString(source.updatedAt, timestamp),
+      alerts: normalizeAlertConfig(source.alerts || source.config?.alerts || source.config)
+    };
+  }
+
   function createProfile(name = "Default", baseConfig = null, id = null) {
     const timestamp = nowIso();
     return {
@@ -607,16 +689,22 @@
     const profile = createProfile("Default", defaultConfig(), DEFAULT_PROFILE_ID);
     const monitorProfile = createMonitorProfile("Default monitor", defaultMonitorConfig(), DEFAULT_MONITOR_PROFILE_ID);
     const targetProfile = createTargetProfile("Default target", defaultTargetConfig(), DEFAULT_TARGET_PROFILE_ID);
+    const ruleListProfile = createRuleListProfile("Default rule list", profile.config.rules, DEFAULT_RULE_LIST_PROFILE_ID);
+    const alertProfile = createAlertProfile("Default alerts", profile.config.alerts, DEFAULT_ALERT_PROFILE_ID);
     return {
       schemaVersion: SCHEMA_VERSION,
       revision: 1,
       defaultProfileId: DEFAULT_PROFILE_ID,
       defaultMonitorProfileId: DEFAULT_MONITOR_PROFILE_ID,
       defaultTargetProfileId: DEFAULT_TARGET_PROFILE_ID,
+      defaultRuleListProfileId: DEFAULT_RULE_LIST_PROFILE_ID,
+      defaultAlertProfileId: DEFAULT_ALERT_PROFILE_ID,
       nativeLogRetention: defaultNativeLogRetention(),
       profiles: [profile],
       monitorProfiles: [monitorProfile],
-      targetProfiles: [targetProfile]
+      targetProfiles: [targetProfile],
+      ruleListProfiles: [ruleListProfile],
+      alertProfiles: [alertProfile]
     };
   }
 
@@ -669,12 +757,44 @@
       usedTargetIds.add(DEFAULT_TARGET_PROFILE_ID);
     }
 
+    const ruleListProfiles = [];
+    const usedRuleListIds = new Set();
+    for (const candidate of Array.isArray(source.ruleListProfiles) ? source.ruleListProfiles : []) {
+      const profile = normalizeRuleListProfile(candidate);
+      if (!usedRuleListIds.has(profile.id)) {
+        usedRuleListIds.add(profile.id);
+        ruleListProfiles.push(profile);
+      }
+    }
+    if (!ruleListProfiles.length) {
+      ruleListProfiles.push(createRuleListProfile("Default rule list", profiles[0]?.config?.rules, DEFAULT_RULE_LIST_PROFILE_ID));
+      usedRuleListIds.add(DEFAULT_RULE_LIST_PROFILE_ID);
+    }
+
+    const alertProfiles = [];
+    const usedAlertIds = new Set();
+    for (const candidate of Array.isArray(source.alertProfiles) ? source.alertProfiles : []) {
+      const profile = normalizeAlertProfile(candidate);
+      if (!usedAlertIds.has(profile.id)) {
+        usedAlertIds.add(profile.id);
+        alertProfiles.push(profile);
+      }
+    }
+    if (!alertProfiles.length) {
+      alertProfiles.push(createAlertProfile("Default alerts", profiles[0]?.config?.alerts, DEFAULT_ALERT_PROFILE_ID));
+      usedAlertIds.add(DEFAULT_ALERT_PROFILE_ID);
+    }
+
     let defaultProfileId = safeString(source.defaultProfileId);
     if (!used.has(defaultProfileId)) defaultProfileId = profiles[0].id;
     let defaultMonitorProfileId = safeString(source.defaultMonitorProfileId);
     if (!usedMonitorIds.has(defaultMonitorProfileId)) defaultMonitorProfileId = monitorProfiles[0].id;
     let defaultTargetProfileId = safeString(source.defaultTargetProfileId);
     if (!usedTargetIds.has(defaultTargetProfileId)) defaultTargetProfileId = targetProfiles[0].id;
+    let defaultRuleListProfileId = safeString(source.defaultRuleListProfileId);
+    if (!usedRuleListIds.has(defaultRuleListProfileId)) defaultRuleListProfileId = ruleListProfiles[0].id;
+    let defaultAlertProfileId = safeString(source.defaultAlertProfileId);
+    if (!usedAlertIds.has(defaultAlertProfileId)) defaultAlertProfileId = alertProfiles[0].id;
 
     return {
       schemaVersion: SCHEMA_VERSION,
@@ -682,10 +802,14 @@
       defaultProfileId,
       defaultMonitorProfileId,
       defaultTargetProfileId,
+      defaultRuleListProfileId,
+      defaultAlertProfileId,
       nativeLogRetention: normalizeNativeLogRetention(source.nativeLogRetention),
       profiles,
       monitorProfiles,
-      targetProfiles
+      targetProfiles,
+      ruleListProfiles,
+      alertProfiles
     };
   }
 
@@ -699,6 +823,14 @@
 
   function targetProfileById(store, profileId) {
     return normalizeStore(store).targetProfiles.find((profile) => profile.id === profileId) || null;
+  }
+
+  function ruleListProfileById(store, profileId) {
+    return normalizeStore(store).ruleListProfiles.find((profile) => profile.id === profileId) || null;
+  }
+
+  function alertProfileById(store, profileId) {
+    return normalizeStore(store).alertProfiles.find((profile) => profile.id === profileId) || null;
   }
 
   function wildcardToRegExp(pattern) {
@@ -927,7 +1059,7 @@
 
   const PROFILE_BUNDLE_FORMAT = "firefox-chat-improver-profile-bundle";
   const PROFILE_BUNDLE_VERSION = 1;
-  const PROFILE_TYPES = new Set(["configuration", "monitor", "target", "local-action"]);
+  const PROFILE_TYPES = new Set(["configuration", "rule-list", "monitor", "target", "alerts", "local-action"]);
 
   function buildProfileBundle(type, profiles, metadata = {}) {
     if (!PROFILE_TYPES.has(type)) throw new Error(`Unsupported profile type: ${type}.`);
@@ -980,6 +1112,8 @@
       DEFAULT_PROFILE_ID,
       DEFAULT_MONITOR_PROFILE_ID,
       DEFAULT_TARGET_PROFILE_ID,
+      DEFAULT_RULE_LIST_PROFILE_ID,
+      DEFAULT_ALERT_PROFILE_ID,
       clone,
       nowIso,
       makeId,
@@ -988,6 +1122,7 @@
       defaultRule,
       defaultMonitorConfig,
       defaultTargetConfig,
+      defaultAlertConfig,
       defaultCommandAction,
       defaultShellPreset,
       defaultNativeLogRetention,
@@ -995,6 +1130,8 @@
       defaultStore,
       normalizeConfig,
       normalizeRule,
+      normalizeRuleList,
+      normalizeAlertConfig,
       normalizeShellPreset,
       matchingShellPreset,
       configForRule,
@@ -1005,6 +1142,12 @@
       createTargetProfile,
       normalizeTargetProfile,
       targetProfileById,
+      createRuleListProfile,
+      normalizeRuleListProfile,
+      ruleListProfileById,
+      createAlertProfile,
+      normalizeAlertProfile,
+      alertProfileById,
       normalizeStore,
       createProfile,
       profileById,
