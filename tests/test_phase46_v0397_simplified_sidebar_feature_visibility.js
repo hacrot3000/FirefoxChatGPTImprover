@@ -71,7 +71,7 @@ const featureIds = [
   "automation-editor", "automation-profiles", "automation-routing", "alerts",
   "local-action-profiles", "managed-downloads", "shell-commands", "working-sessions",
   "prompt-templates", "rule-diagnostics", "activity-log", "keyboard-shortcuts",
-  "backup-recovery", "setup-guide"
+  "backup-recovery", "setup-guide", "native-host-restart-help"
 ];
 for (const featureId of featureIds) {
   assert(html.includes(`data-sidebar-feature="${featureId}"`), `Missing feature checkbox: ${featureId}`);
@@ -143,8 +143,17 @@ assert(sandbox.PRESETS.standard.includes("local-action-profiles"), "Standard mod
 assert.equal(sandbox.PRESETS.full.length, featureIds.length, "All-features preset is incomplete");
 assert.deepEqual(
   Array.from(sandbox.FEATURES["setup-guide"].groups),
-  ["installation-guide", "native-host-restart"],
-  "Setup visibility must cover both installation and restart help"
+  ["installation-guide"],
+  "Setup visibility must control only the installation guide"
+);
+assert.deepEqual(
+  Array.from(sandbox.FEATURES["native-host-restart-help"].groups),
+  ["native-host-restart"],
+  "Native Host restart help must have its own visibility control"
+);
+assert(
+  sandbox.PRESETS.standard.includes("native-host-restart-help"),
+  "Standard layout must show the Native Host restart guide by default"
 );
 
 const normalize = (features, changed = "", enabled = true) => Array.from(sandbox.normalize(features, changed, enabled));
