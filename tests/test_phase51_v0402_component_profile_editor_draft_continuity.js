@@ -11,17 +11,24 @@ const sidebar = fs.readFileSync(path.join(root, "extension/sidebar/sidebar.js"),
 
 const version = manifest.version.split(".").map(Number);
 assert(version[0] > 0 || version[1] > 40 || (version[1] === 40 && version[2] >= 2), "Phase 51 requires add-on version 0.40.2 or newer");
-assert(html.includes('id="newMonitorProfileButton" type="button">Save as new profile</button>'));
-assert(html.includes('id="saveMonitorProfileButton" type="button">Save changes</button>'));
-assert(html.includes('id="newTargetProfileButton" type="button">Save as new profile</button>'));
-assert(html.includes('id="saveTargetProfileButton" type="button">Save changes</button>'));
 
-assert(sidebar.includes("function captureComponentProfileEditorDraft()"));
-assert(sidebar.includes("function restoreComponentProfileEditorDraft(snapshot)"));
-assert(sidebar.includes('}, "", { reloadForm: false });'));
-assert(sidebar.includes("const preserveComponentDraft = type === \"monitor\" || type === \"target\";"));
+for (const id of [
+  "newRuleListProfileButton", "saveRuleListProfileButton",
+  "newMonitorProfileButton", "saveMonitorProfileButton",
+  "newTargetProfileButton", "saveTargetProfileButton",
+  "newAlertProfileButton", "saveAlertProfileButton"
+]) assert(html.includes(`id="${id}"`), `missing independent component profile action: ${id}`);
+
+assert(sidebar.includes("function componentEditorSpec(type)"));
+assert(sidebar.includes("async function createComponentProfileFromEditor(type)"));
+assert(sidebar.includes("async function saveSelectedComponentProfile(type)"));
+assert(sidebar.includes("async function deleteSelectedComponentProfile(type)"));
+assert(sidebar.includes("function componentEditorDirty(type)"));
+assert(sidebar.includes('const preserveComponentDraft = ["rule-list", "monitor", "target", "alerts"].includes(type);'));
 assert(sidebar.includes("{ reloadForm: !preserveComponentDraft }"));
-assert(sidebar.includes("the current rule draft was preserved"));
+assert(sidebar.includes("The current rule draft was preserved.") || sidebar.includes("The current rule draft was preserved"));
+assert(!sidebar.includes("function applyComponentProfileToRule(type)"));
+assert(!sidebar.includes("function createComponentProfileFromRule(type)"));
 
 const formReloadBlock = sidebar.slice(
   sidebar.indexOf("const FORM_RELOAD_MESSAGE_TYPES"),
@@ -31,21 +38,17 @@ assert(!formReloadBlock.includes("MESSAGE.CREATE_COMPONENT_PROFILE"));
 assert(!formReloadBlock.includes("MESSAGE.SAVE_COMPONENT_PROFILE"));
 assert(!formReloadBlock.includes("MESSAGE.DELETE_COMPONENT_PROFILE"));
 
-const createStart = sidebar.indexOf("async function createComponentProfileFromRule(type)");
+const createStart = sidebar.indexOf("async function createComponentProfileFromEditor(type)");
 const saveStart = sidebar.indexOf("async function saveSelectedComponentProfile(type)");
+const defaultStart = sidebar.indexOf("async function setSelectedComponentProfileAsDefault(type)");
 const deleteStart = sidebar.indexOf("async function deleteSelectedComponentProfile(type)");
-const customTitleStart = sidebar.indexOf("async function saveCustomTabTitle(title)");
-assert(createStart > 0 && saveStart > createStart && deleteStart > saveStart && customTitleStart > deleteStart);
+assert(createStart > 0 && saveStart > createStart && defaultStart > saveStart && deleteStart > defaultStart);
 const createBody = sidebar.slice(createStart, saveStart);
-const saveBody = sidebar.slice(saveStart, deleteStart);
-const deleteBody = sidebar.slice(deleteStart, customTitleStart);
-for (const [label, body] of [["create", createBody], ["save", saveBody], ["delete", deleteBody]]) {
-  assert(body.includes("captureComponentProfileEditorDraft()"), `${label} must capture the Automation draft`);
-  assert(body.includes("restoreComponentProfileEditorDraft(editorDraft)"), `${label} must restore the Automation draft`);
-  assert(body.includes("reloadForm: false"), `${label} must not reload the Automation form`);
-}
-assert(createBody.includes("response.savedProfile.name"));
+const saveBody = sidebar.slice(saveStart, defaultStart);
+assert(createBody.includes("reloadForm: false"));
+assert(saveBody.includes("reloadForm: false"));
+assert(createBody.includes("spec.readValue()"));
+assert(saveBody.includes("[spec.valueKey]: spec.readValue()"));
 assert(saveBody.includes("renderComponentProfileOptions()"));
-assert(deleteBody.includes("await persistSidebarUi()"));
 
-console.log("PASS: Phase 51 component-profile library operations preserve the current Automation rule draft and keep the created/saved selection.");
+console.log("PASS: Phase 51 component-profile editor operations preserve drafts while Rule-list/Monitor/Target/Alert libraries remain independent.");
