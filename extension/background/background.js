@@ -5505,8 +5505,10 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       return {
         scope: "all-configuration",
         automationProfiles: bundle.automationStore.profiles.length,
+        ruleListProfiles: bundle.automationStore.ruleListProfiles.length,
         monitorProfiles: bundle.automationStore.monitorProfiles.length,
         targetProfiles: bundle.automationStore.targetProfiles.length,
+        alertProfiles: bundle.automationStore.alertProfiles.length,
         localActionProfiles: bundle.localActionStore.profiles.length,
         commandPresets: bundle.commandPresetStore.presets.length,
         customPromptTemplates: bundle.promptTemplateStore.customTemplates.length,
@@ -5519,8 +5521,10 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
     return {
       scope: "legacy-automation-only",
       automationProfiles: store.profiles.length,
+      ruleListProfiles: store.ruleListProfiles.length,
       monitorProfiles: store.monitorProfiles.length,
       targetProfiles: store.targetProfiles.length,
+      alertProfiles: store.alertProfiles.length,
       localActionProfiles: null,
       commandPresets: null,
       customPromptTemplates: null,
