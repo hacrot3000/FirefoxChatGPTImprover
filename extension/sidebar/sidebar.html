@@ -466,7 +466,7 @@
           <details class="help-menu heading-help-menu">
             <summary aria-label="New target element help" title="Help">?</summary>
             <div class="help-popover" role="tooltip">
-              Use “Pick on page” to select a target. On activation, or when the monitor leaves MATCHED, existing targets become the baseline and are not clicked. While MATCHED, only targets newer than the baseline are handled. Dry run still marks targets as handled for the cycle. Pending pipelines are cancelled when the tab is paused or stopped, the configuration changes, or the monitor re-arms.
+              Use “Pick on page” to select a target. On activation, or when the monitor leaves MATCHED, existing targets become the baseline and are normally not clicked. When managed download capture is enabled, the first MATCHED scan may use the current eligible baseline target once to trigger the download, but only after the managed capture is successfully armed. Otherwise, while MATCHED, only targets newer than the baseline are handled. Dry run still marks normal targets as handled for the cycle. Pending pipelines are cancelled when the tab is paused or stopped, the configuration changes, or the monitor re-arms.
             </div>
           </details>
         </div>
