@@ -4389,168 +4389,218 @@ ${run.command || ""}`)) {
     }
   }
 
-  function currentRuleDraft() {
-    const config = readConfig();
-    return { config, rule: ruleById(config, selectedRuleId) || config.rules[0] };
+  function writeRuleListEditorRules(rawRules) {
+    const profile = Settings.normalizeRuleListProfile({ rules: rawRules });
+    const current = commitCurrentRuleDraft();
+    const rules = profile.rules.map((entry, index) => {
+      const fallback = current.rules.find((rule) => rule.id === entry.id) ||
+        Settings.defaultRule(entry.name || ("Rule " + (index + 1)), entry.id || ("rule-" + (index + 1)));
+      return {
+        ...fallback,
+        id: entry.id,
+        name: entry.name,
+        enabled: entry.enabled,
+        commandAction: Settings.clone(entry.commandAction)
+      };
+    });
+    const activeRuleId = rules.some((rule) => rule.id === selectedRuleId)
+      ? selectedRuleId
+      : (rules[0]?.id || current.activeRuleId);
+    formConfigDraft = Settings.normalizeConfig({
+      ...current,
+      activeRuleId,
+      rules,
+      monitor: rules.find((rule) => rule.id === activeRuleId)?.monitor || current.monitor,
+      target: rules.find((rule) => rule.id === activeRuleId)?.target || current.target
+    });
+    selectedRuleId = activeRuleId;
+    renderRuleOptions();
+    writeRuleListFields(ruleById(formConfigDraft, selectedRuleId));
+    renderRuleRuntimeSummary();
+    renderRuleStatistics();
   }
 
-  function applyComponentProfileToRule(type) {
-    const { config, rule } = currentRuleDraft();
-    const profile = type === "monitor"
-      ? monitorProfileById(selectedMonitorProfileId)
-      : targetProfileById(selectedTargetProfileId);
-    if (!profile || !rule) {
-      showMessage(`Select a ${type} profile first.`, "error");
+  function componentEditorSpec(type) {
+    if (type === "rule-list") {
+      return {
+        label: "Rule-list",
+        selectedId: () => selectedRuleListProfileId,
+        setSelectedId: (id) => { selectedRuleListProfileId = id; },
+        profile: (id) => ruleListProfileById(id),
+        defaultId: () => dashboard.store.defaultRuleListProfileId,
+        nameElement: elements.ruleListProfileName,
+        valueKey: "rules",
+        readValue: () => {
+          const config = commitCurrentRuleDraft();
+          return config.rules.map((rule) => ({
+            id: rule.id,
+            name: rule.name,
+            enabled: rule.enabled,
+            commandAction: Settings.clone(rule.commandAction)
+          }));
+        },
+        writeValue: writeRuleListEditorRules
+      };
+    }
+    if (type === "monitor") {
+      return {
+        label: "Monitor",
+        selectedId: () => selectedMonitorProfileId,
+        setSelectedId: (id) => { selectedMonitorProfileId = id; },
+        profile: (id) => monitorProfileById(id),
+        defaultId: () => dashboard.store.defaultMonitorProfileId,
+        nameElement: elements.monitorProfileName,
+        valueKey: "monitor",
+        readValue: () => Settings.normalizeMonitorProfile({ monitor: readRuleParts().monitor }).monitor,
+        writeValue: writeMonitorEditorConfig
+      };
+    }
+    if (type === "target") {
+      return {
+        label: "Target",
+        selectedId: () => selectedTargetProfileId,
+        setSelectedId: (id) => { selectedTargetProfileId = id; },
+        profile: (id) => targetProfileById(id),
+        defaultId: () => dashboard.store.defaultTargetProfileId,
+        nameElement: elements.targetProfileName,
+        valueKey: "target",
+        readValue: () => Settings.normalizeTargetProfile({ target: readRuleParts().target }).target,
+        writeValue: writeTargetEditorConfig
+      };
+    }
+    if (type === "alerts") {
+      return {
+        label: "Alert",
+        selectedId: () => selectedAlertProfileId,
+        setSelectedId: (id) => { selectedAlertProfileId = id; },
+        profile: (id) => alertProfileById(id),
+        defaultId: () => dashboard.store.defaultAlertProfileId,
+        nameElement: elements.alertProfileName,
+        valueKey: "alerts",
+        readValue: readAlertEditorConfig,
+        writeValue: writeAlertEditorConfig
+      };
+    }
+    throw new Error("Unsupported component profile type: " + type);
+  }
+
+  function loadSelectedComponentProfileIntoEditor(type) {
+    const spec = componentEditorSpec(type);
+    const profile = spec.profile(spec.selectedId());
+    if (!profile) return;
+    spec.nameElement.value = profile.name || "";
+    spec.writeValue(Settings.clone(profile[spec.valueKey]));
+    if (type === "rule-list") renderComponentProfileOptions();
+  }
+
+  async function applySelectedComponentProfile(type) {
+    const spec = componentEditorSpec(type);
+    const profile = spec.profile(spec.selectedId());
+    if (!profile) {
+      showMessage("Select a " + spec.label + " profile first.", "error");
       return;
     }
-    // For target profiles: preserve the current form selector (set by the preset dropdown).
-    // Only apply behavioral settings from the profile (clickStrategy, pipeline, etc.).
-    // This prevents "Apply selected to rule" from overwriting the preset selection.
-    let appliedTarget;
-    if (type === "target") {
-      const profileTarget = Settings.clone(profile.target);
-      appliedTarget = { ...profileTarget, selector: Settings.clone(rule.target.selector), enabled: rule.target.enabled };
+    const ruleId = type === "monitor" || type === "target" ? selectedRuleId : null;
+    if ((type === "monitor" || type === "target") && !ruleId) {
+      showMessage("Select a rule before applying the " + spec.label + " profile.", "error");
+      return;
     }
-    const nextRule = {
-      ...rule,
-      monitor: type === "monitor" ? Settings.clone(profile.monitor) : Settings.clone(rule.monitor),
-      target: type === "target" ? appliedTarget : Settings.clone(rule.target)
-    };
-    const rules = config.rules.map((item) => item.id === rule.id ? nextRule : item);
-    formConfigDraft = Settings.normalizeConfig({
-      ...config,
-      activeRuleId: nextRule.id,
-      rules,
-      monitor: nextRule.monitor,
-      target: nextRule.target
-    });
-    writeRuleFields(nextRule);
-    renderRuleRuntimeSummary();
-    if (type === "target") {
-      showMessage(`Target profile “${profile.name}” applied to rule “${nextRule.name}”. Saving automation profile…`, "success");
-    } else {
-      showMessage(`Monitor profile “${profile.name}” applied to rule “${nextRule.name}”. Save the Automation profile or save for this tab to persist it.`, "success");
-    }
+    const response = await request(MESSAGE.ASSIGN_COMPONENT_PROFILE, {
+      tabId: selectedTabId,
+      profileType: type,
+      profileId: profile.id,
+      ruleId
+    }, "", { reloadForm: true, preferredTabId: selectedTabId });
+    if (!response?.ok) return;
+    showMessage(spec.label + " profile “" + profile.name + "” applied independently to the selected tab" + (ruleId ? " / rule." : "."), "success");
   }
 
-  function captureComponentProfileEditorDraft() {
-    const config = Settings.normalizeConfig(readConfig());
-    const rule = ruleById(config, selectedRuleId) || ruleById(config, config.activeRuleId) || config.rules[0] || null;
-    return {
-      config,
-      selectedRuleId: rule?.id || null
-    };
+  async function clearSelectedComponentProfileBinding(type) {
+    const spec = componentEditorSpec(type);
+    const ruleId = type === "monitor" || type === "target" ? selectedRuleId : null;
+    const response = await request(MESSAGE.CLEAR_COMPONENT_PROFILE_BINDING, {
+      tabId: selectedTabId,
+      profileType: type,
+      ruleId
+    }, "", { reloadForm: true, preferredTabId: selectedTabId });
+    if (!response?.ok) return;
+    showMessage(spec.label + " profile assignment cleared for the selected tab" + (ruleId ? " / rule." : "."), "success");
   }
 
-  function restoreComponentProfileEditorDraft(snapshot) {
-    if (!snapshot?.config) return;
-    const config = Settings.normalizeConfig(snapshot.config);
-    const rule = ruleById(config, snapshot.selectedRuleId) || ruleById(config, config.activeRuleId) || config.rules[0] || null;
-    if (!rule) return;
-    selectedRuleId = rule.id;
-    formConfigDraft = Settings.normalizeConfig({
-      ...config,
-      activeRuleId: rule.id,
-      monitor: rule.monitor,
-      target: rule.target
-    });
-    renderRuleOptions();
-    writeRuleFields(rule);
-    renderRuleRuntimeSummary();
-  }
-
-  async function createComponentProfileFromRule(type) {
-    const editorDraft = captureComponentProfileEditorDraft();
-    const rule = ruleById(editorDraft.config, editorDraft.selectedRuleId) || editorDraft.config.rules[0];
-    if (!rule) return;
-    const defaultName = type === "monitor" ? "New monitor profile" : "New target profile";
-    const name = prompt(`${type === "monitor" ? "Monitor" : "Target"} profile name:`, defaultName);
-    if (!name) return;
+  async function createComponentProfileFromEditor(type) {
+    const spec = componentEditorSpec(type);
+    const baseName = spec.nameElement.value.trim();
+    const suggested = baseName ? (baseName + " - copy") : ("New " + spec.label.toLowerCase() + " profile");
+    const name = prompt("New " + spec.label + " profile name:", suggested);
+    if (!name?.trim()) return;
     const response = await request(MESSAGE.CREATE_COMPONENT_PROFILE, {
       profileType: type,
-      name,
-      config: type === "monitor" ? rule.monitor : rule.target
+      name: name.trim(),
+      config: spec.readValue()
     }, "", { reloadForm: false });
-    restoreComponentProfileEditorDraft(editorDraft);
     if (!response?.savedProfile) return;
+    spec.setSelectedId(response.savedProfile.id);
     renderComponentProfileOptions();
     await persistSidebarUi();
-    showMessage(`${type === "monitor" ? "Monitor" : "Target"} profile “${response.savedProfile.name}” created and selected; the current rule draft was preserved.`, "success");
+    showMessage(spec.label + " profile “" + response.savedProfile.name + "” created from the current editor values.", "success");
   }
 
   async function saveSelectedComponentProfile(type) {
-    const editorDraft = captureComponentProfileEditorDraft();
-    const rule = ruleById(editorDraft.config, editorDraft.selectedRuleId) || editorDraft.config.rules[0];
-    const profile = type === "monitor"
-      ? monitorProfileById(selectedMonitorProfileId)
-      : targetProfileById(selectedTargetProfileId);
-    if (!profile || !rule) {
-      showMessage(`Select a ${type} profile before saving.`, "error");
+    const spec = componentEditorSpec(type);
+    const profile = spec.profile(spec.selectedId());
+    if (!profile) {
+      showMessage("Select a " + spec.label + " profile before saving.", "error");
       return;
     }
-    const nameElement = type === "monitor" ? elements.monitorProfileName : elements.targetProfileName;
     const response = await request(MESSAGE.SAVE_COMPONENT_PROFILE, {
       profileType: type,
       profile: {
         ...profile,
-        name: nameElement.value.trim() || profile.name,
-        ...(type === "monitor" ? { monitor: rule.monitor } : { target: rule.target })
+        name: spec.nameElement.value.trim() || profile.name,
+        [spec.valueKey]: spec.readValue()
       }
     }, "", { reloadForm: false });
-    restoreComponentProfileEditorDraft(editorDraft);
     if (!response?.savedProfile) return;
-    if (type === "monitor") selectedMonitorProfileId = response.savedProfile.id;
-    else selectedTargetProfileId = response.savedProfile.id;
+    spec.setSelectedId(response.savedProfile.id);
     renderComponentProfileOptions();
     await persistSidebarUi();
-    showMessage(`${type === "monitor" ? "Monitor" : "Target"} profile “${response.savedProfile.name}” saved; the current rule draft was preserved.`, "success");
+    showMessage(spec.label + " profile “" + response.savedProfile.name + "” saved. Tab assignments remain independent.", "success");
   }
 
   async function setSelectedComponentProfileAsDefault(type) {
-    const editorDraft = captureComponentProfileEditorDraft();
-    const profile = type === "monitor"
-      ? monitorProfileById(selectedMonitorProfileId)
-      : targetProfileById(selectedTargetProfileId);
-    const defaultProfileId = type === "monitor"
-      ? dashboard.store.defaultMonitorProfileId
-      : dashboard.store.defaultTargetProfileId;
-    const label = type === "monitor" ? "Monitor" : "Target";
+    const spec = componentEditorSpec(type);
+    const profile = spec.profile(spec.selectedId());
     if (!profile) {
-      showMessage(`Select a ${type} profile first.`, "error");
+      showMessage("Select a " + spec.label + " profile first.", "error");
       return;
     }
-    if (profile.id === defaultProfileId) {
-      showMessage(`${label} profile “${profile.name}” is already the default.`, "info");
+    if (profile.id === spec.defaultId()) {
+      showMessage(spec.label + " profile “" + profile.name + "” is already the default.", "info");
       return;
     }
     const response = await request(MESSAGE.SET_DEFAULT_COMPONENT_PROFILE, {
       profileType: type,
       profileId: profile.id
     }, "", { reloadForm: false });
-    restoreComponentProfileEditorDraft(editorDraft);
     if (!response?.ok) return;
-    if (type === "monitor") selectedMonitorProfileId = profile.id;
-    else selectedTargetProfileId = profile.id;
+    spec.setSelectedId(profile.id);
     renderComponentProfileOptions();
     await persistSidebarUi();
-    showMessage(`${label} profile “${profile.name}” is now the default library selection. The current rule was not changed.`, "success");
+    showMessage(spec.label + " profile “" + profile.name + "” is now the default library selection. Open tabs were not reassigned.", "success");
   }
 
   async function deleteSelectedComponentProfile(type) {
-    const editorDraft = captureComponentProfileEditorDraft();
-    const profile = type === "monitor"
-      ? monitorProfileById(selectedMonitorProfileId)
-      : targetProfileById(selectedTargetProfileId);
-    if (!profile || !confirm(`Delete ${type} profile “${profile.name}”? The current rule draft will not change.`)) return;
+    const spec = componentEditorSpec(type);
+    const profile = spec.profile(spec.selectedId());
+    if (!profile || !confirm("Delete " + spec.label + " profile “" + profile.name + "”? Existing tabs keep their current effective fallback until reassigned.")) return;
     const response = await request(MESSAGE.DELETE_COMPONENT_PROFILE, {
       profileType: type,
       profileId: profile.id
     }, "", { reloadForm: false });
-    restoreComponentProfileEditorDraft(editorDraft);
     if (!response?.ok) return;
     renderComponentProfileOptions();
     await persistSidebarUi();
-    showMessage(`${type === "monitor" ? "Monitor" : "Target"} profile “${profile.name}” deleted; the current rule draft was preserved.`, "success");
+    showMessage(spec.label + " profile “" + profile.name + "” deleted.", "success");
   }
 
   async function saveCustomTabTitle(title) {
