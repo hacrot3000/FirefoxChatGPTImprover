@@ -5744,6 +5744,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
       profileName: profileName(session, store),
       configMode: session.configMode,
       configRevision: session.configRevision,
+      componentBindings: normalizeComponentBindings(session.componentBindings),
       runtime: session.runtime,
       effectiveConfig: sessionConfig(session, store),
       shellHistoryCount: Array.isArray(session.shellHistory) ? session.shellHistory.length : 0
