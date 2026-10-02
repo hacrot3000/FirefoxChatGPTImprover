@@ -2407,6 +2407,24 @@
     }
   }
 
+  async function replaceStoppedTabComponentBindings(tabId, rawBindings, store) {
+    const snapshot = await loadStoppedTabConfigSnapshot(tabId);
+    if (!snapshot) return null;
+    const bindings = normalizeComponentBindings(rawBindings);
+    const effectiveConfig = sessionConfig({
+      profileId: snapshot.profileId,
+      configMode: snapshot.configMode,
+      tabConfig: snapshot.tabConfig,
+      componentBaseConfig: snapshot.componentBaseConfig,
+      componentBindings: bindings
+    }, store);
+    return saveStoppedTabConfigSnapshot(tabId, {
+      ...snapshot,
+      componentBindings: bindings,
+      effectiveConfig
+    });
+  }
+
   function componentProfileForBinding(store, type, profileId) {
     if (type === "rule-list") return Settings.ruleListProfileById(store, profileId);
     if (type === "monitor") return Settings.monitorProfileById(store, profileId);
@@ -2443,6 +2461,7 @@
 
     await saveTabComponentBindings(numericTabId, bindings);
     if (!session) {
+      await replaceStoppedTabComponentBindings(numericTabId, bindings, store);
       await broadcast("component-profile-bound", numericTabId);
       return { bindings, pendingActivation: true };
     }
@@ -2487,6 +2506,7 @@
 
     await saveTabComponentBindings(numericTabId, bindings);
     if (!session) {
+      await replaceStoppedTabComponentBindings(numericTabId, bindings, store);
       await broadcast("component-profile-binding-cleared", numericTabId);
       return { bindings, pendingActivation: true };
     }
