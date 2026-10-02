@@ -17,6 +17,7 @@
   const LogArchive = globalThis.FCI_LOG_ARCHIVE;
   const PromptTemplates = globalThis.FCI_PROMPT_TEMPLATES;
   const SIDEBAR_UI_STORAGE_KEY = "firefoxChatImprover.sidebarUi.v1";
+  const SIDEBAR_UI_SCHEMA_VERSION = 2;
   const DEFAULT_COLLAPSED_GROUPS = Object.freeze({
     "keyboard-shortcuts": true,
     "prompt-templates": true,
@@ -555,6 +556,7 @@
   function persistSidebarUi() {
     return browser.storage.local.set({
       [SIDEBAR_UI_STORAGE_KEY]: {
+        schemaVersion: SIDEBAR_UI_SCHEMA_VERSION,
         collapsedGroups: { ...collapsedGroups },
         featurePreset: sidebarFeaturePreset,
         visibleFeatures: [...visibleSidebarFeatures],
@@ -690,6 +692,8 @@
   async function initializeCollapsibleGroups() {
     const result = await browser.storage.local.get(SIDEBAR_UI_STORAGE_KEY);
     const storedUi = result?.[SIDEBAR_UI_STORAGE_KEY] || {};
+    const storedUiSchemaVersion = Math.max(0, Number(storedUi.schemaVersion) || 0);
+    const migrateRestartHelpVisibility = storedUiSchemaVersion < SIDEBAR_UI_SCHEMA_VERSION;
     const stored = storedUi.collapsedGroups;
     collapsedGroups = stored && typeof stored === "object" ? { ...stored } : {};
     const requestedPreset = typeof storedUi.featurePreset === "string" ? storedUi.featurePreset : "standard";
@@ -700,15 +704,13 @@
     } else {
       sidebarFeaturePreset = Object.prototype.hasOwnProperty.call(SIDEBAR_FEATURE_PRESETS, requestedPreset) ? requestedPreset : "standard";
       visibleSidebarFeatures = new Set(normalizeSidebarFeatureSelection(hasStoredFeatures ? storedUi.visibleFeatures : SIDEBAR_FEATURE_PRESETS[sidebarFeaturePreset]));
-      // v0.41.16 migration: older saved Standard/All layouts predate the dedicated
-      // Native Host restart-help feature. Make it visible once after update; turning
-      // it off uses the normal feature toggle path, switches to Custom, and persists.
-      if (
-        (sidebarFeaturePreset === "standard" || sidebarFeaturePreset === "full") &&
-        SIDEBAR_FEATURE_PRESETS[sidebarFeaturePreset].includes("native-host-restart-help")
-      ) {
-        visibleSidebarFeatures.add("native-host-restart-help");
-      }
+    }
+    // v0.41.16 migration: every pre-v2 sidebar layout predates the independent
+    // restart-help preference. Show it once after update, including old Custom
+    // layouts. The migrated schema is then persisted, so a later user toggle off
+    // remains off and is never re-added automatically.
+    if (migrateRestartHelpVisibility) {
+      visibleSidebarFeatures.add("native-host-restart-help");
     }
     autoProfileByUrl = storedUi.autoProfileByUrl !== false;
     selectedMonitorProfileId = typeof storedUi.selectedMonitorProfileId === "string" ? storedUi.selectedMonitorProfileId : null;
@@ -780,6 +782,9 @@
         ? Boolean(collapsedGroups[groupId])
         : Boolean(DEFAULT_COLLAPSED_GROUPS[groupId]);
       setGroupCollapsed(section, initialCollapsed);
+    }
+    if (migrateRestartHelpVisibility) {
+      await persistSidebarUi();
     }
   }
 
