@@ -66,9 +66,12 @@ async function main() {
   assert.ok(manifest.version.localeCompare("0.41.11", undefined, { numeric: true }) >= 0);
   assert.match(alertSource, /FCI_ALERT_ENGINE\?\.VERSION >= 15/);
   assert.match(alertSource, /VERSION:\s*15/);
-  assert.match(target, /FCI_TARGET_ENGINE\?\.VERSION >= 5/);
-  assert.match(target, /VERSION:\s*5/);
-  assert.match(activation, /const RUNTIME_VERSION = 29;/);
+  const targetGuardVersion = Number(target.match(/FCI_TARGET_ENGINE\?\.VERSION >= (\d+)/)?.[1] || 0);
+  const targetExportVersion = Number(target.match(/VERSION:\s*(\d+)/)?.[1] || 0);
+  const runtimeVersion = Number(activation.match(/const RUNTIME_VERSION = (\d+);/)?.[1] || 0);
+  assert.ok(targetGuardVersion >= 5, `Target Engine guard regressed below Phase 70 minimum: ${targetGuardVersion}`);
+  assert.ok(targetExportVersion >= 5, `Target Engine export regressed below Phase 70 minimum: ${targetExportVersion}`);
+  assert.ok(runtimeVersion >= 29, `Content runtime regressed below Phase 70 minimum: ${runtimeVersion}`);
 
   // Compact RD must not eat a legitimate page title that merely starts with
   // those two letters. Our own [RD] decoration still strips cleanly.
