@@ -25,12 +25,13 @@
     "rule-statistics": true,
     activity: true,
     "installation-guide": true,
+    "native-host-restart": true,
     save: true
   });
   const SIDEBAR_GROUP_ORDER = Object.freeze([
     "tabs", "profiles", "activation", "rules", "monitor", "target", "alerts",
     "local-actions", "download", "shell", "working-sessions", "prompt-templates",
-    "rule-statistics", "activity", "keyboard-shortcuts", "save", "installation-guide"
+    "rule-statistics", "activity", "keyboard-shortcuts", "save", "installation-guide", "native-host-restart"
   ]);
   const SIDEBAR_FEATURES = Object.freeze({
     "automation-editor": Object.freeze({ groups: Object.freeze(["rules", "monitor", "target"]) }),
@@ -46,7 +47,7 @@
     "activity-log": Object.freeze({ groups: Object.freeze(["activity"]) }),
     "keyboard-shortcuts": Object.freeze({ groups: Object.freeze(["keyboard-shortcuts"]) }),
     "backup-recovery": Object.freeze({ groups: Object.freeze(["save"]) }),
-    "setup-guide": Object.freeze({ groups: Object.freeze(["installation-guide"]) })
+    "setup-guide": Object.freeze({ groups: Object.freeze(["installation-guide", "native-host-restart"]) })
   });
   const SIDEBAR_FEATURE_DEPENDENCIES = Object.freeze({
     "automation-routing": Object.freeze(["automation-profiles"]),
