@@ -1710,66 +1710,93 @@
     };
   }
 
-  function writeRuleFields(rule) {
+  function writeRuleListFields(rule) {
     const value = rule || Settings.defaultRule();
     elements.ruleName.value = value.name || "Rule";
     elements.ruleEnabled.checked = value.enabled !== false;
-    elements.monitorTag.value = value.monitor.selector.tag;
-    elements.monitorKind.value = value.monitor.selector.kind;
-    elements.monitorAttributeName.value = value.monitor.selector.attributeName;
-    elements.monitorValue.value = value.monitor.selector.value;
-    elements.monitorVisibilityTransition.value = value.monitor.visibilityTransition;
-    elements.matchStableMs.value = String(value.monitor.matchStableMs);
-    elements.resetStableMs.value = String(value.monitor.resetStableMs);
-    elements.conditionJoin.value = value.monitor.conditionJoin;
-    elements.conditionsList.replaceChildren();
-    value.monitor.conditions.forEach(addConditionRow);
-    elements.targetEnabled.checked = value.target.enabled;
-    elements.targetTag.value = value.target.selector.tag;
-    elements.targetKind.value = value.target.selector.kind;
-    elements.targetAttributeName.value = value.target.selector.attributeName;
-    elements.targetValue.value = value.target.selector.value;
-    {
-      const detectedPreset = detectTargetPreset(value.target.selector);
-      elements.targetPreset.value = detectedPreset;
-      applyTargetPreset(detectedPreset);
-    }
-    elements.clickStrategy.value = value.target.clickStrategy;
-    elements.maxClicksPerCycle.value = String(value.target.maxClicksPerCycle);
-    elements.visibleOnly.checked = value.target.visibleOnly;
-    elements.enabledOnly.checked = value.target.enabledOnly;
-    elements.dryRun.checked = value.target.dryRun;
-    elements.fingerprintAttributes.value = value.target.fingerprintAttributes.join(", ");
-    elements.pipelineEnabled.checked = value.target.pipeline.enabled;
-    elements.preActionDelayMs.value = String(value.target.pipeline.preActionDelayMs);
-    elements.postActionDelayMs.value = String(value.target.pipeline.postActionDelayMs);
-    elements.verifyEnabled.checked = value.target.pipeline.verifyEnabled;
-    elements.verifyTag.value = value.target.pipeline.verifySelector.tag;
-    elements.verifyKind.value = value.target.pipeline.verifySelector.kind;
-    elements.verifyAttributeName.value = value.target.pipeline.verifySelector.attributeName;
-    elements.verifyValue.value = value.target.pipeline.verifySelector.value;
-    elements.verifyExpectation.value = value.target.pipeline.verifyExpectation;
-    elements.verifyTimeoutMs.value = String(value.target.pipeline.verifyTimeoutMs);
-    elements.verifyPollIntervalMs.value = String(value.target.pipeline.verifyPollIntervalMs);
     elements.ruleCommandEnabled.checked = value.commandAction?.enabled === true;
     elements.ruleCommandTrigger.value = value.commandAction?.trigger || "on_match";
     elements.ruleCommandAllowDryRun.checked = value.commandAction?.allowDryRun === true;
     renderRuleCommandPresetOptions(value);
   }
 
+  function writeMonitorEditorConfig(rawMonitor) {
+    const value = Settings.normalizeMonitorProfile({ monitor: rawMonitor }).monitor;
+    elements.monitorTag.value = value.selector.tag;
+    elements.monitorKind.value = value.selector.kind;
+    elements.monitorAttributeName.value = value.selector.attributeName;
+    elements.monitorValue.value = value.selector.value;
+    elements.monitorVisibilityTransition.value = value.visibilityTransition;
+    elements.matchStableMs.value = String(value.matchStableMs);
+    elements.resetStableMs.value = String(value.resetStableMs);
+    elements.conditionJoin.value = value.conditionJoin;
+    elements.conditionsList.replaceChildren();
+    value.conditions.forEach(addConditionRow);
+  }
+
+  function writeTargetEditorConfig(rawTarget) {
+    const value = Settings.normalizeTargetProfile({ target: rawTarget }).target;
+    elements.targetEnabled.checked = value.enabled;
+    elements.targetTag.value = value.selector.tag;
+    elements.targetKind.value = value.selector.kind;
+    elements.targetAttributeName.value = value.selector.attributeName;
+    elements.targetValue.value = value.selector.value;
+    const detectedPreset = detectTargetPreset(value.selector);
+    elements.targetPreset.value = detectedPreset;
+    applyTargetPreset(detectedPreset);
+    elements.clickStrategy.value = value.clickStrategy;
+    elements.maxClicksPerCycle.value = String(value.maxClicksPerCycle);
+    elements.visibleOnly.checked = value.visibleOnly;
+    elements.enabledOnly.checked = value.enabledOnly;
+    elements.dryRun.checked = value.dryRun;
+    elements.fingerprintAttributes.value = value.fingerprintAttributes.join(", ");
+    elements.pipelineEnabled.checked = value.pipeline.enabled;
+    elements.preActionDelayMs.value = String(value.pipeline.preActionDelayMs);
+    elements.postActionDelayMs.value = String(value.pipeline.postActionDelayMs);
+    elements.verifyEnabled.checked = value.pipeline.verifyEnabled;
+    elements.verifyTag.value = value.pipeline.verifySelector.tag;
+    elements.verifyKind.value = value.pipeline.verifySelector.kind;
+    elements.verifyAttributeName.value = value.pipeline.verifySelector.attributeName;
+    elements.verifyValue.value = value.pipeline.verifySelector.value;
+    elements.verifyExpectation.value = value.pipeline.verifyExpectation;
+    elements.verifyTimeoutMs.value = String(value.pipeline.verifyTimeoutMs);
+    elements.verifyPollIntervalMs.value = String(value.pipeline.verifyPollIntervalMs);
+  }
+
+  function writeAlertEditorConfig(rawAlerts) {
+    const value = Settings.normalizeAlertConfig(rawAlerts);
+    elements.titleBlink.checked = value.titleBlink;
+    elements.titlePrefix.value = value.titlePrefix;
+    elements.blinkIntervalMs.value = String(value.blinkIntervalMs);
+    elements.badgeAlert.checked = value.badge;
+    elements.sidebarAlert.checked = value.sidebar;
+    elements.notificationAlert.checked = value.notification;
+    elements.soundAlertEnabled.checked = value.sound.enabled;
+    elements.soundAlertTone.value = value.sound.tone;
+    elements.soundAlertVolume.value = String(Math.round(value.sound.volume * 100));
+    elements.soundAlertRepeatCount.value = String(value.sound.repeatCount);
+    elements.soundAlertRepeatIntervalMs.value = String(value.sound.repeatIntervalMs);
+    elements.dismissOnUserActivity.checked = value.dismissOnUserActivity;
+    elements.activeTabTimeoutSeconds.value = String(value.activeTabTimeoutSeconds);
+    renderSoundAlertControls();
+  }
+
+  function writeRuleFields(rule) {
+    const value = rule || Settings.defaultRule();
+    writeRuleListFields(value);
+    writeMonitorEditorConfig(value.monitor);
+    writeTargetEditorConfig(value.target);
+  }
+
   function commitCurrentRuleDraft() {
     const config = Settings.normalizeConfig(formConfigDraft);
     const current = ruleById(config, selectedRuleId);
-    if (!current) {
-      return config;
-    }
+    if (!current) return config;
     const parts = readRuleParts();
     const updated = {
       ...current,
       name: elements.ruleName.value.trim() || current.name || "Rule",
       enabled: elements.ruleEnabled.checked,
-      monitor: parts.monitor,
-      target: parts.target,
       commandAction: parts.commandAction
     };
     const rules = config.rules.map((rule) => rule.id === updated.id ? updated : rule);
@@ -1821,20 +1848,7 @@
     elements.urlPatterns.value = value.activation.urlPatterns.join("\n");
     renderRuleOptions();
     writeRuleFields(ruleById(value, selectedRuleId));
-    elements.titleBlink.checked = value.alerts.titleBlink;
-    elements.titlePrefix.value = value.alerts.titlePrefix;
-    elements.blinkIntervalMs.value = String(value.alerts.blinkIntervalMs);
-    elements.badgeAlert.checked = value.alerts.badge;
-    elements.sidebarAlert.checked = value.alerts.sidebar;
-    elements.notificationAlert.checked = value.alerts.notification;
-    elements.soundAlertEnabled.checked = value.alerts.sound.enabled;
-    elements.soundAlertTone.value = value.alerts.sound.tone;
-    elements.soundAlertVolume.value = String(Math.round(value.alerts.sound.volume * 100));
-    elements.soundAlertRepeatCount.value = String(value.alerts.sound.repeatCount);
-    elements.soundAlertRepeatIntervalMs.value = String(value.alerts.sound.repeatIntervalMs);
-    renderSoundAlertControls();
-    elements.dismissOnUserActivity.checked = value.alerts.dismissOnUserActivity;
-    elements.activeTabTimeoutSeconds.value = String(value.alerts.activeTabTimeoutSeconds);
+    writeAlertEditorConfig(value.alerts);
     renderShellHistory();
     renderRuleRuntimeSummary();
   }
@@ -1918,6 +1932,26 @@
     return selectedShellPreset();
   }
 
+  function readAlertEditorConfig() {
+    return Settings.normalizeAlertConfig({
+      titleBlink: elements.titleBlink.checked,
+      titlePrefix: elements.titlePrefix.value,
+      blinkIntervalMs: Number(elements.blinkIntervalMs.value),
+      badge: elements.badgeAlert.checked,
+      sidebar: elements.sidebarAlert.checked,
+      notification: elements.notificationAlert.checked,
+      sound: {
+        enabled: elements.soundAlertEnabled.checked,
+        tone: elements.soundAlertTone.value,
+        volume: Number(elements.soundAlertVolume.value) / 100,
+        repeatCount: Number(elements.soundAlertRepeatCount.value),
+        repeatIntervalMs: Number(elements.soundAlertRepeatIntervalMs.value)
+      },
+      dismissOnUserActivity: elements.dismissOnUserActivity.checked,
+      activeTabTimeoutSeconds: Number(elements.activeTabTimeoutSeconds.value)
+    });
+  }
+
   function readConfig() {
     const draft = commitCurrentRuleDraft();
     return Settings.normalizeConfig({
@@ -1929,24 +1963,28 @@
         autoActivate: elements.autoActivateMatchingUrls.checked,
         requireUrlMatch: elements.requireUrlMatch.checked,
         urlPatterns: elements.urlPatterns.value.split(/\r?\n/)
-      },
-      alerts: {
-        titleBlink: elements.titleBlink.checked,
-        titlePrefix: elements.titlePrefix.value,
-        blinkIntervalMs: Number(elements.blinkIntervalMs.value),
-        badge: elements.badgeAlert.checked,
-        sidebar: elements.sidebarAlert.checked,
-        notification: elements.notificationAlert.checked,
-        sound: {
-          enabled: elements.soundAlertEnabled.checked,
-          tone: elements.soundAlertTone.value,
-          volume: Number(elements.soundAlertVolume.value) / 100,
-          repeatCount: Number(elements.soundAlertRepeatCount.value),
-          repeatIntervalMs: Number(elements.soundAlertRepeatIntervalMs.value)
-        },
-        dismissOnUserActivity: elements.dismissOnUserActivity.checked,
-        activeTabTimeoutSeconds: Number(elements.activeTabTimeoutSeconds.value)
       }
+    });
+  }
+
+  function readPreviewConfig() {
+    const config = readConfig();
+    const parts = readRuleParts();
+    const current = ruleById(config, selectedRuleId) || config.rules[0];
+    if (!current) return Settings.normalizeConfig({ ...config, alerts: readAlertEditorConfig() });
+    const previewRule = {
+      ...current,
+      monitor: Settings.normalizeMonitorProfile({ monitor: parts.monitor }).monitor,
+      target: Settings.normalizeTargetProfile({ target: parts.target }).target
+    };
+    const rules = config.rules.map((rule) => rule.id === previewRule.id ? previewRule : rule);
+    return Settings.normalizeConfig({
+      ...config,
+      activeRuleId: previewRule.id,
+      rules,
+      monitor: previewRule.monitor,
+      target: previewRule.target,
+      alerts: readAlertEditorConfig()
     });
   }
 
@@ -3342,7 +3380,7 @@
         selector,
         visibility,
         kind,
-        config: kind === "monitor" ? readConfig() : null
+        config: kind === "monitor" ? readPreviewConfig() : null
       });
       if (!response?.ok) {
         throw new Error(response?.error || "Could not test the selector.");
@@ -3386,7 +3424,7 @@
     }
     void request(MESSAGE.TEST_TARGET_ACTION, {
       tabId: current.tabId,
-      config: readConfig(),
+      config: readPreviewConfig(),
       click: Boolean(click)
     }, click ? "Current target clicked for testing." : "Current target dry run completed.").then((response) => {
       if (response?.result) {
