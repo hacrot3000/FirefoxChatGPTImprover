@@ -199,6 +199,10 @@
       revision: snapshot.store.revision,
       profileCount: snapshot.store.profiles.length,
       defaultProfileId: snapshot.store.defaultProfileId,
+      ruleListProfileCount: snapshot.store.ruleListProfiles?.length || 0,
+      monitorProfileCount: snapshot.store.monitorProfiles?.length || 0,
+      targetProfileCount: snapshot.store.targetProfiles?.length || 0,
+      alertProfileCount: snapshot.store.alertProfiles?.length || 0,
       localActionProfileCount: bundle?.localActionStore?.profiles?.length || 0,
       commandPresetCount: bundle?.commandPresetStore?.presets?.length || 0,
       customPromptTemplateCount: bundle?.promptTemplateStore?.customTemplates?.length || 0
