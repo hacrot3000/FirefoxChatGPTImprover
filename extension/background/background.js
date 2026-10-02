@@ -5755,6 +5755,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         configMode: session?.configMode || CONFIG_MODE.PROFILE,
         tabConfig: session?.configMode === CONFIG_MODE.TAB ? session.tabConfig : null,
         effectiveConfig,
+        componentBaseConfig: session?.componentBaseConfig || effectiveConfig,
+        componentBindings: session?.componentBindings || await loadTabComponentBindings(tab.id),
         localActionProfileId: localProfile.id,
         localActionProfile: localProfile,
         localActionConfigMode: session?.localActionConfigMode || CONFIG_MODE.PROFILE,
@@ -5972,6 +5974,8 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         }, tab.title || savedTab.pageTitle || savedTab.title || "");
         session.configMode = automationPlan.configMode;
         session.tabConfig = automationPlan.tabConfig;
+        session.componentBaseConfig = Settings.normalizeConfig(savedTab.componentBaseConfig || savedTab.effectiveConfig || automationPlan.tabConfig || savedTab.profile?.config);
+        session.componentBindings = normalizeComponentBindings(savedTab.componentBindings);
         session.configRevision += 1;
         session.localActionConfigMode = localActionPlan.configMode;
         session.localActionTabConfig = localActionPlan.tabConfig;
@@ -5982,6 +5986,7 @@ Tab ${session.tabId}, cycle ${session.runtime.cycle || 0}`
         await ensureContentScripts(tab.id);
         await applySessionToContent(session, store, MESSAGE.CONTENT_ACTIVATE);
         sessions.set(tab.id, session);
+        await saveTabComponentBindings(tab.id, session.componentBindings);
         if (savedTab.mode === MODE.PAUSED) {
           await pauseTab(tab.id);
         } else {
