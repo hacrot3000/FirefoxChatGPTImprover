@@ -271,7 +271,7 @@
         <button id="saveTabButton" type="button">Save as tab override</button>
         <button id="resetTabButton" type="button">Remove tab override</button>
       </div>
-      <small class="inline-result">Save as new profile creates and selects a new profile from the current form. Save changes updates the selected profile without changing the tab assignment. Assign selected to tab is the only profile action here that changes which Automation profile the tab uses. Local paths and shell commands stay in Local action profiles.</small>
+      <small class="inline-result">Automation profiles own only URL routing, allowlist, priority, and auto-activation behavior. Rule list, Monitor, Target, Alert, managed-download, and shell values are stored and applied by their own independent profile groups.</small>
     </section>
 
     <section class="card" data-group-id="activation" aria-labelledby="activationHeading">
@@ -317,6 +317,23 @@
 
     <section class="card" data-group-id="rules" aria-labelledby="rulesHeading">
       <h2 id="rulesHeading">Rule list</h2>
+      <div class="component-profile-panel">
+        <output id="ruleListProfileSourceSummary" class="selector-test-result" data-state="idle">Rule-list profile source is not available.</output>
+        <label class="filter-field">Find rule-list profile<input id="ruleListProfileSearch" type="search" autocomplete="off" placeholder="Name, rule, command preset, or profile ID"><small id="ruleListProfileSearchResult" class="filter-result" aria-live="polite"></small></label>
+        <div class="selector-grid compact-fields">
+          <label>Rule-list profile<select id="ruleListProfileSelect"></select></label>
+          <label>Profile name<input id="ruleListProfileName" type="text" autocomplete="off"></label>
+        </div>
+        <div class="button-grid">
+          <button id="applyRuleListProfileButton" type="button">Apply selected to tab</button>
+          <button id="clearRuleListProfileBindingButton" type="button">Clear tab assignment</button>
+          <button id="newRuleListProfileButton" type="button">Save as new profile</button>
+          <button id="saveRuleListProfileButton" type="button" class="primary">Save changes</button>
+          <button id="setDefaultRuleListProfileButton" type="button">Make default</button>
+          <button id="deleteRuleListProfileButton" type="button" class="danger">Delete profile</button>
+        </div>
+        <small class="inline-result">This profile owns rule names, enabled state, and optional command actions. Monitor and Target choices are bound independently per tab and rule.</small>
+      </div>
       <label>
         Selected rule
         <select id="ruleSelect"></select>
@@ -385,17 +402,19 @@
     <section class="card" data-group-id="monitor" aria-labelledby="monitorHeading">
       <h2 id="monitorHeading">Rule monitor</h2>
       <div class="component-profile-panel">
+        <output id="monitorProfileSourceSummary" class="selector-test-result" data-state="idle">Monitor profile source is not available.</output>
         <label class="filter-field">Find monitor profile<input id="monitorProfileSearch" type="search" autocomplete="off" placeholder="Name, selector, or profile ID"><small id="monitorProfileSearchResult" class="filter-result" aria-live="polite"></small></label>
         <label>Monitor profile<select id="monitorProfileSelect"></select></label>
         <label>Profile name<input id="monitorProfileName" type="text" autocomplete="off"></label>
-        <div class="button-grid four">
-          <button id="applyMonitorProfileButton" type="button">Apply selected to rule</button>
+        <div class="button-grid">
+          <button id="applyMonitorProfileButton" type="button">Apply to tab / selected rule</button>
+          <button id="clearMonitorProfileBindingButton" type="button">Clear rule assignment</button>
           <button id="newMonitorProfileButton" type="button">Save as new profile</button>
           <button id="saveMonitorProfileButton" type="button">Save changes</button>
           <button id="setDefaultMonitorProfileButton" type="button">Make default</button>
           <button id="deleteMonitorProfileButton" type="button" class="danger">Delete profile</button>
         </div>
-        <small class="inline-result">Save as new profile creates and selects a new library item from the current rule values. To rename, edit Profile name and choose Save changes. Make default changes only the library fallback and does not modify the current rule.</small>
+        <small class="inline-result">Changing the selected library profile only changes what you are editing. Apply explicitly binds this Monitor profile to the selected tab and selected rule; other tabs and rules remain unchanged.</small>
       </div>
       <div class="selector-grid">
         <label>Tag<select id="monitorTag">
@@ -479,13 +498,14 @@
           <label>Profile name<input id="targetProfileName" type="text" autocomplete="off"></label>
         </div>
         <div class="button-grid">
-          <button id="applyTargetProfileButton" type="button">Apply selected to rule</button>
+          <button id="applyTargetProfileButton" type="button">Apply to tab / selected rule</button>
+          <button id="clearTargetProfileBindingButton" type="button">Clear rule assignment</button>
           <button id="newTargetProfileButton" type="button">Save as new profile</button>
           <button id="saveTargetProfileButton" type="button">Save changes</button>
           <button id="setDefaultTargetProfileButton" type="button">Make default</button>
           <button id="deleteTargetProfileButton" type="button" class="danger">Delete profile</button>
         </div>
-        <small class="inline-result">Save as new profile creates and selects a new library item from the current rule values. To rename, edit Profile name and choose Save changes. Make default changes only the library fallback and does not modify the current rule.</small>
+        <small class="inline-result">Changing Target preset/profile edits only this Target profile. Apply explicitly binds it to the selected tab and selected rule; it no longer saves or duplicates the Automation or Local action profile.</small>
       </div>
       <label class="check-row"><input id="targetEnabled" type="checkbox">Process new targets while the monitor is MATCHED</label>
       <div class="selector-grid target-preset-row">
@@ -612,6 +632,23 @@
 
     <section class="card" data-group-id="alerts" aria-labelledby="alertsHeading">
       <h2 id="alertsHeading">Alert behavior</h2>
+      <div class="component-profile-panel">
+        <output id="alertProfileSourceSummary" class="selector-test-result" data-state="idle">Alert profile source is not available.</output>
+        <label class="filter-field">Find alert profile<input id="alertProfileSearch" type="search" autocomplete="off" placeholder="Name, title label, sound, or profile ID"><small id="alertProfileSearchResult" class="filter-result" aria-live="polite"></small></label>
+        <div class="selector-grid compact-fields">
+          <label>Alert profile<select id="alertProfileSelect"></select></label>
+          <label>Profile name<input id="alertProfileName" type="text" autocomplete="off"></label>
+        </div>
+        <div class="button-grid">
+          <button id="applyAlertProfileButton" type="button">Apply selected to tab</button>
+          <button id="clearAlertProfileBindingButton" type="button">Clear tab assignment</button>
+          <button id="newAlertProfileButton" type="button">Save as new profile</button>
+          <button id="saveAlertProfileButton" type="button" class="primary">Save changes</button>
+          <button id="setDefaultAlertProfileButton" type="button">Make default</button>
+          <button id="deleteAlertProfileButton" type="button" class="danger">Delete profile</button>
+        </div>
+        <small class="inline-result">Alert behavior is an independent per-tab profile. Selecting a library item does not change the active tab until Apply is clicked.</small>
+      </div>
       <div class="checks-grid">
         <label class="check-row"><input id="titleBlink" type="checkbox">Blink tab title</label>
         <label class="check-row"><input id="badgeAlert" type="checkbox">Badge toolbar</label>
@@ -676,7 +713,7 @@
           <details class="help-menu heading-help-menu">
             <summary aria-label="Local action profile help" title="Help">?</summary>
             <div class="help-popover" role="tooltip">
-              <p>Local-action profiles are separate from automation profiles and contain both managed-download and shell settings. Use the dedicated managed-download and shell-command groups below to edit those settings.</p>
+              <p>Local-action profiles own only managed-download and shell-command settings. Automation, Rule list, Monitor, Target, and Alert profiles are selected and applied independently.</p>
               <p>The source summary shows whether the current tab uses a tab override, an assigned profile, a URL-routed profile, or the default profile. Save as new profile creates and selects a new item from the current form. Make default changes only future fallback selection and never changes open tabs. Unsaved edits are protected when switching tabs or profiles.</p>
             </div>
           </details>
@@ -857,7 +894,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
 
     <section class="card" data-group-id="save" aria-labelledby="saveHeading">
       <h2 id="saveHeading">Backup and transfer</h2>
-      <p class="inline-result">Full configuration backup: Automation/Monitor/Target profiles, Local action profiles, global command presets, custom prompt templates and sidebar visibility. Working sessions, runtime logs and active jobs are excluded.</p>
+      <p class="inline-result">Full configuration backup: Automation, Rule-list, Monitor, Target, Alert, and Local action profiles, plus global command presets, custom prompt templates and sidebar visibility. Working sessions, runtime logs and active jobs are excluded.</p>
       <div class="button-grid">
         <button id="exportButton" type="button">Export all configuration</button>
         <button id="importButton" type="button">Import all configuration</button>
@@ -865,8 +902,10 @@ cd C:\absolute\path\to\FirefoxChatImprover
       </div>
       <div class="profile-io-list" aria-label="Profile import and export">
         <div class="profile-io-row"><strong>Automation profiles</strong><button id="exportConfigurationProfilesButton" type="button" aria-label="Export automation profiles">Export</button><button id="importConfigurationProfilesButton" type="button" aria-label="Import automation profiles">Import</button></div>
+        <div class="profile-io-row"><strong>Rule-list profiles</strong><button id="exportRuleListProfilesButton" type="button" aria-label="Export rule-list profiles">Export</button><button id="importRuleListProfilesButton" type="button" aria-label="Import rule-list profiles">Import</button></div>
         <div class="profile-io-row"><strong>Monitor profiles</strong><button id="exportMonitorProfilesButton" type="button" aria-label="Export monitor profiles">Export</button><button id="importMonitorProfilesButton" type="button" aria-label="Import monitor profiles">Import</button></div>
         <div class="profile-io-row"><strong>Target profiles</strong><button id="exportTargetProfilesButton" type="button" aria-label="Export target profiles">Export</button><button id="importTargetProfilesButton" type="button" aria-label="Import target profiles">Import</button></div>
+        <div class="profile-io-row"><strong>Alert profiles</strong><button id="exportAlertProfilesButton" type="button" aria-label="Export alert profiles">Export</button><button id="importAlertProfilesButton" type="button" aria-label="Import alert profiles">Import</button></div>
         <div class="profile-io-row"><strong>Local action profiles</strong><button id="exportLocalActionProfilesButton" type="button" aria-label="Export local action profiles">Export</button><button id="importLocalActionProfilesButton" type="button" aria-label="Import local action profiles">Import</button></div>
         <input id="profileImportFile" type="file" accept="application/json,.json" hidden>
       </div>
