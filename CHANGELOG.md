@@ -15,6 +15,19 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
+## [0.41.16] - 2026-10-02
+
+### Fixed
+
+- **Native Host after restart** is now controlled by its own sidebar feature toggle instead of being coupled to **Setup and installation**.
+- The Standard layout shows the restart guide by default at the bottom of the sidebar, still collapsed by default.
+- Existing sidebar layouts, including older Custom layouts, receive the new restart guide exactly once through a sidebar UI schema migration. After migration, turning the guide off is persisted and it is not automatically re-enabled.
+
+### Compatibility
+
+- Sidebar-UI preference migration only. No automation-engine, settings-schema, Native Host protocol, or local-action data migration change.
+
+
 ## [0.41.15] - 2026-10-02
 
 ### Changed
