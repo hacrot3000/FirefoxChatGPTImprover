@@ -4059,12 +4059,11 @@ ${run.command || ""}`)) {
       if (response.localActionProfileId) {
         selectedLocalActionProfileId = response.localActionProfileId;
       }
-      if (response.componentProfileId && response.profileType === "monitor") {
-        selectedMonitorProfileId = response.componentProfileId;
-        void persistSidebarUi();
-      }
-      if (response.componentProfileId && response.profileType === "target") {
-        selectedTargetProfileId = response.componentProfileId;
+      if (response.componentProfileId) {
+        if (response.profileType === "rule-list") selectedRuleListProfileId = response.componentProfileId;
+        if (response.profileType === "monitor") selectedMonitorProfileId = response.componentProfileId;
+        if (response.profileType === "target") selectedTargetProfileId = response.componentProfileId;
+        if (response.profileType === "alerts") selectedAlertProfileId = response.componentProfileId;
         void persistSidebarUi();
       }
       if (response.dashboard) {
@@ -4165,31 +4164,57 @@ ${run.command || ""}`)) {
     showMessage(`Removed rule “${rule.name}” from the draft.`, "success");
   }
 
-  elements.monitorProfileSelect.addEventListener("change", () => {
-    selectedMonitorProfileId = elements.monitorProfileSelect.value;
-    elements.monitorProfileName.value = monitorProfileById(selectedMonitorProfileId)?.name || "";
+  elements.ruleListProfileSelect.addEventListener("change", () => {
+    selectedRuleListProfileId = elements.ruleListProfileSelect.value;
+    loadSelectedComponentProfileIntoEditor("rule-list");
+    renderComponentProfileOptions();
     void persistSidebarUi();
   });
-  elements.applyMonitorProfileButton.addEventListener("click", () => applyComponentProfileToRule("monitor"));
-  elements.newMonitorProfileButton.addEventListener("click", () => void createComponentProfileFromRule("monitor"));
+  elements.applyRuleListProfileButton.addEventListener("click", () => void applySelectedComponentProfile("rule-list"));
+  elements.clearRuleListProfileBindingButton.addEventListener("click", () => void clearSelectedComponentProfileBinding("rule-list"));
+  elements.newRuleListProfileButton.addEventListener("click", () => void createComponentProfileFromEditor("rule-list"));
+  elements.saveRuleListProfileButton.addEventListener("click", () => void saveSelectedComponentProfile("rule-list"));
+  elements.setDefaultRuleListProfileButton.addEventListener("click", () => void setSelectedComponentProfileAsDefault("rule-list"));
+  elements.deleteRuleListProfileButton.addEventListener("click", () => void deleteSelectedComponentProfile("rule-list"));
+
+  elements.monitorProfileSelect.addEventListener("change", () => {
+    selectedMonitorProfileId = elements.monitorProfileSelect.value;
+    loadSelectedComponentProfileIntoEditor("monitor");
+    renderComponentProfileOptions();
+    void persistSidebarUi();
+  });
+  elements.applyMonitorProfileButton.addEventListener("click", () => void applySelectedComponentProfile("monitor"));
+  elements.clearMonitorProfileBindingButton.addEventListener("click", () => void clearSelectedComponentProfileBinding("monitor"));
+  elements.newMonitorProfileButton.addEventListener("click", () => void createComponentProfileFromEditor("monitor"));
   elements.saveMonitorProfileButton.addEventListener("click", () => void saveSelectedComponentProfile("monitor"));
   elements.setDefaultMonitorProfileButton.addEventListener("click", () => void setSelectedComponentProfileAsDefault("monitor"));
   elements.deleteMonitorProfileButton.addEventListener("click", () => void deleteSelectedComponentProfile("monitor"));
 
   elements.targetProfileSelect.addEventListener("change", () => {
     selectedTargetProfileId = elements.targetProfileSelect.value;
-    elements.targetProfileName.value = targetProfileById(selectedTargetProfileId)?.name || "";
+    loadSelectedComponentProfileIntoEditor("target");
+    renderComponentProfileOptions();
     void persistSidebarUi();
   });
-  elements.applyTargetProfileButton.addEventListener("click", () => {
-    applyComponentProfileToRule("target");
-    // Auto-save the automation profile so the preset/target change persists immediately.
-    void saveProfileConfiguration();
-  });
-  elements.newTargetProfileButton.addEventListener("click", () => void createComponentProfileFromRule("target"));
+  elements.applyTargetProfileButton.addEventListener("click", () => void applySelectedComponentProfile("target"));
+  elements.clearTargetProfileBindingButton.addEventListener("click", () => void clearSelectedComponentProfileBinding("target"));
+  elements.newTargetProfileButton.addEventListener("click", () => void createComponentProfileFromEditor("target"));
   elements.saveTargetProfileButton.addEventListener("click", () => void saveSelectedComponentProfile("target"));
   elements.setDefaultTargetProfileButton.addEventListener("click", () => void setSelectedComponentProfileAsDefault("target"));
   elements.deleteTargetProfileButton.addEventListener("click", () => void deleteSelectedComponentProfile("target"));
+
+  elements.alertProfileSelect.addEventListener("change", () => {
+    selectedAlertProfileId = elements.alertProfileSelect.value;
+    loadSelectedComponentProfileIntoEditor("alerts");
+    renderComponentProfileOptions();
+    void persistSidebarUi();
+  });
+  elements.applyAlertProfileButton.addEventListener("click", () => void applySelectedComponentProfile("alerts"));
+  elements.clearAlertProfileBindingButton.addEventListener("click", () => void clearSelectedComponentProfileBinding("alerts"));
+  elements.newAlertProfileButton.addEventListener("click", () => void createComponentProfileFromEditor("alerts"));
+  elements.saveAlertProfileButton.addEventListener("click", () => void saveSelectedComponentProfile("alerts"));
+  elements.setDefaultAlertProfileButton.addEventListener("click", () => void setSelectedComponentProfileAsDefault("alerts"));
+  elements.deleteAlertProfileButton.addEventListener("click", () => void deleteSelectedComponentProfile("alerts"));
 
   elements.saveCustomTabTitleButton.addEventListener("click", () => void saveCustomTabTitle(elements.customTabTitle.value));
   elements.clearCustomTabTitleButton.addEventListener("click", () => void saveCustomTabTitle(""));
@@ -5449,10 +5474,14 @@ A recovery snapshot will be created before import.`)) return;
   });
   elements.exportConfigurationProfilesButton.addEventListener("click", () => void exportProfileType("configuration"));
   elements.importConfigurationProfilesButton.addEventListener("click", () => chooseProfileImport("configuration"));
+  elements.exportRuleListProfilesButton.addEventListener("click", () => void exportProfileType("rule-list"));
+  elements.importRuleListProfilesButton.addEventListener("click", () => chooseProfileImport("rule-list"));
   elements.exportMonitorProfilesButton.addEventListener("click", () => void exportProfileType("monitor"));
   elements.importMonitorProfilesButton.addEventListener("click", () => chooseProfileImport("monitor"));
   elements.exportTargetProfilesButton.addEventListener("click", () => void exportProfileType("target"));
   elements.importTargetProfilesButton.addEventListener("click", () => chooseProfileImport("target"));
+  elements.exportAlertProfilesButton.addEventListener("click", () => void exportProfileType("alerts"));
+  elements.importAlertProfilesButton.addEventListener("click", () => chooseProfileImport("alerts"));
   elements.exportLocalActionProfilesButton.addEventListener("click", () => void exportProfileType("local-action"));
   elements.importLocalActionProfilesButton.addEventListener("click", () => chooseProfileImport("local-action"));
   elements.profileImportFile.addEventListener("change", async () => {
@@ -5462,15 +5491,30 @@ A recovery snapshot will be created before import.`)) return;
     if (!file || !type) return;
     try {
       const text = await file.text();
-      const preserveComponentDraft = type === "monitor" || type === "target";
-      const editorDraft = preserveComponentDraft ? captureComponentProfileEditorDraft() : null;
+      const preserveComponentDraft = ["rule-list", "monitor", "target", "alerts"].includes(type);
+      const editorDraft = preserveComponentDraft ? {
+        config: Settings.clone(formConfigDraft),
+        selectedRuleId,
+        ruleList: componentEditorSpec("rule-list").readValue(),
+        monitor: componentEditorSpec("monitor").readValue(),
+        target: componentEditorSpec("target").readValue(),
+        alerts: componentEditorSpec("alerts").readValue()
+      } : null;
       const response = await request(
         MESSAGE.IMPORT_PROFILE_BUNDLE,
         { profileType: type, text },
         "",
         { reloadForm: !preserveComponentDraft }
       );
-      if (editorDraft) restoreComponentProfileEditorDraft(editorDraft);
+      if (editorDraft) {
+        formConfigDraft = Settings.normalizeConfig(editorDraft.config);
+        selectedRuleId = editorDraft.selectedRuleId;
+        renderRuleOptions();
+        writeRuleListEditorRules(editorDraft.ruleList);
+        writeMonitorEditorConfig(editorDraft.monitor);
+        writeTargetEditorConfig(editorDraft.target);
+        writeAlertEditorConfig(editorDraft.alerts);
+      }
       if (response?.ok) {
         if (preserveComponentDraft) {
           renderComponentProfileOptions();
@@ -5586,8 +5630,10 @@ A recovery snapshot will be created before import.`)) return;
 
   bindListFilter(elements.tabSearch, "tabs", () => renderSelectors(selectedTabId));
   bindListFilter(elements.profileSearch, "configurationProfiles", () => renderSelectors(selectedTabId));
+  bindListFilter(elements.ruleListProfileSearch, "ruleListProfiles", renderComponentProfileOptions);
   bindListFilter(elements.monitorProfileSearch, "monitorProfiles", renderComponentProfileOptions);
   bindListFilter(elements.targetProfileSearch, "targetProfiles", renderComponentProfileOptions);
+  bindListFilter(elements.alertProfileSearch, "alertProfiles", renderComponentProfileOptions);
   bindListFilter(elements.localActionProfileSearch, "localActionProfiles", renderLocalActionProfileOptions);
   bindListFilter(elements.shellPresetSearch, "commandPresets", renderShellPresetOptions);
   bindListFilter(elements.shellHistorySearch, "commandHistory", renderShellHistory);
