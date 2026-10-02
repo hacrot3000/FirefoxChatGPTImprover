@@ -885,7 +885,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
       </div>
     </section>
 
-    <aside class="card native-host-restart-note" aria-labelledby="nativeHostRestartNoteHeading">
+    <section class="card native-host-restart-note" data-group-id="native-host-restart" aria-labelledby="nativeHostRestartNoteHeading">
       <h2 id="nativeHostRestartNoteHeading">Native Host after restart</h2>
       <div class="inline-result">
         <p><strong>Normal use:</strong> you do not need to run <code>native_host.py</code> manually after restarting the computer or Firefox. Once installed, Firefox starts the Native Messaging Host automatically when this add-on connects to it.</p>
@@ -896,7 +896,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
 ./native-host/install_native_host.sh</code></pre>
         <p><strong>Managed download note:</strong> seeing Firefox's normal Save As/download dialog is not evidence that the Native Host is stopped. The add-on starts the managed browser download first; the Native Host is used afterward to relocate the completed file to the configured absolute destination. If the dialog appears, confirm <strong>Capture the next target-triggered download</strong> is enabled and inspect the managed-download state/log.</p>
       </div>
-    </aside>
+    </section>
 
     <output id="messageBox" class="message-box" role="status" aria-live="polite" aria-atomic="true"></output>
 
@@ -932,7 +932,7 @@ cd C:\absolute\path\to\FirefoxChatImprover
           <label class="check-row"><input type="checkbox" data-sidebar-feature="activity-log">Activity and support</label>
           <label class="check-row"><input type="checkbox" data-sidebar-feature="keyboard-shortcuts">Keyboard shortcuts</label>
           <label class="check-row"><input type="checkbox" data-sidebar-feature="backup-recovery">Backup and transfer</label>
-          <label class="check-row"><input type="checkbox" data-sidebar-feature="setup-guide">Setup and installation</label>
+          <label class="check-row"><input type="checkbox" data-sidebar-feature="setup-guide">Setup, installation, and restart help</label>
         </fieldset>
         <output id="sidebarFeatureStatus" class="selector-test-result" aria-live="polite"></output>
         <div class="button-grid">
