@@ -19,7 +19,7 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 
 ### Fixed
 
-- When **Capture the next target-triggered download** is enabled and the monitor becomes MATCHED, a currently eligible target that was already present in the target baseline can now trigger the managed download automatically. The content runtime probes that current target once per MATCHED cycle and clicks it only after the background confirms the managed-download capture is armed.
+- When **Capture the next target-triggered download** is enabled and the monitor becomes MATCHED, the currently eligible configured target can now trigger the managed download automatically, including a target already present in the baseline. This managed-download path no longer depends on the separate normal **Process new targets** enable flag; it probes once per MATCHED cycle and clicks only after the background confirms the managed-download capture is armed.
 - Managed-download fallback does not weaken normal baseline behavior: when capture is disabled, unavailable, or blocked by another active download job, the existing baseline target is not clicked.
 - The fallback preserves the configured target pipeline/delay/verification path and keeps the one-action-per-cycle accounting/duplicate guards intact.
 
