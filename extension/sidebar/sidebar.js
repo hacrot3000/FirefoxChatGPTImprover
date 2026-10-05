@@ -3104,6 +3104,24 @@
     return { visible: false, icon: "", state: "idle", label: "No active managed download notification." };
   }
 
+  function runtimeHasCurrentMonitorMatch(runtime) {
+    if (typeof runtime?.conditionMatched === "boolean") {
+      return runtime.conditionMatched;
+    }
+    if (runtime && Object.prototype.hasOwnProperty.call(runtime, "monitorMatchedCount")) {
+      return Number(runtime.monitorMatchedCount || 0) > 0;
+    }
+    return runtime?.monitorState === "matched";
+  }
+
+  function runtimeIsReady(runtime, mode) {
+    return Boolean(
+      mode === MODE.ACTIVE &&
+      runtime?.monitorState === "matched" &&
+      runtimeHasCurrentMonitorMatch(runtime)
+    );
+  }
+
   function renderDetails(loadForm = true) {
     const session = selectedSession();
     const currentIsSelected = Number(dashboard.currentTab.tabId) === Number(selectedTabId);
@@ -3113,15 +3131,16 @@
     elements.body.dataset.mode = mode;
     const sidebarAlertEnabled = Boolean(session?.effectiveConfig?.alerts?.sidebar);
     const alertActive = Boolean(runtime.alertActive);
-    elements.body.dataset.alert = sidebarAlertEnabled && alertActive ? "active" : "inactive";
+    const readyNow = runtimeIsReady(runtime, mode);
+    elements.body.dataset.alert = sidebarAlertEnabled && alertActive && readyNow ? "active" : "inactive";
     const shellNotice = selectedShellNotice();
     elements.body.dataset.command = shellNotice.status;
-    elements.statusPill.textContent = mode === MODE.ACTIVE && runtime.monitorState === "matched"
-      ? "RD"
-      : (modeLabels[mode] || mode);
-    elements.statusPill.title = mode === MODE.ACTIVE && runtime.monitorState === "matched"
-      ? "AI ready: the monitored condition is matched."
-      : (modeLabels[mode] || mode);
+    elements.statusPill.textContent = readyNow ? "RD" : (modeLabels[mode] || mode);
+    elements.statusPill.title = readyNow
+      ? "AI ready: the monitored condition is currently matched."
+      : (runtime.monitorState === "matched" && !runtimeHasCurrentMonitorMatch(runtime)
+        ? "Monitoring: the previous stable match is resetting because the current condition no longer matches."
+        : (modeLabels[mode] || mode));
     const downloadNotice = downloadHeaderNotice(selectedDownloadState());
     elements.downloadStatusIcon.hidden = !downloadNotice.visible;
     elements.downloadStatusIcon.textContent = downloadNotice.icon;
@@ -3160,7 +3179,7 @@
     elements.matchedRuleCountText.textContent = session ? String(runtime.matchedRuleCount || 0) : "—";
     elements.alertStateText.textContent = session
       ? (runtime.alertActive
-        ? `ACTIVE cycle ${runtime.alertCycle || runtime.cycle || 0}${runtime.titleBlinking ? " / title blink" : ""}${runtime.soundAlertState && runtime.soundAlertState !== "idle" ? ` / sound ${runtime.soundAlertState}` : ""}`
+        ? `${readyNow ? "ACTIVE" : "LATCHED"} cycle ${runtime.alertCycle || runtime.cycle || 0}${readyNow ? "" : " / monitor not currently matched"}${runtime.titleBlinking ? " / title blink" : ""}${runtime.soundAlertState && runtime.soundAlertState !== "idle" ? ` / sound ${runtime.soundAlertState}` : ""}`
         : (runtime.alertDismissReason ? `dismissed (${runtime.alertDismissReason})` : "inactive"))
       : "—";
     elements.commandNoticeText.textContent = !session
@@ -3628,9 +3647,16 @@
             ? Number(response.result.totalCount) > 0 && matchedCount === Number(response.result.totalCount)
             : matchedCount > 0)
       );
+      const monitorRuleBinding = selectedComponentBindings().rules?.[selectedRuleId] || {};
+      const monitorEditingProfile = monitorProfileById(selectedMonitorProfileId);
+      const monitorEditorNotApplied = kind === "monitor" &&
+        (!monitorRuleBinding.monitorProfileId || monitorRuleBinding.monitorProfileId !== selectedMonitorProfileId);
+      const monitorScopeNote = monitorEditorNotApplied
+        ? ` This tests Editing profile “${monitorEditingProfile?.name || selectedMonitorProfileId || "current editor"}”, which is not applied to this tab/rule; RD reflects the monitor currently used by the running tab.`
+        : "";
       showMessage(
         kind === "monitor"
-          ? `Found ${response.result.totalCount} element(s); ${matchedCount} match the conditions.`
+          ? `Found ${response.result.totalCount} element(s); ${matchedCount} match the conditions.${monitorScopeNote}`
           : (kind === "verify"
             ? `Verify ${expectation}: found ${response.result.totalCount}; ${matchedCount} match the visibility expectation; ${verifyPass ? "PASS" : "not satisfied"}.`
             : `Target selector tested: ${response.result.selectedCount}/${response.result.totalCount} element(s) selected.`),
