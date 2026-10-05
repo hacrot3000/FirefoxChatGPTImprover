@@ -15,7 +15,7 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
-## [0.41.17] - 2026-10-05
+## [0.42.0] - 2026-10-05
 
 ### Changed
 
@@ -37,6 +37,7 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 
 - Settings schema advances to **19**, protocol to **27**, and Working Session format to **5**.
 - Existing Automation profiles remain readable. Their historical Rule/Monitor/Target/Alert payload becomes the compatibility snapshot until a corresponding independent profile is applied.
+- On first schema-19 normalization, distinct legacy Rule-list and Alert configurations are migrated into reusable independent libraries; identical legacy component payloads are deduplicated and the previous default Automation profile maps to the corresponding migrated defaults.
 - Existing Working Session versions 1-4 remain importable.
 
 ## [0.41.16] - 2026-10-02
