@@ -53,6 +53,7 @@ Existing Automation profiles remain readable and retain their historical full co
 - Independent profile bindings override that snapshot group-by-group.
 - Applying a Monitor/Target profile no longer copies data into and auto-saves the Automation profile.
 - Existing tabs and stopped-tab recovery keep their effective values.
+- Distinct legacy Rule-list and Alert payloads are migrated into independent reusable profiles on schema-19 normalization; duplicates are collapsed and the previous default Automation profile determines the migrated defaults.
 
 ## UI contract
 
@@ -87,7 +88,7 @@ Changing the library selection alone never changes a running tab. Apply is expli
 
 ## Completed implementation
 
-Released as **v0.41.17**.
+Released as **v0.42.0**.
 
 Runtime ownership is now explicit:
 
