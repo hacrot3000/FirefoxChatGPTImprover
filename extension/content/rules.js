@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_RULE_ENGINE?.VERSION >= 4) {
+  if (globalThis.FCI_RULE_ENGINE?.VERSION >= 5) {
     return;
   }
 
@@ -87,6 +87,10 @@
       const focused = focusedEntry();
       const changed = entries.get(lastChangedRuleId) || focused;
       const matched = values.filter((entry) => entry.runtime.monitorState === MONITOR_STATE.MATCHED);
+      const currentlyMatched = values.filter((entry) => (
+        entry.runtime.conditionMatched === true ||
+        (entry.runtime.conditionMatched === undefined && Number(entry.runtime.monitorMatchedCount || 0) > 0)
+      ));
       const waiting = values.filter((entry) => entry.runtime.monitorState === MONITOR_STATE.WAITING);
       const errored = values.filter((entry) => entry.runtime.monitorState === MONITOR_STATE.ERROR);
       const allPaused = values.length > 0 && values.every((entry) => entry.runtime.monitorState === MONITOR_STATE.PAUSED);
@@ -101,11 +105,13 @@
         ...source,
         monitorState,
         cycle: aggregateCycle,
-        conditionMatched: matched.length > 0,
+        conditionMatched: currentlyMatched.length > 0,
         ruleCount: config.rules.length,
         enabledRuleCount: values.length,
         matchedRuleCount: matched.length,
         matchedRuleIds: matched.map((entry) => entry.rule.id),
+        currentMatchedRuleCount: currentlyMatched.length,
+        currentMatchedRuleIds: currentlyMatched.map((entry) => entry.rule.id),
         activeRuleId: config.activeRuleId,
         lastRuleId: changed?.rule.id || null,
         lastRuleName: changed?.rule.name || null,
@@ -139,6 +145,8 @@
         monitorState: runtime.monitorState,
         cycle: runtime.cycle,
         matchedRuleIds: runtime.matchedRuleIds,
+        currentMatchedRuleIds: runtime.currentMatchedRuleIds,
+        conditionMatched: runtime.conditionMatched,
         activeRuleId: runtime.activeRuleId,
         ruleRuntimes: runtime.ruleRuntimes,
         lastTransition: runtime.lastTransition,
@@ -317,7 +325,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 4,
+      VERSION: 5,
       ruleConfig,
       createRuleAutomation
     })
