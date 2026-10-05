@@ -22,7 +22,7 @@ for (const file of [
 const Settings = sandbox.FCI_SETTINGS;
 const LocalActions = sandbox.FCI_LOCAL_ACTIONS;
 const Working = sandbox.FCI_WORKING_SESSION;
-assert.equal(Working.VERSION, 4);
+assert.ok(Working.VERSION >= 5, `Working Session runtime regressed below v5: ${Working.VERSION}`);
 assert.equal(Working.CATALOG_VERSION, 1);
 assert.equal(Working.CATALOG_STORAGE_KEY, "firefoxChatImprover.workingSessionCatalog.v1");
 
@@ -77,7 +77,7 @@ assert(merged.catalog.entries.some((entry) => entry.name.includes("(imported)"))
 
 const legacy = bundle("https://chatgpt.com/c/legacy", "Legacy");
 legacy.version = 3;
-assert.equal(Working.normalize(legacy).version, 4);
+assert.equal(Working.normalize(legacy).version, Working.VERSION);
 
 const protocol = fs.readFileSync(path.join(root, "extension/shared/protocol.js"), "utf8");
 for (const name of [
