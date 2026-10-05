@@ -21,20 +21,24 @@ function versionAtLeast(actual, minimum) {
 
 assert(versionAtLeast(manifest.version, "0.40.5"));
 assert(protocol.includes('SET_DEFAULT_COMPONENT_PROFILE: "FCI_SET_DEFAULT_COMPONENT_PROFILE"'));
-assert(html.includes('id="setDefaultMonitorProfileButton"'));
-assert(html.includes('id="setDefaultTargetProfileButton"'));
-assert(html.includes("To rename, edit Profile name and choose Save changes."));
+for (const id of [
+  "setDefaultRuleListProfileButton",
+  "setDefaultMonitorProfileButton",
+  "setDefaultTargetProfileButton",
+  "setDefaultAlertProfileButton"
+]) assert(html.includes('id="' + id + '"'), id);
+assert(sidebar.includes('setSelectedComponentProfileAsDefault("rule-list")'));
 assert(sidebar.includes('setSelectedComponentProfileAsDefault("monitor")'));
 assert(sidebar.includes('setSelectedComponentProfileAsDefault("target")'));
-assert(sidebar.includes("The current rule was not changed."));
-assert(sidebar.includes("monitorProfile.id === dashboard.store.defaultMonitorProfileId"));
-assert(sidebar.includes("targetProfile.id === dashboard.store.defaultTargetProfileId"));
+assert(sidebar.includes('setSelectedComponentProfileAsDefault("alerts")'));
+assert(sidebar.includes("Open tabs were not reassigned."));
+assert(sidebar.includes("profile.id === spec.defaultId()"));
 assert(background.includes("async function setDefaultComponentProfile(type, profileId)"));
-assert(background.includes('store[defaultKey] = profile.id'));
-assert(background.includes('Choose another default ${type === "monitor" ? "Monitor" : "Target"} profile before deleting this one.'));
-assert(!background.includes('if (store[defaultKey] === profileId) store[defaultKey] = store[collectionKey][0].id'));
+assert(background.includes('store[spec.defaultKey] = profile.id'));
+assert(background.includes('Choose another default ${spec.label} profile before deleting this one.'));
+assert(!background.includes('if (store[spec.defaultKey] === profileId) store[spec.defaultKey] = store[spec.collectionKey][0].id'));
 const setter = background.slice(background.indexOf("async function setDefaultComponentProfile"), background.indexOf("async function deleteComponentProfile"));
 assert(!setter.includes("sessions.values"));
 assert(!setter.includes("applySessionToContent"));
 assert(!setter.includes("refreshSessionsForStore"));
-console.log("PASS: Phase 54 explicit Monitor/Target defaults preserve the current rule and require deliberate reassignment before deletion");
+console.log("PASS: Phase 54 explicit Rule-list/Monitor/Target/Alert defaults remain library-only and require deliberate reassignment before deletion");
