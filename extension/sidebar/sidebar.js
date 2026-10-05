@@ -2417,6 +2417,15 @@
     element.textContent = scopeLabel + " uses: " + appliedLabel + " · Editing: " + (selectedProfile?.name || "—") + (selectedDiffers ? " (not applied)" : "");
   }
 
+  function syncComponentProfileNameInput(element, profile) {
+    if (!element) return;
+    const profileId = profile?.id || "";
+    if (element.dataset.profileId !== profileId) {
+      element.dataset.profileId = profileId;
+      element.value = profile?.name || "";
+    }
+  }
+
   function profileOptions(selectedId, defaultId, result) {
     return result.items.map((profile) => {
       const suffix = profile.id === defaultId ? " (default)" : "";
@@ -2442,7 +2451,7 @@
     );
     elements.ruleListProfileSelect.replaceChildren(...profileOptions(selectedRuleListProfileId, store.defaultRuleListProfileId, ruleListResult));
     elements.ruleListProfileSelect.value = selectedRuleListProfileId || "";
-    elements.ruleListProfileName.value = ruleListProfileById(selectedRuleListProfileId)?.name || "";
+    syncComponentProfileNameInput(elements.ruleListProfileName, ruleListProfileById(selectedRuleListProfileId));
     renderFilterResult(elements.ruleListProfileSearchResult, { ...ruleListResult, query: listFilters.ruleListProfiles });
     const appliedRuleList = bindings.ruleListProfileId ? Settings.ruleListProfileById(store, bindings.ruleListProfileId) : null;
     componentSourceSummary(elements.ruleListProfileSourceSummary, appliedRuleList, ruleListProfileById(selectedRuleListProfileId), "Automation compatibility snapshot", "Tab");
@@ -2459,7 +2468,7 @@
     );
     elements.monitorProfileSelect.replaceChildren(...profileOptions(selectedMonitorProfileId, store.defaultMonitorProfileId, monitorResult));
     elements.monitorProfileSelect.value = selectedMonitorProfileId || "";
-    elements.monitorProfileName.value = monitorProfileById(selectedMonitorProfileId)?.name || "";
+    syncComponentProfileNameInput(elements.monitorProfileName, monitorProfileById(selectedMonitorProfileId));
     renderFilterResult(elements.monitorProfileSearchResult, { ...monitorResult, query: listFilters.monitorProfiles });
     const appliedMonitor = ruleBinding.monitorProfileId ? Settings.monitorProfileById(store, ruleBinding.monitorProfileId) : null;
     componentSourceSummary(elements.monitorProfileSourceSummary, appliedMonitor, monitorProfileById(selectedMonitorProfileId), "Rule compatibility snapshot", currentRule ? "Rule “" + (currentRule.name || "Rule") + "”" : "Selected rule");
@@ -2476,7 +2485,7 @@
     );
     elements.targetProfileSelect.replaceChildren(...profileOptions(selectedTargetProfileId, store.defaultTargetProfileId, targetResult));
     elements.targetProfileSelect.value = selectedTargetProfileId || "";
-    elements.targetProfileName.value = targetProfileById(selectedTargetProfileId)?.name || "";
+    syncComponentProfileNameInput(elements.targetProfileName, targetProfileById(selectedTargetProfileId));
     renderFilterResult(elements.targetProfileSearchResult, { ...targetResult, query: listFilters.targetProfiles });
     const appliedTarget = ruleBinding.targetProfileId ? Settings.targetProfileById(store, ruleBinding.targetProfileId) : null;
     componentSourceSummary(elements.targetProfileSourceSummary, appliedTarget, targetProfileById(selectedTargetProfileId), "Rule compatibility snapshot", currentRule ? "Rule “" + (currentRule.name || "Rule") + "”" : "Selected rule");
@@ -2493,7 +2502,7 @@
     );
     elements.alertProfileSelect.replaceChildren(...profileOptions(selectedAlertProfileId, store.defaultAlertProfileId, alertResult));
     elements.alertProfileSelect.value = selectedAlertProfileId || "";
-    elements.alertProfileName.value = alertProfileById(selectedAlertProfileId)?.name || "";
+    syncComponentProfileNameInput(elements.alertProfileName, alertProfileById(selectedAlertProfileId));
     renderFilterResult(elements.alertProfileSearchResult, { ...alertResult, query: listFilters.alertProfiles });
     const appliedAlert = bindings.alertProfileId ? Settings.alertProfileById(store, bindings.alertProfileId) : null;
     componentSourceSummary(elements.alertProfileSourceSummary, appliedAlert, alertProfileById(selectedAlertProfileId), "Automation compatibility snapshot", "Tab");
@@ -4772,6 +4781,7 @@ ${run.command || ""}`)) {
     const spec = componentEditorSpec(type);
     const profile = spec.profile(spec.selectedId());
     if (!profile) return;
+    spec.nameElement.dataset.profileId = profile.id;
     spec.nameElement.value = profile.name || "";
     spec.writeValue(Settings.clone(profile[spec.valueKey]));
     if (type === "rule-list") renderComponentProfileOptions();
