@@ -40,9 +40,9 @@ Sau đó reload add-on trong `about:addons`.
 
 ## Complete configuration backup and safe restore
 
-**Export all configuration** now backs up the complete reusable configuration surface: Automation/Monitor/Target profiles, Local action profiles, global command presets, custom prompt templates and sidebar visibility preferences. Working sessions, runtime logs, active download/shell jobs, recovery-history and tab-ID editor state are intentionally excluded.
+**Export all configuration** backs up the complete reusable configuration surface: Automation/Rule-list/Monitor/Target/Alert profiles, Local action profiles, global command presets, custom prompt templates and sidebar visibility preferences. Working sessions, runtime logs, active download/shell jobs, recovery-history and tab-ID editor state are intentionally excluded.
 
-Importing a full bundle or restoring a v0.40.9+ recovery snapshot updates the global libraries without silently reconfiguring tabs that are already open or explicitly stopped. If either the Automation or Local action profile referenced by a tab is missing or has different values after replacement, the tab keeps its previous effective values as tab overrides. Legacy pre-v0.40.9 Automation-only exports and snapshots remain supported and are labelled as legacy scope.
+Importing a full bundle or restoring a v0.40.9+ recovery snapshot updates the global libraries without silently reconfiguring tabs that are already open or explicitly stopped. If an Automation, Rule-list, Monitor, Target, Alert or Local action profile referenced by a tab is missing or has different values after replacement, the tab keeps its previous effective values; stale component bindings are cleared only after their effective component snapshot is preserved. Legacy pre-v0.40.9 Automation-only exports and snapshots remain supported and are labelled as legacy scope.
 
 ### Full-scope import/restore activation
 
@@ -874,10 +874,16 @@ After **Stop**, the tab remains explicitly inactive even if Firefox reloads the 
 <!-- FCI_PHASE46_SIMPLIFIED_SIDEBAR_BEGIN -->
 ## Simplified sidebar and visible features (v0.39.7)
 
-The two profile systems now use purpose-specific names:
+Reusable configuration now has independent ownership:
 
-- **Automation profiles** store rules, monitors, targets, alerts and automation URL routing.
-- **Local action profiles** store machine-local download destinations, shell commands and their URL routing.
+- **Automation profiles** store only URL routing, allowlists, routing priority and automatic-activation behavior.
+- **Rule-list profiles** store rule identity, names, enabled state and optional per-rule command-action selection.
+- **Rule monitor profiles** store reusable monitor selectors/conditions and bind per tab + rule.
+- **Rule target action profiles** store reusable target selectors/pipeline settings and bind per tab + rule.
+- **Alert profiles** store alert/title/sound behavior and bind per tab.
+- **Local action profiles** store machine-local managed-download and shell-command settings.
+
+Each panel separates **Tab uses** from **Editing**. Choosing a library profile only changes the editor; **Apply** is the explicit operation that changes the selected tab (and selected rule for Monitor/Target).
 
 Use the gear button in **Tabs and runtime** to choose a **Simple**, **Standard**, **All features** or **Custom** layout. Tabs and runtime always remains visible, so hidden features can always be restored. Hiding a feature affects only the sidebar controls; it does not delete settings, disable an active automation, alter saved working sessions or change Stop/Start persistence.
 
@@ -889,6 +895,16 @@ Automation save and tab-override controls now live in Automation profiles. **Bac
 
 `Save current as new` captures the complete current Automation or Local action editor. The created or saved profile remains selected without applying Default or silently changing the profile bound to the tab.
 
+
+<!-- FCI_PHASE76_INDEPENDENT_PROFILE_BINDINGS_BEGIN -->
+## Independent profile bindings (v0.41.17)
+
+Profile combinations no longer require duplicating an Automation or Local action profile. Automation owns routing/activation only; Rule-list and Alert profiles bind independently per tab; Monitor and Target profiles bind independently per tab + rule; Local action owns managed-download and shell-command settings only.
+
+The sidebar persists the **Editing** choice independently from **Tab uses**. Rule-list/Alert editor selections are remembered per tab, while Monitor/Target editor selections are remembered per tab + rule. Applying a Target profile therefore does not save the Automation profile, and the same Local action profile can be combined with different Target profiles on different tabs/rules.
+
+Independent bindings survive explicit Stop/Start and Working Session save/restore. Full configuration replacement and component-profile deletion preserve the current effective component values before clearing stale bindings.
+<!-- FCI_PHASE76_INDEPENDENT_PROFILE_BINDINGS_END -->
 
 <!-- FCI_PHASE65_COMPACT_READY_DOWNLOAD_STATUS_BEGIN -->
 ## Compact ready and download status (v0.41.6)
