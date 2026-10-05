@@ -147,6 +147,10 @@
   const manualProfileSelectionByTab = new Map();
   const profileEditorSelectionByTab = new Map();
   const localActionProfileEditorSelectionByTab = new Map();
+  const ruleListProfileEditorSelectionByTab = new Map();
+  const alertProfileEditorSelectionByTab = new Map();
+  const monitorProfileEditorSelectionByRule = new Map();
+  const targetProfileEditorSelectionByRule = new Map();
   const stoppedConfigBypassTabs = new Set();
   const tabProfileUiUrlByTab = new Map();
   const TAB_PROFILE_UI_STATE_LIMIT = 200;
@@ -496,6 +500,43 @@
     }
   }
 
+  function serializeStringProfileMap(map) {
+    return Object.fromEntries(
+      [...map.entries()]
+        .filter(([key, value]) => String(key || "") && String(value || ""))
+        .slice(-TAB_PROFILE_UI_STATE_LIMIT * 8)
+        .map(([key, value]) => [String(key), String(value)])
+    );
+  }
+
+  function restoreStringProfileMap(map, raw) {
+    map.clear();
+    for (const [key, value] of Object.entries(raw && typeof raw === "object" ? raw : {})) {
+      if (String(key || "") && String(value || "")) map.set(String(key), String(value));
+    }
+  }
+
+  function componentRuleEditorKey(tabId = selectedTabId, ruleId = selectedRuleId) {
+    const numericTabId = Number(tabId);
+    const normalizedRuleId = String(ruleId || "").trim();
+    return Number.isInteger(numericTabId) && normalizedRuleId ? String(numericTabId) + "::" + normalizedRuleId : "";
+  }
+
+  function setRuleComponentProfileSelection(map, tabId, ruleId, profileId) {
+    const key = componentRuleEditorKey(tabId, ruleId);
+    if (!key) return;
+    if (profileId) map.set(key, String(profileId));
+    else map.delete(key);
+    rememberTabProfileUiContext(tabId);
+  }
+
+  function clearRuleComponentProfileSelectionsForTab(map, tabId) {
+    const prefix = String(Number(tabId)) + "::";
+    for (const key of [...map.keys()]) {
+      if (String(key).startsWith(prefix)) map.delete(key);
+    }
+  }
+
   function serializeTabProfileSet(set) {
     return [...set].filter((tabId) => Number.isInteger(Number(tabId))).slice(-TAB_PROFILE_UI_STATE_LIMIT).map(Number);
   }
@@ -535,6 +576,10 @@
     const numericTabId = Number(tabId);
     profileEditorSelectionByTab.delete(numericTabId);
     localActionProfileEditorSelectionByTab.delete(numericTabId);
+    ruleListProfileEditorSelectionByTab.delete(numericTabId);
+    alertProfileEditorSelectionByTab.delete(numericTabId);
+    clearRuleComponentProfileSelectionsForTab(monitorProfileEditorSelectionByRule, numericTabId);
+    clearRuleComponentProfileSelectionsForTab(targetProfileEditorSelectionByRule, numericTabId);
     manualProfileSelectionByTab.delete(numericTabId);
     stoppedConfigBypassTabs.delete(numericTabId);
     tabProfileUiUrlByTab.delete(numericTabId);
@@ -551,6 +596,10 @@
     } else if (!storedUrl && currentUrl && (
       profileEditorSelectionByTab.has(numericTabId) ||
       localActionProfileEditorSelectionByTab.has(numericTabId) ||
+      ruleListProfileEditorSelectionByTab.has(numericTabId) ||
+      alertProfileEditorSelectionByTab.has(numericTabId) ||
+      [...monitorProfileEditorSelectionByRule.keys()].some((key) => String(key).startsWith(String(numericTabId) + "::")) ||
+      [...targetProfileEditorSelectionByRule.keys()].some((key) => String(key).startsWith(String(numericTabId) + "::")) ||
       manualProfileSelectionByTab.has(numericTabId) ||
       stoppedConfigBypassTabs.has(numericTabId)
     )) {
@@ -578,6 +627,10 @@
           contextUrls: serializeTabProfileMap(tabProfileUiUrlByTab),
           automationEditor: serializeTabProfileMap(profileEditorSelectionByTab),
           localActionEditor: serializeTabProfileMap(localActionProfileEditorSelectionByTab),
+          ruleListEditor: serializeTabProfileMap(ruleListProfileEditorSelectionByTab),
+          alertEditor: serializeTabProfileMap(alertProfileEditorSelectionByTab),
+          monitorEditorByRule: serializeStringProfileMap(monitorProfileEditorSelectionByRule),
+          targetEditorByRule: serializeStringProfileMap(targetProfileEditorSelectionByRule),
           manualAutomation: serializeTabProfileMap(manualProfileSelectionByTab),
           stoppedConfigBypass: serializeTabProfileSet(stoppedConfigBypassTabs)
         }
@@ -731,6 +784,10 @@
     restoreTabProfileMap(tabProfileUiUrlByTab, storedTabProfileUi.contextUrls);
     restoreTabProfileMap(profileEditorSelectionByTab, storedTabProfileUi.automationEditor);
     restoreTabProfileMap(localActionProfileEditorSelectionByTab, storedTabProfileUi.localActionEditor);
+    restoreTabProfileMap(ruleListProfileEditorSelectionByTab, storedTabProfileUi.ruleListEditor);
+    restoreTabProfileMap(alertProfileEditorSelectionByTab, storedTabProfileUi.alertEditor);
+    restoreStringProfileMap(monitorProfileEditorSelectionByRule, storedTabProfileUi.monitorEditorByRule);
+    restoreStringProfileMap(targetProfileEditorSelectionByRule, storedTabProfileUi.targetEditorByRule);
     restoreTabProfileMap(manualProfileSelectionByTab, storedTabProfileUi.manualAutomation);
     restoreTabProfileSet(stoppedConfigBypassTabs, storedTabProfileUi.stoppedConfigBypass);
     const storedFilters = storedUi.listFilters && typeof storedUi.listFilters === "object" ? storedUi.listFilters : {};
