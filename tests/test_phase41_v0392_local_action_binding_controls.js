@@ -32,7 +32,7 @@ function extractFunction(source, declaration) {
     `Phase 41 contract requires version >= 0.39.2, got ${manifest.version}`
   );
 }
-assert.match(protocol, /VERSION: 26/);
+assert.match(protocol, /VERSION:\s*(?:2[6-9]|[3-9]\d|\d{3,})/, "Protocol version regressed below Phase 41 baseline 26.");
 assert(protocol.includes('CLEAR_LOCAL_ACTION_PROFILE_BINDING: "FCI_CLEAR_LOCAL_ACTION_PROFILE_BINDING"'));
 assert(html.includes('id="clearLocalActionProfileBindingButton"'));
 assert(sidebar.includes('effectiveBinding === "explicit-tab"'));
