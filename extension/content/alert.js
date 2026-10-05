@@ -357,7 +357,8 @@
     }
 
     function monitorSpinWanted() {
-      return shouldSpinMonitorTitle(runtime, mode) && !(active && config.alerts.titleBlink);
+      return shouldSpinMonitorTitle(runtime, mode) &&
+        !(active && shouldShowReadyTitle(runtime, mode) && config.alerts.titleBlink);
     }
 
     function applyCurrentTitleFrame() {
