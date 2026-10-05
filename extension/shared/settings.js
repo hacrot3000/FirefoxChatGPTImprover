@@ -757,6 +757,9 @@
       usedTargetIds.add(DEFAULT_TARGET_PROFILE_ID);
     }
 
+    let defaultProfileId = safeString(source.defaultProfileId);
+    if (!used.has(defaultProfileId)) defaultProfileId = profiles[0].id;
+
     const ruleListProfiles = [];
     const usedRuleListIds = new Set();
     for (const candidate of Array.isArray(source.ruleListProfiles) ? source.ruleListProfiles : []) {
@@ -766,9 +769,30 @@
         ruleListProfiles.push(profile);
       }
     }
+    let migratedDefaultRuleListProfileId = null;
     if (!ruleListProfiles.length) {
-      ruleListProfiles.push(createRuleListProfile("Default rule list", profiles[0]?.config?.rules, DEFAULT_RULE_LIST_PROFILE_ID));
-      usedRuleListIds.add(DEFAULT_RULE_LIST_PROFILE_ID);
+      const seenRuleLists = new Map();
+      for (const automationProfile of profiles) {
+        const rules = normalizeRuleList(automationProfile.config?.rules);
+        const fingerprint = JSON.stringify(rules);
+        if (seenRuleLists.has(fingerprint)) {
+          if (automationProfile.id === defaultProfileId) {
+            migratedDefaultRuleListProfileId = seenRuleLists.get(fingerprint);
+          }
+          continue;
+        }
+        const id = automationProfile.id === defaultProfileId
+          ? DEFAULT_RULE_LIST_PROFILE_ID
+          : `rule-list-${automationProfile.id}`;
+        const name = automationProfile.id === defaultProfileId
+          ? "Default rule list"
+          : `${automationProfile.name} · rules`;
+        const profile = createRuleListProfile(name, rules, id);
+        usedRuleListIds.add(profile.id);
+        ruleListProfiles.push(profile);
+        seenRuleLists.set(fingerprint, profile.id);
+        if (automationProfile.id === defaultProfileId) migratedDefaultRuleListProfileId = profile.id;
+      }
     }
 
     const alertProfiles = [];
@@ -780,21 +804,44 @@
         alertProfiles.push(profile);
       }
     }
+    let migratedDefaultAlertProfileId = null;
     if (!alertProfiles.length) {
-      alertProfiles.push(createAlertProfile("Default alerts", profiles[0]?.config?.alerts, DEFAULT_ALERT_PROFILE_ID));
-      usedAlertIds.add(DEFAULT_ALERT_PROFILE_ID);
+      const seenAlerts = new Map();
+      for (const automationProfile of profiles) {
+        const alerts = normalizeAlertConfig(automationProfile.config?.alerts);
+        const fingerprint = JSON.stringify(alerts);
+        if (seenAlerts.has(fingerprint)) {
+          if (automationProfile.id === defaultProfileId) {
+            migratedDefaultAlertProfileId = seenAlerts.get(fingerprint);
+          }
+          continue;
+        }
+        const id = automationProfile.id === defaultProfileId
+          ? DEFAULT_ALERT_PROFILE_ID
+          : `alert-${automationProfile.id}`;
+        const name = automationProfile.id === defaultProfileId
+          ? "Default alerts"
+          : `${automationProfile.name} · alerts`;
+        const profile = createAlertProfile(name, alerts, id);
+        usedAlertIds.add(profile.id);
+        alertProfiles.push(profile);
+        seenAlerts.set(fingerprint, profile.id);
+        if (automationProfile.id === defaultProfileId) migratedDefaultAlertProfileId = profile.id;
+      }
     }
 
-    let defaultProfileId = safeString(source.defaultProfileId);
-    if (!used.has(defaultProfileId)) defaultProfileId = profiles[0].id;
     let defaultMonitorProfileId = safeString(source.defaultMonitorProfileId);
     if (!usedMonitorIds.has(defaultMonitorProfileId)) defaultMonitorProfileId = monitorProfiles[0].id;
     let defaultTargetProfileId = safeString(source.defaultTargetProfileId);
     if (!usedTargetIds.has(defaultTargetProfileId)) defaultTargetProfileId = targetProfiles[0].id;
     let defaultRuleListProfileId = safeString(source.defaultRuleListProfileId);
-    if (!usedRuleListIds.has(defaultRuleListProfileId)) defaultRuleListProfileId = ruleListProfiles[0].id;
+    if (!usedRuleListIds.has(defaultRuleListProfileId)) {
+      defaultRuleListProfileId = migratedDefaultRuleListProfileId || ruleListProfiles[0].id;
+    }
     let defaultAlertProfileId = safeString(source.defaultAlertProfileId);
-    if (!usedAlertIds.has(defaultAlertProfileId)) defaultAlertProfileId = alertProfiles[0].id;
+    if (!usedAlertIds.has(defaultAlertProfileId)) {
+      defaultAlertProfileId = migratedDefaultAlertProfileId || alertProfiles[0].id;
+    }
 
     return {
       schemaVersion: SCHEMA_VERSION,
