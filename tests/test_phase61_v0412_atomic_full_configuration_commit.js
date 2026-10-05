@@ -40,9 +40,9 @@ for (const legacyCall of [
   "saveSidebarPreferences(normalized.sidebarPreferences)"
 ]) assert(!replace.includes(legacyCall), `sequential full-replacement write survived: ${legacyCall}`);
 assert(replace.includes("const committed = await commitFullConfigurationBundle(bundle)"));
-assert(replace.includes("refreshSessionsForStore(committed.previousAutomationStore, committed.savedAutomationStore, reason)"));
+assert.match(replace, /refreshSessionsForStore\(\s*committed\.previousAutomationStore,\s*committed\.savedAutomationStore,\s*reason\s*\)/s);
 assert(replace.includes("reconcileComponentBindingsForStore("));
 assert(replace.includes("committed.previousAutomationStore"));
 assert(replace.includes("committed.savedAutomationStore"));
-assert(replace.includes("refreshSessionsForLocalActionStore(committed.previousLocalActionStore, committed.savedLocalActionStore, reason)"));
+assert.match(replace, /refreshSessionsForLocalActionStore\(\s*committed\.previousLocalActionStore,\s*committed\.savedLocalActionStore,\s*reason\s*\)/s);
 console.log("PASS: Phase 61 full configuration import/restore commits all five global stores together and rolls back on storage failure");
