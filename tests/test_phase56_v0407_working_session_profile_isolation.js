@@ -38,6 +38,9 @@ for (const forbidden of ["saveStore(", "saveLocalActionStore(", "mergeWorkingSes
 assert(body.includes("workingSessionAutomationRestorePlan(store, savedTab)"));
 assert(body.includes("workingSessionLocalActionRestorePlan(localStore, savedTab)"));
 assert(body.includes("session.configMode = automationPlan.configMode"));
+assert(body.includes("session.componentBaseConfig = Settings.normalizeConfig(savedTab.componentBaseConfig"));
+assert(body.includes("session.componentBindings = normalizeComponentBindings(savedTab.componentBindings)"));
+assert(body.includes("saveTabComponentBindings(tab.id, session.componentBindings)"));
 assert(body.includes("session.localActionConfigMode = localActionPlan.configMode"));
 assert(html.includes("Restore recreates each tab from its saved effective configuration without creating or changing global profiles."));
-console.log("PASS: Phase 56 working-session restore is isolated from global profile libraries and falls back to tab snapshots");
+console.log("PASS: Phase 56 working-session restore is isolated from global profile libraries, preserves component bindings and falls back to tab snapshots");
