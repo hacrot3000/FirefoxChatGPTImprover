@@ -129,6 +129,7 @@ const sandbox = {
 vm.createContext(sandbox);
 for (const signature of [
   "function configFingerprint",
+  "function normalizeComponentBindings",
   "function normalizeStoppedTabConfigSnapshot",
   "function stoppedTabConfigSnapshot",
   "function applyStoppedTabConfigSnapshot"
@@ -147,7 +148,14 @@ const running = {
   localActionRevision: 9,
   localActionWorkingConfig: normalizeLocal({ shell: { command: "draft-command", workingDirectory: "/tmp/work" } }),
   localActionWorkingContext: {},
-  sessionToken: "old-session"
+  sessionToken: "old-session",
+  componentBaseConfig: normalizeConfig({ marker: "component-base" }),
+  componentBindings: {
+    schema: 1,
+    ruleListProfileId: "rule-list-one",
+    alertProfileId: "alert-one",
+    rules: { "rule-1": { monitorProfileId: "monitor-one", targetProfileId: "target-one" } }
+  }
 };
 const monitorDraft = normalizeConfig({ marker: "unsaved-tab-draft", rules: [{ id: "rule-1" }] });
 const localDraft = normalizeLocal({ shell: { command: "draft-command", workingDirectory: "/tmp/work" }, download: { destinationDirectory: "/tmp/download" } });
@@ -157,6 +165,9 @@ const snapshot = sandbox.stoppedTabConfigSnapshot(running, store, localStore, {
 });
 assert.equal(snapshot.configMode, "tab");
 assert.equal(snapshot.effectiveConfig.marker, "unsaved-tab-draft");
+assert.equal(snapshot.componentBaseConfig.marker, "component-base");
+assert.equal(snapshot.componentBindings.ruleListProfileId, "rule-list-one");
+assert.equal(snapshot.componentBindings.rules["rule-1"].targetProfileId, "target-one");
 assert.equal(snapshot.localActionProfileId, "local-tab");
 assert.equal(snapshot.localActionWorkingConfig.shell.command, "draft-command");
 assert.equal(snapshot.effectiveLocalActions.download.destinationDirectory, "/tmp/download");
@@ -180,6 +191,9 @@ sandbox.applyStoppedTabConfigSnapshot(restarted, snapshot, store, localStore);
 assert.equal(restarted.profileId, "profile-tab");
 assert.equal(restarted.configMode, "tab");
 assert.equal(restarted.tabConfig.marker, "unsaved-tab-draft");
+assert.equal(restarted.componentBaseConfig.marker, "component-base");
+assert.equal(restarted.componentBindings.alertProfileId, "alert-one");
+assert.equal(restarted.componentBindings.rules["rule-1"].monitorProfileId, "monitor-one");
 assert.equal(restarted.localActionProfileId, "local-tab");
 assert.equal(restarted.localActionWorkingConfig.shell.command, "draft-command");
 assert.equal(restarted.localActionWorkingContext.sessionToken, "new-session");
