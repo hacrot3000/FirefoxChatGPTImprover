@@ -27,7 +27,8 @@ assert(sidebar.includes('"setup-guide": Object.freeze({ groups: Object.freeze(["
 assert(sidebar.includes('"native-host-restart-help": Object.freeze({ groups: Object.freeze(["native-host-restart"]) })'));
 assert(sidebar.includes('"native-host-restart-help"\n    ]),'), "Standard layout must include restart help.");
 
-assert(sidebar.includes("const SIDEBAR_UI_SCHEMA_VERSION = 2;"));
+const sidebarUiSchemaVersion = Number(sidebar.match(/const SIDEBAR_UI_SCHEMA_VERSION = (\d+);/)?.[1] || 0);
+assert.ok(sidebarUiSchemaVersion >= 2, `Sidebar UI schema regressed below Phase 75 minimum: ${sidebarUiSchemaVersion}`);
 assert(sidebar.includes("schemaVersion: SIDEBAR_UI_SCHEMA_VERSION"));
 assert(sidebar.includes("const migrateRestartHelpVisibility = storedUiSchemaVersion < SIDEBAR_UI_SCHEMA_VERSION;"));
 assert(sidebar.includes('visibleSidebarFeatures.add("native-host-restart-help");'));
