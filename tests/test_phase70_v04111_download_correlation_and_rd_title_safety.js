@@ -64,8 +64,10 @@ function createDocument(title = "Project") {
 
 async function main() {
   assert.ok(manifest.version.localeCompare("0.41.11", undefined, { numeric: true }) >= 0);
-  assert.match(alertSource, /FCI_ALERT_ENGINE\?\.VERSION >= 15/);
-  assert.match(alertSource, /VERSION:\s*15/);
+  const alertGuardVersion = Number(alertSource.match(/FCI_ALERT_ENGINE\?\.VERSION >= (\d+)/)?.[1] || 0);
+  const alertExportVersion = Number(alertSource.match(/VERSION:\s*(\d+)/)?.[1] || 0);
+  assert.ok(alertGuardVersion >= 15, `Alert Engine guard regressed below Phase 70 minimum: ${alertGuardVersion}`);
+  assert.ok(alertExportVersion >= 15, `Alert Engine export regressed below Phase 70 minimum: ${alertExportVersion}`);
   const targetGuardVersion = Number(target.match(/FCI_TARGET_ENGINE\?\.VERSION >= (\d+)/)?.[1] || 0);
   const targetExportVersion = Number(target.match(/VERSION:\s*(\d+)/)?.[1] || 0);
   const runtimeVersion = Number(activation.match(/const RUNTIME_VERSION = (\d+);/)?.[1] || 0);
