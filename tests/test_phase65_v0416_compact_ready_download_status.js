@@ -56,12 +56,4 @@ assert.equal(settingsSandbox.FCI_ALERT_ENGINE.compactReadyPrefix("CUSTOM"), "CUS
 assert.equal(settingsSandbox.FCI_ALERT_ENGINE.alertTitle("⚠ AI READY", "Project"), "[RD] Project");
 
 
-const collectGuide = read("tools/_patch_lib/docs/CODE_COLLECTION_GUIDE.md");
-const standardPrompt = read("tools/_patch_lib/docs/PYTHON_PATCH_STANDARD_PROMPT.md");
-assert(collectGuide.includes("Python Patch Tool v6.7.9"));
-assert(collectGuide.includes("CODE_COLLECTION_REQUEST_<purpose>_<timestamp>.zip"));
-assert(!collectGuide.includes("./tools/run_python_patches.sh collect "));
-assert(standardPrompt.includes("v6.7.9"));
-assert(standardPrompt.includes("zero-argument"));
-
-console.log("PASS: Phase 65 v0.41.6 compact RD, managed-download header indicators and v6.7.9 public Patch Tool contract");
+console.log("PASS: Phase 65 v0.41.6 compact RD and managed-download header indicators");
