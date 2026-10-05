@@ -26,6 +26,7 @@ function functionBody(name, nextName) {
 
 assert(versionAtLeast(manifest.version, "0.40.8"));
 assert(background.includes('async function refreshSessionsForStore(previousStore, saved, reason = "configuration replacement")'));
+assert(background.includes("async function reconcileComponentBindingsForStore(previousStore, savedStore"));
 const refreshStart = background.indexOf("async function refreshSessionsForStore(previousStore, saved");
 const refreshEnd = background.indexOf("\n  async function importSettings", refreshStart);
 assert(refreshStart >= 0 && refreshEnd > refreshStart);
@@ -52,6 +53,6 @@ assert(restored.includes('replaceFullConfigurationBundle(snapshot.configurationB
 assert(restored.includes('refreshSessionsForStore(current, saved, "Legacy Automation recovery snapshot restore")'));
 assert(restored.includes('createSettingsSnapshot("before_snapshot_restore"'));
 
-assert(sidebar.includes("Existing open/stopped tabs kept their current Automation and Local action values where imported profiles differed"));
-assert(sidebar.includes("Existing open/stopped tabs kept their current Automation and Local action values where restored profiles differed"));
+assert(sidebar.includes("Existing open/stopped tabs kept their current Automation, Rule/Monitor/Target/Alert and Local action values where imported profiles differed"));
+assert(sidebar.includes("Existing open/stopped tabs kept their current Automation, Rule/Monitor/Target/Alert and Local action values where restored profiles differed"));
 console.log("PASS: Phase 57 configuration import and recovery restore preserve active/stopped tab values instead of falling back to changed defaults");
