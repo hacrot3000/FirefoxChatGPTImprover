@@ -25,5 +25,7 @@ assert(sidebar.includes('if (response.scope === "all-configuration")'));
 assert(sidebar.includes('Reloading the sidebar to apply imported UI, preset and template preferences'));
 assert(sidebar.includes('Reloading the sidebar to apply restored UI, preset and template preferences'));
 assert(sidebar.includes('response.automationPreservation?.preservedActiveTabs'));
+assert(sidebar.includes('response.componentPreservation?.preservedStoppedTabs'));
+assert(sidebar.includes('response.componentPreservation?.clearedBindings'));
 assert(sidebar.includes('response.localActionPreservation?.preservedStoppedTabs'));
 console.log("PASS: Phase 59 import/restore returns configuration scope and preservation reports so full bundles reload sidebar preferences instead of being misclassified as legacy");
