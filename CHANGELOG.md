@@ -28,6 +28,9 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 
 ### Fixed
 
+- **RD/current-ready status now reflects the live monitor evaluation, not merely a latched alert or a stable MATCHED state waiting to reset.** During reset stability, the alert may remain latched for acknowledgement, but the tab title, toolbar badge and sidebar header stop showing RD as soon as the current evaluation no longer matches.
+- Rule runtime now reports both stable matched rules and currently matching rules so reset stability can remain deterministic without misleading status indicators.
+- Monitor **Test conditions** now explicitly warns when the tested Editing profile is not applied to the selected tab/rule, so its result is not confused with the running tab's RD status.
 - Applying Target or Monitor no longer saves or duplicates the Automation profile, eliminating the profile-combination explosion when one Local action profile is paired with multiple Target profiles.
 - Independent component bindings are preserved across explicit Stop/Start and saved Working Session restore.
 - Full configuration import/recovery and component-profile deletion preserve the current effective Rule/Monitor/Target/Alert values before clearing stale bindings whose profile was removed or changed.
