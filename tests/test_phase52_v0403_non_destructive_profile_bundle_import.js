@@ -42,6 +42,9 @@ assert(!importBody.includes("refreshSessionsForStore"), "typed profile import mu
 assert(!importBody.includes("updateComponentProfileSessions"), "typed component import must not mutate tabs already bound to existing profiles");
 assert(!importBody.includes("bundle.defaultProfileId"), "typed import must not adopt the imported default");
 assert(importBody.includes("store[spec.collectionKey] = merged.profiles"), "component libraries must merge without replacing unrelated profile collections");
+assert(!importBody.includes("updateComponentProfileSessions"), "typed component import must not mutate tabs already bound to existing profiles");
+assert(!importBody.includes("bundle.defaultProfileId"), "typed import must not adopt the imported default");
+assert(importBody.includes("store[spec.collectionKey] = merged.profiles"), "component libraries must merge without replacing unrelated profile collections");
 assert(sidebar.includes("Existing profiles, defaults and running tabs were unchanged."));
 assert(sidebar.includes("identical skipped"));
 assert(sidebar.includes("imported as copies"));
