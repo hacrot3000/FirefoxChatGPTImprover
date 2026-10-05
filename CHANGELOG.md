@@ -15,6 +15,30 @@ The format follows the principles of Keep a Changelog. Version numbers follow th
 - Native Host for macOS is intentionally excluded from the current implementation sequence.
 
 
+## [0.41.17] - 2026-10-05
+
+### Changed
+
+- Split reusable configuration into independent profile groups: **Automation**, **Rule list**, **Rule monitor**, **Rule target action**, **Alert behavior**, and **Local action**.
+- Automation profiles now own only URL routing / allowlist / auto-activation settings. Saving or creating an Automation profile no longer captures Rule list, Monitor, Target, or Alert editor values.
+- Added reusable **Rule-list profiles** and **Alert profiles** with the same New / Save / Make default / Delete workflow used by other profile libraries.
+- Monitor and Target profiles are now explicitly applied per **tab + rule** instead of being copied into the Automation rule draft.
+- Sidebar profile panels distinguish **Tab uses** from **Editing**. Rule-list and Alert editor choices persist per tab; Monitor and Target editor choices persist per tab + rule.
+- Local action profile ownership is clarified as managed-download and shell-command settings only.
+
+### Fixed
+
+- Applying Target or Monitor no longer saves or duplicates the Automation profile, eliminating the profile-combination explosion when one Local action profile is paired with multiple Target profiles.
+- Independent component bindings are preserved across explicit Stop/Start and saved Working Session restore.
+- Full configuration import/recovery and component-profile deletion preserve the current effective Rule/Monitor/Target/Alert values before clearing stale bindings whose profile was removed or changed.
+- Full backup fingerprints and import previews now include Rule-list and Alert profile libraries.
+
+### Compatibility
+
+- Settings schema advances to **19**, protocol to **27**, and Working Session format to **5**.
+- Existing Automation profiles remain readable. Their historical Rule/Monitor/Target/Alert payload becomes the compatibility snapshot until a corresponding independent profile is applied.
+- Existing Working Session versions 1-4 remain importable.
+
 ## [0.41.16] - 2026-10-02
 
 ### Fixed
