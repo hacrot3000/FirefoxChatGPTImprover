@@ -3656,6 +3656,23 @@
     }
   }
 
+  function runtimeHasCurrentMonitorMatch(runtime) {
+    if (typeof runtime?.conditionMatched === "boolean") {
+      return runtime.conditionMatched;
+    }
+    if (runtime && Object.prototype.hasOwnProperty.call(runtime, "monitorMatchedCount")) {
+      return Number(runtime.monitorMatchedCount || 0) > 0;
+    }
+    return runtime?.monitorState === MONITOR_STATE.MATCHED;
+  }
+
+  function runtimeIsReady(runtime) {
+    return Boolean(
+      runtime?.monitorState === MONITOR_STATE.MATCHED &&
+      runtimeHasCurrentMonitorMatch(runtime)
+    );
+  }
+
   async function updateBadge(session, store) {
     if (!session) {
       return;
@@ -3677,7 +3694,7 @@
       await applyBadge(session.tabId, "II", "#9a6700");
       return;
     }
-    if (session.mode === MODE.ACTIVE && session.runtime?.alertActive && config.alerts.badge) {
+    if (session.mode === MODE.ACTIVE && runtimeIsReady(session.runtime) && config.alerts.badge) {
       await applyBadge(session.tabId, "RD", "#238636");
       return;
     }
