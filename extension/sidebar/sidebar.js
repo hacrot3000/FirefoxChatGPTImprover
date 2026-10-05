@@ -1911,8 +1911,10 @@
     const value = Settings.normalizeConfig(config);
     const bindings = selectedComponentBindings();
     const store = dashboard.store || Settings.defaultStore();
+    const tabId = Number(selectedTabId);
     const rule = ruleById(value, selectedRuleId) || value.rules[0] || null;
     const ruleBinding = rule ? (bindings.rules?.[rule.id] || {}) : {};
+    const ruleKey = rule ? componentRuleEditorKey(tabId, rule.id) : "";
 
     const ruleListValue = value.rules.map((item) => ({
       id: item.id,
@@ -1923,7 +1925,11 @@
     const matchedRuleList = (store.ruleListProfiles || []).find((profile) =>
       componentValueFingerprint(profile.rules) === componentValueFingerprint(ruleListValue)
     );
-    selectedRuleListProfileId = bindings.ruleListProfileId || matchedRuleList?.id || selectedRuleListProfileId;
+    const editorRuleListId = ruleListProfileEditorSelectionByTab.get(tabId);
+    selectedRuleListProfileId =
+      (store.ruleListProfiles || []).some((profile) => profile.id === editorRuleListId) ? editorRuleListId :
+      ((store.ruleListProfiles || []).some((profile) => profile.id === bindings.ruleListProfileId) ? bindings.ruleListProfileId :
+      (matchedRuleList?.id || store.defaultRuleListProfileId || store.ruleListProfiles?.[0]?.id || null));
 
     if (rule) {
       const matchedMonitor = (store.monitorProfiles || []).find((profile) =>
@@ -1932,14 +1938,38 @@
       const matchedTarget = (store.targetProfiles || []).find((profile) =>
         componentValueFingerprint(profile.target) === componentValueFingerprint(rule.target)
       );
-      selectedMonitorProfileId = ruleBinding.monitorProfileId || matchedMonitor?.id || selectedMonitorProfileId;
-      selectedTargetProfileId = ruleBinding.targetProfileId || matchedTarget?.id || selectedTargetProfileId;
+      const editorMonitorId = monitorProfileEditorSelectionByRule.get(ruleKey);
+      const editorTargetId = targetProfileEditorSelectionByRule.get(ruleKey);
+      selectedMonitorProfileId =
+        (store.monitorProfiles || []).some((profile) => profile.id === editorMonitorId) ? editorMonitorId :
+        ((store.monitorProfiles || []).some((profile) => profile.id === ruleBinding.monitorProfileId) ? ruleBinding.monitorProfileId :
+        (matchedMonitor?.id || store.defaultMonitorProfileId || store.monitorProfiles?.[0]?.id || null));
+      selectedTargetProfileId =
+        (store.targetProfiles || []).some((profile) => profile.id === editorTargetId) ? editorTargetId :
+        ((store.targetProfiles || []).some((profile) => profile.id === ruleBinding.targetProfileId) ? ruleBinding.targetProfileId :
+        (matchedTarget?.id || store.defaultTargetProfileId || store.targetProfiles?.[0]?.id || null));
     }
 
     const matchedAlert = (store.alertProfiles || []).find((profile) =>
       componentValueFingerprint(profile.alerts) === componentValueFingerprint(value.alerts)
     );
-    selectedAlertProfileId = bindings.alertProfileId || matchedAlert?.id || selectedAlertProfileId;
+    const editorAlertId = alertProfileEditorSelectionByTab.get(tabId);
+    selectedAlertProfileId =
+      (store.alertProfiles || []).some((profile) => profile.id === editorAlertId) ? editorAlertId :
+      ((store.alertProfiles || []).some((profile) => profile.id === bindings.alertProfileId) ? bindings.alertProfileId :
+      (matchedAlert?.id || store.defaultAlertProfileId || store.alertProfiles?.[0]?.id || null));
+  }
+
+  function rememberComponentEditorSelection(type, profileId) {
+    if (type === "rule-list") {
+      setTabProfileSelection(ruleListProfileEditorSelectionByTab, selectedTabId, profileId);
+    } else if (type === "alerts") {
+      setTabProfileSelection(alertProfileEditorSelectionByTab, selectedTabId, profileId);
+    } else if (type === "monitor") {
+      setRuleComponentProfileSelection(monitorProfileEditorSelectionByRule, selectedTabId, selectedRuleId, profileId);
+    } else if (type === "target") {
+      setRuleComponentProfileSelection(targetProfileEditorSelectionByRule, selectedTabId, selectedRuleId, profileId);
+    }
   }
 
   function writeConfig(config) {
@@ -1947,10 +1977,36 @@
     formConfigDraft = value;
     selectedRuleId = value.activeRuleId;
     writeAutomationEditorConfig(value);
-    renderRuleOptions();
-    writeRuleFields(ruleById(value, selectedRuleId));
-    writeAlertEditorConfig(value.alerts);
     syncComponentSelectionsForEffectiveConfig(value);
+
+    const selectedRuleList = ruleListProfileById(selectedRuleListProfileId);
+    if (selectedRuleList?.rules?.length) {
+      const rules = selectedRuleList.rules.map((entry, index) => {
+        const fallback = value.rules.find((rule) => rule.id === entry.id) ||
+          Settings.defaultRule(entry.name || ("Rule " + (index + 1)), entry.id || ("rule-" + (index + 1)));
+        return {
+          ...fallback,
+          id: entry.id,
+          name: entry.name,
+          enabled: entry.enabled,
+          commandAction: Settings.clone(entry.commandAction)
+        };
+      });
+      selectedRuleId = rules.some((rule) => rule.id === selectedRuleId) ? selectedRuleId : (rules[0]?.id || selectedRuleId);
+      formConfigDraft = Settings.normalizeConfig({
+        ...value,
+        activeRuleId: selectedRuleId,
+        rules,
+        monitor: rules.find((rule) => rule.id === selectedRuleId)?.monitor || value.monitor,
+        target: rules.find((rule) => rule.id === selectedRuleId)?.target || value.target
+      });
+    }
+
+    renderRuleOptions();
+    writeRuleListFields(ruleById(formConfigDraft, selectedRuleId));
+    loadSelectedComponentProfileIntoEditor("monitor");
+    loadSelectedComponentProfileIntoEditor("target");
+    loadSelectedComponentProfileIntoEditor("alerts");
     renderComponentProfileOptions();
     renderShellHistory();
     renderRuleRuntimeSummary();
