@@ -4229,6 +4229,7 @@ ${run.command || ""}`)) {
         if (response.profileType === "monitor") selectedMonitorProfileId = response.componentProfileId;
         if (response.profileType === "target") selectedTargetProfileId = response.componentProfileId;
         if (response.profileType === "alerts") selectedAlertProfileId = response.componentProfileId;
+        rememberComponentEditorSelection(response.profileType, response.componentProfileId);
         void persistSidebarUi();
       }
       if (response.dashboard) {
@@ -4252,6 +4253,12 @@ ${run.command || ""}`)) {
   }
 
   function selectRuleForEditing(ruleId) {
+    if (String(ruleId || "") !== String(selectedRuleId || "") &&
+        (componentEditorDirty("monitor") || componentEditorDirty("target")) &&
+        !confirm("Monitor/Target profile editors have unsaved changes. Discard those edits before switching rules?")) {
+      elements.ruleSelect.value = selectedRuleId || "";
+      return;
+    }
     const current = readConfig();
     const rule = ruleById(current, ruleId);
     if (!rule) {
@@ -4264,9 +4271,11 @@ ${run.command || ""}`)) {
       monitor: rule.monitor,
       target: rule.target
     });
-    renderRuleOptions();
-    writeRuleFields(rule);
     syncComponentSelectionsForEffectiveConfig(current);
+    renderRuleOptions();
+    writeRuleListFields(rule);
+    loadSelectedComponentProfileIntoEditor("monitor");
+    loadSelectedComponentProfileIntoEditor("target");
     renderComponentProfileOptions();
     renderRuleRuntimeSummary();
     renderRuleStatistics();
@@ -4339,6 +4348,7 @@ ${run.command || ""}`)) {
       return;
     }
     selectedRuleListProfileId = nextProfileId;
+    rememberComponentEditorSelection("rule-list", selectedRuleListProfileId);
     loadSelectedComponentProfileIntoEditor("rule-list");
     renderComponentProfileOptions();
     void persistSidebarUi();
@@ -4358,6 +4368,7 @@ ${run.command || ""}`)) {
       return;
     }
     selectedMonitorProfileId = nextProfileId;
+    rememberComponentEditorSelection("monitor", selectedMonitorProfileId);
     loadSelectedComponentProfileIntoEditor("monitor");
     renderComponentProfileOptions();
     void persistSidebarUi();
@@ -4377,6 +4388,7 @@ ${run.command || ""}`)) {
       return;
     }
     selectedTargetProfileId = nextProfileId;
+    rememberComponentEditorSelection("target", selectedTargetProfileId);
     loadSelectedComponentProfileIntoEditor("target");
     renderComponentProfileOptions();
     void persistSidebarUi();
@@ -4396,6 +4408,7 @@ ${run.command || ""}`)) {
       return;
     }
     selectedAlertProfileId = nextProfileId;
+    rememberComponentEditorSelection("alerts", selectedAlertProfileId);
     loadSelectedComponentProfileIntoEditor("alerts");
     renderComponentProfileOptions();
     void persistSidebarUi();
@@ -4780,6 +4793,7 @@ ${run.command || ""}`)) {
     }, "", { reloadForm: false });
     if (!response?.savedProfile) return;
     spec.setSelectedId(response.savedProfile.id);
+    rememberComponentEditorSelection(type, response.savedProfile.id);
     renderComponentProfileOptions();
     await persistSidebarUi();
     showMessage(spec.label + " profile “" + response.savedProfile.name + "” created from the current editor values.", "success");
@@ -4802,6 +4816,7 @@ ${run.command || ""}`)) {
     }, "", { reloadForm: false });
     if (!response?.savedProfile) return;
     spec.setSelectedId(response.savedProfile.id);
+    rememberComponentEditorSelection(type, response.savedProfile.id);
     renderComponentProfileOptions();
     await persistSidebarUi();
     showMessage(spec.label + " profile “" + response.savedProfile.name + "” saved. Tab assignments remain independent.", "success");
@@ -4824,6 +4839,7 @@ ${run.command || ""}`)) {
     }, "", { reloadForm: false });
     if (!response?.ok) return;
     spec.setSelectedId(profile.id);
+    rememberComponentEditorSelection(type, profile.id);
     renderComponentProfileOptions();
     await persistSidebarUi();
     showMessage(spec.label + " profile “" + profile.name + "” is now the default library selection. Open tabs were not reassigned.", "success");
@@ -4838,6 +4854,8 @@ ${run.command || ""}`)) {
       profileId: profile.id
     }, "", { reloadForm: false });
     if (!response?.ok) return;
+    rememberComponentEditorSelection(type, null);
+    syncComponentSelectionsForEffectiveConfig(formConfigDraft);
     renderComponentProfileOptions();
     await persistSidebarUi();
     showMessage(spec.label + " profile “" + profile.name + "” deleted.", "success");
