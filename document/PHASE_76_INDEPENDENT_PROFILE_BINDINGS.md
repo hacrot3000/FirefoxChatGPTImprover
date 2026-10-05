@@ -71,15 +71,30 @@ Changing the library selection alone never changes a running tab. Apply is expli
 
 ## Implementation checkpoints
 
-- [ ] Settings schema: Rule-list and Alert profile libraries.
-- [ ] Runtime composition: independent component bindings.
-- [ ] Protocol/background actions for apply/clear component bindings.
-- [ ] Rule list profile panel and tab binding.
-- [ ] Monitor profile per-tab/per-rule binding.
-- [ ] Target profile per-tab/per-rule binding.
-- [ ] Alert profile panel and tab binding.
-- [ ] Automation profile save/apply limited to routing/activation.
-- [ ] Local action wording/contracts confirm only download + shell ownership.
-- [ ] Stopped-tab/session recovery preserves component bindings.
-- [ ] Import/export/backup includes new profile libraries.
-- [ ] Regression tests and release notes.
+- [x] Settings schema: Rule-list and Alert profile libraries.
+- [x] Runtime composition: independent component bindings.
+- [x] Protocol/background actions for apply/clear component bindings.
+- [x] Rule list profile panel and tab binding.
+- [x] Monitor profile per-tab/per-rule binding.
+- [x] Target profile per-tab/per-rule binding.
+- [x] Alert profile panel and tab binding.
+- [x] Automation profile save/apply limited to routing/activation.
+- [x] Local action wording/contracts confirm only download + shell ownership.
+- [x] Stopped-tab/session recovery preserves component bindings.
+- [x] Import/export/backup includes new profile libraries.
+- [x] Regression tests and release notes.
+
+
+## Completed implementation
+
+Released as **v0.41.17**.
+
+Runtime ownership is now explicit:
+
+- Automation save/create/tab override writes only activation/routing fields.
+- Rule-list and Alert profiles have their own libraries and tab bindings.
+- Monitor and Target profiles bind per tab + rule.
+- Local action profiles remain limited to managed-download and shell-command configuration.
+- Sidebar keeps **Editing** selection separately from **Tab uses**, including per-tab Rule-list/Alert choices and per-tab/per-rule Monitor/Target choices.
+- Component bindings survive active-session persistence, explicit Stop/Start, working-session export/restore, and full configuration backup/recovery.
+- Deleting or replacing a bound component profile preserves the tab's effective component snapshot before stale bindings are cleared.
