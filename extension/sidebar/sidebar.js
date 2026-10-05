@@ -4254,8 +4254,7 @@ ${run.command || ""}`)) {
 
   function selectRuleForEditing(ruleId) {
     if (String(ruleId || "") !== String(selectedRuleId || "") &&
-        (componentEditorDirty("monitor") || componentEditorDirty("target")) &&
-        !confirm("Monitor/Target profile editors have unsaved changes. Discard those edits before switching rules?")) {
+        !confirmDiscardComponentEditors("switching rules", ["monitor", "target"])) {
       elements.ruleSelect.value = selectedRuleId || "";
       return;
     }
@@ -4282,6 +4281,7 @@ ${run.command || ""}`)) {
   }
 
   function addRule(duplicate = false) {
+    if (!confirmDiscardComponentEditors(duplicate ? "duplicating this rule" : "adding a rule", ["monitor", "target"])) return;
     const current = readConfig();
     const source = duplicate ? ruleById(current, selectedRuleId) : Settings.defaultRule();
     const id = Settings.makeId("rule");
@@ -4318,6 +4318,7 @@ ${run.command || ""}`)) {
   }
 
   function deleteSelectedRule() {
+    if (!confirmDiscardComponentEditors("deleting this rule", ["monitor", "target"])) return;
     const current = readConfig();
     if (current.rules.length <= 1) {
       showMessage("A profile must contain at least one rule.", "error");
@@ -4353,7 +4354,8 @@ ${run.command || ""}`)) {
   elements.ruleListProfileSelect.addEventListener("change", () => {
     const nextProfileId = elements.ruleListProfileSelect.value;
     const previousProfileId = selectedRuleListProfileId;
-    if (nextProfileId !== previousProfileId && !confirmDiscardComponentEditor("rule-list", "switching profiles")) {
+    if (nextProfileId !== previousProfileId &&
+        !confirmDiscardComponentEditors("switching Rule-list profiles", ["rule-list", "monitor", "target"])) {
       elements.ruleListProfileSelect.value = previousProfileId || "";
       return;
     }
@@ -4751,17 +4753,13 @@ ${run.command || ""}`)) {
     );
   }
 
-  function dirtyComponentEditorLabels() {
-    return [
-      ["rule-list", "Rule-list"],
-      ["monitor", "Monitor"],
-      ["target", "Target"],
-      ["alerts", "Alert"]
-    ].filter(([type]) => componentEditorDirty(type)).map(([, label]) => label);
+  function dirtyComponentEditorLabels(types = ["rule-list", "monitor", "target", "alerts"]) {
+    const labels = { "rule-list": "Rule-list", monitor: "Monitor", target: "Target", alerts: "Alert" };
+    return types.filter((type) => componentEditorDirty(type)).map((type) => labels[type] || type);
   }
 
-  function confirmDiscardComponentEditors(action) {
-    const dirty = dirtyComponentEditorLabels();
+  function confirmDiscardComponentEditors(action, types = ["rule-list", "monitor", "target", "alerts"]) {
+    const dirty = dirtyComponentEditorLabels(types);
     if (!dirty.length) return true;
     return confirm(
       dirty.join(", ") + " profile editor" + (dirty.length === 1 ? " has" : "s have") +
