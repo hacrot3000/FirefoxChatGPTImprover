@@ -13,7 +13,7 @@ for (const rel of ["extension/shared/protocol.js", "extension/shared/settings.js
 }
 const Settings = context.FCI_SETTINGS;
 const Protocol = context.FCI_PROTOCOL;
-assert.equal(Settings.SCHEMA_VERSION, 18);
+assert(Settings.SCHEMA_VERSION >= 18, `Settings schema regressed below Phase 33 baseline: ${Settings.SCHEMA_VERSION}`);
 assert(Protocol.VERSION >= 22);
 assert.equal(Settings.defaultConfig().activation.autoActivate, false);
 function profile(id, name, patterns, priority, autoActivate = true) {
