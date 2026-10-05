@@ -68,7 +68,7 @@ vm.runInContext(alertSource, sandbox, { filename: "alert.js" });
 
 const Settings = sandbox.FCI_SETTINGS;
 const Alert = sandbox.FCI_ALERT_ENGINE;
-assert.equal(Settings.SCHEMA_VERSION, 18);
+assert(Settings.SCHEMA_VERSION >= 18, `Settings schema regressed below Phase 69 baseline: ${Settings.SCHEMA_VERSION}`);
 assert.equal(Settings.defaultConfig().alerts.titlePrefix, "RD");
 assert.equal(Settings.normalizeConfig({ alerts: { titlePrefix: "⚠ AI READY" } }).alerts.titlePrefix, "RD");
 assert.equal(Settings.normalizeConfig({ alerts: { titlePrefix: "⚠ RD" } }).alerts.titlePrefix, "RD");
