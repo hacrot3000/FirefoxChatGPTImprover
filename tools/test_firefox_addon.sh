@@ -150,6 +150,7 @@ node tests/test_phase72_v04113_download_native_race_convergence.js
 node tests/test_phase73_v04114_managed_download_current_target_autoclick.js
 node tests/test_phase74_v04115_compact_header_restart_help.js
 node tests/test_phase75_v04116_restart_help_visibility_preference.js
+node tests/test_phase76_v04117_independent_profile_bindings.js
 
 if [ "${FCI_RUN_FIREFOX_E2E:-0}" = "1" ]; then
   python3 tools/run_firefox_e2e.py ${FCI_FIREFOX_E2E_ARGS:-}
@@ -171,4 +172,4 @@ elif [ -x "$WEB_EXT_BIN" ]; then
 else
   printf 'SKIP: web-ext lint chưa chạy vì dev tool chưa được cài; dùng task Firefox Add-on: Setup Dev Environment.\n'
 fi
-printf '%s\n' 'PASS: FirefoxChatImprover Phase 04-75 v0.41.16 restart-help preference migration, compact sidebar header/restart-help, managed-current-target auto-download and correlated stable RD/download lifecycle, manual-preferred snapshot compaction, safe configuration/session continuity, accessibility, Chromium/Chrome/Edge packaging, prompt templates, command-log export, per-rule statistics, trusted URL auto-activation, saved working sessions, custom tab titles, Linux/Windows Native Host runtime and protected command-log retention.'
+printf '%s\n' 'PASS: FirefoxChatImprover Phase 04-76 v0.41.17 independent Automation/Rule-list/Monitor/Target/Alert/Local-action profile bindings, restart-help preference migration, compact sidebar header/restart-help, managed-current-target auto-download and correlated stable RD/download lifecycle, manual-preferred snapshot compaction, safe configuration/session continuity, accessibility, Chromium/Chrome/Edge packaging, prompt templates, command-log export, per-rule statistics, trusted URL auto-activation, saved working sessions, custom tab titles, Linux/Windows Native Host runtime and protected command-log retention.'
