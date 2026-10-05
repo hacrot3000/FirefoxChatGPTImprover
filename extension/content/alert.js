@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 15) {
+  if (globalThis.FCI_ALERT_ENGINE?.VERSION >= 16) {
     return;
   }
 
@@ -84,10 +84,21 @@
     );
   }
 
+  function monitorCurrentlyMatched(runtime) {
+    if (typeof runtime?.conditionMatched === "boolean") {
+      return runtime.conditionMatched;
+    }
+    if (Number(runtime?.monitorMatchedCount || 0) > 0) {
+      return true;
+    }
+    return runtime?.monitorState === MONITOR_STATE.MATCHED;
+  }
+
   function shouldShowReadyTitle(runtime, mode) {
     return Boolean(
       mode === MODE.ACTIVE &&
-      runtime?.monitorState === MONITOR_STATE.MATCHED
+      runtime?.monitorState === MONITOR_STATE.MATCHED &&
+      monitorCurrentlyMatched(runtime)
     );
   }
 
@@ -299,7 +310,7 @@
       return {
         alertActive: active,
         alertCycle,
-        titleBlinking: Boolean(active && config.alerts.titleBlink && hasDistinctTitleBlinkFrame(config.alerts.titlePrefix)),
+        titleBlinking: Boolean(active && shouldShowReadyTitle(runtime, mode) && config.alerts.titleBlink && hasDistinctTitleBlinkFrame(config.alerts.titlePrefix)),
         monitorTitleSpinning: Boolean(monitorSpinTimer),
         originalTitle: baseTitle,
         displayedTitle: document.title || "",
@@ -351,7 +362,7 @@
 
     function applyCurrentTitleFrame() {
       const commandPrefix = commandTitlePrefix(runtime);
-      if (active && config.alerts.titleBlink && hasDistinctTitleBlinkFrame(config.alerts.titlePrefix)) {
+      if (active && shouldShowReadyTitle(runtime, mode) && config.alerts.titleBlink && hasDistinctTitleBlinkFrame(config.alerts.titlePrefix)) {
         const primaryPrefix = blinkOn
           ? config.alerts.titlePrefix
           : quietAlertPrefix(config.alerts.titlePrefix);
@@ -373,7 +384,7 @@
     }
 
     function refreshTitlePresentation() {
-      if (active && config.alerts.titleBlink && hasDistinctTitleBlinkFrame(config.alerts.titlePrefix)) {
+      if (active && shouldShowReadyTitle(runtime, mode) && config.alerts.titleBlink && hasDistinctTitleBlinkFrame(config.alerts.titlePrefix)) {
         clearMonitorSpinTimer();
         ensureTitleObserver();
         if (!blinkTimer) {
@@ -598,7 +609,7 @@
     enumerable: false,
     writable: false,
     value: Object.freeze({
-      VERSION: 15,
+      VERSION: 16,
       TITLE_BASE_ATTRIBUTE,
       TITLE_PREFIX_ATTRIBUTE,
       stripManagedTitleDecorations,
@@ -606,7 +617,8 @@
       alertChannelsEnabled,
       shouldAlert,
       shouldSpinMonitorTitle,
-    shouldShowReadyTitle,
+      monitorCurrentlyMatched,
+      shouldShowReadyTitle,
       deriveAlertDecision,
       compactReadyPrefix,
       alertTitle,
