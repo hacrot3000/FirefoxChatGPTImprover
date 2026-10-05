@@ -4307,8 +4307,12 @@ ${run.command || ""}`)) {
       target: nextRule.target
     });
     selectedRuleId = id;
+    syncComponentSelectionsForEffectiveConfig(formConfigDraft);
     renderRuleOptions();
-    writeRuleFields(nextRule);
+    writeRuleListFields(nextRule);
+    loadSelectedComponentProfileIntoEditor("monitor");
+    loadSelectedComponentProfileIntoEditor("target");
+    renderComponentProfileOptions();
     renderRuleRuntimeSummary();
     showMessage(`Added rule “${nextRule.name}” to the Rule-list editor. Save the Rule-list profile, then Apply it to the tab when ready.`, "success");
   }
@@ -4333,9 +4337,15 @@ ${run.command || ""}`)) {
       monitor: nextRule.monitor,
       target: nextRule.target
     });
+    setRuleComponentProfileSelection(monitorProfileEditorSelectionByRule, selectedTabId, rule.id, null);
+    setRuleComponentProfileSelection(targetProfileEditorSelectionByRule, selectedTabId, rule.id, null);
     selectedRuleId = nextRule.id;
+    syncComponentSelectionsForEffectiveConfig(formConfigDraft);
     renderRuleOptions();
-    writeRuleFields(nextRule);
+    writeRuleListFields(nextRule);
+    loadSelectedComponentProfileIntoEditor("monitor");
+    loadSelectedComponentProfileIntoEditor("target");
+    renderComponentProfileOptions();
     renderRuleRuntimeSummary();
     showMessage(`Removed rule “${rule.name}” from the Rule-list editor. Save the Rule-list profile to keep this change.`, "success");
   }
@@ -4433,6 +4443,10 @@ ${run.command || ""}`)) {
     const previousTabId = selectedTabId;
     const nextTabId = Number(elements.tabSelect.value);
     if (nextTabId !== Number(previousTabId) && !confirmDiscardLocalActionDraft("switching tabs")) {
+      elements.tabSelect.value = String(previousTabId);
+      return;
+    }
+    if (nextTabId !== Number(previousTabId) && !confirmDiscardComponentEditors("switching tabs")) {
       elements.tabSelect.value = String(previousTabId);
       return;
     }
@@ -4645,8 +4659,12 @@ ${run.command || ""}`)) {
       target: rules.find((rule) => rule.id === activeRuleId)?.target || current.target
     });
     selectedRuleId = activeRuleId;
+    syncComponentSelectionsForEffectiveConfig(formConfigDraft);
     renderRuleOptions();
     writeRuleListFields(ruleById(formConfigDraft, selectedRuleId));
+    loadSelectedComponentProfileIntoEditor("monitor");
+    loadSelectedComponentProfileIntoEditor("target");
+    renderComponentProfileOptions();
     renderRuleRuntimeSummary();
     renderRuleStatistics();
   }
@@ -4730,6 +4748,25 @@ ${run.command || ""}`)) {
     return confirm(
       spec.label + " profile has unsaved editor changes. Discard them before " + action + "?\n\n" +
       "OK: discard the unsaved editor changes and continue.\nCancel: keep editing."
+    );
+  }
+
+  function dirtyComponentEditorLabels() {
+    return [
+      ["rule-list", "Rule-list"],
+      ["monitor", "Monitor"],
+      ["target", "Target"],
+      ["alerts", "Alert"]
+    ].filter(([type]) => componentEditorDirty(type)).map(([, label]) => label);
+  }
+
+  function confirmDiscardComponentEditors(action) {
+    const dirty = dirtyComponentEditorLabels();
+    if (!dirty.length) return true;
+    return confirm(
+      dirty.join(", ") + " profile editor" + (dirty.length === 1 ? " has" : "s have") +
+      " unsaved changes. Discard them before " + action + "?\n\n" +
+      "OK: discard those unsaved profile edits and continue.\nCancel: keep editing."
     );
   }
 
