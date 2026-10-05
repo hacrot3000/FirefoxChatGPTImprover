@@ -118,19 +118,39 @@ assert.equal(monitorInstances[1].config.activeRuleId, "rule-b");
 
 monitorInstances[0].onRuntime({ monitorState: MONITOR_STATE.WAITING, cycle: 0, monitorCount: 1, monitorMatchedCount: 0, lastReason: "baseline" });
 monitorInstances[1].onRuntime({ monitorState: MONITOR_STATE.WAITING, cycle: 0, monitorCount: 2, monitorMatchedCount: 0, lastReason: "baseline" });
-monitorInstances[0].onRuntime({ monitorState: MONITOR_STATE.MATCHED, cycle: 1, monitorCount: 1, monitorMatchedCount: 1, lastTransition: "waiting->matched" });
+monitorInstances[0].onRuntime({ monitorState: MONITOR_STATE.MATCHED, conditionMatched: true, cycle: 1, monitorCount: 1, monitorMatchedCount: 1, lastTransition: "waiting->matched" });
 let latest = events.at(-1);
 assert.equal(latest.monitorState, MONITOR_STATE.MATCHED);
 assert.equal(latest.matchedRuleCount, 1);
 assert.deepEqual(JSON.parse(JSON.stringify(latest.matchedRuleIds)), ["rule-a"]);
+assert.equal(latest.currentMatchedRuleCount, 1);
+assert.deepEqual(JSON.parse(JSON.stringify(latest.currentMatchedRuleIds)), ["rule-a"]);
+assert.equal(latest.conditionMatched, true);
 assert.equal(latest.cycle, 6);
 assert.equal(targetInstances[0].monitorEvents.at(-1).monitorState, MONITOR_STATE.MATCHED);
 
-monitorInstances[1].onRuntime({ monitorState: MONITOR_STATE.MATCHED, cycle: 1, monitorCount: 2, monitorMatchedCount: 1, lastTransition: "waiting->matched" });
+monitorInstances[1].onRuntime({ monitorState: MONITOR_STATE.MATCHED, conditionMatched: true, cycle: 1, monitorCount: 2, monitorMatchedCount: 1, lastTransition: "waiting->matched" });
 latest = events.at(-1);
 assert.equal(latest.matchedRuleCount, 2);
+assert.equal(latest.currentMatchedRuleCount, 2);
 assert.equal(latest.cycle, 7);
 assert.equal(latest.ruleRuntimes["rule-b"].ruleName, "Rule B");
+
+monitorInstances[0].onRuntime({
+  monitorState: MONITOR_STATE.MATCHED,
+  conditionMatched: false,
+  cycle: 1,
+  monitorCount: 0,
+  monitorMatchedCount: 0,
+  pendingMonitorState: MONITOR_STATE.WAITING,
+  lastReason: "reset-stabilizing"
+});
+latest = events.at(-1);
+assert.equal(latest.monitorState, MONITOR_STATE.MATCHED, "Stable state remains matched during reset stabilization.");
+assert.equal(latest.matchedRuleCount, 2, "Stable matched-rule count remains unchanged until reset commits.");
+assert.equal(latest.currentMatchedRuleCount, 1, "Current match count must drop immediately when the evaluation no longer matches.");
+assert.deepEqual(JSON.parse(JSON.stringify(latest.currentMatchedRuleIds)), ["rule-b"]);
+assert.equal(latest.conditionMatched, true, "Another rule is still currently matched.");
 
 monitorInstances[0].onRuntime({ monitorState: MONITOR_STATE.WAITING, cycle: 1, monitorCount: 1, monitorMatchedCount: 0, lastTransition: "matched->waiting" });
 latest = events.at(-1);
