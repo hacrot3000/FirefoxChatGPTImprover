@@ -37,9 +37,9 @@ assert(sidebar.includes("setTabProfileSelection(profileEditorSelectionByTab, sel
 assert(sidebar.includes("setTabProfileSelection(localActionProfileEditorSelectionByTab, selectedTabId, selectedLocalActionProfileId)"));
 assert(sidebar.includes("setTabProfileSelection(profileEditorSelectionByTab, selectedTabId, selectedProfileId);\n        elements.profileSelect.value"));
 assert(sidebar.includes("async function createProfileFromCurrentForm()"));
-assert(sidebar.includes("created from the current values"));
+assert(sidebar.includes("created from the current routing values"));
 assert(!sidebar.includes("duplicateProfileButton"));
 assert(background.includes("savedProfile: Settings.profileById(result.store, result.profileId)"));
 assert(sidebar.includes("Tab uses: ${effectiveProfile?.name"));
 assert(sidebar.includes("Editing: ${selectedProfile?.name"));
-console.log("PASS: Phase 48 persists per-tab profile editor intent across sidebar reload, rejects stale tab URLs and clearly separates editing from applied profiles");
+console.log("PASS: Phase 48 persists per-tab Automation/Local-action editor intent across sidebar reload, rejects stale tab URLs and clearly separates editing from applied profiles");
