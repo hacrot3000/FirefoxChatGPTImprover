@@ -5694,11 +5694,13 @@ A recovery snapshot will be created before import.`)) return;
       if (!response?.ok) return;
       if (response.scope === "all-configuration") {
         const automationPreserved = Number(response.automationPreservation?.preservedActiveTabs || 0) + Number(response.automationPreservation?.preservedStoppedTabs || 0);
+        const componentPreserved = Number(response.componentPreservation?.preservedActiveTabs || 0) + Number(response.componentPreservation?.preservedStoppedTabs || 0);
+        const componentBindingsCleared = Number(response.componentPreservation?.clearedBindings || 0);
         const localActionPreserved = Number(response.localActionPreservation?.preservedActiveTabs || 0) + Number(response.localActionPreservation?.preservedStoppedTabs || 0);
-        const preservedDetail = automationPreserved || localActionPreserved
-          ? ` Preserved tab overrides: ${automationPreserved} Automation, ${localActionPreserved} Local action.`
+        const preservedDetail = automationPreserved || componentPreserved || componentBindingsCleared || localActionPreserved
+          ? ` Preserved tab state: ${automationPreserved} Automation, ${componentPreserved} component snapshot, ${componentBindingsCleared} stale component binding(s) cleared, ${localActionPreserved} Local action.`
           : "";
-        showMessage(`Full configuration imported. Existing open/stopped tabs kept their current Automation and Local action values where imported profiles differed.${preservedDetail} Reloading the sidebar to apply imported UI, preset and template preferences…`, "success");
+        showMessage(`Full configuration imported. Existing open/stopped tabs kept their current Automation, Rule/Monitor/Target/Alert and Local action values where imported profiles differed.${preservedDetail} Reloading the sidebar to apply imported UI, preset and template preferences…`, "success");
         window.setTimeout(() => window.location.reload(), 180);
       } else {
         showMessage("Legacy Automation-only configuration imported. Local action profiles, presets, templates and sidebar preferences were left unchanged.", "success");
@@ -5787,11 +5789,13 @@ A recovery snapshot will be created before import.`)) return;
         if (!response?.ok) return;
         if (response.scope === "all-configuration") {
           const automationPreserved = Number(response.automationPreservation?.preservedActiveTabs || 0) + Number(response.automationPreservation?.preservedStoppedTabs || 0);
+          const componentPreserved = Number(response.componentPreservation?.preservedActiveTabs || 0) + Number(response.componentPreservation?.preservedStoppedTabs || 0);
+          const componentBindingsCleared = Number(response.componentPreservation?.clearedBindings || 0);
           const localActionPreserved = Number(response.localActionPreservation?.preservedActiveTabs || 0) + Number(response.localActionPreservation?.preservedStoppedTabs || 0);
-          const preservedDetail = automationPreserved || localActionPreserved
-            ? ` Preserved tab overrides: ${automationPreserved} Automation, ${localActionPreserved} Local action.`
+          const preservedDetail = automationPreserved || componentPreserved || componentBindingsCleared || localActionPreserved
+            ? ` Preserved tab state: ${automationPreserved} Automation, ${componentPreserved} component snapshot, ${componentBindingsCleared} stale component binding(s) cleared, ${localActionPreserved} Local action.`
             : "";
-          showMessage(`Full configuration snapshot restored. Existing open/stopped tabs kept their current Automation and Local action values where restored profiles differed.${preservedDetail} Reloading the sidebar to apply restored UI, preset and template preferences…`, "success");
+          showMessage(`Full configuration snapshot restored. Existing open/stopped tabs kept their current Automation, Rule/Monitor/Target/Alert and Local action values where restored profiles differed.${preservedDetail} Reloading the sidebar to apply restored UI, preset and template preferences…`, "success");
           window.setTimeout(() => window.location.reload(), 180);
         } else {
           showMessage("Legacy Automation-only snapshot restored. Local action profiles, presets, templates and sidebar preferences were left unchanged.", "success");
