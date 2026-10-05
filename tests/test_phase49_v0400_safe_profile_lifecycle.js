@@ -78,7 +78,8 @@ assert(!deleteLocal.includes("replaceDeletedTabLocalActionBindings"));
 const importStart = background.indexOf('if (type === "local-action") {', background.indexOf("async function importProfileBundle"));
 const importEnd = background.indexOf("    const store = await loadStore();", importStart);
 const localImport = background.slice(importStart, importEnd);
-assert(localImport.includes("Imported profile data must not erase per-tab working drafts"));
+assert(localImport.includes("mergeImportedProfilesSafely(store.profiles, bundle.profiles"));
+assert(localImport.includes("await saveLocalActionStore(store)"));
 assert(!localImport.includes("clearWorkingLocalActionSnapshot(session)"));
 assert(!localImport.includes("localActionRevision"));
 
