@@ -32,6 +32,16 @@ assert(background.includes('`${label} profile “${name}” already exists. Choo
 assert(background.includes('manualProfileName(store.profiles, name, null, "Automation", "New profile")'));
 assert(background.includes('manualProfileName(store.profiles, name, null, "Local action", "New local actions")'));
 assert(background.includes('profile.name = manualProfileName(collection, profile.name, profile.id, spec.label, collection[index].name)'));
-assert(background.includes('incoming.name = manualProfileName(store.profiles, incoming.name, incoming.id, "Automation", store.profiles[index].name)'));
+{
+  const saveProfileStart = background.indexOf("async function saveProfile(rawProfile)");
+  const setDefaultStart = background.indexOf("async function setDefaultProfile", saveProfileStart);
+  assert(saveProfileStart >= 0 && setDefaultStart > saveProfileStart);
+  const saveProfileBody = background.slice(saveProfileStart, setDefaultStart);
+  assert.match(
+    saveProfileBody,
+    /manualProfileName\(store\.profiles,\s*incoming\.name,\s*incoming\.id,\s*"Automation",\s*[^)]+\)/,
+    "Automation save must still enforce a unique manual profile name regardless of the local fallback variable name."
+  );
+}
 assert((background.match(/manualProfileName[(]/g) || []).length >= 7);
 console.log("PASS: Phase 55 removes redundant profile duplication, clarifies profile actions and rejects ambiguous duplicate names");
