@@ -173,9 +173,12 @@ async function flush() {
 
   const rules = fs.readFileSync(path.join(root, "extension/content/rules.js"), "utf8");
   const activation = fs.readFileSync(path.join(root, "extension/content/activation.js"), "utf8");
-  assert.match(rules, /FCI_RULE_ENGINE\?\.VERSION >= 4/);
-  assert.match(rules, /VERSION: 4,/);
-  assert.match(activation, /const RUNTIME_VERSION = 30;/);
+  const ruleGuardVersion = Number(rules.match(/FCI_RULE_ENGINE\?\.VERSION >= (\d+)/)?.[1] || 0);
+  const ruleExportVersion = Number(rules.match(/VERSION:\s*(\d+)/)?.[1] || 0);
+  const runtimeVersion = Number(activation.match(/const RUNTIME_VERSION = (\d+);/)?.[1] || 0);
+  assert.ok(ruleGuardVersion >= 4, `Rule Engine guard regressed below Phase 73 minimum: ${ruleGuardVersion}`);
+  assert.ok(ruleExportVersion >= 4, `Rule Engine export regressed below Phase 73 minimum: ${ruleExportVersion}`);
+  assert.ok(runtimeVersion >= 30, `Content runtime regressed below Phase 73 minimum: ${runtimeVersion}`);
 
   console.log("PASS: managed download alone auto-clicks the configured current/baseline target exactly once when capture is armed");
 })().catch((error) => {
