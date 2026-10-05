@@ -781,9 +781,10 @@
           }
           continue;
         }
-        const id = automationProfile.id === defaultProfileId
+        let id = automationProfile.id === defaultProfileId
           ? DEFAULT_RULE_LIST_PROFILE_ID
           : `rule-list-${automationProfile.id}`;
+        if (usedRuleListIds.has(id)) id = `${id}-${ruleListProfiles.length + 1}`;
         const name = automationProfile.id === defaultProfileId
           ? "Default rule list"
           : `${automationProfile.name} · rules`;
@@ -816,9 +817,10 @@
           }
           continue;
         }
-        const id = automationProfile.id === defaultProfileId
+        let id = automationProfile.id === defaultProfileId
           ? DEFAULT_ALERT_PROFILE_ID
           : `alert-${automationProfile.id}`;
+        if (usedAlertIds.has(id)) id = `${id}-${alertProfiles.length + 1}`;
         const name = automationProfile.id === defaultProfileId
           ? "Default alerts"
           : `${automationProfile.name} · alerts`;
