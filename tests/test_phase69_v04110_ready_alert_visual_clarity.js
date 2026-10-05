@@ -105,8 +105,35 @@ assert.equal(document.title, "[RD] Project");
 assert.equal(controller.snapshot().titleBlinking, false);
 assert.equal(intervals.length, 0, "legacy READY defaults must not create a warning-glyph blink interval");
 
+controller.apply({
+  alerts: {
+    titleBlink: true,
+    titlePrefix: "RD",
+    blinkIntervalMs: 500,
+    badge: true,
+    sidebar: true,
+    notification: false,
+    sound: { enabled: false },
+    dismissOnUserActivity: false,
+    activeTabTimeoutSeconds: 0
+  }
+}, {
+  monitorState: "matched",
+  conditionMatched: false,
+  monitorMatchedCount: 0,
+  cycle: 1,
+  alertCycle: 1,
+  alertActive: true,
+  shellCommandState: "idle"
+}, "active", "phase69-stable-state-resetting");
+assert.equal(document.title, "Project", "Latched alert must not keep [RD] after the current monitor evaluation stops matching.");
+assert.equal(controller.snapshot().alertActive, true, "Alert acknowledgement state may remain latched independently from current RD readiness.");
+assert.equal(controller.snapshot().titleBlinking, false);
+
 assert.match(background, /session\.mode === MODE\.ERROR[\s\S]*applyBadge\(session\.tabId, "!", "#cf222e"\)/);
-assert.match(background, /session\.runtime\?\.alertActive && config\.alerts\.badge[\s\S]*applyBadge\(session\.tabId, "RD", "#238636"\)/);
+assert(background.includes("runtimeIsReady(session.runtime) && config.alerts.badge"));
+assert(background.includes("function runtimeHasCurrentMonitorMatch(runtime)"));
+assert(background.includes("function runtimeIsReady(runtime)"));
 
 const alertCssStart = sidebarCss.indexOf('body[data-alert="active"] .app-header');
 const alertCssEnd = sidebarCss.indexOf('.target-test-actions', alertCssStart);
