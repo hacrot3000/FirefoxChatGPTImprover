@@ -150,7 +150,7 @@ node tests/test_phase72_v04113_download_native_race_convergence.js
 node tests/test_phase73_v04114_managed_download_current_target_autoclick.js
 node tests/test_phase74_v04115_compact_header_restart_help.js
 node tests/test_phase75_v04116_restart_help_visibility_preference.js
-node tests/test_phase76_v04117_independent_profile_bindings.js
+node tests/test_phase76_v0420_independent_profile_bindings.js
 
 if [ "${FCI_RUN_FIREFOX_E2E:-0}" = "1" ]; then
   python3 tools/run_firefox_e2e.py ${FCI_FIREFOX_E2E_ARGS:-}
