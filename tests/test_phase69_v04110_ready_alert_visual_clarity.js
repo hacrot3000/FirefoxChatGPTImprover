@@ -22,7 +22,7 @@ const alertGuardVersion = Number(alertSource.match(/FCI_ALERT_ENGINE\?\.VERSION 
 const alertExportVersion = Number(alertSource.match(/VERSION:\s*(\d+)/)?.[1] || 0);
 assert(alertGuardVersion >= 14);
 assert.equal(alertGuardVersion, alertExportVersion);
-const settingsSchemaVersion = Number((settingsSource.match(/const SCHEMA_VERSION = (\\d+);/) || [])[1] || 0);
+const settingsSchemaVersion = Number((settingsSource.match(/const SCHEMA_VERSION = (\d+);/) || [])[1] || 0);
 assert.ok(settingsSchemaVersion >= 18, `settings schema regressed below the Phase 69 minimum: ${settingsSchemaVersion}`);
 assert(sidebarHtml.includes('placeholder="RD"'));
 assert(!sidebarHtml.includes('placeholder="⚠ RD"'));
